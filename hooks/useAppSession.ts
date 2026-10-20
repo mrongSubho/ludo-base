@@ -7,6 +7,7 @@ import { buildSiweMessage, APP_SESSION_TTL_MS } from '@/lib/sessionProof';
 import { parseChainId, DEFAULT_CHAIN_ID } from '@/lib/chains';
 import { AppSessionGuard } from '@/lib/appSessionGuard';
 import { readSecurityPrefs } from '@/hooks/useSecurityPrefs';
+import { showAuthPrompt, AuthPromptContext } from '@/hooks/useAuthPrompt';
 
 const STORAGE_KEY = 'ludo-siwe-session';
 
@@ -27,6 +28,13 @@ function withSignTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 }
 
 type Stored = { sessionId: string; wallet: string; expiresAt: string };
+
+export interface EnsureAppSessionOptions {
+    force?: boolean;
+    context?: AuthPromptContext;
+    title?: string;
+    statusText?: string;
+}
 
 /**
  * SIWE app session for chat / profile / settings.
@@ -93,97 +101,116 @@ export function useAppSession() {
     const sessionId = snap.sessionId;
 
     /** Prompt SIWE if needed; returns sessionId or null (never throws). */
-    const ensureAppSession = useCallback(async (opts?: { force?: boolean }): Promise<string | null> => {
+    const ensureAppSession = useCallback(async (opts?: EnsureAppSessionOptions): Promise<string | null> => {
         if (!address) return null;
-        const result = await guard.ensure(address, {
-            sign: async () => {
-                // autoSign off → require device Face ID / Touch ID before
-                // CDP/background message sign (security prefs). External
-                // wallets must use their native wallet confirmation flow.
-                if (
-                    player.mode === "ingame" &&
-                    !readSecurityPrefs().autoSign &&
-                    typeof window !== "undefined" &&
-                    window.PublicKeyCredential
-                ) {
-                    try {
-                        console.error('[siwe-sign] stage=biometrics-prompt');
-                        const ch = crypto.getRandomValues(new Uint8Array(32));
-                        await navigator.credentials.get({
-                            publicKey: {
-                                challenge: ch,
-                                rpId: window.location.hostname,
-                                userVerification: "required",
-                                timeout: 60_000,
-                            },
-                        });
-                        console.error('[siwe-sign] stage=biometrics-done');
-                    } catch {
-                        return Promise.reject(new Error("Device biometrics required to sign in"));
-                    }
-                }
-                const domain = window.location.hostname;
-                const issuedAt = new Date().toISOString();
-                const expirationTime = new Date(Date.now() + APP_SESSION_TTL_MS).toISOString();
-                const nonce = crypto.randomUUID();
-                // Sign on the active wallet chain when supported (Sepolia-first
-                // for Phase 1 testing), else mainnet default. Server enforces
-                // the allowlist and rebuilds the identical text.
-                const chainId = parseChainId(walletChainId) ?? DEFAULT_CHAIN_ID;
-                const message = buildSiweMessage({ domain, address, issuedAt, expirationTime, nonce, chainId });
-                // A parked signer used to hang this promise forever: no CDP
-                // popup, no error, UI stuck on "sending" with zero feedback and
-                // nothing in any log. Bound it so a stall surfaces as a loud,
-                // retryable error carrying the stage it died in.
-                console.error('[siwe-sign] stage=wallet-sign-start');
-                const signature = await withSignTimeout(
-                    signMessageAsync({ account: address as `0x${string}`, message }),
-                    SIGN_TIMEOUT_MS,
-                );
-                console.error('[siwe-sign] stage=wallet-sign-done');
-                return {
-                    signature: signature as string,
-                    body: { domain, address, nonce, issuedAt, expirationTime, signature, message, chainId },
-                };
-            },
-            verify: async (signed) => {
-                try {
-                    const res = await fetch('/api/siwe/verify', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(signed.body),
+        let cancelled = false;
+        let cleanupModal: (() => void) | undefined;
+
+        try {
+            const result = await guard.ensure(address, {
+                sign: async () => {
+                    // Activate the system-wide SignWaitModal while wallet signature is in flight
+                    cleanupModal = showAuthPrompt({
+                        context: opts?.context || "general",
+                        title: opts?.title,
+                        statusText: opts?.statusText,
+                        onCancel: () => {
+                            cancelled = true;
+                        },
                     });
-                    const data = await res.json().catch(() => ({}));
-                    if (!res.ok || !data.sessionId) {
-                        console.error('SIWE verify failed', data);
-                        const code =
-                            typeof data?.code === 'string'
-                                ? data.code
-                                : res.status === 401
-                                  ? 'signer-mismatch'
-                                  : `http-${res.status}`;
-                        return { ok: false as const, code };
+
+                    // autoSign off → require device Face ID / Touch ID before
+                    // CDP/background message sign (security prefs). External
+                    // wallets must use their native wallet confirmation flow.
+                    if (
+                        player.mode === "ingame" &&
+                        !readSecurityPrefs().autoSign &&
+                        typeof window !== "undefined" &&
+                        window.PublicKeyCredential
+                    ) {
+                        try {
+                            console.error('[siwe-sign] stage=biometrics-prompt');
+                            const ch = crypto.getRandomValues(new Uint8Array(32));
+                            await navigator.credentials.get({
+                                publicKey: {
+                                    challenge: ch,
+                                    rpId: window.location.hostname,
+                                    userVerification: "required",
+                                    timeout: 60_000,
+                                },
+                            });
+                            console.error('[siwe-sign] stage=biometrics-done');
+                        } catch {
+                            return Promise.reject(new Error("Device biometrics required to sign in"));
+                        }
                     }
+                    const domain = window.location.hostname;
+                    const issuedAt = new Date().toISOString();
+                    const expirationTime = new Date(Date.now() + APP_SESSION_TTL_MS).toISOString();
+                    const nonce = crypto.randomUUID();
+                    // Sign on the active wallet chain when supported (Sepolia-first
+                    // for Phase 1 testing), else mainnet default. Server enforces
+                    // the allowlist and rebuilds the identical text.
+                    const chainId = parseChainId(walletChainId) ?? DEFAULT_CHAIN_ID;
+                    const message = buildSiweMessage({ domain, address, issuedAt, expirationTime, nonce, chainId });
+                    // A parked signer used to hang this promise forever: no CDP
+                    // popup, no error, UI stuck on "sending" with zero feedback and
+                    // nothing in any log. Bound it so a stall surfaces as a loud,
+                    // retryable error carrying the stage it died in.
+                    console.error('[siwe-sign] stage=wallet-sign-start');
+                    const signature = await withSignTimeout(
+                        signMessageAsync({ account: address as `0x${string}`, message }),
+                        SIGN_TIMEOUT_MS,
+                    );
+                    console.error('[siwe-sign] stage=wallet-sign-done');
                     return {
-                        ok: true as const,
-                        sessionId: data.sessionId as string,
-                        expiresAt: data.expiresAt as string,
+                        signature: signature as string,
+                        body: { domain, address, nonce, issuedAt, expirationTime, signature, message, chainId },
                     };
-                } catch (err) {
-                    console.error('SIWE verify network error', err);
-                    return { ok: false as const, code: 'network-error' };
-                }
-            },
-            persist: (stored: Stored) => {
-                try {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-                } catch {
-                    /* best-effort */
-                }
-            },
-        }, opts);
-        return result.sessionId;
-    }, [address, signMessageAsync, walletChainId]);
+                },
+                verify: async (signed) => {
+                    try {
+                        const res = await fetch('/api/siwe/verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(signed.body),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok || !data.sessionId) {
+                            console.error('SIWE verify failed', data);
+                            const code =
+                                typeof data?.code === 'string'
+                                    ? data.code
+                                    : res.status === 401
+                                      ? 'signer-mismatch'
+                                      : `http-${res.status}`;
+                            return { ok: false as const, code };
+                        }
+                        return {
+                            ok: true as const,
+                            sessionId: data.sessionId as string,
+                            expiresAt: data.expiresAt as string,
+                        };
+                    } catch (err) {
+                        console.error('SIWE verify network error', err);
+                        return { ok: false as const, code: 'network-error' };
+                    }
+                },
+                persist: (stored: Stored) => {
+                    try {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+                    } catch {
+                        /* best-effort */
+                    }
+                },
+            }, opts);
+
+            if (cancelled) return null;
+            return result.sessionId;
+        } finally {
+            cleanupModal?.();
+        }
+    }, [address, signMessageAsync, walletChainId, player.mode]);
 
     const clearAppSession = useCallback(() => {
         try {

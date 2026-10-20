@@ -489,7 +489,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
     // server rebuilds the intent from the shared price table and verifies
     // before debiting; requestId makes retries idempotent.
     const sendPurchase = async (ids: string[]) => {
-        const sessionId = await ensureAppSession();
+        const sessionId = await ensureAppSession({ context: 'marketplace' });
         if (!sessionId || !wallet) throw new Error('Sign-in required');
         const total = marketplaceTotalChips(ids);
         if (total === null) throw new Error('Unknown item');

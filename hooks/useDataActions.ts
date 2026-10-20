@@ -157,7 +157,7 @@ export const useDataActions = ({
             // publish our ECDH key ONLY if the server lacks it. A doomed
             // sign (no session, or key already published) is skipped entirely
             // — no popup — and the send fails closed below as before.
-            const dmSession = await ensureAppSession();
+            const dmSession = await ensureAppSession({ context: 'messaging' });
             if (dmSession) {
                 await getOrCreateIdentityKey(lowerAddr);
                 // CRY-06: a regenerated identity no longer matches the
@@ -216,7 +216,7 @@ export const useDataActions = ({
             }
 
             // Supabase Relay
-            const sessionId = await ensureAppSession();
+            const sessionId = await ensureAppSession({ context: 'messaging' });
             if (!sessionId) throw new Error('Sign-in required to send messages');
             const response = await fetch('/api/messages', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },

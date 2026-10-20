@@ -86,7 +86,11 @@ export interface TeamUpContextType {
         matchType?: '1v1' | '2v2' | '4P';
         wager?: number;
     }) => Promise<void>;
-    createProvisionalSession: (authorizationKey: string, roomCode?: string) => Promise<{ ok: boolean; provisionalId?: string; error?: string }>;
+    createProvisionalSession: (
+        authorizationKey: string,
+        roomCode?: string,
+        opts?: { context?: import('@/hooks/useAuthPrompt').AuthPromptContext; title?: string; statusText?: string }
+    ) => Promise<{ ok: boolean; provisionalId?: string; error?: string }>;
     bindProvisionalSession: (provisionalId: string, matchId: string, roomCode?: string) => Promise<{ ok: boolean; sessionId?: string; error?: string }>;
     myAddress: string | undefined;
     updateGameState: (state: Partial<GameState>) => void;
@@ -168,8 +172,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         signTypedDataAsync: player.signTypedDataAsync,
         chainId,
     });
-    const createProvisionalSession = useCallback((authorizationKey: string, roomCode?: string) =>
-        moveAuth.createProvisionalSession({ authorizationKey, roomCode }), [moveAuth]);
+    const createProvisionalSession = useCallback((
+        authorizationKey: string,
+        roomCode?: string,
+        opts?: { context?: import('@/hooks/useAuthPrompt').AuthPromptContext; title?: string; statusText?: string }
+    ) => moveAuth.createProvisionalSession({ authorizationKey, roomCode, ...opts }), [moveAuth]);
     const bindProvisionalSession = useCallback((provisionalId: string, matchId: string, roomCode?: string) =>
         moveAuth.bindProvisionalSession({ provisionalId, matchId, roomCode }), [moveAuth]);
     // NET-04: intents queue. The single-slot version dropped every intent
@@ -980,7 +987,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         validationToken?: string,
     ) => {
         if (!myAddress) return;
-        const sessionId = await ensureAppSession();
+        const sessionId = await ensureAppSession({ context: 'teamup' });
         if (!sessionId) return;
         try {
             const res = await fetch('/api/lobby/policy', {
@@ -1112,7 +1119,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             // route derives it) and `coins` is gone entirely — it was persisted
             // verbatim and shown to the host as a real balance. Resolved outside
             // the fetch call because this callback is synchronous.
-            void ensureAppSession().then(sessionId => fetch('/api/lobby/join', {
+            void ensureAppSession({ context: 'teamup' }).then(sessionId => fetch('/api/lobby/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1189,7 +1196,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         let cancelled = false;
         const poll = async () => {
             try {
-                const session = appSessionId || await ensureAppSession();
+                const session = appSessionId || await ensureAppSession({ context: 'teamup' });
                 if (!session || !myAddress) return;
                 const params = new URLSearchParams({ roomCode: room, hostAddress: myAddress, sessionId: session });
                 const res = await fetch(`/api/lobby/join?${params}`, {
@@ -1269,7 +1276,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         // SEC-17: the key includes the wallet, so two wallets that happen to
         // collide on a room code get separate provisional grants rather than
         // overwriting each other.
-        void createProvisionalSession(`room:${code}:${(myAddress || '').toLowerCase()}`, code).then(result => {
+        void createProvisionalSession(`room:${code}:${(myAddress || '').toLowerCase()}`, code, {
+            context: 'teamup',
+            title: 'HOSTING PARTY SESSION',
+            statusText: 'Authorizing multiplayer room in your wallet...',
+        }).then(result => {
             if (!result.ok) console.warn('🔑 [TeamUp] pre-match authorization failed:', result.error);
         });
         hostGame(code);

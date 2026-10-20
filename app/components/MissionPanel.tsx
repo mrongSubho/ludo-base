@@ -148,7 +148,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                 // MissionSystem completes it (target 0) and pays the CHIPS from
                 // its own reserve; the endpoint keeps exactly one payout per
                 // (wallet, UTC day) and suppresses the legacy voucher for it.
-                const sessionId = await ensureAppSession();
+                const sessionId = await ensureAppSession({ context: 'missions' });
                 if (!sessionId) {
                     toast('Sign in to claim', 'error');
                     return;

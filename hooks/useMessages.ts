@@ -240,7 +240,7 @@ export function useMessages(currentUserAddress: string | undefined | null, selec
         // Optimistically add to UI
         setMessages(prev => [...prev, optimisticMsg]);
 
-        const sessionId = await ensureAppSession();
+        const sessionId = await ensureAppSession({ context: 'messaging' });
         const response = sessionId ? await fetch('/api/messages', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'send', receiverId, content })

@@ -34,7 +34,7 @@ export function useBettingController({ isHost, matchId, broadcastAction }: UseBe
         setActiveBetWindow({ windowId, betType, expiresAt, windowClosedAt: null });
 
         if (matchId) {
-            const sessionId = await ensureAppSession();
+            const sessionId = await ensureAppSession({ context: 'betting' });
             if (sessionId && address) void fetch('/api/live-matches/window', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ matchId, betType, status: 'open', hostAddress: address, sessionId })
@@ -49,7 +49,7 @@ export function useBettingController({ isHost, matchId, broadcastAction }: UseBe
         setActiveBetWindow(prev => prev?.windowId === windowId ? { ...prev, windowClosedAt } : prev);
 
         if (matchId) {
-            const sessionId = await ensureAppSession();
+            const sessionId = await ensureAppSession({ context: 'betting' });
             if (sessionId && address) void fetch('/api/live-matches/window', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ matchId, betType, status: 'closed', hostAddress: address, sessionId })

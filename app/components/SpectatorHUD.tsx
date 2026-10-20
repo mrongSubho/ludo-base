@@ -205,7 +205,7 @@ export const SpectatorHUD = ({
                 window_closed_at: new Date(activeBetWindow.expiresAt).toISOString(),
             };
 
-            const sessionId = await ensureAppSession();
+            const sessionId = await ensureAppSession({ context: 'betting' });
             if (!sessionId) throw new Error('Sign-in required to place bets');
             const response = await fetch('/api/spectator-bets', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -257,7 +257,7 @@ export const SpectatorHUD = ({
         if (!address || !myBet || !windowOpen || isCashingOut) return;
         setIsCashingOut(true);
         try {
-            const sessionId = await ensureAppSession();
+            const sessionId = await ensureAppSession({ context: 'betting' });
             if (!sessionId) throw new Error('Sign-in required to cash out');
             const response = await fetch('/api/spectator-bets', {
                 method: 'POST',

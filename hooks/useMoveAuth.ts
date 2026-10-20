@@ -22,6 +22,7 @@ import { withStaleSeqRetry as staleRetry, type MoveAuthCall } from '@/lib/netcod
 import type { GameState, ColorCorner, PlayerColor, PowerType } from '@/lib/types';
 import type { MatchActionError, MatchActionErrorCode, MatchActionSuccess } from '@/lib/matchProtocol';
 import type { MatchStateSnapshot } from '@/lib/matchProtocol';
+import { showAuthPrompt, type AuthPromptContext } from '@/hooks/useAuthPrompt';
 
 type SignFn = (args: { account: `0x${string}`; message: string }) => Promise<string>;
 type SignTypedFn = (args: {
@@ -110,50 +111,63 @@ export function useMoveAuth(opts: {
     const createProvisionalSession = useCallback(async (params: {
         authorizationKey: string;
         roomCode?: string;
+        context?: AuthPromptContext;
+        title?: string;
+        statusText?: string;
     }): Promise<{ ok: boolean; provisionalId?: string; error?: string }> => {
         if (!myAddress) return { ok: false, error: 'no wallet' };
         if (typeof window !== 'undefined') {
             const cached = sessionStorage.getItem(`ludo-provisional:${params.authorizationKey}`);
             if (cached) return { ok: true, provisionalId: cached };
         }
-        const payload = buildMatchSessionPayload({
-            wallet: myAddress,
-            matchId: params.authorizationKey,
-            roomCode: params.roomCode || '',
-        });
-        let signature: string;
+        let cleanupModal: (() => void) | undefined;
         try {
-            signature = await signTypedDataAsync({
-                account: myAddress as `0x${string}`,
-                domain: sessionDomain,
-                types: LUDO_SESSION_TYPES,
-                primaryType: 'LudoMatchSession',
-                message: {
-                    wallet: payload.wallet as `0x${string}`,
-                    matchId: payload.matchId,
-                    roomCode: payload.roomCode,
-                    expiresAt: BigInt(payload.expiresAt),
-                    nonce: payload.nonce,
-                },
+            cleanupModal = showAuthPrompt({
+                context: params.context || "teamup",
+                title: params.title || "MATCH SESSION AUTHORIZATION",
+                statusText: params.statusText || "Authorizing match session in your wallet...",
             });
-        } catch {
-            return { ok: false, error: 'session sign rejected' };
+            const payload = buildMatchSessionPayload({
+                wallet: myAddress,
+                matchId: params.authorizationKey,
+                roomCode: params.roomCode || '',
+            });
+            let signature: string;
+            try {
+                signature = await signTypedDataAsync({
+                    account: myAddress as `0x${string}`,
+                    domain: sessionDomain,
+                    types: LUDO_SESSION_TYPES,
+                    primaryType: 'LudoMatchSession',
+                    message: {
+                        wallet: payload.wallet as `0x${string}`,
+                        matchId: payload.matchId,
+                        roomCode: payload.roomCode,
+                        expiresAt: BigInt(payload.expiresAt),
+                        nonce: payload.nonce,
+                    },
+                });
+            } catch {
+                return { ok: false, error: 'session sign rejected' };
+            }
+            const r = await callMoveAuth('provisional-session', {
+                authorizationKey: params.authorizationKey,
+                roomCode: params.roomCode || '',
+                wallet: payload.wallet,
+                expiresAt: payload.expiresAt,
+                nonce: payload.nonce,
+                chainId: signingChainId,
+                signature,
+            });
+            if (r.ok && r.data?.provisionalId) {
+                sessionStorage.setItem(`ludo-provisional:${params.authorizationKey}`, r.data.provisionalId);
+                return { ok: true, provisionalId: r.data.provisionalId };
+            }
+            return { ok: false, error: r.data?.error || `HTTP ${r.status}` };
+        } finally {
+            cleanupModal?.();
         }
-        const r = await callMoveAuth('provisional-session', {
-            authorizationKey: params.authorizationKey,
-            roomCode: params.roomCode || '',
-            wallet: payload.wallet,
-            expiresAt: payload.expiresAt,
-            nonce: payload.nonce,
-            chainId: signingChainId,
-            signature,
-        });
-        if (r.ok && r.data?.provisionalId) {
-            sessionStorage.setItem(`ludo-provisional:${params.authorizationKey}`, r.data.provisionalId);
-            return { ok: true, provisionalId: r.data.provisionalId };
-        }
-        return { ok: false, error: r.data?.error || `HTTP ${r.status}` };
-    }, [myAddress, signTypedDataAsync]);
+    }, [myAddress, sessionDomain, signingChainId, signTypedDataAsync]);
 
     const bindProvisionalSession = useCallback(async (params: {
         provisionalId: string;

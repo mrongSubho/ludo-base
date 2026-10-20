@@ -403,7 +403,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
 
     const handleAcceptRequest = async (id: string) => {
         try {
-            const sessionId = await ensureAppSession();
+            const sessionId = await ensureAppSession({ context: 'social' });
             const response = sessionId && await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: connectedAddress, sessionId, action: 'accept', friendshipId: id }) });
             const error = !response || !response.ok;
             if (!error) {
@@ -416,7 +416,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
 
     const handleRejectCancelRequest = async (id: string, isIncoming: boolean) => {
         try {
-            const sessionId = await ensureAppSession();
+            const sessionId = await ensureAppSession({ context: 'social' });
             const response = sessionId && await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: connectedAddress, sessionId, action: 'remove', friendshipId: id }) });
             const error = !response || !response.ok;
             if (!error) {
@@ -431,7 +431,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
         if (!guard('poke')) return;
         setPokingId(friendAddress);
         try {
-            const sessionId = await ensureAppSession();
+            const sessionId = await ensureAppSession({ context: 'social' });
             if (!sessionId) return;
             const response = await fetch('/api/social/poke', {
                 method: 'POST',
@@ -461,7 +461,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
         if (!guard('friend-add')) return;
         const target = wallet.toLowerCase();
         try {
-            const sessionId = await ensureAppSession();
+            const sessionId = await ensureAppSession({ context: 'social' });
             const response = sessionId && await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: connectedAddress, sessionId, action: 'request', target }) });
             const error = !response || !response.ok;
             if (!error) {

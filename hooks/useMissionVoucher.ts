@@ -45,7 +45,7 @@ export function useMissionVoucherClaim() {
             setError(null);
             try {
                 setStep("voucher");
-                const sessionId = await ensureAppSession();
+                const sessionId = await ensureAppSession({ context: 'missions' });
                 if (!sessionId) {
                     setError("Sign in to claim");
                     setStep("error");
