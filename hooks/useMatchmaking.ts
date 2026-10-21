@@ -95,8 +95,26 @@ export function useMatchmaking(props: UseMatchmakingProps) {
      * Pick it deterministically from match_id + wallet so neither side is
      * special for having queued first, and both clients agree without a race.
      */
-    const resolveIsHost = useCallback(async (matchId: string, fallbackIsHost: boolean): Promise<boolean> => {
+    const resolveIsHost = useCallback(async (
+        matchId: string,
+        fallbackIsHost: boolean,
+        knownPlayers?: string[]
+    ): Promise<boolean> => {
         const me = (playerId || '').toLowerCase();
+
+        // 1. If roster is already provided by match RPC or ticket status response, compute directly!
+        const filteredKnown = ((knownPlayers || []) as string[])
+            .map(p => String(p || '').toLowerCase())
+            .filter(Boolean);
+
+        if (filteredKnown.length > 0) {
+            const sorted = [...new Set(filteredKnown)].sort();
+            let h = 0;
+            for (let i = 0; i < matchId.length; i++) h = (h * 31 + matchId.charCodeAt(i)) >>> 0;
+            const authority = sorted[h % sorted.length];
+            return authority === me;
+        }
+
         const markDegraded = (cause: unknown) => {
             // Split-brain guard: silently returning the fallback lets two peers
             // diverge with no surfaced error, so log loudly (matchId + cause)
@@ -112,7 +130,12 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             const params = new URLSearchParams({ matchId });
             if (playerId) params.set('walletAddress', playerId);
             if (sessionId) params.set('sessionId', sessionId);
-            const res = await fetch(`/api/matchmaking/status?${params.toString()}`);
+            const headers: Record<string, string> = {};
+            if (sessionId) {
+                headers['x-session-id'] = sessionId;
+                headers['Authorization'] = `Bearer ${sessionId}`;
+            }
+            const res = await fetch(`/api/matchmaking/status?${params.toString()}`, { headers });
             if (!res.ok) { markDegraded(`status route failed: ${res.status}`); return fallbackIsHost; }
             const data = await res.json();
             const players = ((data?.players || []) as string[]).map(p => String(p || '').toLowerCase()).filter(Boolean);
@@ -133,12 +156,13 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         matchId: string,
         roomCode: string,
         fallbackIsHost: boolean,
-        validationToken?: string | null
+        validationToken?: string | null,
+        knownPlayers?: string[]
     ) => {
         if (matchDispatchedRef.current) return;
         if (statusRef.current === 'matched' && matchDispatchedRef.current) return;
         matchDispatchedRef.current = true;
-        const isHost = await resolveIsHost(matchId, fallbackIsHost);
+        const isHost = await resolveIsHost(matchId, fallbackIsHost, knownPlayers);
         console.log(`🎯 [Matchmaking] Dispatch match ${matchId} room=${roomCode} isHost=${isHost}`);
         // Single null→undefined boundary: the status route types the token as
         // `string | null` (open rooms carry null); downstream only uses
@@ -250,7 +274,12 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             const params = new URLSearchParams({ ticketId: id });
             if (playerId) params.set('walletAddress', playerId);
             if (sessionId) params.set('sessionId', sessionId);
-            const res = await fetch(`/api/matchmaking/status?${params.toString()}`);
+            const headers: Record<string, string> = {};
+            if (sessionId) {
+                headers['x-session-id'] = sessionId;
+                headers['Authorization'] = `Bearer ${sessionId}`;
+            }
+            const res = await fetch(`/api/matchmaking/status?${params.toString()}`, { headers });
             if (!res.ok) throw new Error(`Status route failed: ${res.status}`);
             const typedData = (await res.json()) as TicketStatus;
 
@@ -263,7 +292,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                 setStatus('matched');
 
                 // Our ticket landing "matched" does NOT mean we host — resolve from queue order.
-                void dispatchMatch(typedData.match_id, typedData.room_code || '', false, typedData.validation_token);
+                void dispatchMatch(typedData.match_id, typedData.room_code || '', false, typedData.validation_token, typedData.players);
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Status check failed:', err);
@@ -372,12 +401,13 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             setMatchId(data.match_id);
             setRoomCode(data.room_code || '');
 
-            // Direct RPC match: we joined someone already waiting → usually guest.
-            void dispatchMatch(data.match_id, data.room_code || '', false, data.validation_token);
+            // Direct RPC match: resolve host deterministically using participants roster.
+            void dispatchMatch(data.match_id, data.room_code || '', false, data.validation_token, data.participants);
             return true;
         }
         if (!data.ticket_id) throw new Error('Join returned neither match nor ticket');
         console.log('📡 [Matchmaking] No direct match. Ticket:', data.ticket_id);
+        ticketIdRef.current = data.ticket_id;
         setTicketId(data.ticket_id);
         checkTicketStatus(data.ticket_id);
         return false;
@@ -532,15 +562,16 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             const data = await response.json();
 
             if (data.status === 'matched') {
-                console.log('✅ [Matchmaking] HYBRID MATCH found. YOU ARE THE GUEST.');
+                console.log('✅ [Matchmaking] HYBRID MATCH found.');
                 if (pollingRef.current) clearInterval(pollingRef.current);
 
                 setStatus('matched');
                 setMatchId(data.match_id);
                 setRoomCode(data.room_code || '');
 
-                void dispatchMatch(data.match_id, data.room_code || '', false, data.validation_token);
+                void dispatchMatch(data.match_id, data.room_code || '', false, data.validation_token, data.participants);
             } else {
+                ticketIdRef.current = data.ticket_id;
                 setTicketId(data.ticket_id);
                 checkTicketStatus(data.ticket_id);
                 

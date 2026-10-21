@@ -1158,10 +1158,15 @@ Investigation identified two interlocking root causes:
    - Created `supabase/migrations/202610210001_fix_hybrid_matchmaking.sql` to support party host advertising (`p_room_code IS NOT NULL`) with 30s rolling TTL and hunt for public queue waiters (`room_code IS NULL`). Applied to the remote database via `supabase db push`.
 4. **`MM-9` (`TeamUpContext.startQuickMatch` Hardening)**:
    - Added active session validation via `ensureAppSession()` to satisfy `/api/matchmaking/join`'s `requireAppSession()` gate. Replaced nonexistent `data.host_id` with deterministic authority resolution (`hash(match_id) % participants.length`).
+5. **`MM-10` (Status Route Dual-Auth & In-Memory Deterministic Host Resolution)**:
+   - Fixed 401 Unauthorized regression on `/api/matchmaking/status`: added fallback session authentication in `status/route.ts` supporting `sessionId` from `searchParams` and `x-session-id`/`Authorization: Bearer` headers with `requireAppSession(expectedWallet, sessionId)` when cookie authentication (`requireSessionWallet`) is absent.
+   - Enhanced `requireAppSession` in `lib/serverAuth.ts` to cleanly extract the authenticated wallet address directly from `sessions` or `app_sessions` when `expectedWallet` is omitted.
+   - Added `matches.participants` fallback for `players` roster in `status/route.ts` when `matchmaking_queue` tickets have already transitioned.
+   - Updated `hooks/useMatchmaking.ts` to propagate `knownPlayers` directly from `data.participants` (join RPC) or `typedData.players` (status poll) into `resolveIsHost`, eliminating unnecessary asynchronous HTTP round-trips for host election and preventing split-brain guest stalls. Synchronously initialized `ticketIdRef.current` upon ticket issuance.
 
 ### Tests & Gate Evidence
 
-- `scripts/matchmaking-shape.test.ts` expanded with 4 new behavioral and contract tests (`MM-6` through `MM-9`).
+- `scripts/matchmaking-shape.test.ts` expanded with behavioral and contract tests (`MM-6` through `MM-10`).
 - `npm run check:schema`: **clean (40 migrations, 39 functions)**.
 - `npm run typecheck`: **0 errors**.
 - `npm test`: **502 tests (491 pass, 0 fail, 11 skipped)**.

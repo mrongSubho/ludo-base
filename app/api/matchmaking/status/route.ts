@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import { NextResponse } from 'next/server';
-import { requireSessionWallet, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, requireAppSession, serviceDb } from '@/lib/serverAuth';
 
 /**
  * GET /api/matchmaking/status?ticketId=…&walletAddress=…
@@ -16,8 +16,16 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const ticketId = searchParams.get('ticketId');
         const matchId = searchParams.get('matchId');
+        let sessionId = searchParams.get('sessionId') || request.headers.get('x-session-id');
+        const authHeader = request.headers.get('authorization') || '';
+        if (!sessionId && authHeader.toLowerCase().startsWith('bearer ')) {
+            sessionId = authHeader.slice(7).trim();
+        }
         const expectedWallet = searchParams.get('walletAddress') || undefined;
-        const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
+        let wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
+        if (!wallet && sessionId) {
+            wallet = await requireAppSession(expectedWallet, sessionId);
+        }
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         if ((!ticketId || ticketId === 'undefined') && !matchId) {
             return NextResponse.json({ error: 'Missing or invalid ticketId/matchId' }, { status: 400 });
@@ -32,7 +40,17 @@ export async function GET(request: Request) {
                 .select('player_id')
                 .eq('match_id', matchId);
             if (rosterError) throw rosterError;
-            const players = [...new Set((roster || []).map(r => String(r.player_id || '').toLowerCase()).filter(Boolean))];
+            let players = [...new Set((roster || []).map(r => String(r.player_id || '').toLowerCase()).filter(Boolean))];
+            if (players.length < 2) {
+                const { data: matchRow } = await db
+                    .from('matches')
+                    .select('participants')
+                    .eq('id', matchId)
+                    .maybeSingle();
+                if (Array.isArray(matchRow?.participants)) {
+                    players = [...new Set(matchRow.participants.map(p => String(p || '').toLowerCase()).filter(Boolean))];
+                }
+            }
             if (!players.includes(wallet)) {
                 return NextResponse.json({ error: 'Not a participant' }, { status: 403 });
             }
@@ -114,6 +132,16 @@ export async function GET(request: Request) {
                 .select('player_id')
                 .eq('match_id', ticket.match_id);
             players = [...new Set((roster || []).map(r => String(r.player_id || '').toLowerCase()).filter(Boolean))];
+            if (players.length < 2) {
+                const { data: matchRow } = await db
+                    .from('matches')
+                    .select('participants')
+                    .eq('id', ticket.match_id)
+                    .maybeSingle();
+                if (Array.isArray(matchRow?.participants)) {
+                    players = [...new Set(matchRow.participants.map(p => String(p || '').toLowerCase()).filter(Boolean))];
+                }
+            }
         }
         return NextResponse.json({
             status: ticket.status,

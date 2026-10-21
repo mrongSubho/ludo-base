@@ -167,7 +167,8 @@ export async function requireSessionWallet(
 export async function requireAppSession(walletAddress: unknown, sessionId: unknown): Promise<string | null> {
     const wallet = String(walletAddress || '').toLowerCase();
     const id = String(sessionId || '').trim();
-    if (!/^0x[a-f0-9]{40}$/.test(wallet) || !id) return null;
+    if (!id) return null;
+    if (wallet && !/^0x[a-f0-9]{40}$/.test(wallet) && !wallet.startsWith('guest_')) return null;
 
     const db = serviceDb();
     const now = Date.now();
@@ -186,9 +187,9 @@ export async function requireAppSession(walletAddress: unknown, sessionId: unkno
         session.scope === 'app' &&
         new Date(session.expires_at).getTime() > now &&
         new Date(session.idle_expires_at).getTime() > now &&
-        session.wallet_address.toLowerCase() === wallet
+        (!wallet || session.wallet_address.toLowerCase() === wallet)
     ) {
-        return wallet;
+        return session.wallet_address.toLowerCase();
     }
 
     // 2. Dual-read from app_sessions (backward compatibility)
@@ -202,9 +203,9 @@ export async function requireAppSession(walletAddress: unknown, sessionId: unkno
         legacy &&
         !legacy.revoked_at &&
         new Date(legacy.expires_at).getTime() > now &&
-        String(legacy.wallet_address).toLowerCase() === wallet
+        (!wallet || String(legacy.wallet_address).toLowerCase() === wallet)
     ) {
-        return wallet;
+        return String(legacy.wallet_address).toLowerCase();
     }
 
     return null;

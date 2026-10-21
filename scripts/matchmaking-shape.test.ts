@@ -94,3 +94,23 @@ test('MM-9: TeamUpContext.startQuickMatch passes session and resolves host deter
     assert.match(contextSrc, /hash\(match_id\)|charCodeAt/);
 });
 
+test('MM-10: status route accepts header/query session and hook uses in-memory roster for host election', () => {
+    const statusSrc = read('app/api/matchmaking/status/route.ts');
+    const hookSrc = read('hooks/useMatchmaking.ts');
+    const authSrc = read('lib/serverAuth.ts');
+
+    // Status route extracts sessionId from headers/query and falls back to requireAppSession
+    assert.match(statusSrc, /sessionId\s*=\s*searchParams\.get\('sessionId'\)\s*\|\|\s*request\.headers\.get\('x-session-id'\)/);
+    assert.match(statusSrc, /requireAppSession\(expectedWallet,\s*sessionId\)/);
+    assert.match(statusSrc, /matches[\s\S]{0,100}participants/);
+
+    // requireAppSession can resolve wallet directly when expectedWallet is omitted
+    assert.match(authSrc, /(!wallet\s*\|\|\s*session\.wallet_address\.toLowerCase\(\)\s*===\s*wallet)/);
+
+    // Hook sends auth headers and propagates roster to dispatchMatch
+    assert.match(hookSrc, /headers\['x-session-id'\]\s*=\s*sessionId/);
+    assert.match(hookSrc, /dispatchMatch\(typedData\.match_id,[\s\S]{0,80}typedData\.players\)/);
+    assert.match(hookSrc, /dispatchMatch\(data\.match_id,[\s\S]{0,80}data\.participants\)/);
+});
+
+
