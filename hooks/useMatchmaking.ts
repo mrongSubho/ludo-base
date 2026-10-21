@@ -356,6 +356,18 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             console.log('✅ [Matchmaking] DIRECT MATCH found via RPC.');
             if (pollingRef.current) clearInterval(pollingRef.current);
 
+            // Signal matched peer(s) over Realtime broadcast immediately
+            for (const p of data.participants || []) {
+                const addr = String(p || '').toLowerCase();
+                if (addr && addr !== normalizedPlayerId) {
+                    void supabase.channel(`matchm-player-${addr}`).send({
+                        type: 'broadcast',
+                        event: 'match-found',
+                        payload: { matchId: data.match_id, roomCode: data.room_code }
+                    }).catch(() => {});
+                }
+            }
+
             setStatus('matched');
             setMatchId(data.match_id);
             setRoomCode(data.room_code || '');
@@ -445,7 +457,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                     if (pollingRef.current) clearInterval(pollingRef.current);
                     pollingRef.current = setInterval(() => {
                         void heartbeatTick();
-                    }, 2500);
+                    }, 1500);
                 }
             } catch (err) {
                 console.error('❌ [Matchmaking] Supabase join failed:', err);
@@ -550,9 +562,19 @@ export function useMatchmaking(props: UseMatchmakingProps) {
     useEffect(() => {
         if (!ticketId || (status !== 'searching' && status !== 'expanding')) return;
 
-        console.log(`📡 [Matchmaking] Subscribing to Realtime updates for ticket: ${ticketId}`);
-        const channel = supabase
-            .channel(`matchm-status-${ticketId}`)
+        const normalized = (playerId || '').toLowerCase();
+        const ticketTopic = `matchm-status-${ticketId}`;
+        const playerTopic = `matchm-player-${normalized}`;
+
+        console.log(`📡 [Matchmaking] Subscribing to Realtime (ticket: ${ticketId}, player: ${normalized})`);
+
+        const ticketChannel = supabase
+            .channel(ticketTopic)
+            .on('broadcast', { event: 'match-found' }, () => {
+                if (statusRef.current === 'matched') return;
+                console.log(`⚡ [Matchmaking] Instant Broadcast match for ticket: ${ticketId}`);
+                void checkTicketStatus(ticketId);
+            })
             .on(
                 'postgres_changes',
                 {
@@ -576,11 +598,23 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             )
             .subscribe();
 
+        const playerChannel = normalized
+            ? supabase
+                .channel(playerTopic)
+                .on('broadcast', { event: 'match-found' }, () => {
+                    if (statusRef.current === 'matched') return;
+                    console.log(`⚡ [Matchmaking] Instant Broadcast match for player: ${normalized}`);
+                    void checkTicketStatus(ticketId);
+                })
+                .subscribe()
+            : null;
+
         return () => {
-            console.log('📡 [Matchmaking] Cleaning up Realtime subscription.');
-            supabase.removeChannel(channel);
+            console.log('📡 [Matchmaking] Cleaning up Realtime subscriptions.');
+            supabase.removeChannel(ticketChannel);
+            if (playerChannel) supabase.removeChannel(playerChannel);
         };
-    }, [ticketId, status, checkTicketStatus]);
+    }, [ticketId, status, playerId, checkTicketStatus]);
 
     // --- Tab Lifecycle ---
 

@@ -126,7 +126,18 @@ export async function POST(request: Request) {
             }
 
             console.log('✅ [Matchmaking] Hybrid RPC Result:', data);
-            return NextResponse.json(await withCallerToken(supabase, playerId, data));
+            const hybridResult = await withCallerToken(supabase, playerId, data);
+            if (hybridResult?.status === 'matched') {
+                const guest = String(hybridResult.guest_id || '').toLowerCase();
+                if (guest) {
+                    void supabase.channel(`matchm-player-${guest}`).send({
+                        type: 'broadcast',
+                        event: 'match-found',
+                        payload: { matchId: hybridResult.match_id, roomCode: hybridResult.room_code }
+                    }).catch(() => {});
+                }
+            }
+            return NextResponse.json(hybridResult);
         }
 
         // Call the atomic join RPC
@@ -145,7 +156,20 @@ export async function POST(request: Request) {
         }
 
         console.log('✅ [Matchmaking] RPC Result:', data);
-        return NextResponse.json(await withCallerToken(supabase, playerId, data));
+        const resultData = await withCallerToken(supabase, playerId, data);
+        if (resultData?.status === 'matched' && Array.isArray(resultData.participants)) {
+            for (const p of resultData.participants) {
+                const addr = String(p || '').toLowerCase();
+                if (addr && addr !== playerId.toLowerCase()) {
+                    void supabase.channel(`matchm-player-${addr}`).send({
+                        type: 'broadcast',
+                        event: 'match-found',
+                        payload: { matchId: resultData.match_id, roomCode: resultData.room_code }
+                    }).catch(() => {});
+                }
+            }
+        }
+        return NextResponse.json(resultData);
     } catch (err: any) {
         console.error('❌ [Matchmaking] Unexpected error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });

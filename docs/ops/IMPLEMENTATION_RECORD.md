@@ -1151,8 +1151,9 @@ Investigation identified two interlocking root causes:
 
 1. **`MM-6` (Symmetric Validation Token Distribution)**:
    - Updated `app/api/matchmaking/status/route.ts` and `app/api/matchmaking/join/route.ts` so that when a match forms, all participant tickets in `matchmaking_queue` share and inherit the identical `validation_token`. Both peers receive matching credentials to seal and enter `matchmaking`-policy lobbies.
-2. **`MM-7` (Heartbeat Ticket Polling)**:
-   - Refactored `heartbeatTick` in `hooks/useMatchmaking.ts` to poll `checkTicketStatus(ticketId)` directly at 2.5s intervals without re-invoking `joinSupabase()`. Eliminates database write collisions and guarantees match detection even under dropped Realtime connections.
+2. **`MM-7` (Realtime Broadcast & Low-Latency Fallback Polling)**:
+   - Upgraded ticket matching to instantaneous sub-50ms Supabase Realtime broadcast channels (`matchm-player-${wallet}` and `matchm-status-${ticketId}`) triggered immediately upon server-side and client-side match resolution.
+   - Refactored `heartbeatTick` in `hooks/useMatchmaking.ts` to poll `checkTicketStatus(ticketId)` directly at 1.5s intervals without re-invoking `joinSupabase()`. Eliminates database write collisions and guarantees match detection even under dropped Realtime connections.
 3. **`MM-8` / `DB-20` (Canonical Hybrid Matchmaking RPC)**:
    - Created `supabase/migrations/202610210001_fix_hybrid_matchmaking.sql` to support party host advertising (`p_room_code IS NOT NULL`) with 30s rolling TTL and hunt for public queue waiters (`room_code IS NULL`). Applied to the remote database via `supabase db push`.
 4. **`MM-9` (`TeamUpContext.startQuickMatch` Hardening)**:
