@@ -29,6 +29,32 @@ test('TEAM_ID agrees between the engine and lib/constants', () => {
     assert.deepEqual(engine.TEAM_ID, constants.TEAM_ID as typeof engine.TEAM_ID);
 });
 
+test('TU-6: the seated-colour table is one list, not two', () => {
+    // `activeColorsForTurns` reads the seat table from the authority; the lobby
+    // reads it to build `LOBBY_COLORS['1v1']`. Two lists is how a 1v1 match ends
+    // up handing turns to a colour the lobby never seated.
+    for (const mode of ['1v1', '2v2', '4P']) {
+        const seated = engine.seatedColorsFor(mode);
+        assert.ok(seated.length > 0, `${mode} must seat at least one colour`);
+        if (mode === '1v1') {
+            assert.deepEqual([...seated], ['green', 'yellow']);
+        } else {
+            assert.equal(seated.length, 4, `${mode} must seat all four colours`);
+        }
+    }
+    // Unknown format: seat everyone rather than silently dropping colours.
+    assert.equal(engine.seatedColorsFor('anything').length, 4);
+});
+
+test('TU-6: gameLogic derives its 1v1 seat set from the authority table', () => {
+    const src = readFileSync(join(root, 'lib/gameLogic.ts'), 'utf8');
+    assert.match(
+        src,
+        /'1v1':\s*\[\.\.\.seatedColorsFor\('1v1'\)\]/,
+        "LOBBY_COLORS['1v1'] must be derived from seatedColorsFor('1v1')",
+    );
+});
+
 test('SHARED_PATH is identical, index for index', () => {
     assert.equal(engine.SHARED_PATH.length, 52, 'the shared path must be 52 cells');
     assert.deepEqual(engine.SHARED_PATH, boardLayout.SHARED_PATH);

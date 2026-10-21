@@ -982,4 +982,75 @@ Following adversarial verification against git diff `a9b3a3d..HEAD` (`docs/ops/R
 
 `tsc -p tsconfig.json --noEmit` **0 errors** · `npm run lint` **0 errors** · `npm test` **485 tests (474 pass, 0 fail, 11 skipped)** · `check:schema` **clean (38 migrations, 37 functions)** · `check:rls` **clean (38 migrations)** · `check:engine` **byte-identical** · `check:routes` **53 routes clean** · `forge test --root contracts` **105 passed, 0 failed** · Remote database migrations applied (`202610200001`, `202610200002`).
 
+---
 
+## Part XIII — TU-6: the 1v1 ghost turn (2026-10-21, reported live)
+
+*Reported by the user after the room-authority work: "in 1v1 matches, dice is still passing to ghost!
+and getting stalled."*
+
+### The bug
+
+A 1v1 match seats **two** colours. `LOBBY_COLORS['1v1']` is `['green','yellow']`, and
+`assignCornersFFA('1v1')` puts them on one diagonal so they oppose each other. But that function
+still draws **red and blue** into the corner map — on purpose, so `getBoardCoordinate` stays total —
+and both of them start with four tokens in the yard.
+
+The turn cycle then went wrong twice over:
+
+1. **`activeColorsForTurns` was purely token-shaped.** "Has tokens" was true for red and blue (four
+   yard tokens each), so a 1v1 match computed an active set of all four colours.
+2. **`getNextPlayer`'s fallback walked all four colours.** Both engines had their own copy, and the
+   `MatchRoom` pass path calls it with *no* seating at all — `getNextPlayer(cur, playerCount)` — so it
+   fell straight into the four-colour ring.
+
+Result, reproduced before the fix on a fresh 1v1 board:
+
+```
+green -> red  <-- GHOST   red -> yellow   yellow -> blue <-- GHOST   blue -> green
+```
+
+`red` and `blue` are seats no human and no bot occupies (`initialPlayers` has two entries). The turn
+arrives there, `useAIBrain` sees `isBot === false` and refuses to roll, `useGameEngine` only plays a
+sound — so the turn timer runs down and the match stalls. Every second turn, for the whole match.
+
+### The fix
+
+The seat table is now **one list, in the authority** (`lib/engine/core.ts`):
+
+```ts
+const SEATS_BY_FORMAT: Record<string, readonly PlayerColor[]> = {
+    '1v1': ['green', 'yellow'],
+};
+export function seatedColorsFor(playerCount: string): readonly PlayerColor[] { ... }
+```
+
+Three call sites now read it:
+
+- **`activeColorsForTurns`** filters to the seated set first, so an unseated colour is never "active".
+  Its all-finished fallback returns the *seated* cycle rather than all four, which would otherwise
+  resurrect the ghosts exactly when the match is already over.
+- **`getNextPlayer`** (engine) clamps its corner-walk result to the seated set, and its legacy
+  fallback walks the seated colours instead of all four — this is what fixes the `MatchRoom` pass
+  path, which supplies no seating.
+- **`getNextPlayer`** (`lib/gameLogic.ts`, the client host's copy used by `processMove`) gets the
+  same clamp and the same seat-aware fallback, and `LOBBY_COLORS['1v1']` is now
+  `[...seatedColorsFor('1v1')]` so the lobby seating and the turn cycle cannot disagree.
+
+`src/room/engine.ts` and `supabase/functions/_shared/engine.ts` re-synced (`check:engine` green).
+2v2 and 4P seat all four, so their cycles are unchanged — pinned by a test that still visits all four
+corners, and by the 1200-match `engine-diff` differential that seeds 1v1 among its modes.
+
+### Why this is a permanent fix, not a patch
+
+`processMove`'s `activeColors?` parameter is **optional**, so any caller can hand the authority a cycle
+computed before a seat was dropped. The clamp is therefore inside `getNextPlayer` itself rather than at
+its callers: a stale all-four list cannot produce a ghost either. `check:drift` pins the seat table in
+both directions (the authority's list, and `LOBBY_COLORS['1v1']` being derived from it).
+
+### Tests
+
+`scripts/engine-core.test.ts` gained five tests, four of them behavioural. **All four fail on the
+pre-fix engine** (verified by reverting the fix in place and re-running): the turn-cycle assertion,
+the seated-alternation assertion, the stale-all-four clamp, and a seeded 1v1 match driven through
+`resolveNetworkedMove` that must never rest on an unseated colour.

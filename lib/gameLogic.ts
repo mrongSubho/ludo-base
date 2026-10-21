@@ -113,6 +113,9 @@ export function rollPowerType(rand: number = Math.random()): PowerType {
 export { getStarIndices, nearestStarAhead } from './engine/core';
 // ENG-11: deterministic respawn helpers share the authority implementation.
 export { lcg32, rollPowerTypeLcg, spawnReplacementTile } from './engine/core';
+// TU-6: the seated-colour table lives in the authority so the lobby seating and
+// the turn cycle read the same list.
+export { seatedColorsFor, ALL_COLORS } from './engine/core';
 
 /** Resolve the 2v2 teammate from the shared team-pairing table. */
 export function getTeammateColor(color: PlayerColor, playerCount: string): PlayerColor | null {
@@ -120,6 +123,15 @@ export function getTeammateColor(color: PlayerColor, playerCount: string): Playe
     return TEAM_PAIRINGS[color];
 }
 
+import { seatedColorsFor } from './engine/core';
+
+/**
+ * TU-6: a colour nobody sits in must never take a turn, in either engine.
+ * `assignCornersFFA('1v1')` draws all four colours into the corner map so
+ * coordinate lookups stay total, and the two unseated colours still hold four
+ * yard tokens - so a purely token-shaped "active" test (or a plain four-colour
+ * ring fallback) hands them the turn. The seat table is the authority's.
+ */
 export function getNextPlayer(
     current: PlayerColor,
     playerCount: string,
@@ -128,6 +140,7 @@ export function getNextPlayer(
 ): PlayerColor {
     // Physical corner order: Bottom-Left -> Bottom-Right -> Top-Right -> Top-Left (Anti-Clockwise)
     const cornerOrder = ['BL', 'BR', 'TR', 'TL'];
+    const seats = seatedColorsFor(playerCount);
 
     if (colorCorner && activeColors && activeColors.length > 0) {
         // 1. Get current physical corner
@@ -151,22 +164,32 @@ export function getNextPlayer(
                     const nextC = cornerOrder[(checkIdx + i) % 4];
                     if (occupiedCorners.includes(nextC)) {
                         const nextColor = Object.entries(colorCorner).find(([_, corner]) => corner === nextC)?.[0] as PlayerColor;
-                        if (nextColor) return nextColor;
+                        if (nextColor) return clampToSeat(nextColor, current, seats);
                     }
                 }
             } else {
                 const nextCorner = activeOrder[(currentIdx + 1) % activeOrder.length];
                 // 5. Find color for that corner
                 const nextColor = Object.entries(colorCorner).find(([_, corner]) => corner === nextCorner)?.[0] as PlayerColor;
-                if (nextColor) return nextColor;
+                if (nextColor) return clampToSeat(nextColor, current, seats);
             }
         }
     }
 
-    // Keep legacy color order as a safe fallback for local callers without seating.
-    const order: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
-    const idx = order.indexOf(current);
-    return order[(idx + 1) % 4];
+    // Keep legacy color order as a safe fallback for local callers without
+    // seating - over the SEATED colours only, so a 1v1 match cannot land on an
+    // unoccupied seat (the MatchRoom pass path calls this with no seating).
+    const idx = seats.indexOf(current);
+    if (idx !== -1) return seats[(idx + 1) % seats.length];
+    return seats[0];
+}
+
+/** Never return a colour nobody sits in; advance within the seated set instead. */
+function clampToSeat(color: PlayerColor, current: PlayerColor, seats: readonly PlayerColor[]): PlayerColor {
+    if (seats.includes(color)) return color;
+    const idx = seats.indexOf(current);
+    if (idx !== -1) return seats[(idx + 1) % seats.length];
+    return seats[0];
 }
 
 /** Resolve a color to a team number, treating non-2v2 modes as free-for-all. */
@@ -534,7 +557,9 @@ const LOBBY_2V2_OPPONENTS = (['green', 'red', 'yellow', 'blue'] as PlayerColor[]
     .filter(c => c !== LOBBY_2V2_HOST && c !== LOBBY_2V2_TEAMMATE);
 
 const LOBBY_COLORS: Record<string, PlayerColor[]> = {
-    '1v1': ['green', 'yellow'], // Changed from ['green', 'red'] to ensure diagonal opposition
+    // TU-6: the 1v1 seat set is the authority's table, so the lobby seats and the
+    // turn cycle can never disagree about who is playing.
+    '1v1': [...seatedColorsFor('1v1')],
     '2v2': [LOBBY_2V2_HOST, LOBBY_2V2_TEAMMATE, ...LOBBY_2V2_OPPONENTS],
     '4P': ['green', 'red', 'yellow', 'blue'],
 };

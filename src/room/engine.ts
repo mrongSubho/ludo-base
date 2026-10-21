@@ -232,6 +232,34 @@ export function getLegalTokenIndices(
 }
 
 /**
+ * Colours that are actually SEATED for a match format.
+ *
+ * A 1v1 match seats two colours on one diagonal (`assignCornersFFA('1v1')`
+ * puts green and yellow there); the other two are drawn into the colour map so
+ * coordinate lookups stay total, but nobody occupies them. 2v2 and 4P seat all
+ * four.
+ *
+ * This table exists because `activeColorsForTurns` used to be purely
+ * token-shaped: an unseated colour still starts with four tokens in the yard,
+ * so it looked "active" and took every second turn. In 1v1 that meant the turn
+ * alternated green -> red -> yellow -> blue, and red/blue are seats no human and
+ * no bot ever fills - the turn arrives, nobody rolls, the match stalls.
+ * `lib/gameLogic.ts` derives `LOBBY_COLORS['1v1']` from this same table, so the
+ * lobby seating and the turn cycle cannot disagree, and `check:drift` pins the
+ * two together.
+ */
+const SEATS_BY_FORMAT: Record<string, readonly PlayerColor[]> = {
+    '1v1': ['green', 'yellow'],
+};
+
+export const ALL_COLORS: readonly PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
+
+/** The seated colours for a match format. Unknown formats seat everyone. */
+export function seatedColorsFor(playerCount: string): readonly PlayerColor[] {
+    return SEATS_BY_FORMAT[playerCount] ?? ALL_COLORS;
+}
+
+/**
  * Select the next occupied corner in physical anti-clockwise order.
  * Filtering by active corners lets finished players leave the turn cycle;
  * the color-order fallback keeps older callers safe when seating is absent.
@@ -243,6 +271,7 @@ export function getNextPlayer(
     colorCorner?: ColorCorner
 ): PlayerColor {
     const cornerOrder: Corner[] = ['BL', 'BR', 'TR', 'TL'];
+    const seats = seatedColorsFor(playerCount);
     if (colorCorner && activeColors && activeColors.length > 0) {
         const currentCorner = colorCorner[current];
         const occupiedCorners = activeColors.map(c => colorCorner[c]);
@@ -256,20 +285,36 @@ export function getNextPlayer(
                     if (occupiedCorners.includes(nextC)) {
                         const nextColor = (Object.entries(colorCorner) as [PlayerColor, Corner][])
                             .find(([, corner]) => corner === nextC)?.[0];
-                        if (nextColor) return nextColor;
+                        if (nextColor) return clampToSeat(nextColor, current, seats);
                     }
                 }
             } else {
                 const nextCorner = activeOrder[(currentIdx + 1) % activeOrder.length];
                 const nextColor = (Object.entries(colorCorner) as [PlayerColor, Corner][])
                     .find(([, corner]) => corner === nextCorner)?.[0];
-                if (nextColor) return nextColor;
+                if (nextColor) return clampToSeat(nextColor, current, seats);
             }
         }
     }
-    const order: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
-    const idx = order.indexOf(current);
-    return order[(idx + 1) % 4];
+    // Last resort: walk the seated colours in canonical order. This used to walk
+    // all four, which is how a 1v1 match handed the turn to an unseated colour
+    // even when the caller passed no seating at all (the MatchRoom pass path
+    // does exactly that).
+    const idx = seats.indexOf(current);
+    if (idx !== -1) return seats[(idx + 1) % seats.length];
+    return seats[0];
+}
+
+/**
+ * Never return an unseated colour. `colorCorner` is a total map - the two
+ * unseated colours of a 1v1 match own real corners - so a corner walk can name
+ * one. The caller supplied the seating, so the result is clamped to it.
+ */
+function clampToSeat(color: PlayerColor, current: PlayerColor, seats: readonly PlayerColor[]): PlayerColor {
+    if (seats.includes(color)) return color;
+    const idx = seats.indexOf(current);
+    if (idx !== -1) return seats[(idx + 1) % seats.length];
+    return seats[0];
 }
 
 /** Count allied tokens occupying a logical track position. */
@@ -557,21 +602,31 @@ export function checkThreeSixesForMove(
  * Without this, finishing green dropped green out of the cycle even though blue
  * was still playing, and `getNextPlayer` then handed the turn to a colour whose
  * tokens were all home — a colour that can only pass, forever.
+ *
+ * TU-6: an UNSEATED colour never takes part. `assignCornersFFA('1v1')` gives
+ * red and blue real corners so coordinate lookups stay total, and both start
+ * with four tokens in the yard, so a token-only rule marked them active and the
+ * turn walked to them — a seat nobody occupies, a turn nobody can roll, a stalled
+ * match. Seating is the first filter here, not a patch in `getNextPlayer`.
  */
 export function activeColorsForTurns(state: EngineGameState): PlayerColor[] {
     const all: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
     const hasTokens = (c: PlayerColor) =>
         (state.positions[c] || []).some(p => p !== BOARD_FINISH_INDEX);
     const mode = state.playerCount || '4P';
+    const seats = seatedColorsFor(mode);
     const colors = all.filter(c => {
+        if (!seats.includes(c)) return false;
         if (hasTokens(c)) return true;
         if (mode !== '2v2') return false;
         const mate = getTeammateColor(c, mode);
         return mate ? hasTokens(mate) : false;
     });
-    // Every colour finished (or state is malformed): keep the full cycle rather
-    // than returning an empty list, so getNextPlayer's fallback still applies.
-    if (colors.length === 0) return all;
+    // Every seated colour finished (or state is malformed): keep the seated
+    // cycle rather than returning an empty list, so getNextPlayer's fallback
+    // still applies. Returning `all` here would resurrect the unseated colours
+    // of a 1v1 match precisely when the match is already over.
+    if (colors.length === 0) return [...seats];
     return colors;
 }
 

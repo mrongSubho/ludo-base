@@ -28,6 +28,8 @@ import {
     evaluateVictory,
     getLegalTokenIndices,
     getBoardCoordinate,
+    getNextPlayer,
+    seatedColorsFor,
     handleThreeSixes,
     isBoardCleared,
     isValidDice,
@@ -289,6 +291,104 @@ test('ENG-04: when every colour is finished the full cycle is kept', () => {
     const done = [BOARD_FINISH_INDEX, BOARD_FINISH_INDEX, BOARD_FINISH_INDEX, BOARD_FINISH_INDEX];
     const s = st({ positions: { green: done, blue: done, red: done, yellow: done }, playerCount: '4P' });
     assert.equal(activeColorsForTurns(s).length, 4, 'an empty list would break getNextPlayer');
+});
+
+// ── TU-6: unseated colours never take a turn ───────────────────────────────
+//
+// Reported live: in 1v1 the dice passes to a ghost and the match stalls. A 1v1
+// match seats green + yellow on one diagonal; `assignCornersFFA('1v1')` still
+// draws red and blue into the corner map (so coordinate lookups stay total) and
+// both start with four yard tokens. A token-shaped "active" test therefore
+// marked them active, and the corner ring then alternated
+// green -> red -> yellow -> blue. red/blue are seats no human and no bot occupies,
+// so the turn arrives and nobody can ever roll it.
+
+test('TU-6: an unseated colour is never in the 1v1 turn cycle', () => {
+    // Straight from the initial board: every colour holds four yard tokens.
+    const s = st({ playerCount: '1v1' });
+    const active = activeColorsForTurns(s);
+    assert.deepEqual(active, ['green', 'yellow'], 'red and blue are drawn but nobody sits in them');
+});
+
+test('TU-6: the 1v1 cycle only ever alternates between the two seated colours', () => {
+    const cc = { green: 'BL', yellow: 'TR', red: 'BR', blue: 'TL' } as const;
+    const active = activeColorsForTurns(st({ playerCount: '1v1' }));
+    for (const from of ['green', 'yellow'] as PlayerColor[]) {
+        // With seating...
+        assert.equal(getNextPlayer(from, '1v1', active, cc), from === 'green' ? 'yellow' : 'green');
+        // With NO seating - the MatchRoom pass path calls it exactly like this.
+        assert.equal(getNextPlayer(from, '1v1'), from === 'green' ? 'yellow' : 'green');
+    }
+    for (const ghost of ['red', 'blue'] as PlayerColor[]) {
+        assert.notEqual(getNextPlayer(ghost, '1v1', active, cc), ghost === 'red' ? 'blue' : 'red',
+            'a ghost seat must not pass the turn to the other ghost seat');
+    }
+});
+
+test('TU-6: a caller passing a stale all-four active list still cannot get a ghost', () => {
+    // `processMove(activeColors?)` is optional, so any caller can hand the
+    // authority a cycle computed before a seat was dropped. The result must be
+    // clamped to the seated colours regardless.
+    const cc = { green: 'BL', yellow: 'TR', red: 'BR', blue: 'TL' } as const;
+    const all = ['green', 'red', 'yellow', 'blue'] as PlayerColor[];
+    for (const from of all) {
+        const next = getNextPlayer(from, '1v1', all, cc);
+        assert.ok(seatedColorsFor('1v1').includes(next),
+            `${from} -> ${next} would hand the turn to an unseated colour`);
+    }
+    for (const from of all) {
+        const next = getNextPlayer(from, '1v1', undefined, undefined);
+        assert.ok(seatedColorsFor('1v1').includes(next), `no-seating fallback ${from} -> ${next}`);
+    }
+});
+
+test('TU-6: a whole seeded 1v1 match never rests on a ghost seat', () => {
+    // Behavioural, not structural: drive `resolveNetworkedMove` through a
+    // seeded 1v1 match and assert the turn never lands on a colour nobody
+    // occupies. Before the fix this fails on the very first turn hand-off.
+    const cc = { green: 'BL', yellow: 'TR', red: 'BR', blue: 'TL' } as const;
+    let s = st({ playerCount: '1v1' });
+    let guard = 0;
+    while (!s.winner && guard++ < 400) {
+        assert.ok(seatedColorsFor('1v1').includes(s.currentPlayer),
+            `turn passed to the unseated colour ${s.currentPlayer}`);
+        const dice = 1 + (guard % 6);
+        const legal = getLegalTokenIndices(s.positions, s.currentPlayer, dice, cc);
+        const active = activeColorsForTurns(s);
+        if (legal.length === 0) {
+            s = { ...s, currentPlayer: getNextPlayer(s.currentPlayer, '1v1', active, cc), diceValue: null };
+            continue;
+        }
+        const res = resolveNetworkedMove({
+            state: s,
+            color: s.currentPlayer,
+            tokenIndex: legal[0],
+            dice,
+            cc,
+            playerCount: '1v1',
+            activeColors: active,
+        });
+        s = res.state ?? s;
+    }
+    // A 1v1 match seeded from the yard cannot finish inside 400 plies without
+    // sixes, but it must at least stay on the two seated colours throughout.
+    assert.ok(guard > 1, 'the match must have advanced');
+});
+
+test('TU-6: 2v2 and 4P still cycle all four colours', () => {
+    for (const mode of ['2v2', '4P'] as const) {
+        const cc = mode === '2v2'
+            ? ({ green: 'BL', blue: 'BR', red: 'TR', yellow: 'TL' } as const)
+            : ({ green: 'BL', red: 'BR', yellow: 'TR', blue: 'TL' } as const);
+        assert.equal(activeColorsForTurns(st({ playerCount: mode })).length, 4, `${mode} seats everyone`);
+        const seen = new Set<PlayerColor>();
+        let cur: PlayerColor = 'green';
+        for (let i = 0; i < 4; i++) {
+            cur = getNextPlayer(cur, mode, activeColorsForTurns(st({ playerCount: mode })), cc);
+            seen.add(cur);
+        }
+        assert.equal(seen.size, 4, `${mode} must still visit all four corners`);
+    }
 });
 
 // ── ENG-05: three sixes ─────────────────────────────────────────────────────

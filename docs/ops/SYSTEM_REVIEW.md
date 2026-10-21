@@ -343,6 +343,7 @@ Following the server authority migration and on-chain settlement remediation (Oc
 | TU-3 | **H** | REST join fallback fails during room formation prior to live match row ◐ | `lobby/join/route.ts:156` · `TeamUpContext.tsx:1186` | Open |
 | TU-4 | **H** | Host and guest diverge on move and power execution in P2P mode ◐ | `useGameActions.ts:159,721` | Open |
 | TU-5 | **M** | Disconnect and abandon lacks settlement penalty and stake burning ◐ | `lib/netcode/abandon.ts:37` · `useGamePresence.ts:63` | Open |
+| TU-6 | **H** | 1v1 turns handed to an unseated "ghost" colour; match then stalls ✅ | `lib/engine/core.ts` `activeColorsForTurns` · `getNextPlayer` | Closed — the turn cycle is seat-aware; `SEATS_BY_FORMAT` single-sourced in the authority |
 
 #### Power Mechanics & Privacy (PW)
 
