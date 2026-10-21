@@ -7,48 +7,6 @@ import { reportProgress } from '@/lib/missionOracle';
 import { rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 import { checkRateLimitShared } from '@/lib/rateLimitShared';
 
-async function updateMissionProgress(walletAddress: string, missionId: string, increment: number) {
-    // Signature-gated settlement (canonical host wallet-signs the payload).
-    // Service role bypasses default-deny RLS; throws loudly when unconfigured.
-    const supabase = serviceDb();
-    const lowAddr = walletAddress.toLowerCase();
-    const now = new Date();
-    const startOfToday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
-
-    // Fetch existing mission state
-    const { data: mission, error } = await supabase
-        .from('player_missions')
-        .select('*')
-        .eq('player_id', lowAddr)
-        .eq('mission_id', missionId)
-        .single();
-
-    if (error && error.code !== 'PGRST116') {
-        console.error(`Error fetching mission ${missionId}:`, error);
-        return;
-    }
-
-    if (!mission) {
-        // Create new mission record
-        await supabase.from('player_missions').insert({
-            player_id: lowAddr,
-            mission_id: missionId,
-            progress: increment,
-            is_claimed: false,
-            last_updated: now.toISOString()
-        });
-    } else {
-        const lastUpdated = new Date(mission.last_updated);
-        const shouldReset = lastUpdated < startOfToday;
-
-        await supabase.from('player_missions').update({
-            progress: shouldReset ? increment : (mission.progress || 0) + increment,
-            is_claimed: shouldReset ? false : mission.is_claimed,
-            last_updated: now.toISOString()
-        }).eq('id', mission.id);
-    }
-}
-
 export async function POST(request: Request) {
     try {
         const supabase = serviceDb();
@@ -72,15 +30,15 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Invalid wager' }, { status: 400 });
         }
 
-        // SA-5: this route writes progression, so its budget must not multiply by
-        // instance count. Keyed per participant wallet; the shared counter is the
-        // real ceiling, the in-process one is the cheap first pass inside it.
-        const limiterKey = rateKey('match:record', String(participants[0] ?? 'unknown').toLowerCase());
-        const sharedLimit = await checkRateLimitShared(limiterKey, 20, 60_000);
-        if (!sharedLimit.ok) {
+        // A single board is at most four seats — `/api/match/start` enforces the
+        // same bound. Without this, `participants` is a client-chosen array and
+        // every per-seat write below multiplies by an arbitrary N: the loops are
+        // the amplification surface, not just a latency problem.
+        const MAX_SEATS = 4;
+        if (participants.length > MAX_SEATS) {
             return NextResponse.json(
-                { error: 'Too many result submissions', retryAfter: sharedLimit.retryAfterSec },
-                { status: 429, headers: rateLimitHeaders(sharedLimit) },
+                { error: `Too many participants (max ${MAX_SEATS})` },
+                { status: 400 },
             );
         }
 
@@ -102,6 +60,23 @@ export async function POST(request: Request) {
         // (optional) capture counts below before the canonical message is built.
         const lowerParts = participants.map((p: string) => String(p).toLowerCase());
         const hostClaim = lowerParts[0] || '';
+
+        // SA-5: this route writes progression, so its budget must not multiply by
+        // instance count. Keyed on the AUTHENTICATED identity, not on
+        // `participants[0]` — that field is caller-supplied, so keying on it let
+        // anyone reset their own bucket by rotating the first element of the
+        // array. For the signature path `hostClaim` is the only identity known
+        // before verification; a forged one fails at `verifyPersonalSign` below,
+        // and every amplified write is after that point.
+        const limiterSubject = (authenticatedWallet || hostClaim || 'unknown').toLowerCase();
+        const limiterKey = rateKey('match:record', limiterSubject);
+        const sharedLimit = await checkRateLimitShared(limiterKey, 20, 60_000);
+        if (!sharedLimit.ok) {
+            return NextResponse.json(
+                { error: 'Too many result submissions', retryAfter: sharedLimit.retryAfterSec },
+                { status: 429, headers: rateLimitHeaders(sharedLimit) },
+            );
+        }
 
         // Optional per-player capture counts, host-attested. Only counts for
         // listed participants are accepted, and each is capped at what a single
@@ -309,7 +284,14 @@ export async function POST(request: Request) {
         const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
         const currentSeasonId = currentYear * 10 + currentQuarter;
 
-        // 2. Update winner stats, XP, RP, and COINS
+        // 2. Progression for every participant in TWO round trips.
+        //
+        // This used to be a read-modify-write per participant, serially awaited
+        // (2 round trips x N), and the write budget grew with `participants`
+        // length. `players.wallet_address` carries
+        // CHECK (wallet_address = lower(wallet_address)), so an exact `.in()` is
+        // equivalent to the old case-insensitive `.ilike()` lookups.
+        //
         // Coin pot is intentionally NOT paid from this path — wager settlement
         // is a separate, server-owned flow. This route awards progression only.
         // SA-2: Cap wager scaling to prevent progression inflation exploits
@@ -317,106 +299,205 @@ export async function POST(request: Request) {
         const effectiveWager = Math.min(Math.max(0, wager), MAX_PROGRESSION_WAGER);
         const winLxpGain = 150 + Math.floor(effectiveWager * 0.1);
         const winRxpGain = 30;
-
-        const { data: player, error: fetchError } = winnerAddress ? await supabase
-            .from('players')
-            .select('total_wins, classic_played, power_played, lxp, rxp, season_id')
-            .ilike('wallet_address', winnerAddress)
-            .single() : { data: null, error: null };
-
-        if (!fetchError && player) {
-            const isNewSeason = (player.season_id || 0) < currentSeasonId;
-            const currentRxp = isNewSeason ? 0 : (player.rxp || 0);
-            // DB-22: total_games is a stored generated column
-            // (classic_played + power_played + ai_played) — an UPDATE that names
-            // it fails with 428C9. Count the game on its mode counter instead.
-            const playedCounter = gameMode === 'power'
-                ? { power_played: (player.power_played || 0) + 1 }
-                : { classic_played: (player.classic_played || 0) + 1 };
-
-            await supabase
-                .from('players')
-                .update({
-                    total_wins: (player.total_wins || 0) + 1,
-                    ...playedCounter,
-                    lxp: (player.lxp || 0) + winLxpGain,
-                    rxp: currentRxp + winRxpGain,
-                    season_id: currentSeasonId,
-                    last_played_at: new Date().toISOString()
-                })
-                .ilike('wallet_address', winnerAddress);
-
-            // Mission: daily_win_1 + weekly_win_3 (on-chain mirror per period)
-            await updateMissionProgress(winnerAddress, 'daily_win_1', 1);
-            void reportProgress(winnerAddress, 'daily_win_1', 1); // on-chain mirror (no-op until configured)
-            void reportProgress(winnerAddress, 'weekly_win_3', 1); // on-chain mirror (no-op until configured)
-        }
-
-        // 3. Update other participants (Loss) — progression only, no coin drain
-        const others = participants.filter((p: string) => !winnerAddress || p.toLowerCase() !== winnerAddress.toLowerCase());
-        // R1: the loser branch must use the SAME capped wager as the winner branch.
-        // Using the raw body `wager` here left the inflation hole open from the other
-        // side — a losing participant could declare wager=1e9 and collect ~50M LXP.
+        // R1: the loser branch must use the SAME capped wager as the winner
+        // branch. Using the raw body `wager` here left the inflation hole open
+        // from the other side — a losing participant could declare wager=1e9
+        // and collect ~50M LXP.
         const baseLxpGain = 50 + Math.floor(effectiveWager * 0.05);
         const lossRxpPenalty = 15;
 
-        for (const addr of others) {
-            const { data: op, error: ef } = await supabase
+        const winnerLower = winnerAddress ? String(winnerAddress).toLowerCase() : null;
+        // Deduped, and restricted to well-formed wallets: a non-wallet seat can
+        // never match a `players` row, so filtering it out of the query is
+        // equivalent to the old per-address `.ilike()` that found nothing.
+        const seatWallets = [...new Set(lowerParts)].filter((a) => /^0x[a-f0-9]{40}$/.test(a));
+
+        type PlayerRow = {
+            wallet_address: string;
+            total_wins: number | null;
+            classic_played: number | null;
+            power_played: number | null;
+            lxp: number | string | null;
+            rxp: number | null;
+            season_id: number | null;
+            created_at: string | null;
+            last_played_at: string | null;
+        };
+
+        const { data: playerRows, error: playersReadError } = seatWallets.length
+            ? await supabase
                 .from('players')
-                .select('classic_played, power_played, lxp, rxp, season_id')
-                .ilike('wallet_address', addr)
-                .single();
+                .select('wallet_address, total_wins, classic_played, power_played, lxp, rxp, season_id, created_at, last_played_at')
+                .in('wallet_address', seatWallets)
+            : { data: [] as PlayerRow[], error: null };
 
-            if (!ef && op) {
-                const isNewSeason = (op.season_id || 0) < currentSeasonId;
-                const currentRxp = isNewSeason ? 0 : (op.rxp || 0);
-                // total_games is generated (see the winner branch above).
+        if (playersReadError) {
+            // Progression is a mirror of the match row, which is already claimed.
+            console.error('❌ [API] player progression read failed:', playersReadError);
+        }
+
+        const playerByWallet = new Map<string, PlayerRow>();
+        for (const row of (playerRows ?? []) as PlayerRow[]) {
+            playerByWallet.set(String(row.wallet_address).toLowerCase(), row);
+        }
+        // Pre-update snapshot: `recordReturnVisit` needs `last_played_at` as it
+        // was BEFORE this settlement overwrites it. Reading it back afterwards —
+        // the old shape — always saw "today" and never awarded day2/day3.
+        const preUpdatePlayers = [...playerByWallet.values()].map((row) => ({
+            wallet_address: String(row.wallet_address).toLowerCase(),
+            created_at: row.created_at,
+            last_played_at: row.last_played_at,
+        }));
+
+        if (playerByWallet.size > 0) {
+            const lastPlayedAt = now.toISOString();
+            const patches = [...playerByWallet.values()].map((row) => {
+                const walletLower = String(row.wallet_address).toLowerCase();
+                const isWinner = winnerLower !== null && walletLower === winnerLower;
+                const isNewSeason = (row.season_id || 0) < currentSeasonId;
+                const currentRxp = isNewSeason ? 0 : (row.rxp || 0);
+                // DB-22: total_games is a stored generated column
+                // (classic_played + power_played + ai_played) — a write that
+                // names it fails with 428C9. Count the game on its mode counter.
                 const playedCounter = gameMode === 'power'
-                    ? { power_played: (op.power_played || 0) + 1 }
-                    : { classic_played: (op.classic_played || 0) + 1 };
+                    ? { power_played: (row.power_played || 0) + 1 }
+                    : { classic_played: (row.classic_played || 0) + 1 };
+                return {
+                    // Stored casing, so the conflict target matches exactly.
+                    wallet_address: row.wallet_address,
+                    ...playedCounter,
+                    total_wins: isWinner ? (row.total_wins || 0) + 1 : (row.total_wins || 0),
+                    lxp: Number(row.lxp || 0) + (isWinner ? winLxpGain : baseLxpGain),
+                    rxp: isWinner ? currentRxp + winRxpGain : Math.max(0, currentRxp - lossRxpPenalty),
+                    season_id: currentSeasonId,
+                    last_played_at: lastPlayedAt,
+                };
+            });
 
-                await supabase
-                    .from('players')
-                    .update({
-                        ...playedCounter,
-                        lxp: (op.lxp || 0) + baseLxpGain,
-                        rxp: Math.max(0, currentRxp - lossRxpPenalty),
-                        season_id: currentSeasonId,
-                        last_played_at: new Date().toISOString()
-                    })
-                    .ilike('wallet_address', addr);
+            const { error: playerWriteError } = await supabase
+                .from('players')
+                .upsert(patches, { onConflict: 'wallet_address' });
+            if (playerWriteError) {
+                console.error('❌ [API] player progression write failed:', playerWriteError);
             }
         }
 
-        // Mission: daily_play_3 + weekly_play_10 (ALL participants); weekly_pvp_2 when PvP.
         const isPvpMatch = lowerParts.length >= 2; // versus match (not the solo/AI path)
-        for (const addr of participants) {
-            await updateMissionProgress(addr, 'daily_play_3', 1);
-            void reportProgress(addr, 'daily_play_3', 1); // on-chain mirror (no-op until configured)
-            void reportProgress(addr, 'weekly_play_10', 1); // on-chain mirror (no-op until configured)
-            if (isPvpMatch) void reportProgress(addr, 'weekly_pvp_2', 1); // on-chain mirror (no-op until configured)
+
+        // 3. Mission progress — one catalog read, one progress read, one upsert.
+        //
+        // The old shape called `updateMissionProgress` once per (wallet, mission)
+        // with a `select ... .single()` + insert/update pair: N+1, and wrong
+        // after migration 202609300004 re-keyed `player_missions` on
+        // (player_id, mission_id, period_id). `.single()` returns PGRST116 as
+        // soon as a player has more than one period row, the code then took its
+        // "create" branch, and the insert landed on the default
+        // period_id = 'legacy' — a bucket /api/missions/list never reads. Mission
+        // progress from settlement was being written into a row nobody sees.
+        try {
+            const { loadMissionCatalog, periodBucketFor } = await import('@/lib/missionCatalog');
+            const defById = new Map((await loadMissionCatalog()).map((m) => [m.missionId, m]));
+
+            // wallet -> missionId -> summed delta. Restricted to wallets that
+            // actually have a `players` row: player_missions.player_id is FK'd.
+            const wanted = new Map<string, Map<string, number>>();
+            const addBump = (wallet: string, missionId: string, delta: number) => {
+                const w = String(wallet).toLowerCase();
+                if (!playerByWallet.has(w) || delta <= 0) return;
+                const perMission = wanted.get(w) ?? new Map<string, number>();
+                perMission.set(missionId, (perMission.get(missionId) ?? 0) + delta);
+                wanted.set(w, perMission);
+            };
+
+            if (winnerLower) addBump(winnerLower, 'daily_win_1', 1);
+            for (const addr of seatWallets) addBump(addr, 'daily_play_3', 1);
+            for (const [addr, count] of Object.entries(captures)) addBump(addr, 'daily_capture_2', count);
+
+            const bumps = [...wanted.entries()].flatMap(([wallet, perMission]) =>
+                [...perMission.entries()].map(([missionId, delta]) => {
+                    const def = defById.get(missionId);
+                    // Unknown mission -> the column's own default bucket.
+                    return {
+                        wallet,
+                        missionId,
+                        periodId: def ? periodBucketFor(def, now) : 'legacy',
+                        delta,
+                    };
+                }),
+            );
+
+            if (bumps.length > 0) {
+                const { data: existingRows, error: missionReadError } = await supabase
+                    .from('player_missions')
+                    .select('player_id, mission_id, period_id, progress, is_claimed')
+                    .in('player_id', [...new Set(bumps.map((b) => b.wallet))])
+                    .in('mission_id', [...new Set(bumps.map((b) => b.missionId))])
+                    .in('period_id', [...new Set(bumps.map((b) => b.periodId))]);
+                if (missionReadError) throw missionReadError;
+
+                const existingByKey = new Map<string, { progress: number; is_claimed: boolean }>();
+                for (const row of existingRows ?? []) {
+                    existingByKey.set(`${row.player_id}:${row.mission_id}:${row.period_id}`, {
+                        progress: Number(row.progress || 0),
+                        is_claimed: Boolean(row.is_claimed),
+                    });
+                }
+
+                // A new period is a new row, so there is no date comparison to
+                // get wrong — the daily reset this route used to perform is now
+                // structural.
+                const missionRows = bumps.map((b) => {
+                    const prior = existingByKey.get(`${b.wallet}:${b.missionId}:${b.periodId}`);
+                    return {
+                        player_id: b.wallet,
+                        mission_id: b.missionId,
+                        period_id: b.periodId,
+                        progress: (prior?.progress ?? 0) + b.delta,
+                        is_claimed: prior?.is_claimed ?? false,
+                        last_updated: now.toISOString(),
+                    };
+                });
+
+                const { error: missionWriteError } = await supabase
+                    .from('player_missions')
+                    .upsert(missionRows, { onConflict: 'player_id,mission_id,period_id' });
+                if (missionWriteError) throw missionWriteError;
+            }
+        } catch (missionErr) {
+            // The match row is already claimed; mission progress is a mirror.
+            console.error('[missions] match settlement progress failed:', missionErr);
         }
 
-        // Mission: daily_capture_2 + weekly_capture_10 from the signature-attested
-        // per-player capture counts. Only wallets with at least one kick are
-        // reported; a zero-count entry means "no captures" and is skipped.
+        // On-chain mirror (no-op until MissionSystem is configured for this env).
+        // Fire-and-forget by design: these are external chain writes, not DB
+        // round trips, so they stay outside the batched path above. The DB
+        // mirror for the daily missions is the upsert; the weekly missions live
+        // on-chain alone, because a daily-keyed row cannot represent a 7-day one.
+        if (winnerLower && playerByWallet.has(winnerLower)) {
+            void reportProgress(winnerLower, 'daily_win_1', 1);
+            void reportProgress(winnerLower, 'weekly_win_3', 1);
+        }
+        for (const addr of new Set(lowerParts)) {
+            void reportProgress(addr, 'daily_play_3', 1);
+            void reportProgress(addr, 'weekly_play_10', 1);
+            if (isPvpMatch) void reportProgress(addr, 'weekly_pvp_2', 1);
+        }
         for (const [addr, count] of Object.entries(captures)) {
             if (count <= 0) continue;
-            void reportProgress(addr, 'daily_capture_2', count); // on-chain mirror (no-op until configured)
-            void reportProgress(addr, 'weekly_capture_10', count); // on-chain mirror (no-op until configured)
-            // Legacy DB mirror for the daily mission only. Weekly rows in
-            // `player_missions` are reset on the daily interval by
-            // `updateMissionProgress`, which would corrupt a 7-day mission — so
-            // the weekly mission lives on-chain alone.
-            await updateMissionProgress(addr, 'daily_capture_2', count);
+            void reportProgress(addr, 'daily_capture_2', count);
+            void reportProgress(addr, 'weekly_capture_10', count);
         }
 
         // Onboarding tracks (server-owned progress; claims stay pull-based).
+        // `preUpdatePlayers` is the snapshot taken before the progression write
+        // above — `recordReturnVisit` needs last_played_at as it was BEFORE this
+        // settlement, or it always reads "today" and never awards day2/day3.
         try {
             const { recordMatchOnboarding } = await import('@/lib/onboardingProgressWriter');
             await recordMatchOnboarding(supabase, {
                 participants: lowerParts,
                 gameMode: gameMode || 'classic',
+                preUpdatePlayers,
             });
         } catch (onbErr) {
             console.error('[onboarding] match writers failed:', onbErr);

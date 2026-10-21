@@ -69,9 +69,28 @@ export function aiTrackForGameMode(gameMode: string | null | undefined): Onboard
     return null;
 }
 
+/** UTC day index — one integer per calendar day, so day maths cannot drift. */
+function dayIndex(iso: string | null | undefined): number | null {
+    if (!iso) return null;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86_400_000);
+}
+
+export type OnboardingPlayerSnapshot = {
+    wallet_address: string;
+    created_at: string | null;
+    last_played_at: string | null;
+};
+
 /**
  * After a recorded online match: pvp + return-day tracks for every participant.
  * AI / tutorial / playtime stay client-driven (offline path) via /api/onboarding/progress.
+ *
+ * Batched deliberately: this runs on the match-settlement path, where the old
+ * per-wallet shape cost 3–7 round trips each (a select + upsert per track, plus
+ * a players read per wallet). Now it is at most one read and one upsert for the
+ * whole match, whatever the seat count.
  */
 export async function recordMatchOnboarding(
     db: Db,
@@ -80,22 +99,123 @@ export async function recordMatchOnboarding(
         gameMode?: string | null;
         /** True when the human finished a bot/offline board that the client reports. */
         versusAi?: boolean;
+        /**
+         * `players` rows as they were BEFORE the caller wrote progression.
+         * `recordReturnVisit` needs the pre-match `last_played_at`; when the
+         * caller omits this, it is read here (one extra query, same values).
+         */
+        preUpdatePlayers?: OnboardingPlayerSnapshot[];
     },
 ): Promise<void> {
-    const parts = (args.participants || [])
+    const parts = [...new Set((args.participants || [])
         .map((p) => String(p || '').toLowerCase())
-        .filter((p) => /^0x[a-f0-9]{40}$/.test(p));
+        .filter((p) => /^0x[a-f0-9]{40}$/.test(p)))];
     if (parts.length === 0) return;
 
+    const now = new Date();
     const aiTrack = args.versusAi ? aiTrackForGameMode(args.gameMode) : null;
 
+    // 1. What each wallet earns from *this* match.
+    const earned = new Map<string, Set<OnboardingTrack>>();
     for (const wallet of parts) {
-        if (aiTrack) {
-            await bumpOnboardingProgress(db, wallet, aiTrack, 1);
-        } else if (parts.length >= 2) {
-            await bumpOnboardingProgress(db, wallet, 'pvp', 1);
+        const tracks = new Set<OnboardingTrack>();
+        if (aiTrack) tracks.add(aiTrack);
+        else if (parts.length >= 2) tracks.add('pvp');
+        earned.set(wallet, tracks);
+    }
+
+    // 2. Return-visit tracks (day2 / day3) from the PRE-update snapshot.
+    const snapshot = new Map<string, OnboardingPlayerSnapshot>();
+    for (const row of args.preUpdatePlayers ?? []) {
+        snapshot.set(String(row.wallet_address || '').toLowerCase(), row);
+    }
+    if (parts.some((w) => !snapshot.has(w))) {
+        const { data, error } = await db
+            .from('players')
+            .select('wallet_address, created_at, last_played_at')
+            .in('wallet_address', parts);
+        if (error) {
+            console.error('[onboarding] player snapshot read failed', error.message);
         }
-        await recordReturnVisit(db, wallet);
+        for (const row of (data ?? []) as OnboardingPlayerSnapshot[]) {
+            snapshot.set(String(row.wallet_address).toLowerCase(), row);
+        }
+    }
+
+    const today = dayIndex(now.toISOString());
+    for (const wallet of parts) {
+        const row = snapshot.get(wallet);
+        if (!row || today == null) continue;
+        const createdDay = dayIndex(row.created_at);
+        const lastDay = dayIndex(row.last_played_at);
+        if (createdDay == null) continue;
+        // First activity of the UTC day (last_played still on an older day, or never).
+        if (lastDay != null && lastDay >= today) continue;
+        const dayNumber = today - createdDay + 1; // 1-based day of life
+        const tracks = earned.get(wallet)!;
+        if (dayNumber >= 2) tracks.add('day2');
+        if (dayNumber >= 3) tracks.add('day3');
+    }
+
+    const pairs = [...earned.entries()].flatMap(([wallet, tracks]) =>
+        [...tracks].map((track) => ({ wallet, track })),
+    );
+    if (pairs.length === 0) return;
+
+    // 3. One read of the current progress for every (wallet, track) pair.
+    const { data: existing, error: readError } = await db
+        .from('onboarding_progress')
+        .select('wallet_address, track, progress, target, is_claimed')
+        .in('wallet_address', parts)
+        .in('track', [...new Set(pairs.map((p) => p.track))]);
+    if (readError) {
+        console.error('[onboarding] progress read failed', readError.message);
+        return;
+    }
+
+    const existingByKey = new Map<string, { progress: number; target: number | null; is_claimed: boolean }>();
+    for (const row of existing ?? []) {
+        existingByKey.set(`${row.wallet_address}:${row.track}`, {
+            progress: Number(row.progress || 0),
+            target: row.target == null ? null : Number(row.target),
+            is_claimed: Boolean(row.is_claimed),
+        });
+    }
+
+    // 4. Clamp to target and write everything in one upsert.
+    const rows: Array<{
+        wallet_address: string;
+        track: string;
+        progress: number;
+        target: number;
+        is_claimed: boolean;
+        updated_at: string;
+    }> = [];
+    for (const { wallet, track } of pairs) {
+        const def = ONBOARDING_TRACKS[track];
+        const prior = existingByKey.get(`${wallet}:${track}`);
+        const prev = prior?.progress ?? 0;
+        const target = prior?.target && prior.target > 0 ? prior.target : def.target;
+        const progress = Math.min(prev + 1, target);
+        if (progress === prev) continue;
+        // On-chain mirror: same delta as the DB row (no-op until configured).
+        void reportProgress(wallet, String(track), 1);
+        rows.push({
+            wallet_address: wallet,
+            track,
+            progress,
+            target,
+            is_claimed: prior?.is_claimed ?? false,
+            updated_at: now.toISOString(),
+        });
+    }
+    if (rows.length === 0) return;
+
+    const { error: upsertError } = await db
+        .from('onboarding_progress')
+        .upsert(rows, { onConflict: 'wallet_address,track' });
+    if (upsertError) {
+        console.error('[onboarding] bulk upsert failed', upsertError.message);
     }
 }
 
@@ -111,13 +231,6 @@ export async function recordReturnVisit(db: Db, wallet: string): Promise<void> {
         .ilike('wallet_address', walletAddress)
         .maybeSingle();
     if (error || !player) return;
-
-    const dayIndex = (iso: string | null | undefined) => {
-        if (!iso) return null;
-        const d = new Date(iso);
-        if (Number.isNaN(d.getTime())) return null;
-        return Math.floor(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) / 86_400_000);
-    };
 
     const today = dayIndex(new Date().toISOString());
     const createdDay = dayIndex(player.created_at);
