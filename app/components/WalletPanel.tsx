@@ -6,6 +6,7 @@ import { useWalletAssets } from "@/hooks/useWalletAssets";
 import { useWalletMode } from "@/hooks/useWalletMode";
 import { useNetworkLabel } from "@/hooks/useNetworkLabel";
 import { useWalletActivity } from "@/hooks/useWalletActivity";
+import { useAppSession } from "@/hooks/useAppSession";
 import SendTokenSheet from "./SendTokenSheet";
 import ReceiveSheet from "./ReceiveSheet";
 import WalletActivityList from "./WalletActivityList";
@@ -56,6 +57,52 @@ function TokenIcon({ kind }: { kind: "eth" | "usdc" | "chips" }) {
                 <circle cx="12" cy="12" r="3" fill="#fff" stroke="none" />
             </svg>
         </div>
+    );
+}
+
+function BaseIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 512 512" className={className} fill="none" aria-hidden="true">
+            <rect width="512" height="512" rx="118" fill="#0052FF" />
+            <path
+                fillRule="evenodd"
+                clipRule="evenodd"
+                d="M255.457 348.667C238.337 348.321 221.688 343.167 207.351 333.791C129.212 282.88 153.84 163.333 246.331 163.333C292.576 163.333 337.5 198.817 337.5 256C337.5 313.183 292.576 348.667 246.331 348.667H255.457ZM426 274.074H337.5C337.5 330.655 289.479 375.407 232.062 375.407C163.099 375.407 106 320.106 106 256C106 191.894 163.099 136.593 232.062 136.593C301.026 136.593 354.12 185.088 360.778 247.333H426C420.334 179.917 386.417 129.815 332.222 101.407C278.028 73 207.028 73.0001 152.833 101.407C98.6389 129.815 64.7222 179.917 59.0556 247.333C53.3889 314.75 87.3056 372.25 141.5 400.658C195.694 429.065 266.694 429.065 320.889 400.658C363.69 378.106 394.019 339.721 408.834 294.593H426V274.074Z"
+                fill="white"
+            />
+        </svg>
+    );
+}
+
+function InGameIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="2" y="6" width="20" height="12" rx="4" />
+            <path d="M6 12h4m-2-2v4" />
+            <circle cx="15" cy="11" r=".8" fill="currentColor" />
+            <circle cx="18" cy="13" r=".8" fill="currentColor" />
+        </svg>
+    );
+}
+
+function ExternalWalletIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M19 7V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h13a2 2 0 0 0 2-2v-2" />
+            <rect x="13" y="10" width="9" height="5" rx="1.5" />
+            <circle cx="17.5" cy="12.5" r=".75" fill="currentColor" />
+            <path d="M17 2h5m0 0v5m0-5l-6 6" />
+        </svg>
+    );
+}
+
+function DisconnectedIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
+    return (
+        <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m2 2 20 20" />
+            <path d="M8.5 8.5 5 12l4 4 3.5-3.5" />
+            <path d="m15.5 15.5 3.5-3.5-4-4-3.5 3.5" />
+        </svg>
     );
 }
 
@@ -124,6 +171,8 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
     const { tokens, loading, refresh, needsReconnect, address, usdc } = useWalletAssets();
     const mode = useWalletMode();
     const network = useNetworkLabel();
+    const { sessionId } = useAppSession();
+    const hasActiveSession = Boolean(sessionId);
     const { items: activity } = useWalletActivity();
     const [screen, setScreen] = useState<Screen>("home");
     const [copied, setCopied] = useState(false);
@@ -212,16 +261,55 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                             </svg>
                         </button>
                     ) : (
-                        <span className="cb-nav-title">Wallet</span>
+                        <div className="cb-nav-title flex items-center gap-2">
+                            <span>Wallet</span>
+                            <span
+                                className="relative flex h-2 w-2 items-center justify-center cursor-help"
+                                title={hasActiveSession ? "Session Active (Authenticated)" : "Session Inactive (Not Authenticated)"}
+                                aria-label={hasActiveSession ? "Session Active" : "Session Inactive"}
+                            >
+                                {hasActiveSession && (
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                                )}
+                                <span className={`cb-session-dot ${hasActiveSession ? "active" : "inactive"}`} />
+                            </span>
+                        </div>
                     )}
                     {isHome && (
-                        <span className={`cb-mode-pill ${network.isTestnet ? "testnet" : ""}`}>
-                            {mode === "ingame"
-                                ? network.label
-                                : mode === "external"
-                                  ? `${network.label} · External`
-                                  : `${network.label} · Not connected`}
-                        </span>
+                        <div
+                            className="cb-mode-pill"
+                            title={`${network.long} · ${
+                                mode === "ingame"
+                                    ? "In-Game Smart Wallet"
+                                    : mode === "external"
+                                      ? "Connected External Wallet"
+                                      : "Wallet Not Connected"
+                            }`}
+                        >
+                            <div className="flex items-center gap-1.5">
+                                <BaseIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                                <span>{network.isTestnet ? "Sepolia" : network.label.replace(/^Base\s*/i, "") || "Base"}</span>
+                            </div>
+                            <span className="cb-mode-pill-divider" aria-hidden="true" />
+                            <div className="flex items-center gap-1">
+                                {mode === "ingame" ? (
+                                    <>
+                                        <InGameIcon className="w-3.5 h-3.5 text-cyan-400" />
+                                        <span className="text-cyan-400 font-semibold">In-Game</span>
+                                    </>
+                                ) : mode === "external" ? (
+                                    <>
+                                        <ExternalWalletIcon className="w-3.5 h-3.5 text-amber-300" />
+                                        <span className="text-amber-300 font-semibold">External</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <DisconnectedIcon className="w-3.5 h-3.5 opacity-40" />
+                                        <span className="opacity-40 font-semibold">Offline</span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
                     )}
                     {!isHome && <h1 className="cb-nav-title">{title}</h1>}
                     <button type="button" className="cb-icon-btn" aria-label="Close wallet" onClick={onClose}>
