@@ -48,15 +48,55 @@ Ludo Base strictly bifurcates wallet authentication based on signer type. The si
 
 ---
 
-## 3. CDP Security Preferences (`useSecurityPrefs`)
+## 3. CDP Security Preferences & `autoSign` Matrix (`useSecurityPrefs`)
 
-CDP users can tune their signing behavior in **Settings → Security**. External wallets do not use these settings.
+CDP in-game wallet users can configure their signing security in **Settings → Security**. External wallets (MetaMask, Base Account, etc.) **ignore these settings completely** because external wallet extensions own all signature approvals natively.
+
+### Security Preference Options
 
 | Preference | LocalStorage Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `bootLock` | `ludo-security-boot-lock` | `boolean` | `true` | Requires passkey / biometric authentication on every app launch. |
 | `txStepUp` | `ludo-security-tx-step` | `"strict" \| "confirm"` | `"strict"` | `"strict"` requires device Face ID / Touch ID / PIN before executing on-chain transactions; `"confirm"` allows one-click confirmation using CDP session keys. |
-| `autoSign` | `ludo-security-auto-sign` | `boolean` | `true` | Enables silent background signing for SIWE and off-chain session messages. When `false`, every SIWE authentication requires a device biometric step-up. |
+| `autoSign` | `ludo-security-auto-sign` | `boolean` | `true` | Enables silent background signing for SIWE and match session grants. When `false`, every off-chain signature triggers an OS device biometric challenge. |
+
+---
+
+### Detailed Behavior: `autoSign: true` vs `autoSign: false`
+
+```
+                     ┌───────────────────────────────────┐
+                     │   CDP In-Game Wallet Action       │
+                     └─────────────────┬─────────────────┘
+                                       │
+                    ┌──────────────────┴──────────────────┐
+                    ▼                                     ▼
+           autoSign === true                    autoSign === false
+        (Seamless Gaming Mode)              (Hardware Enforced Mode)
+   ┌────────────────────────────────┐   ┌────────────────────────────────┐
+   │ • Silent background SIWE sign  │   │ • Device biometric prompt      │
+   │ • Instant <100ms session prep  │   │   (navigator.credentials.get)  │
+   │ • Zero friction before radar   │   │ • SignWaitModal holds queue    │
+   │ • Strict MFA on on-chain funds │   │ • OS FaceID/TouchID challenge  │
+   └────────────────────────────────┘   └────────────────────────────────┘
+```
+
+#### Surface Comparison Matrix
+
+| Flow / Surface | `autoSign: true` (Default / Seamless Gaming) | `autoSign: false` (Zero-Trust Hardware Enforced) |
+| :--- | :--- | :--- |
+| **App Launch** | Guarded by `BootLock` (Passkey/Face ID if enabled). | Guarded by `BootLock` (Passkey/Face ID if enabled). |
+| **Lobby & Matchmaking**<br>(Quick Match / Team Up) | **Zero prompts.** Pre-auth SIWE and match grants resolve silently in memory. Search radar opens immediately. | **Biometric prompt.** `SignWaitModal` appears with `"Awaiting Signature"` while the OS prompts for Touch ID / Face ID. Radar opens only after approval. |
+| **Direct Messaging (DMs)** | ECDH public key published and SIWE verified silently in background. Chat sends seamlessly. | OS biometric prompt before the first message or key publication. |
+| **Missions & Rewards** | Daily bonus and voucher signatures generated silently in the background. | Requires Touch ID / Face ID before voucher generation. |
+| **In-Game Turns**<br>(Roll, Move, Powers) | **Zero signatures.** WebSocket intents with Session v2 bearer token to MatchRoom DO. | **Zero signatures.** Match gameplay is never interrupted by biometric popups. |
+| **On-Chain Transactions**<br>(Send, Swap, Wager) | Governed by `txStepUp`: Prompted if `strict` (default), or 1-tap confirm if `confirm`. | **Always requires biometric step-up** before any on-chain transaction. |
+
+#### Implementation Details
+- **`autoSign: true` (Seamless Gaming Mode)**:
+  `useAppSession` and `useMoveAuth` execute the CDP parent signer directly without calling `navigator.credentials.get`. The `SignWaitModal` is mounted for milliseconds, creating instant transitions.
+- **`autoSign: false` (Strict Biometric Mode)**:
+  Prior to signing, `useAppSession` and `useMoveAuth` trigger `navigator.credentials.get({ publicKey: { challenge, rpId, userVerification: "required" } })`. If the user cancels or biometrics fail, the action aborts gracefully and the user remains in the lobby without being stuck in a loading state. Once successfully signed, verified SIWE sessions are cached for 7 days (`APP_SESSION_TTL_MS`) to prevent repetitive prompt loops on pollers.
 
 ---
 

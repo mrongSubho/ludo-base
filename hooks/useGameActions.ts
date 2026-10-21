@@ -168,7 +168,7 @@ export function useGameActions({
     const moveToken = useCallback(async (color: PlayerColor, tokenIndex: number, steps: number, isRemote = false): Promise<MoveTokenOutcome> => {
         const currentState0 = stateRef.current;
         if (currentState0.status === 'finished' || currentState0.winner) return 'failed';
-        const matchId = currentState0.matchId;
+        const _matchId = currentState0.matchId;
         // ── Room authority (TU-4) ────────────────────────────────────────
         // The MatchRoom resolves the move, commits it atomically and fans the new
         // state out to every socket. This client sends an intent and renders the
