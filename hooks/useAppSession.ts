@@ -6,7 +6,6 @@ import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import { buildSiweMessage, APP_SESSION_TTL_MS } from '@/lib/sessionProof';
 import { parseChainId, DEFAULT_CHAIN_ID } from '@/lib/chains';
 import { AppSessionGuard } from '@/lib/appSessionGuard';
-import { readSecurityPrefs } from '@/hooks/useSecurityPrefs';
 import { showAuthPrompt, AuthPromptContext } from '@/hooks/useAuthPrompt';
 
 const STORAGE_KEY = 'ludo-siwe-session';
@@ -119,31 +118,6 @@ export function useAppSession() {
                         },
                     });
 
-                    // autoSign off → require device Face ID / Touch ID before
-                    // CDP/background message sign (security prefs). External
-                    // wallets must use their native wallet confirmation flow.
-                    if (
-                        player.mode === "ingame" &&
-                        !readSecurityPrefs().autoSign &&
-                        typeof window !== "undefined" &&
-                        window.PublicKeyCredential
-                    ) {
-                        try {
-                            console.error('[siwe-sign] stage=biometrics-prompt');
-                            const ch = crypto.getRandomValues(new Uint8Array(32));
-                            await navigator.credentials.get({
-                                publicKey: {
-                                    challenge: ch,
-                                    rpId: window.location.hostname,
-                                    userVerification: "required",
-                                    timeout: 60_000,
-                                },
-                            });
-                            console.error('[siwe-sign] stage=biometrics-done');
-                        } catch {
-                            return Promise.reject(new Error("Device biometrics required to sign in"));
-                        }
-                    }
                     const domain = window.location.hostname;
                     const issuedAt = new Date().toISOString();
                     const expirationTime = new Date(Date.now() + APP_SESSION_TTL_MS).toISOString();
@@ -210,7 +184,7 @@ export function useAppSession() {
         } finally {
             cleanupModal?.();
         }
-    }, [address, signMessageAsync, walletChainId, player.mode]);
+    }, [address, signMessageAsync, walletChainId]);
 
     const clearAppSession = useCallback(() => {
         try {

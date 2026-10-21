@@ -23,8 +23,6 @@ import type { GameState, ColorCorner, PlayerColor, PowerType } from '@/lib/types
 import type { MatchActionError, MatchActionErrorCode, MatchActionSuccess } from '@/lib/matchProtocol';
 import type { MatchStateSnapshot } from '@/lib/matchProtocol';
 import { showAuthPrompt, type AuthPromptContext } from '@/hooks/useAuthPrompt';
-import { useWalletMode } from '@/hooks/useWalletMode';
-import { readSecurityPrefs } from '@/hooks/useSecurityPrefs';
 
 type SignFn = (args: { account: `0x${string}`; message: string }) => Promise<string>;
 type SignTypedFn = (args: {
@@ -101,7 +99,6 @@ export function useMoveAuth(opts: {
     chainId?: number;
 }) {
     const { myAddress, signMessageAsync, signTypedDataAsync } = opts;
-    const walletMode = useWalletMode();
     // Dual-chain gate: the EIP-712 domain chain must match what Edge verifies.
     const signingChainId = parseChainId(opts.chainId) ?? DEFAULT_CHAIN_ID;
     const sessionDomain = buildSessionDomain(signingChainId);
@@ -130,28 +127,6 @@ export function useMoveAuth(opts: {
                 title: params.title || "MATCH SESSION AUTHORIZATION",
                 statusText: params.statusText || "Authorizing match session in your wallet...",
             });
-
-            // autoSign off → require device Face ID / Touch ID before CDP background sign
-            if (
-                walletMode === "ingame" &&
-                !readSecurityPrefs().autoSign &&
-                typeof window !== "undefined" &&
-                window.PublicKeyCredential
-            ) {
-                try {
-                    const ch = crypto.getRandomValues(new Uint8Array(32));
-                    await navigator.credentials.get({
-                        publicKey: {
-                            challenge: ch,
-                            rpId: window.location.hostname,
-                            userVerification: "required",
-                            timeout: 60_000,
-                        },
-                    });
-                } catch {
-                    return { ok: false, error: "Device biometrics required to authorize match session" };
-                }
-            }
 
             const payload = buildMatchSessionPayload({
                 wallet: myAddress,
@@ -193,7 +168,7 @@ export function useMoveAuth(opts: {
         } finally {
             cleanupModal?.();
         }
-    }, [myAddress, sessionDomain, signingChainId, signTypedDataAsync, walletMode]);
+    }, [myAddress, sessionDomain, signingChainId, signTypedDataAsync]);
 
     const bindProvisionalSession = useCallback(async (params: {
         provisionalId: string;
@@ -223,28 +198,6 @@ export function useMoveAuth(opts: {
         if (pending) return pending;
 
         const request = (async () => {
-            // autoSign off → require device Face ID / Touch ID before CDP background sign
-            if (
-                walletMode === "ingame" &&
-                !readSecurityPrefs().autoSign &&
-                typeof window !== "undefined" &&
-                window.PublicKeyCredential
-            ) {
-                try {
-                    const ch = crypto.getRandomValues(new Uint8Array(32));
-                    await navigator.credentials.get({
-                        publicKey: {
-                            challenge: ch,
-                            rpId: window.location.hostname,
-                            userVerification: "required",
-                            timeout: 60_000,
-                        },
-                    });
-                } catch {
-                    return { ok: false, error: "Device biometrics required to authorize match session" };
-                }
-            }
-
             const payload = buildMatchSessionPayload({
                 wallet: myAddress,
                 matchId: params.matchId,
@@ -289,7 +242,7 @@ export function useMoveAuth(opts: {
         } finally {
             sharedMovePending.delete(params.matchId);
         }
-    }, [myAddress, sessionDomain, signingChainId, signTypedDataAsync, walletMode]);
+    }, [myAddress, sessionDomain, signingChainId, signTypedDataAsync]);
 
     const seedMatch = useCallback(async (params: {
         matchId: string;

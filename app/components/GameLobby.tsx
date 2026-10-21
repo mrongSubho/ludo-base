@@ -13,7 +13,6 @@ const QuickMatchPanel = dynamic(() => import('./QuickMatchPanel').then(m => m.Qu
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { LuMinus, LuPlus } from 'react-icons/lu';
 import { supabase } from '@/lib/supabase';
-import { useAccount } from 'wagmi';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
@@ -92,8 +91,7 @@ export default function GameLobby({
         lowerEntryFee,
         createProvisionalSession,
     } = useTeamUpContext();
-    const { address } = useAccount();
-    const { profile } = useCurrentUser();
+    const { address, profile } = useCurrentUser();
     const coins = profile?.coins ?? 0;
     // Guests can only enter offline/bot matches — online entry shows the wall.
     const { guard } = useGuestWall();

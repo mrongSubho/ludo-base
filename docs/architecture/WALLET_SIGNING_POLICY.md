@@ -48,7 +48,7 @@ Ludo Base strictly bifurcates wallet authentication based on signer type. The si
 
 ---
 
-## 3. CDP Security Preferences & `autoSign` Matrix (`useSecurityPrefs`)
+## 3. CDP Security Preferences & Signing Lifecycle (`useSecurityPrefs`)
 
 CDP in-game wallet users can configure their signing security in **Settings → Security**. External wallets (MetaMask, Base Account, etc.) **ignore these settings completely** because external wallet extensions own all signature approvals natively.
 
@@ -58,45 +58,40 @@ CDP in-game wallet users can configure their signing security in **Settings → 
 | :--- | :--- | :--- | :--- | :--- |
 | `bootLock` | `ludo-security-boot-lock` | `boolean` | `true` | Requires passkey / biometric authentication on every app launch. |
 | `txStepUp` | `ludo-security-tx-step` | `"strict" \| "confirm"` | `"strict"` | `"strict"` requires device Face ID / Touch ID / PIN before executing on-chain transactions; `"confirm"` allows one-click confirmation using CDP session keys. |
-| `autoSign` | `ludo-security-auto-sign` | `boolean` | `true` | Enables silent background signing for SIWE and match session grants. When `false`, every off-chain signature triggers an OS device biometric challenge. |
+| `autoSign` | `ludo-security-auto-sign` | `boolean` | `true` | Enables seamless gaming flow without manual redundant biometric gates. |
 
 ---
 
-### Detailed Behavior: `autoSign: true` vs `autoSign: false`
+### CDP Passkey Architecture & Signing Flow
+
+CDP in-game wallets are **smart accounts owned by a hardware WebAuthn passkey**. Because the private key is managed by the device's secure enclave / WebAuthn, signing messages cryptographically invokes the enrolled passkey.
 
 ```
-                     ┌───────────────────────────────────┐
-                     │   CDP In-Game Wallet Action       │
-                     └─────────────────┬─────────────────┘
-                                       │
-                    ┌──────────────────┴──────────────────┐
-                    ▼                                     ▼
-           autoSign === true                    autoSign === false
-        (Seamless Gaming Mode)              (Hardware Enforced Mode)
-   ┌────────────────────────────────┐   ┌────────────────────────────────┐
-   │ • Silent background SIWE sign  │   │ • Device biometric prompt      │
-   │ • Instant <100ms session prep  │   │   (navigator.credentials.get)  │
-   │ • Zero friction before radar   │   │ • SignWaitModal holds queue    │
-   │ • Strict MFA on on-chain funds │   │ • OS FaceID/TouchID challenge  │
-   └────────────────────────────────┘   └────────────────────────────────┘
+                  ┌────────────────────────────────────────┐
+                  │        CDP In-Game Wallet Action       │
+                  └───────────────────┬────────────────────┘
+                                      │
+                 ┌────────────────────┴────────────────────┐
+                 ▼                                         ▼
+         Session Cached (7-Day TTL)                Initial Auth / Expired
+   ┌───────────────────────────────┐        ┌───────────────────────────────────┐
+   │ • 0ms Cache Hit               │        │ • SignWaitModal displays context  │
+   │ • ZERO Biometric Prompts      │        │ • CDP SDK requests Passkey        │
+   │ • Quick Match & Team Up open  │        │   (Face ID / Touch ID / PIN)      │
+   │   immediately with no delays  │        │ • Session cached for 7 days       │
+   └───────────────────────────────┘        └───────────────────────────────────┘
 ```
 
-#### Surface Comparison Matrix
+#### Surface Behavior Matrix
 
-| Flow / Surface | `autoSign: true` (Default / Seamless Gaming) | `autoSign: false` (Zero-Trust Hardware Enforced) |
+| Flow / Surface | First-Time / Expired Session | Active Cached Session (Within 7-Day TTL) |
 | :--- | :--- | :--- |
 | **App Launch** | Guarded by `BootLock` (Passkey/Face ID if enabled). | Guarded by `BootLock` (Passkey/Face ID if enabled). |
-| **Lobby & Matchmaking**<br>(Quick Match / Team Up) | **Zero prompts.** Pre-auth SIWE and match grants resolve silently in memory. Search radar opens immediately. | **Biometric prompt.** `SignWaitModal` appears with `"Awaiting Signature"` while the OS prompts for Touch ID / Face ID. Radar opens only after approval. |
-| **Direct Messaging (DMs)** | ECDH public key published and SIWE verified silently in background. Chat sends seamlessly. | OS biometric prompt before the first message or key publication. |
-| **Missions & Rewards** | Daily bonus and voucher signatures generated silently in the background. | Requires Touch ID / Face ID before voucher generation. |
-| **In-Game Turns**<br>(Roll, Move, Powers) | **Zero signatures.** WebSocket intents with Session v2 bearer token to MatchRoom DO. | **Zero signatures.** Match gameplay is never interrupted by biometric popups. |
-| **On-Chain Transactions**<br>(Send, Swap, Wager) | Governed by `txStepUp`: Prompted if `strict` (default), or 1-tap confirm if `confirm`. | **Always requires biometric step-up** before any on-chain transaction. |
-
-#### Implementation Details
-- **`autoSign: true` (Seamless Gaming Mode)**:
-  `useAppSession` and `useMoveAuth` execute the CDP parent signer directly without calling `navigator.credentials.get`. The `SignWaitModal` is mounted for milliseconds, creating instant transitions.
-- **`autoSign: false` (Strict Biometric Mode)**:
-  Prior to signing, `useAppSession` and `useMoveAuth` trigger `navigator.credentials.get({ publicKey: { challenge, rpId, userVerification: "required" } })`. If the user cancels or biometrics fail, the action aborts gracefully and the user remains in the lobby without being stuck in a loading state. Once successfully signed, verified SIWE sessions are cached for 7 days (`APP_SESSION_TTL_MS`) to prevent repetitive prompt loops on pollers.
+| **Lobby & Matchmaking**<br>(Quick Match / Team Up) | **One-time Passkey Sign-in.** `SignWaitModal` appears with `"Awaiting Signature"` while the OS prompts for Passkey verification. Radar opens once signed. | **ZERO Prompts.** Cached SIWE session is used. Radar or Team Up opens immediately in 0ms. |
+| **Direct Messaging (DMs)** | One-time Passkey sign to publish ECDH key and authenticate. | **ZERO Prompts.** Messages send silently in the background. |
+| **Missions & Rewards** | Authenticates via cached SIWE session. | **ZERO Prompts.** Claims and vouchers resolve seamlessly. |
+| **In-Game Turns**<br>(Roll, Move, Powers) | **ZERO signatures.** WebSocket intents with Session v2 bearer token to MatchRoom DO. | **ZERO signatures.** Gameplay is never interrupted by biometric popups. |
+| **On-Chain Transactions**<br>(Send, Swap, Wager) | Governed by `txStepUp`: Requires device bio unlock if `strict` (default), or 1-tap confirm if `confirm`. | Governed by `txStepUp`: Requires device bio unlock if `strict` (default), or 1-tap confirm if `confirm`. |
 
 ---
 
