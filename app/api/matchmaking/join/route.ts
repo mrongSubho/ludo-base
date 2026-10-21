@@ -36,27 +36,22 @@ async function withCallerToken(db: any, playerId: string, data: any) {
             .maybeSingle();
         const minted = sibling?.validation_token ?? [...crypto.getRandomValues(new Uint8Array(16))]
             .map(b => b.toString(16).padStart(2, '0')).join('');
-        // Guarded single-mint: only persist when the row is still tokenless.
-        // On a lost race (0 rows updated) re-read the winner's token instead
-        // of returning an unpersisted value the secret gate would reject.
-        const { data: claimed, error } = await db
+        // Guarded single-mint: persist across ALL tickets for this match atomically
+        // so both Host and Guest always share the identical validation token.
+        await db
             .from('matchmaking_queue')
             .update({ validation_token: minted })
-            .eq('id', ticket.id)
-            .is('validation_token', null)
-            .select('validation_token')
-            .maybeSingle();
-        if (error) throw error;
-        if (claimed?.validation_token) {
-            return { ...data, validation_token: claimed.validation_token };
-        }
-        // Lost the race after all: re-read whatever won.
+            .eq('match_id', data.match_id)
+            .is('validation_token', null);
+
         const { data: winner } = await db
             .from('matchmaking_queue')
             .select('validation_token')
-            .eq('id', ticket.id)
+            .eq('match_id', data.match_id)
+            .not('validation_token', 'is', null)
+            .limit(1)
             .maybeSingle();
-        return { ...data, validation_token: winner?.validation_token ?? undefined };
+        return { ...data, validation_token: winner?.validation_token ?? minted };
     } catch (err) {
         // Token is best-effort hardening: open rooms join fine without it.
         console.warn('⚠️ [Matchmaking] Token mint skipped:', (err as Error).message);

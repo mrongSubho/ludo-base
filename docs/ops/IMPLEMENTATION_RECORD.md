@@ -1163,12 +1163,16 @@ Investigation identified two interlocking root causes:
    - Enhanced `requireAppSession` in `lib/serverAuth.ts` to cleanly extract the authenticated wallet address directly from `sessions` or `app_sessions` when `expectedWallet` is omitted.
    - Added `matches.participants` fallback for `players` roster in `status/route.ts` when `matchmaking_queue` tickets have already transitioned.
    - Updated `hooks/useMatchmaking.ts` to propagate `knownPlayers` directly from `data.participants` (join RPC) or `typedData.players` (status poll) into `resolveIsHost`, eliminating unnecessary asynchronous HTTP round-trips for host election and preventing split-brain guest stalls. Synchronously initialized `ticketIdRef.current` upon ticket issuance.
+6. **`MM-11` (Realtime Relay Channel Subscription & REST Lobby Join Fallback Auth)**:
+   - Fixed Relay channel broadcast failure in `hooks/useSupabaseRelay.ts`: unified send/receive into a single actively subscribed Supabase channel reference (`game-room-${code}`). Replaced un-subscribed send channel that previously caused `Realtime send() is automatically falling back to REST API -> SEND RESULT: error`.
+   - Fixed 401 Unauthorized on `GET /api/lobby/join`: added `requireAppSession` fallback for `hostAddress` and `sessionId` query parameters so the host's 2s poll cleanly retrieves pending REST join requests.
+   - Enhanced `withCallerToken` in `app/api/matchmaking/join/route.ts` and `app/api/matchmaking/status/route.ts` to update `validation_token` across all tickets matching `data.match_id` atomically, guaranteeing that Host and Guest always share identical matchmaking lobby credentials.
 
 ### Tests & Gate Evidence
 
 - `scripts/matchmaking-shape.test.ts` expanded with behavioral and contract tests (`MM-6` through `MM-10`).
 - `npm run check:schema`: **clean (40 migrations, 39 functions)**.
 - `npm run typecheck`: **0 errors**.
-- `npm test`: **502 tests (491 pass, 0 fail, 11 skipped)**.
+- `npm test`: **503 tests (492 pass, 0 fail, 11 skipped)**.
 - Remote database migration `202610210001_fix_hybrid_matchmaking.sql` applied cleanly via `supabase db push` and verified via `npm run db:migrate:verify`.
 

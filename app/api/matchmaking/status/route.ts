@@ -113,11 +113,11 @@ export async function GET(request: Request) {
                 .map(b => b.toString(16).padStart(2, '0')).join('');
 
             ticket.validation_token = tokenToUse;
-            if (ticket.id) {
+            if (ticket.match_id) {
                 await db
                     .from('matchmaking_queue')
                     .update({ validation_token: tokenToUse })
-                    .eq('id', ticket.id)
+                    .eq('match_id', ticket.match_id)
                     .is('validation_token', null);
             }
         }

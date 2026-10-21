@@ -40,70 +40,24 @@ export function useSupabaseRelay({
         else if (lobbyState?.roomCode) roomCodeRef.current = lobbyState.roomCode;
     }, [currentRoomCode, lobbyState?.roomCode]);
 
-    const setRelayRoom = useCallback((code: string | null) => {
-        roomCodeRef.current = code;
-    }, []);
-
-    // REA-01: the send channel, joined once per room and held in a ref. The
-    // old code minted a fresh never-joined `supabase.channel(...)` per relay —
-    // a channel object per send, none of them ever subscribed or torn down.
-    const sendChannelRef = useRef<{ code: string | null; channel: ReturnType<typeof supabase.channel> | null }>({
+    // Single unified active channel for both publishing and receiving broadcasts.
+    // Guaranteed to be subscribed so .send() transmits over live WebSockets rather than
+    // failing on un-subscribed REST fallback.
+    const activeChannelRef = useRef<{ code: string | null; channel: ReturnType<typeof supabase.channel> | null }>({
         code: null,
         channel: null,
     });
 
-    const relayViaSupabase = useCallback((type: string, data: any, lobbyStateRef: React.MutableRefObject<LobbyState | null>) => {
-        const targetCode = roomCodeRef.current || currentRoomCode || lobbyStateRef.current?.roomCode;
-        if (!targetCode) {
-            console.warn('🛰️ Relay skipped — no room code yet', type);
-            return;
+    const ensureChannel = useCallback((code: string) => {
+        if (activeChannelRef.current.code === code && activeChannelRef.current.channel) {
+            return activeChannelRef.current.channel;
         }
-        // Rotate the held channel when the room changes; otherwise reuse it.
-        // A never-joined channel sends through the REST fallback at higher
-        // cost, so joining once per room keeps both cost and identity stable.
-        if (sendChannelRef.current.code !== targetCode) {
-            sendChannelRef.current = {
-                code: targetCode,
-                channel: supabase.channel(`game-room-${targetCode}`),
-            };
+        if (activeChannelRef.current.channel) {
+            supabase.removeChannel(activeChannelRef.current.channel);
         }
-
-        const actionId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-        const payload = {
-            ...data,
-            actionId,
-            sender: myAddress?.toLowerCase() || 'host'
-        };
-
-        processedActionIds.current.add(actionId);
-
-        sendChannelRef.current.channel!
-            .send({
-                type: 'broadcast',
-                event: 'game-action',
-                payload
-            })
-            .then((status) => {
-                if (status !== 'ok') console.error('🚨 Supabase Relay Error:', status);
-            });
-    }, [myAddress, currentRoomCode]);
-
-    // The held send channel is torn down with the room subscription, never
-    // left dangling across rooms (NET-11's double-subscribe hazard included
-    // sends, not just receives).
-    useEffect(() => {
-        return () => {
-            sendChannelRef.current = { code: null, channel: null };
-        };
-    }, [currentRoomCode, lobbyState?.roomCode]);
-
-    useEffect(() => {
-        const targetCode = currentRoomCode || lobbyState?.roomCode;
-        if (!targetCode) return;
-
-        console.log(`📡 Subscribing to Supabase Game Channel: game-room-${targetCode}`);
-        const channel = supabase
-            .channel(`game-room-${targetCode}`)
+        console.log(`📡 [Relay] Subscribing to Supabase Game Channel: game-room-${code}`);
+        const ch = supabase
+            .channel(`game-room-${code}`)
             .on('broadcast', { event: 'game-action' }, ({ payload }) => {
                 if (payload.actionId && processedActionIds.current.has(payload.actionId)) return;
                 console.log('🛰️ Action received via Supabase Relay:', payload.type);
@@ -115,12 +69,70 @@ export function useSupabaseRelay({
                     joinGame(payload.newRoomCode);
                 }
             })
-            .subscribe();
+            .subscribe((status) => {
+                console.log(`📡 [Relay] Channel status for game-room-${code}:`, status);
+            });
 
-        return () => {
-            supabase.removeChannel(channel);
+        activeChannelRef.current = { code, channel: ch };
+        return ch;
+    }, [processGameAction, joinGame]);
+
+    const setRelayRoom = useCallback((code: string | null) => {
+        roomCodeRef.current = code;
+        if (code) {
+            ensureChannel(code);
+        }
+    }, [ensureChannel]);
+
+    const relayViaSupabase = useCallback((type: string, data: any, lobbyStateRef: React.MutableRefObject<LobbyState | null>) => {
+        const targetCode = roomCodeRef.current || currentRoomCode || lobbyStateRef.current?.roomCode;
+        if (!targetCode) {
+            console.warn('🛰️ Relay skipped — no room code yet', type);
+            return;
+        }
+
+        const channel = ensureChannel(targetCode);
+
+        const actionId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+        const payload = {
+            ...data,
+            actionId,
+            sender: myAddress?.toLowerCase() || 'host'
         };
-    }, [currentRoomCode, lobbyState?.roomCode, processGameAction, joinGame]);
+
+        processedActionIds.current.add(actionId);
+
+        channel
+            .send({
+                type: 'broadcast',
+                event: 'game-action',
+                payload
+            })
+            .then((status) => {
+                if (status !== 'ok') console.warn('🚨 Supabase Relay Send status:', status);
+                else console.log('🛰️ Relay broadcast sent successfully:', payload.type);
+            })
+            .catch((err) => {
+                console.error('🚨 Supabase Relay Send Error:', err);
+            });
+    }, [myAddress, currentRoomCode, ensureChannel]);
+
+    // Synchronize subscription whenever roomCode catches up via React state
+    useEffect(() => {
+        const targetCode = currentRoomCode || lobbyState?.roomCode;
+        if (!targetCode) return;
+        ensureChannel(targetCode);
+    }, [currentRoomCode, lobbyState?.roomCode, ensureChannel]);
+
+    // Teardown active channel on unmount
+    useEffect(() => {
+        return () => {
+            if (activeChannelRef.current.channel) {
+                supabase.removeChannel(activeChannelRef.current.channel);
+                activeChannelRef.current = { code: null, channel: null };
+            }
+        };
+    }, []);
 
     return {
         relayViaSupabase,

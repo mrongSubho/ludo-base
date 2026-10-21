@@ -191,10 +191,14 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'roomCode required' }, { status: 400 });
         }
         const sb = serviceDb();
-        const hostAddress = await requireSessionWallet(request, {
+        const hostParam = url.searchParams.get('hostAddress') || undefined;
+        const sessionParam = url.searchParams.get('sessionId') || undefined;
+        const hostAddress = (await requireSessionWallet(request, {
             scope: 'app',
-            expectedWallet: url.searchParams.get('hostAddress') || undefined,
-        });
+            expectedWallet: hostParam,
+        })) || (sessionParam
+            ? await requireAppSession(hostParam, sessionParam)
+            : null);
         if (!hostAddress) return NextResponse.json({ error: 'Host session required' }, { status: 401 });
         const canonicalHost = await resolveRoomHost(sb, roomCode);
         if (!canonicalHost || canonicalHost !== hostAddress) {
