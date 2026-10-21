@@ -1,17 +1,17 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { PlayerColor, PowerType, PowerItem, GameState, GameStateSetter, BetType, GameActionType, GameIntentType, GameIntentPayloads, GameActionPayload } from '@/lib/types';
-import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, getLegalTokenIndices, lcg32, spawnReplacementTile } from '@/lib/gameLogic';
+import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, getLegalTokenIndices } from '@/lib/gameLogic';
 import { activeColorsForTurns } from '@/lib/engine';
+import { applyPowerPickup, sweepExpiredPowers } from '@/lib/engine/core';
 import { countNukeVictims } from '@/lib/aiEngine';
 import { Player } from './useGameEngine';
-import { ColorCorner, getBoardCoordinate } from '@/lib/boardLayout';
+import { ColorCorner } from '@/lib/boardLayout';
 import {
     BOARD_FINISH_INDEX,
     BASE_INDEX,
     DICE_MAX,
     DICE_ROLL_SIX,
     HOME_LANE_START_INDEX,
-    POWER_EXPIRY_MS,
 } from '@/lib/constants';
 import type { MatchActionErrorCode } from '@/lib/matchProtocol';
 
@@ -52,7 +52,18 @@ interface UseGameActionsProps {
     triggerWinConfetti: () => void;
     recordWin: (color: PlayerColor) => Promise<void>;
     autoMoveTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>;
-    /** v2 server-authoritative moves (networked). Offline keeps local processMove. */
+    /**
+     * TU-4: is the MatchRoom Durable Object the authority for this match?
+     *
+     * Supplied by `TeamUpContext` from the room socket state — true only while
+     * `/api/room/:matchId/ws` is open and connected. When true this hook sends
+     * intents and renders the room's broadcast; when false the P2P host is the
+     * authority (degraded mode) and guests ask it via `sendIntent`.
+     */
+    roomAuthority: boolean;
+    /** Send an intent to the room. Rejects when no room socket is open. */
+    sendRoomIntent: (kind: string, payload?: unknown) => Promise<{ ok: boolean; data?: unknown }>;
+    /** @deprecated Edge move-auth path — only reachable when `roomAuthority` is false. */
     moveAuth?: {
         submitMove: (p: {
             matchId: string;
@@ -102,6 +113,8 @@ export function useGameActions({
     address,
     isHost,
     isLobbyConnected,
+    roomAuthority,
+    sendRoomIntent,
     broadcastAction,
     sendIntent,
     playerCount,
@@ -156,101 +169,34 @@ export function useGameActions({
         const currentState0 = stateRef.current;
         if (currentState0.status === 'finished' || currentState0.winner) return 'failed';
         const matchId = currentState0.matchId;
-        const useServer = isLobbyConnected && !!moveAuth && !!matchId && matchId !== 'local';
-
-        // ── v2: Edge-validated move (networked) ──────────────────────────
-        if (useServer && !isRemote) {
+        // ── Room authority (TU-4) ────────────────────────────────────────
+        // The MatchRoom resolves the move, commits it atomically and fans the new
+        // state out to every socket. This client sends an intent and renders the
+        // broadcast — it does not merge a response into its own board, so there is
+        // no second copy of the rules to drift from the authority.
+        if (roomAuthority && !isRemote) {
             if (serverActionPendingRef.current) return 'failed';
-            const rollId = lastRollIdRef.current;
-            if (!rollId) {
-                console.error('🏃 [MoveAuth] No rollId — cannot submit move');
-                return 'failed';
-            }
-            const seat = initialPlayers.find(p => p.color === color);
-            const isBotSeat = seat?.isAi || currentState0.afkStats?.[color]?.isKicked;
-            const source = (!isBotSeat && address && seat?.walletAddress?.toLowerCase() === address.toLowerCase())
-                ? 'player'
-                : (isHost ? 'host-assist' : 'player');
-
             if (autoMoveTimeoutRef.current) {
                 clearTimeout(autoMoveTimeoutRef.current);
                 autoMoveTimeoutRef.current = null;
             }
-
             serverActionPendingRef.current = true;
             try {
-                const result = await moveAuth.submitMove({
-                    matchId,
+                const res = await sendRoomIntent('REQUEST_MOVE', {
                     color,
                     tokenIndex,
-                    rollId,
-                    expectedSeq: serverSeqRef.current,
-                    source: source as 'player' | 'host-assist',
+                    steps,
                 });
-
-                if (!result.ok || !result.state) {
-                    console.error('🏃 [MoveAuth] rejected:', result.error, result.code);
-                    // NET-02: no local high-water write. `applyServerState`
-                    // below owns serverSeqRef (the TeamUpContext ref), so a
-                    // second copy here could mask the authority's seq.
-                    if (typeof result.seq === 'number' && result.state) {
-                        applyServerState?.(result.state, result.seq);
-                        setLocalGameState(prev => ({ ...prev, ...result.state!, lastUpdate: Date.now() }));
-                    } else {
-                        // No snapshot came back (403 wrong turn / 400 illegal /
-                        // transport error) — re-read authority so the board
-                        // cannot sit on a turn the server already passed.
-                        await resyncFromServer(matchId);
-                    }
+                const code = (res.data as { code?: string } | undefined)?.code;
+                if (!res.ok && code !== 'POWER_ARMED') {
+                    console.warn('🏟️ [Room] move rejected:', code);
                     return 'failed';
                 }
-
-                serverSeqRef.current = result.seq ?? serverSeqRef.current;
                 lastRollIdRef.current = null;
-                if (result.state && typeof result.seq === 'number') {
-                    applyServerState?.(result.state, result.seq);
-                }
-
-                // NET-16: merge ONLY what the response actually changed —
-                // positions, stats and the win bookkeeping. Turn/auth fields
-                // stay local until the turn switch resolves (NET-01's passTurn
-                // path owns them), so a response carrying an intermediate turn
-                // cannot rewrite whose turn the client thinks it is.
-                const nextState: GameState = {
-                    ...currentState0,
-                    positions: result.state.positions,
-                    matchStats: result.state.matchStats ?? currentState0.matchStats,
-                    winner: result.state.winner,
-                    winners: result.state.winners ?? currentState0.winners,
-                    captureMessage: result.captured ? `Captured! Bonus roll for ${color}!` : currentState0.captureMessage,
-                    gamePhase: 'landing',
-                    timeLeft: 15,
-                    lastUpdate: Date.now(),
-                };
-                setLocalGameState(nextState);
-                if (result.captured) audio.playCapture();
-                audio.playMove();
-                if (result.state.winner) {
-                    audio.playWin();
-                    triggerWinConfetti();
-                    recordWin(color);
-                    // ENG-06: a 2v2 team win records BOTH teammates, not just
-                    // the mover. recordWin is idempotent per match (guarded by
-                    // hasRecordedWin) but updates each player's local stats.
-                    const mate = getTeammateColor(color, playerCount);
-                    if (playerCount === '2v2' && mate && result.state.winner.startsWith('Team ')) {
-                        recordWin(mate);
-                    }
-                }
-                setTimeout(() => {
-                    setLocalGameState(latest => latest.gamePhase === 'landing'
-                        ? { ...latest, gamePhase: 'rolling', lastUpdate: Date.now() }
-                        : latest);
-                }, 800);
+                return 'applied';
             } finally {
                 serverActionPendingRef.current = false;
             }
-            return 'applied';
         }
 
         // Guest without server path: intent to host (legacy)
@@ -319,42 +265,43 @@ export function useGameActions({
         );
 
         // ── Power pickup: landing exactly on a hidden tile reveals + grants.
-        // Same-type clocks refresh; a replacement tile spawns elsewhere.
+        // PW-4/PW-6: this used to be a third hand-written copy of the pickup rule,
+        // including its own copy of the LCG reseed formula. It now delegates to the
+        // engine's `applyPowerPickup`, which is the same function the room engine
+        // runs — one implementation, one reseed, one set of golden tests.
         const landedPos = newState.positions[color][tokenIndex];
-        if (typeof landedPos === 'number' && landedPos >= 0 && landedPos < HOME_LANE_START_INDEX) {
-            const landPt = getBoardCoordinate(landedPos, color, colorCorner);
-            if (landPt) {
-                const tileIdx = (currentState.powerTiles || []).findIndex((t) => t.r === landPt.r && t.c === landPt.c);
-                if (tileIdx >= 0) {
-                    const tile = currentState.powerTiles[tileIdx] as { r: number; c: number; type: PowerType };
-                    const now = Date.now();
-                    const liveInv: PowerItem[] = ((currentState.playerPowers || {})[color] || []).filter((p: PowerItem) => p.expiresAt > now);
-                    const full = POWER_EXPIRY_MS[tile.type as keyof typeof POWER_EXPIRY_MS] ?? POWER_EXPIRY_MS.boost;
-                    const granted: PowerItem[] = liveInv.map(p => p.type === tile.type ? { ...p, expiresAt: now + full } : p);
-                    granted.push({ type: tile.type, expiresAt: now + full });
-                    finalState.playerPowers = { ...(currentState.playerPowers || {}), [color]: granted };
-                    // Respawn to keep the board seeded.
-                    // ENG-11: the same deterministic stream as the authority —
-                    // match seed + consumed tile + board fill, never Math.random().
-                    const taken = new Set((currentState.powerTiles || []).map((t) => `${t.r},${t.c}`));
-                    taken.delete(`${tile.r},${tile.c}`);
-                    const remaining = (currentState.powerTiles || []).filter((_, i) => i !== tileIdx);
-                    const rand = lcg32(
-                        ((currentState.powerTileSeed ?? 0) >>> 0) + tile.r * 31 + tile.c * 17 + remaining.length * 101,
-                    );
-                    const spawned = spawnReplacementTile(taken, rand, colorCorner);
-                    if (spawned) remaining.push(spawned);
-                    finalState.powerTiles = remaining;
-                    const foundMsg = `${tile.type.toUpperCase()} discovered!`;
-                    finalState.captureMessage = captured ? `${finalState.captureMessage ?? ''} ${foundMsg}`.trim() : foundMsg;
+        {
+            // The engine state type is structurally wider than `GameState` (it has an
+            // index signature), so this is a pure type-boundary cast, not a conversion.
+            const beforeTiles = finalState.powerTiles;
+            const picked = applyPowerPickup(
+                finalState as unknown as Parameters<typeof applyPowerPickup>[0],
+                color,
+                landedPos,
+                colorCorner,
+            ) as unknown as GameState;
+            if ((picked.powerTiles as unknown) !== (beforeTiles as unknown)) {
+                const hadBefore = (finalState.playerPowers?.[color] || []).length;
+                finalState.playerPowers = picked.playerPowers ?? finalState.playerPowers;
+                finalState.powerTiles = picked.powerTiles ?? finalState.powerTiles;
+                if ((picked.playerPowers?.[color] || []).length > hadBefore) {
+                    const foundMsg = picked.captureMessage ?? 'POWER discovered!';
+                    finalState.captureMessage = captured
+                        ? `${finalState.captureMessage ?? ''} ${foundMsg}`.trim()
+                        : foundMsg;
                     audio.playPickup();
                 }
             }
         }
 
+        // PW-5: the host is the authority, so it decides expiry — once, at the turn
+        // boundary — instead of every client filtering by its own clock.
+        finalState.playerPowers = sweepExpiredPowers(
+            finalState as unknown as Parameters<typeof sweepExpiredPowers>[0],
+        ).playerPowers as GameState['playerPowers'];
+
         if (isHost && !isRemote) {
-            if (newState.currentPlayer !== currentState.currentPlayer || isBonusTurn) {
-                pTurnSwitchPending = true;
+            if (newState.currentPlayer !== currentState.currentPlayer || isBonusTurn) {                pTurnSwitchPending = true;
                 pNextPlayer = isBonusTurn ? color : newState.currentPlayer;
             }
         }
@@ -480,56 +427,37 @@ export function useGameActions({
             broadcastAction('ROLL_DICE', { isRolling: true, diceValue: null });
         }
         setLocalGameState((prev) => ({ ...prev, isRolling: true, diceValue: null, timeLeft: 15 }));
-        
-        let rollValue = 0;
+
         const tumblePromise = new Promise(r => setTimeout(r, 1200));
 
         // 2. Generate and Set Result
-        // Networked seats (humans AND host-orchestrated bots/AFK): Edge RNG only.
-        // Offline matches may use local RNG. There is no path that accepts a face
-        // from the caller.
-        let rollReceiptId: string | null = null;
-        {
-            const networkedSeat = isLobbyConnected;
-            const rollMatchId = localGameState.matchId;
-            if (networkedSeat) {
-                // SEC-01: an authenticated mint, not a bare fetch. The receipt's
-                // minter, seat and turn are derived server-side; there is no
-                // face parameter and no client-chosen wallet (the old
-                // `${color}-bot` string could not even satisfy the players FK,
-                // so hosted bots could not roll at all).
-                if (!rollMatchId) {
-                    console.error('❌ [Engine] networked roll with no matchId — aborting (no client fallback)');
-                    await tumblePromise;
-                    setLocalGameState((prev) => ({ ...prev, isRolling: false, diceValue: null }));
-                    rollingRef.current = false;
-                    return 'failed';
-                }
-                try {
-                    const mintFn = moveAuth?.requestRoll;
-                    if (!mintFn) throw new Error('no move-auth client');
-                    const mint = await mintFn({
-                        matchId: rollMatchId,
-                        seatColor: color,
-                    });
-                    if (!mint.ok || mint.result === undefined) {
-                        throw new Error(mint.error || 'Edge RNG failed');
-                    }
-                    rollValue = mint.result;
-                    rollReceiptId = mint.rollId ?? null;
-                    lastRollIdRef.current = rollReceiptId;
-                } catch (err) {
-                    console.error('❌ [Engine] Edge RNG failed — aborting networked roll (no client fallback)', err);
-                    await tumblePromise;
-                    setLocalGameState((prev) => ({ ...prev, isRolling: false, diceValue: null }));
-                    rollingRef.current = false;
-                    return 'failed';
-                }
-            } else {
-                // Offline human / local bot
-                rollValue = Math.floor(Math.random() * 6) + 1;
-            }
+        //
+        // TU-4: the room mints the die (CSPRNG, in-process) and broadcasts the
+        // resulting state. This client does not compute a face at all when the room
+        // is the authority — it waits for the fan-out, which is what makes the roll
+        // the same fact on every socket.
+        if (roomAuthority) {
+            await tumblePromise;
+            await sendRoomIntent('REQUEST_ROLL', { seatColor: color });
+            rollingRef.current = false;
+            return 'deferred';
         }
+
+        // SEC-02: a networked seat never rolls locally. Without the room there is no
+        // authority to mint the face, and a client-chosen `Math.random()` is exactly
+        // what this invariant forbids — so the roll aborts rather than falling
+        // through. Degraded play surfaces the gap instead of inventing a face.
+        if (isLobbyConnected) {
+            await tumblePromise;
+            setLocalGameState((prev) => ({ ...prev, isRolling: false, diceValue: null }));
+            rollingRef.current = false;
+            console.error('❌ [Engine] networked roll with no server authority — aborting (no client fallback)');
+            return 'failed';
+        }
+
+        // Offline only: no other seat is watching, so the local die is honest.
+        const rollValue = Math.floor(Math.random() * 6) + 1;
+        const rollReceiptId: string | null = null;
 
         // Wait for the tumble animation to finish
         await tumblePromise;
@@ -717,76 +645,39 @@ export function useGameActions({
         if (prev.status === 'finished' || prev.winner) return;
         if (!prev || prev.currentPlayer !== color || prev.gamePhase !== 'rolling') return;
         if (prev.powerSpentThisTurn) return;
-        const matchId = prev.matchId;
-        const useServer = isLobbyConnected && !!moveAuth?.submitPower && !!matchId && matchId !== 'local';
-
-        // ── v2: Edge-validated power ─────────────────────────────────────
-        if (useServer) {
+        // ── Room authority (PW-3) ────────────────────────────────────────
+        // The room owns the inventory, so it decides whether this seat holds the
+        // power, whether the turn budget is spent, and what the effect is. The
+        // client only names the power and (for nuke/teleport) a target token.
+        if (roomAuthority) {
             if (serverActionPendingRef.current) return;
-            const now = Date.now();
-            const live = (prev.playerPowers?.[color] || []).filter(p => p.expiresAt > now);
-            const pick: PowerType | undefined = type
-                ?? (['nuke', 'shield', 'boost', 'teleport'] as PowerType[]).find(t => live.some(p => p.type === t));
-            if (!pick) return;
-
-            // Local arming UX: nuke/teleport without target → show rings (no Edge call)
-            if ((pick === 'nuke' || pick === 'teleport') && tokenIdx === undefined) {
+            if (!type && tokenIdx === undefined) {
                 setLocalGameState(s => ({
                     ...s,
-                    captureMessage: pick === 'nuke'
-                        ? 'Nuke armed — tap one of your tokens to target.'
-                        : 'Teleport armed — tap one of your tokens.',
+                    captureMessage: 'Choose a power to use.',
                 }));
                 return;
             }
-
-            const seat = initialPlayers.find(p => p.color === color);
-            const isBotSeat = seat?.isAi || prev.afkStats?.[color]?.isKicked;
-            const source = (!isBotSeat && address && seat?.walletAddress?.toLowerCase() === address.toLowerCase())
-                ? 'player'
-                : (isHost ? 'host-assist' : 'player');
-
             serverActionPendingRef.current = true;
             try {
-                const result = await moveAuth.submitPower({
-                    matchId,
+                const res = await sendRoomIntent('REQUEST_POWER', {
                     color,
-                    power: pick,
-                    tokenIndex: tokenIdx ?? null,
-                    expectedSeq: serverSeqRef.current,
-                    source: source as 'player' | 'host-assist',
+                    power: type,
+                    tokenIndex: tokenIdx,
                 });
-
-                if (result.kept || result.armed) {
-                    setLocalGameState(s => ({ ...s, captureMessage: result.error || 'Power kept.' }));
-                    return;
-                }
-                if (!result.ok || !result.state) {
-                    console.error('⚡ [MoveAuth] power rejected:', result.error, result.code);
-                    if (typeof result.seq === 'number' && result.state) {
-                        // NET-02: applyServerState owns the ref.
-                        applyServerState?.(result.state, result.seq);
-                        setLocalGameState(s => ({ ...s, ...result.state!, lastUpdate: Date.now() }));
+                const code = (res.data as { code?: string } | undefined)?.code;
+                if (!res.ok) {
+                    if (code === 'POWER_ARMED') {
+                        setLocalGameState(s => ({
+                            ...s,
+                            captureMessage: type === 'nuke'
+                                ? 'Nuke armed — tap one of your tokens to target.'
+                                : 'Teleport armed — tap one of your tokens.',
+                        }));
                     } else {
-                        await resyncFromServer(matchId);
+                        console.warn('🏟️ [Room] power rejected:', code);
                     }
-                    return;
                 }
-
-                serverSeqRef.current = result.seq ?? serverSeqRef.current;
-                if (result.state && typeof result.seq === 'number') {
-                    applyServerState?.(result.state, result.seq);
-                }
-                setLocalGameState(s => ({
-                    ...s,
-                    ...result.state,
-                    captureMessage: result.message || s.captureMessage,
-                    lastUpdate: Date.now(),
-                }));
-                if (pick === 'nuke') audio.playNuke();
-                else if (pick === 'shield') audio.playShield();
-                else if (pick === 'boost') audio.playBoost();
-                else if (pick === 'teleport') audio.playTeleport();
             } finally {
                 serverActionPendingRef.current = false;
             }
@@ -800,6 +691,17 @@ export function useGameActions({
         const liveInv: PowerItem[] = (prev.playerPowers[myColor] || []).filter((p: PowerItem) => p.expiresAt > now);
         const pick: PowerType | undefined = type ?? (['nuke', 'shield', 'boost', 'teleport'] as PowerType[]).find(t => liveInv.some(p => p.type === t));
         if (!pick || !liveInv.some(p => p.type === pick)) return;
+
+        // PW-3: in a networked room the HOST owns the board and the inventory, so a
+        // guest must not apply a power to its own copy of the state — the next host
+        // broadcast would overwrite it and the two boards would diverge. Ask the
+        // host instead, exactly like REQUEST_MOVE. (Before this, a guest's power was
+        // resolved by the edge function against `match_states`, which the host never
+        // observed — so the guest saw a shield the host's board did not have.)
+        if (isLobbyConnected && !isHost) {
+            sendIntent('REQUEST_POWER', { color: myColor, power: pick, tokenIndex: tokenIdx });
+            return;
+        }
 
         const consume = (inv: PowerItem[], t: PowerType) => {
             const i = inv.findIndex(p => p.type === t);
@@ -940,7 +842,7 @@ export function useGameActions({
                 setLocalGameState((latest) => ({ ...latest, nukeFlash: [], lastUpdate: Date.now() }));
             }, 1400);
         }
-    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, moveAuth, serverSeqRef, isHost, address, initialPlayers, applyServerState, lastRollIdRef, resyncFromServer]);
+    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, moveAuth, serverSeqRef, isHost, address, initialPlayers, applyServerState, lastRollIdRef, resyncFromServer, sendIntent]);
 
     const handleTokenClick = useCallback((color: PlayerColor, tokenIndex: number) => {
         if (localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;

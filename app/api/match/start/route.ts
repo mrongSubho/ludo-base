@@ -132,6 +132,56 @@ export async function POST(request: Request) {
             roomOwner,
         });
 
+        // MO-4: quick match already has a canonical row for this room — `join_matchmaking`
+        // inserts one with the paired roster so the queue can point at a match id. The
+        // old unconditional insert therefore created a SECOND row for the same
+        // `room_code`, which broke any `.eq('room_code', …).maybeSingle()` reader
+        // (PGRST116, multiple rows) and left two candidate identities for settlement.
+        // Enrich the existing row instead of adding another.
+        const { data: existingRow, error: lookupError } = await supabase
+            .from('matches')
+            .select('id, participants')
+            .eq('room_code', roomCode)
+            .order('created_at', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+        if (lookupError) {
+            console.error('❌ [API] Match lookup failed:', lookupError);
+            return NextResponse.json({ error: lookupError.message }, { status: 500 });
+        }
+
+        if (existingRow) {
+            // Keep the stored roster when the caller's roster is a subset (bot seats
+            // are filtered out client-side); never let a start call silently shrink
+            // the canonical participant list.
+            const storedParts = ((existingRow.participants || []) as string[]).map(p => String(p).toLowerCase());
+            const mergedRoster = storedParts.length >= roster.length ? storedParts : roster;
+            const { data, error } = await supabase
+                .from('matches')
+                .update({
+                    game_mode: gameMode || 'classic',
+                    game_mode_code: gameModeCode,
+                    match_shape: matchShape ?? null,
+                    participants: mergedRoster,
+                    host_proven: hostProven,
+                    room_owner: roomOwner,
+                })
+                .eq('id', existingRow.id)
+                .select('id, host_proven, room_owner')
+                .single();
+            if (error || !data) {
+                console.error('❌ [API] Error updating match:', error);
+                return NextResponse.json({ error: error?.message || 'Failed to start match' }, { status: 500 });
+            }
+            return NextResponse.json({
+                success: true,
+                matchId: data.id,
+                roomVersion: resolveRoomVersion(),
+                settleable: Boolean(data.host_proven),
+                reused: true,
+            });
+        }
+
         const { data, error } = await supabase
             .from('matches')
             .insert({

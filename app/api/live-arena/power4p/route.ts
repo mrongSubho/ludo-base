@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
-import { INITIAL_GAME_STATE, getLegalTokenIndices, processMove } from '@/lib/gameLogic';
+import { INITIAL_GAME_STATE, getLegalTokenIndices } from '@/lib/gameLogic';
+import { lcg32, rollPowerTypeLcg, resolveNetworkedMove } from '@/lib/engine/core';
+import { getBoardCoordinate } from '@/lib/boardLayout';
+import { POWER_TILES_COUNT } from '@/lib/constants';
 import { assignCornersFFA } from '@/lib/boardLayout';
 import { getBestMove } from '@/lib/aiEngine';
 import { requireAppSession, requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
-import type { GameState, PlayerColor, ColorCorner } from '@/lib/types';
+import type { GameState, PlayerColor, ColorCorner, PowerType } from '@/lib/types';
 import type { Json } from '@/types/database.types';
 
 const ARENA_KEY = 'power4p-ai';
@@ -73,6 +76,22 @@ export async function POST(request: Request) {
     }
 
     const cc = assignCornersFFA('4P');
+    // MO-1: the arena is advertised as `power` 4P, so it must actually run power
+    // rules. Seed the same five hidden tiles the real engine expects, from a
+    // committed seed, so respawns are deterministic and replayable.
+    const powerTileSeed = (crypto.getRandomValues(new Uint32Array(1))[0] >>> 0) || 1;
+    const seedRand = lcg32(powerTileSeed);
+    const seededTiles: { r: number; c: number; type: PowerType }[] = [];
+    const takenCells = new Set<string>();
+    while (seededTiles.length < POWER_TILES_COUNT) {
+      const rp = Math.floor(seedRand() * 52);
+      const pt = getBoardCoordinate(rp, 'green', cc);
+      if (!pt) continue;
+      const key = `${pt.r},${pt.c}`;
+      if (takenCells.has(key)) continue;
+      takenCells.add(key);
+      seededTiles.push({ r: pt.r, c: pt.c, type: rollPowerTypeLcg(seedRand) });
+    }
     const state: GameState = {
       ...INITIAL_GAME_STATE,
       matchId: `arena-${crypto.randomUUID()}`,
@@ -81,6 +100,8 @@ export async function POST(request: Request) {
       status: 'playing',
       botDifficulty: 'pro',
       currentPlayer: 'green',
+      powerTileSeed,
+      powerTiles: seededTiles,
       lastUpdate: Date.now(),
     };
     const match = await sb.from('matches').insert({
@@ -180,13 +201,41 @@ export async function PATCH(request: Request) {
     const state = row.data.state as unknown as GameState;
     if (state.winner) return NextResponse.json({ claimed: true, ended: true });
     const color = state.currentPlayer as PlayerColor;
-    const roll = Math.floor(Math.random() * 6) + 1;
     const cc = row.data.color_corner as unknown as ColorCorner;
+    const seq = Number(row.data.seq);
+
+    // MO-1: deterministic dice. The tick used `Math.random()`, so the arena could
+    // not be replayed and every viewer's board depended on whoever happened to be
+    // ticking. The face now comes from the same LCG stream as power respawns,
+    // seeded by the committed seed and the current seq.
+    const rollRand = lcg32(((state.powerTileSeed ?? 0) >>> 0) + seq * 7919);
+    const roll = Math.floor(rollRand() * 6) + 1;
+
     const legal = getLegalTokenIndices(state.positions, color, roll, cc);
-    const next = legal.length
-      ? processMove({ ...state, diceValue: roll, gamePhase: 'moving' }, color, getBestMove(state.positions, color, roll, cc, '4P', state.powerTiles, state, 'pro')?.tokenIndex ?? legal[0], roll, '4P', cc).newState
-      : { ...state, currentPlayer: COLORS[(COLORS.indexOf(color) + 1) % COLORS.length], diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
-    const updated = await sb.from('match_states').update({ state: next as unknown as NonNullable<Json>, seq: Number(row.data.seq) + 1, updated_at: now })
+    let next: GameState;
+    if (legal.length) {
+      const choice = getBestMove(state.positions, color, roll, cc, '4P', state.powerTiles, state, 'pro')?.tokenIndex ?? legal[0];
+      // MO-1: run the real engine. `resolveNetworkedMove` owns boost consumption,
+      // the three-sixes rule, power pickup + deterministic respawn, and victory —
+      // none of which `lib/gameLogic.processMove` implements, so the arena used to
+      // play classic rules under a `game_mode: 'power'` label.
+      const resolved = resolveNetworkedMove({
+        state: state as unknown as Parameters<typeof resolveNetworkedMove>[0]['state'],
+        color,
+        tokenIndex: choice,
+        dice: roll,
+        cc,
+        playerCount: '4P',
+        activeColors: COLORS,
+        now: Date.now(),
+      });
+      next = resolved.ok && resolved.state
+        ? (resolved.state as unknown as GameState)
+        : { ...state, currentPlayer: COLORS[(COLORS.indexOf(color) + 1) % COLORS.length], diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
+    } else {
+      next = { ...state, currentPlayer: COLORS[(COLORS.indexOf(color) + 1) % COLORS.length], diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
+    }
+    const updated = await sb.from('match_states').update({ state: next as unknown as NonNullable<Json>, seq: seq + 1, updated_at: now })
       .eq('match_id', matchId).eq('seq', row.data.seq).select('seq').maybeSingle();
     return NextResponse.json({ claimed: true, advanced: !!updated.data });
   } catch (err) {

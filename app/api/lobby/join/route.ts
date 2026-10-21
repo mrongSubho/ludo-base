@@ -139,6 +139,49 @@ export async function POST(request: Request) {
     }
 }
 
+/**
+ * TU-3: who owns this room right now?
+ *
+ * `live_matches` is only written by `/api/live-matches/window`, which itself
+ * needs a `matches` row — and that row is created at `handlePlayNow`, i.e.
+ * AFTER the lobby has already flipped to `playing`. So during `forming` (the
+ * only phase in which a join request is useful) there is no `live_matches`
+ * row, and the old check `!room?.match_id` returned 403 to the real host for
+ * the entire lobby-forming window. That made the documented "works when
+ * PeerJS and realtime broadcast fail" REST fallback dead code.
+ *
+ * Resolution order, most specific first:
+ *   1. live_matches.host_address      (streaming / in-match)
+ *   2. matches.participants[0]        (canonical roster host)
+ *   3. lobby_join_policies.host_address (declared at hostGame, before any match)
+ *
+ * Only the last one exists during `forming`, and it is written by
+ * POST /api/lobby/policy behind a host session, so it is as trustworthy as
+ * the other two for this purpose.
+ */
+async function resolveRoomHost(sb: ReturnType<typeof serviceDb>, roomCode: string): Promise<string> {
+    const { data: room } = await sb
+        .from('live_matches')
+        .select('match_id, host_address')
+        .eq('room_code', roomCode)
+        .maybeSingle();
+
+    let canonicalHost = String(room?.host_address || '').toLowerCase();
+    if (room?.match_id && !canonicalHost) {
+        const { data: match } = await sb.from('matches').select('participants').eq('id', room.match_id).maybeSingle();
+        canonicalHost = String(match?.participants?.[0] || '').toLowerCase();
+    }
+    if (!canonicalHost) {
+        const { data: policy } = await sb
+            .from('lobby_join_policies')
+            .select('host_address')
+            .eq('room_code', roomCode)
+            .maybeSingle();
+        canonicalHost = String(policy?.host_address || '').toLowerCase();
+    }
+    return canonicalHost;
+}
+
 /** Host: list pending join requests for a room (signed later; room code only for now). */
 export async function GET(request: Request) {
     try {
@@ -153,15 +196,8 @@ export async function GET(request: Request) {
             expectedWallet: url.searchParams.get('hostAddress') || undefined,
         });
         if (!hostAddress) return NextResponse.json({ error: 'Host session required' }, { status: 401 });
-        const { data: room } = await sb.from('live_matches').select('match_id, host_address')
-            .eq('room_code', roomCode).maybeSingle();
-        let canonicalHost = String(room?.host_address || '').toLowerCase();
-        if (room?.match_id && !canonicalHost) {
-            const { data: match } = await sb.from('matches').select('participants')
-                .eq('id', room.match_id).maybeSingle();
-            canonicalHost = String(match?.participants?.[0] || '').toLowerCase();
-        }
-        if (!room?.match_id || canonicalHost !== hostAddress) {
+        const canonicalHost = await resolveRoomHost(sb, roomCode);
+        if (!canonicalHost || canonicalHost !== hostAddress) {
             return NextResponse.json({ error: 'Not the room host' }, { status: 403 });
         }
         const { data, error } = await sb
@@ -193,15 +229,9 @@ export async function DELETE(request: Request) {
         const { data: req } = await sb.from('lobby_join_requests')
             .select('room_code').eq('id', id).maybeSingle();
         if (!req) return NextResponse.json({ success: true });
-        const { data: room } = await sb.from('live_matches')
-            .select('match_id, host_address').eq('room_code', req.room_code).maybeSingle();
-        let canonicalHost = String(room?.host_address || '').toLowerCase();
-        if (room?.match_id && !canonicalHost) {
-            const { data: match } = await sb.from('matches').select('participants')
-                .eq('id', room.match_id).maybeSingle();
-            canonicalHost = String(match?.participants?.[0] || '').toLowerCase();
-        }
-        if (!room?.match_id || canonicalHost !== wallet) {
+        // TU-3: same resolution order as GET — a forming lobby has no live_matches row.
+        const canonicalHost = await resolveRoomHost(sb, req.room_code);
+        if (!canonicalHost || canonicalHost !== wallet) {
             return NextResponse.json({ error: 'Not the room host' }, { status: 403 });
         }
         const { error } = await sb.from('lobby_join_requests').delete().eq('id', id);

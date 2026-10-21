@@ -18,6 +18,7 @@ import { useAppSession } from '@/hooks/useAppSession';
 import { useMatchStates } from '@/hooks/useMatchStates';
 import { sanitizeGameStateForWire } from '@/lib/wireSanitize';
 import { createPeerInstance } from '@/lib/peerFactory';
+import { RoomClient } from '@/lib/netcode/roomClient';
 import { INITIAL_GAME_STATE as ENGINE_INIT, calculateNextPosition } from '@/lib/gameLogic';
 import {
     GameState,
@@ -145,9 +146,28 @@ export interface TeamUpContextType {
     matchPhase: MatchPhase;
     /** Illegal FSM transitions observed (should stay 0 in healthy matches). */
     matchFsmIllegal: number;
+    /**
+     * TU-4: is the MatchRoom Durable Object the authority for this match?
+     *
+     * This is a TRANSPORT fact, not a build-time preference. It becomes true only
+     * when a `/api/room/:matchId/ws` socket is open and has reported `connected`,
+     * and it drops back to false the moment that socket closes. While it is false
+     * the P2P host is the authority and guests use intents — the degraded path, not
+     * the intended one.
+     */
+    roomAuthority: boolean;
+    /** Send an intent to the room. Rejects when no room socket is open. */
+    sendRoomIntent: (kind: string, payload?: unknown) => Promise<{ ok: boolean; data?: unknown }>;
 }
 
 const TeamUpContext = createContext<TeamUpContextType | undefined>(undefined);
+
+/**
+ * TU-1: verbs that advance match rules state. Only honoured on the PeerJS
+ * transport — the Supabase Realtime topic is a public broadcast channel, so a
+ * `seq` number or a `sender` string arriving on it proves nothing about origin.
+ */
+const STATE_VERBS = new Set(['START_GAME', 'ROLL_DICE', 'MOVE_TOKEN', 'TURN_SWITCH', 'ENGINE_STATE', 'POWER_HAND']);
 
 const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [roomId, setRoomId] = useState('');
@@ -268,6 +288,81 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         }
     }, [sendMatchEvent]);
 
+    // ── MatchRoom transport (TU-4) ─────────────────────────────────────────────
+    //
+    // The server authority is already built: `src/room/MatchRoom.ts` is bound as
+    // `MATCH_ROOM`, handles REQUEST_ROLL / REQUEST_MOVE / REQUEST_POWER in-process,
+    // and commits atomically through `match_commit_action`. What was missing is a
+    // consumer — `lib/netcode/roomClient.ts` existed with no caller, so the flag
+    // that gated server authority was hardcoded false.
+    //
+    // Authority is now derived from the socket. Nothing here runs unless a room
+    // actually opens, so a deployment without the DO behaves exactly as before and
+    // a deployment with it stops using the host as the authority on its own.
+    const roomClientRef = useRef<RoomClient | null>(null);
+    const [roomAuthority, setRoomAuthority] = useState(false);
+    /**
+     * TU-4: the board the host owns at the moment the room becomes reachable. A
+     * Durable Object starts empty, so the host must write its seed or the room has
+     * nothing to resolve against. Held until the socket reports `connected`.
+     */
+    const pendingRoomSeedRef = useRef<unknown>(null);
+
+    const teardownRoom = useCallback(() => {
+        roomClientRef.current?.disconnect();
+        roomClientRef.current = null;
+        pendingRoomSeedRef.current = null;
+        setRoomAuthority(false);
+    }, []);
+
+    const connectRoom = useCallback((matchId: string, seedPayload?: unknown) => {
+        if (!matchId || matchId === 'local') return;
+        if (roomClientRef.current) return;
+        pendingRoomSeedRef.current = seedPayload ?? null;
+        try {
+            const client = new RoomClient({
+                matchId,
+                onState: (state, seq) => {
+                    // The room's fan-out is the authority stream; seq-gate it like any
+                    // other snapshot so a late frame cannot rewind the board.
+                    applyServerState(state, seq);
+                },
+                onStatusChange: (status) => {
+                    const connected = status === 'connected';
+                    setRoomAuthority(connected);
+                    // The host seeds on connect; guests skip this — the room already
+                    // holds the board and the fan-out above brings them level.
+                    if (connected && isHost && pendingRoomSeedRef.current) {
+                        void client
+                            .seedState(pendingRoomSeedRef.current)
+                            .catch((err) => console.warn('🏟️ [Room] seed failed:', err));
+                        pendingRoomSeedRef.current = null;
+                    }
+                },
+                onRejected: (err) => {
+                    console.warn('🏟️ [Room] intent rejected:', err.code, err.error);
+                },
+                onError: (err) => console.warn('🏟️ [Room] transport error:', err),
+            });
+            roomClientRef.current = client;
+            client.connect();
+        } catch (err) {
+            // No WebSocket runtime / no room URL: stay on the host-authority path.
+            console.warn('🏟️ [Room] unavailable, host remains the authority:', err);
+            setRoomAuthority(false);
+        }
+    }, [applyServerState, isHost]);
+
+    const sendRoomIntent = useCallback(async (kind: string, payload?: unknown) => {
+        const client = roomClientRef.current;
+        if (!client) return { ok: false, data: { code: 'NO_ROOM' } };
+        try {
+            return await client.sendIntent(kind, payload ?? {});
+        } catch (err) {
+            return { ok: false, data: { code: 'ROOM_INTENT_FAILED', error: (err as Error).message } };
+        }
+    }, []);
+
     // P4: clients render match_states (postgres realtime + initial pull)
     useMatchStates({
         matchId: gameState.matchId,
@@ -275,8 +370,32 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         onServerState: applyServerState,
         getSeq: () => serverSeqRef.current,
         refreshState: async (matchId) => {
-            const result = await moveAuth.getMatchState(matchId);
-            return result;
+            // PW-1/R3: read the snapshot through our own session-aware route, not the
+            // orphaned edge `move-auth get`. That endpoint is unauthenticated and
+            // returns `match_states.state` verbatim — `pickPersistedState` keeps
+            // `playerPowers` WITH types, so it handed every opponent's hand to any
+            // caller holding a matchId. `/api/match/state` resolves the viewer from
+            // the session and redacts everyone else's hand.
+            try {
+                const res = await fetch(`/api/match/state?matchId=${encodeURIComponent(matchId)}`, {
+                    signal: AbortSignal.timeout(8000),
+                });
+                if (!res.ok) {
+                    const body = (await res.json().catch(() => ({}))) as { code?: string; error?: string };
+                    return {
+                        ok: false,
+                        code: body.code || `HTTP_${res.status}`,
+                        error: body.error,
+                    };
+                }
+                const body = (await res.json()) as { seq?: number; state?: GameState };
+                if (!body.state || !Number.isFinite(Number(body.seq))) {
+                    return { ok: false, code: 'MALFORMED_SNAPSHOT' };
+                }
+                return { ok: true, seq: Number(body.seq), state: body.state };
+            } catch (err) {
+                return { ok: false, code: 'TRANSPORT', error: (err as Error).message };
+            }
         },
         onStatus: setMatchConnectionStatus,
         // NET-05: a client that already holds a snapshot must not be paused by
@@ -414,6 +533,20 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             // and never hits move-auth.
             const startPayload = payload as GameActionPayload<'START_GAME'>;
             const matchId = String(startPayload.matchId || gameStateRef.current.matchId || crypto.randomUUID());
+            // TU-4: the room becomes the authority as soon as it answers. The host
+            // also seeds it, because a Durable Object starts with an empty board.
+            connectRoom(matchId, startPayload.initialBoardConfig ? {
+                ...INITIAL_GAME_STATE,
+                matchId,
+                playerCount: startPayload.playerCount || '4P',
+                isStarted: true,
+                status: 'playing' as const,
+                initialBoardConfig: startPayload.initialBoardConfig,
+                powerTileSeed: gameStateRef.current.powerTileSeed,
+                powerTiles: gameStateRef.current.powerTiles || [],
+                playerPowers: gameStateRef.current.playerPowers,
+                lastUpdate: Date.now(),
+            } : undefined);
 
             setGameState((prev: GameState) => ({
                 ...prev,
@@ -547,7 +680,27 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         // relayViaSupabase reaches everyone.
         broadcastToAll(actionData);
         relayViaSupabase('game-action', actionData, lobbyStateRef);
-    }, [isHost, broadcastToAll, relayViaSupabase, setGameState, setLobbyState, lobbyStateRef, gameStateRef, myAddress, currentRoomCode]);
+
+        // PW-2/PW-3: power inventory is PER-SEAT private state, so it cannot ride a
+        // shared payload. The host knows every seat's hand; each guest may only see
+        // its own. PeerJS gives us one DataConnection per guest, so send a targeted
+        // hand instead of widening the broadcast (which would leak every opponent's
+        // powers to every viewer — the original PW-2 finding).
+        if (fullState?.playerPowers) {
+            for (const [peerId, conn] of connectionsRef.current) {
+                const slot = lobbyStateRef.current?.slots?.find(s => s.peerId === peerId);
+                const color = slot?.color;
+                if (!color) continue;
+                const hand = fullState.playerPowers[color];
+                if (!hand) continue;
+                try {
+                    conn.send({ type: 'POWER_HAND', color, hand, matchId: actionData.matchId });
+                } catch {
+                    // Peer closed mid-send — the next ENGINE_STATE retries.
+                }
+            }
+        }
+    }, [isHost, broadcastToAll, relayViaSupabase, setGameState, setLobbyState, lobbyStateRef, gameStateRef, myAddress, currentRoomCode, connectRoom]);
 
     const broadcastLobbyAction = useCallback((type: LobbyActionType, payload: Record<string, unknown> = {}) => {
         if (!isHost) return;
@@ -740,18 +893,45 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         }
     }, [isLobbyConnected, relayViaSupabase]);
 
-    const processGameAction = useCallback((data: Record<string, unknown>) => {
+    /**
+     * TU-1 (round 2): every inbound action now carries the TRANSPORT it arrived on.
+     *
+     * The Supabase Realtime topic `game-room-<roomCode>` is a public broadcast
+     * channel: anyone who learns the room code can subscribe AND publish, and
+     * `seq` is a number the publisher chooses — so a seq gate authenticates
+     * ordering, not origin. A `sender` string is a payload field, so comparing
+     * it to the host's public wallet address proves nothing.
+     *
+     * The one property the relay cannot forge is which socket the bytes came
+     * from. State-bearing verbs are therefore only honoured on the PeerJS
+     * transport, whose data connections are point-to-point to a peer id the
+     * room owns. The relay keeps the traffic it is actually good for: intents
+     * (which the host re-validates), lobby formation, chat, emotes and acks.
+     *
+     * Trade-off, deliberate and documented: a guest that cannot establish a
+     * PeerJS connection is read-only for match state until the authenticated
+     * `/api/room/:id/ws` transport (already built, see `src/worker.ts`) is
+     * wired to the client. Integrity over availability on a public topic.
+     */
+    const processGameAction = useCallback((data: Record<string, unknown>, via: 'peer' | 'relay' = 'relay') => {
         const type = typeof data.type === 'string' ? data.type : '';
         const actionId = typeof data.actionId === 'string' ? data.actionId : undefined;
         const stateOverride = data.stateOverride;
         if (actionId && processedActionIds.current.has(actionId)) return;
         if (actionId) processedActionIds.current.add(actionId);
 
+        if (STATE_VERBS.has(type) && via !== 'peer') {
+            bumpNet('net_schema_drop');
+            track('schema_drop', { via: 'relay', kind: type, reason: 'state_verb_on_public_topic' });
+            console.warn('🛰️ [TU-1] Dropping state verb received on the public relay:', type);
+            return;
+        }
+
         // Phase 6 hygiene: log the type + id only, never the full payload.
         // The old line printed `data` verbatim — every action AND its full
         // payload (seats, wallets, state) into every console, including
         // production until compiler.removeConsole strips it.
-        console.log('🕹️ Processing action:', type, actionId ?? '(no id)');
+        console.log('🕹️ Processing action:', type, actionId ?? '(no id)', `via=${via}`);
 
         // NET-03: only the authority (host or compute host) may drive a
         // networked match's rules state. Guests' boards follow the seq-gated
@@ -894,6 +1074,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 lastUpdate: Date.now()
             }));
 
+            // TU-4: a guest joins the same room transport, so both seats read the
+            // authority stream instead of one of them trusting the host's broadcast.
+            if (!isHost && typeof data.matchId === 'string') {
+                connectRoom(data.matchId);
+            }
+
             // ☁️ Host: Register live match details + bind host for signed settlement
             if (isHost) {
                 const matchId = typeof data.matchId === 'string'
@@ -961,6 +1147,23 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 newPos[color as PlayerColor][tokenIndex] = targetPosition;
                 return { ...prev, positions: newPos, lastUpdate: Date.now(), lastAction: { type: 'MOVE_TOKEN', payload } };
             });
+        } else if (type === 'POWER_HAND') {
+            // PW-3: the host sends each guest ONLY that guest's own hand, over that
+            // guest's own DataConnection. Accept a hand only for a colour this client
+            // actually owns — otherwise a mis-addressed message would let a seat
+            // overwrite someone else's inventory on its own board.
+            const color = data.color as PlayerColor;
+            const hand = data.hand;
+            if (!color || !Array.isArray(hand)) return;
+            const myColor = lobbyStateRef.current?.slots?.find(
+                s => s.playerId?.toLowerCase() === myAddress?.toLowerCase(),
+            )?.color;
+            if (myColor && color !== myColor) return;
+            setGameState(prev => ({
+                ...prev,
+                playerPowers: { ...prev.playerPowers, [color]: hand as GameState['playerPowers'][PlayerColor] },
+                lastUpdate: Date.now(),
+            }));
         } else if (type === 'TURN_SWITCH') {
             // TU-1: Authority generates turn switches; never accept external broadcasts
             if (isMatchAuthority) {
@@ -988,7 +1191,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (type === 'DICE_REVEAL') {
             handleRevealReceived(String(data.sender || ''), String(data.nonce || ''), lobbyStateRef);
         }
-    }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, setIsLobbyConnected, isHost, isComputeHost, myAddress, currentRoomCode, roomId, applyServerState, seatGuestPlayer]);
+    }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, setIsLobbyConnected, isHost, isComputeHost, myAddress, currentRoomCode, roomId, applyServerState, seatGuestPlayer, connectRoom]);
 
     // 🔄 Sync Profile to peers when local profile updates
     useEffect(() => {
@@ -1024,7 +1227,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (data.type === 'LOBBY_SYNC' && data.lobbyState && !isHost) {
             setLobbyState(data.lobbyState);
         } else if (data.type === 'START_GAME') {
-            processGameAction(data);
+            // TU-1: PeerJS is the only transport allowed to carry state verbs.
+            processGameAction(data, 'peer');
         } else if (data.type === 'GAME_ACTION') {
             if (isHost) {
                 // NET-09: run the SAME parser on this transport. The PeerJS
@@ -1047,7 +1251,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 sendIntentAck(data.action.intentId);
             }
         } else if (data.type === 'DICE_COMMIT' || data.type === 'DICE_REVEAL') {
-            processGameAction(data);
+            processGameAction(data, 'peer');
         }
     }, [processGameAction, seatGuestPlayer, isHost, setLobbyState]);
 
@@ -1396,6 +1600,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const leaveGame = useCallback(() => {
         destroyPeer();
+        // TU-4: drop the room socket so a stale authority cannot outlive the match.
+        teardownRoom();
         setIsHost(false);
         setIsLobbyConnected(false);
         setRoomId('');
@@ -1440,7 +1646,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 body: JSON.stringify({ walletAddress: myAddress, sessionId, status: 'Online' })
             }) : null);
         }
-    }, [destroyPeer, setIsHost, setIsLobbyConnected, setRoomId, setConnections, setGameState, setLobbyState, setParticipants, myAddress, clearRetryLadders]);
+    }, [destroyPeer, teardownRoom, setIsHost, setIsLobbyConnected, setRoomId, setConnections, setGameState, setLobbyState, setParticipants, myAddress, clearRetryLadders]);
 
     const acceptInvite = useCallback(() => { if (pendingInvite) { joinGame(pendingInvite.roomCode); setPendingInvite(null); } }, [pendingInvite, joinGame, setPendingInvite]);
     const rejectInvite = useCallback(() => setPendingInvite(null), [setPendingInvite]);
@@ -1584,7 +1790,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         participants, intentQueue, lastIntent: intentQueue[0] ?? null, clearIntent, sendIntentAck, leaveGame, validationToken,
         recordDisconnect, clearDisconnect, classifyAndRecordAbandon, abandonGraceFor,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot,
-        matchPhase, matchFsmIllegal,
+        matchPhase, matchFsmIllegal, roomAuthority, sendRoomIntent,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,

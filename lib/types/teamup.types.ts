@@ -1,7 +1,7 @@
 // lib/types/teamup.types.ts
 
 export interface GameConfig {
-  mode: 'classic' | 'power' | 'snakes';
+  mode: 'classic' | 'power';
   matchType: '1v1' | '2v2' | '4P';
   wager: number;
 }

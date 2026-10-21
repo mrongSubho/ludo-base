@@ -115,10 +115,8 @@ export const QuickMatchPanel = ({
         ticketId,
         matchId: hookMatchId,
         roomCode: hookRoomCode,
-        matchData,
         nearbyPools,
         error: matchError,
-        isConnectingToEdge,
         startSearch,
         startHybridSearch,
         cancelSearch,
@@ -242,26 +240,11 @@ export const QuickMatchPanel = ({
     // Use roomCode from hook preferentially (it updates dynamically during match)
     const activeRoomCode = hookRoomCode || roomCode;
 
-    // Fetch Opponent Profile / Reveal from MatchData
+    // Fetch Opponent Profile / Reveal from the canonical match row
     useEffect(() => {
         if (status === 'matched') {
-            // 1. Check if Edge provided player metadata (Instant Reveal)
-            if (matchData?.players) {
-                const rival = matchData.players.find((p: any) => p.id.toLowerCase() !== normalizedAddress);
-                if (rival) {
-                    setOpponentProfile({
-                        username: rival.name || 'Rival',
-                        avatar_url: null, // Edge server doesn't have avatars yet
-                        lxp: rival.lxp || 0,
-                        rxp: rival.rxp || 1500,
-                        total_wins: 0,
-                        total_games: 0
-                    });
-                    return; // EXIT: We have enough to show the "Match!" screen
-                }
-            }
-
-            // 2. Fallback: Fetch from Supabase (standard path)
+            // MM-5: the Edge instant-reveal branch is gone with the Edge matcher.
+            // The canonical `matches` row is the single source for the rival.
             const fetchOpponentData = async () => {
                 const roomToSearch = activeRoomCode || hookRoomCode || roomCode;
                 if (!roomToSearch) return;
@@ -316,7 +299,7 @@ export const QuickMatchPanel = ({
         } else {
             setOpponentProfile(null);
         }
-    }, [status, activeRoomCode, normalizedAddress, matchData, hookRoomCode, roomCode]);
+    }, [status, activeRoomCode, normalizedAddress, hookRoomCode, roomCode]);
 
     useEffect(() => {
         // Wait for wallet address before starting search
@@ -461,8 +444,8 @@ export const QuickMatchPanel = ({
                             
                             {/* Diagnostic Bar — theme-proof chips (see globals.css) */}
                             <div className="absolute -bottom-[2px] left-5 flex gap-1.5">
-                                <span className={`diag-chip ${status === 'matched' ? 'diag-status-ok' : (isConnectingToEdge ? 'diag-status-warn' : 'diag-status-info')}`}>
-                                    {isConnectingToEdge ? 'WAKING SERVER...' : (matchData ? 'EDGE PRIMARY' : 'SUPABASE FALLBACK')} | {status}
+                                <span className={`diag-chip ${status === 'matched' ? 'diag-status-ok' : 'diag-status-info'}`}>
+                                    QUEUE | {status}
                                 </span>
                                 <span className="diag-chip">
                                     ID: {normalizedAddress.slice(-4)}

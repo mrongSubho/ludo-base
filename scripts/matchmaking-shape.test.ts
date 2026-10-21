@@ -25,7 +25,7 @@ test('MM-4: /api/matchmaking/join enforces runtime whitelist boundary on mode an
     const routeSrc = read('app/api/matchmaking/join/route.ts');
     
     // Asserts route defines ALLOWED_MODES and ALLOWED_TYPES sets
-    assert.match(routeSrc, /const\s+ALLOWED_MODES\s*=\s*new\s+Set\(\['classic',\s*'power',\s*'snakes'\]\)/);
+    assert.match(routeSrc, /const\s+ALLOWED_MODES\s*=\s*new\s+Set\(\['classic',\s*'power'\]\)/);
     assert.match(routeSrc, /const\s+ALLOWED_TYPES\s*=\s*new\s+Set\(\['1v1',\s*'2v2',\s*'4P'\]\)/);
     // Asserts that invalid modes/types are rejected with 400
     assert.match(routeSrc, /if\s*\(!ALLOWED_MODES\.has\(gameMode\)\s*\|\|\s*!ALLOWED_TYPES\.has\(matchType\)\)/);
@@ -34,14 +34,15 @@ test('MM-4: /api/matchmaking/join enforces runtime whitelist boundary on mode an
 
 test('MM-2: useMatchmaking cancel includes sessionId for authentication', () => {
     const hookSrc = read('hooks/useMatchmaking.ts');
-    
-    // Asserts that orphan ticket cancellation resolves app session and includes sessionId
-    assert.match(hookSrc, /ensureAppSession\(\)/);
-    assert.match(hookSrc, /ticketId:\s*tid,\s*playerId:\s*null,\s*sessionId:\s*sId/);
-    
-    // Asserts that user-initiated cancelSearch also passes sessionId
+
+    // The queue cancel must resolve an app session and carry it, or the route's
+    // requireAppSession() 401s and the ticket is never cancelled (it only expires).
     assert.match(hookSrc, /const\s+sessionId\s*=\s*await\s+ensureAppSession\(\)/);
-    assert.match(hookSrc, /sessionId\s*\n\s*\}\)/);
+    assert.match(hookSrc, /ticketId:\s*allForPlayer\s*\?\s*null\s*:\s*currentTicketId,[\s\S]{0,120}sessionId/);
+
+    // MM-5 removed the parallel Edge matcher, so the orphan-ticket race it used to
+    // guard no longer exists — there is no second queue to lose to.
+    assert.doesNotMatch(hookSrc, /attemptEdgeInBackground|getEdgeClient/);
 });
 
 test('MO-2: spectator view derives dynamic shape and mode from loaded match record', () => {

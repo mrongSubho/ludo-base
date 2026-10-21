@@ -1,10 +1,35 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- legacy wire/UI types; typed burn-down tracked in docs/ops/DEPLOY_OPS.md */
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import { getEdgeClient } from '@/lib/teamup/edge-server-singleton';
 import { useAppSession } from './useAppSession';
 
 export type MatchmakingStatus = 'idle' | 'searching' | 'expanding' | 'timeout' | 'matched' | 'error';
+
+/**
+ * MM-3: the wager presets, descending — mirrors `snapFee` in the panel.
+ * Kept here because expansion is the queue's behaviour, not the panel's.
+ */
+const FEE_PRESETS = [1_000_000, 100_000, 10_000, 1_000, 0];
+
+/**
+ * MM-3: widen a search band by exactly one preset in each direction.
+ *
+ * `expanding` used to be a label with nothing behind it: the ticket kept the
+ * wager window it joined with, so the pool never grew and the prompt lied. One
+ * step per side is deliberate — dropping straight to "any wager" would pair a
+ * 1M table with a free one, which is a worse outcome than waiting.
+ *
+ * Returns null when the band is already as wide as it can get (free play), so
+ * the caller does not restart a search that cannot widen.
+ */
+export function widenWagerBand(wager: number): { min: number; max?: number } | null {
+    const idx = FEE_PRESETS.indexOf(wager);
+    if (idx < 0) return wager > 0 ? { min: 0 } : null;
+    if (idx === FEE_PRESETS.length - 1) return null; // already free
+    const min = FEE_PRESETS[Math.min(idx + 1, FEE_PRESETS.length - 1)];
+    const max = idx === 0 ? undefined : FEE_PRESETS[idx - 1];
+    return { min, max };
+}
 
 /** Session-gated ticket poll shape (GET /api/matchmaking/status). The route
  *  returns `validation_token: string | null` — null for open rooms. */
@@ -38,11 +63,9 @@ export function useMatchmaking(props: UseMatchmakingProps) {
 
     // --- State ---
     const [status, setStatus] = useState<MatchmakingStatus>('idle');
-    const [isConnectingToEdge, setIsConnectingToEdge] = useState(false);
     const [ticketId, setTicketId] = useState<string | null>(null);
     const [matchId, setMatchId] = useState<string | null>(null);
     const [roomCode, setRoomCode] = useState<string | null>(null);
-    const [matchData, setMatchData] = useState<any | null>(null);
     const [nearbyPools, setNearbyPools] = useState<{wager: number, waiters: number}[]>([]);
     const [searchTime, setSearchTime] = useState(0);
     const [maxSearchTime, setMaxSearchTime] = useState(30);
@@ -123,9 +146,6 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         onMatchFoundRef.current(matchId, roomCode, isHost, validationToken ?? undefined);
     }, [resolveIsHost]);
 
-    // --- Memoized Clients ---
-    const edgeClient = useMemo(() => getEdgeClient(), []);
-
     // --- Synchronization Effects ---
     useEffect(() => {
         statusRef.current = status;
@@ -170,6 +190,8 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         }
     }, [gameMode, matchType, playerId, wager]);
 
+    /** MM-3: set after `startSearch` exists (the timer effect runs before it). */
+    const expandRef = useRef<null | (() => void)>(null);
     const extendSearch = useCallback((seconds: number = 20) => {
         console.log(`📡 [Matchmaking] Extending search by ${seconds}s...`);
         setMaxSearchTime(prev => Math.max(prev, searchTime + seconds));
@@ -270,6 +292,10 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                 if (elapsed >= 16 && !expandFiredRef.current) {
                     expandFiredRef.current = true;
                     setStatus('expanding');
+                    // MM-3: actually widen. The ticket is re-issued with a band one
+                    // preset wider on each side; `startSearch` purges the old ticket
+                    // first, so the wider window replaces it rather than queueing twice.
+                    expandRef.current?.();
                 }
 
                 if (elapsed >= maxSearchTimeRef.current) {
@@ -360,76 +386,6 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         }
     }, [joinSupabase, checkTicketStatus]);
 
-    // Background Edge attempt: runs AFTER (never before) the fast Supabase join,
-    // fire-and-forget. A silent Edge server can delay but never wedge searching.
-    // If Edge wins after Supabase already matched, it stands down and kills our orphan ticket.
-    const attemptEdgeInBackground = useCallback(async (wagerMin?: number, wagerMax?: number) => {
-        if (!edgeClient) return;
-        const normalizedPlayerId = playerId?.toLowerCase();
-        if (!normalizedPlayerId) return;
-        try {
-            setIsConnectingToEdge(true);
-            let connected = false;
-            const startTime = Date.now();
-            while (Date.now() - startTime < 3000) {
-                try {
-                    await edgeClient.connect();
-                    connected = true;
-                    break;
-                } catch (_e) {
-                    await new Promise(r => setTimeout(r, 1000));
-                }
-            }
-            if (!connected) return;
-
-            const targetWager = (wagerMin !== undefined && wagerMin === wagerMax) ? wagerMin : wager;
-            const edgeMatch = await Promise.race([
-                edgeClient.findMatch({
-                    playerId: normalizedPlayerId,
-                    mode: gameMode as any,
-                    entryFee: targetWager,
-                    minWager: wagerMin !== undefined ? wagerMin : targetWager,
-                    maxWager: wagerMax !== undefined ? wagerMax : targetWager,
-                    matchType: matchType as any,
-                    gameMode: gameMode as any,
-                    gameType: 'quick'
-                } as any),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Edge findMatch timed out after 8s')), 8000)),
-            ]) as any;
-
-            if (!edgeMatch || isMatched()) {
-                // Lost the race to Supabase: kill our orphan ticket so it can't ghost-match later
-                if (edgeMatch && ticketIdRef.current) {
-                    const tid = ticketIdRef.current;
-                    void ensureAppSession()
-                        .catch(() => null)
-                        .then((sId) => {
-                            fetch('/api/matchmaking/cancel', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ ticketId: tid, playerId: null, sessionId: sId || undefined })
-                            }).catch(() => {});
-                        });
-                }
-                return;
-            }
-            console.log('✅ [Matchmaking] EDGE MATCH found (background)!', edgeMatch.matchId);
-            if (pollingRef.current) clearInterval(pollingRef.current);
-
-            setStatus('matched');
-            setMatchId(edgeMatch.matchId);
-            setMatchData(edgeMatch);
-            setRoomCode(edgeMatch.matchId);
-
-            const isIHost = edgeMatch.players[0].id.toLowerCase() === normalizedPlayerId;
-            void dispatchMatch(edgeMatch.matchId, edgeMatch.matchId, isIHost, edgeMatch.validationToken);
-        } catch (edgeErr) {
-            console.warn('⚠️ [Matchmaking] Background Edge attempt failed quietly.', edgeErr);
-        } finally {
-            setIsConnectingToEdge(false);
-        }
-    }, [edgeClient, playerId, gameMode, matchType, wager, isMatched, dispatchMatch]);
-
     // --- Search Triggers ---
 
     const startSearch = useCallback(async (wagerMin?: number, wagerMax?: number) => {
@@ -473,7 +429,13 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             setStatus('searching');
             lastSearchRef.current = criteria;
 
-            // Fast path first: Supabase RPC join (hundreds of ms, never wedges).
+            // Fast path only: the Supabase RPC is the single queue.
+            // MM-5: the parallel "Edge" hunt against NEXT_PUBLIC_EDGE_SERVER_URL was
+            // removed. It was a second, unrelated matchmaker with its own host
+            // resolution rule (roster[0] rather than the hash), it could hand back a
+            // roomCode that no other subsystem knows about, and its orphan-ticket
+            // cleanup was the only thing keeping it from ghost-matching. One queue,
+            // one host rule.
             try {
                 const matched = await joinSupabase(wagerMin, wagerMax);
                 if (!matched) {
@@ -481,8 +443,6 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                     pollingRef.current = setInterval(() => {
                         heartbeatTick(wagerMin, wagerMax);
                     }, 5000);
-                    // Slow path in background: Edge hunts in parallel, stands down if RPC wins.
-                    attemptEdgeInBackground(wagerMin, wagerMax);
                 }
             } catch (err) {
                 console.error('❌ [Matchmaking] Supabase join failed:', err);
@@ -496,7 +456,20 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         } finally {
             isStartingRef.current = false;
         }
-    }, [playerId, gameMode, matchType, wager, cancelSearch, joinSupabase, heartbeatTick, attemptEdgeInBackground, isMatched]);
+    }, [playerId, gameMode, matchType, wager, cancelSearch, joinSupabase, heartbeatTick, isMatched]);
+
+    // MM-3: the timer effect fires before `startSearch` is in scope, so it calls
+    // through this ref. Re-issuing with a wider band is the whole point of the
+    // `expanding` status — previously the label changed and the ticket did not.
+    useEffect(() => {
+        expandRef.current = () => {
+            const band = widenWagerBand(wager);
+            if (!band) return;
+            console.log('📡 [Matchmaking] Expanding wager band to', band);
+            void startSearch(band.min, band.max);
+        };
+        return () => { expandRef.current = null; };
+    }, [wager, startSearch]);
 
     const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string, wagerMin?: number, wagerMax?: number) => {
         if (isStartingRef.current) {
@@ -650,10 +623,8 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         ticketId,
         matchId,
         roomCode,
-        matchData,
         nearbyPools,
         error,
-        isConnectingToEdge,
         startSearch,
         startHybridSearch,
         cancelSearch,

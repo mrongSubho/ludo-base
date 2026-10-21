@@ -2,6 +2,8 @@
  
 import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { rateKey, rateLimitHeaders } from '@/lib/rateLimit';
+import { checkRateLimitShared } from '@/lib/rateLimitShared';
 
 /**
  * Attach the caller's ticket validation_token to a direct-match response.
@@ -75,7 +77,7 @@ export async function POST(request: Request) {
         if (!playerId || !gameMode || !matchType) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
-        const ALLOWED_MODES = new Set(['classic', 'power', 'snakes']);
+        const ALLOWED_MODES = new Set(['classic', 'power']);
         const ALLOWED_TYPES = new Set(['1v1', '2v2', '4P']);
         if (!ALLOWED_MODES.has(gameMode) || !ALLOWED_TYPES.has(matchType)) {
             return NextResponse.json({ error: 'Invalid gameMode or matchType' }, { status: 400 });
@@ -83,6 +85,17 @@ export async function POST(request: Request) {
         const wallet = await requireAppSession(playerId, sessionId);
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         playerId = wallet;
+
+        // SA-5: the join heartbeat runs every 5s per searching player, so this is
+        // the one queue endpoint where an in-process budget is not a budget at all
+        // (it multiplies by instance count). Shared counter, keyed per wallet.
+        const shared = await checkRateLimitShared(rateKey('mm:join', wallet), 30, 60_000);
+        if (!shared.ok) {
+            return NextResponse.json(
+                { error: 'Too many matchmaking requests', retryAfter: shared.retryAfterSec },
+                { status: 429, headers: rateLimitHeaders(shared) },
+            );
+        }
 
         console.log('📡 [Matchmaking] Player joining queue...', { playerId, gameMode, matchType, wager, wagerMin, wagerMax, roomCode, isHybrid });
 

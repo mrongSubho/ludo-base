@@ -1,4 +1,6 @@
-import { GameIntent, GameIntentType, GameIntentPayloads, PlayerColor } from './types';
+import { GameIntent, GameIntentType, GameIntentPayloads, PlayerColor, PowerType } from './types';
+
+const POWER_TYPES: readonly PowerType[] = ['shield', 'boost', 'nuke', 'teleport'];
 
 export function isPlayerColor(value: unknown): value is PlayerColor {
     return value === 'green' || value === 'red' || value === 'yellow' || value === 'blue';
@@ -9,7 +11,7 @@ export function isGameIntent(value: unknown): value is GameIntent {
     const candidate = value as { type?: unknown; payload?: unknown; intentId?: unknown };
     if (
         typeof candidate.type !== 'string'
-        || !(['REQUEST_ROLL', 'REQUEST_MOVE'] as GameIntentType[]).includes(candidate.type as GameIntentType)
+        || !(['REQUEST_ROLL', 'REQUEST_MOVE', 'REQUEST_POWER'] as GameIntentType[]).includes(candidate.type as GameIntentType)
         || typeof candidate.intentId !== 'string'
         || candidate.intentId.length === 0
         || !candidate.payload
@@ -33,7 +35,23 @@ export function isGameIntent(value: unknown): value is GameIntent {
                 && payload.tokenIndex >= 0
                 && payload.tokenIndex < 4
                 && !('diceValue' in payload);
+        case 'REQUEST_POWER':
+            // PW-3: identity + which power. The host re-validates ownership and
+            // the once-per-turn budget against its own inventory; no expiry, no
+            // state and no target coordinate may ride along.
+            return isPlayerColor(payload.color)
+                && typeof payload.power === 'string'
+                && (POWER_TYPES as readonly string[]).includes(payload.power)
+                && (payload.tokenIndex === undefined
+                    || (typeof payload.tokenIndex === 'number'
+                        && Number.isInteger(payload.tokenIndex)
+                        && payload.tokenIndex >= 0
+                        && payload.tokenIndex < 4))
+                && !('expiresAt' in payload)
+                && !('state' in payload)
+                && !('targetPosition' in payload);
     }
+    return false;
 }
 
 export function createGameIntent<T extends GameIntentType>(

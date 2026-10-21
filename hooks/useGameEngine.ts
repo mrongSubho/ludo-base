@@ -6,7 +6,7 @@ import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import confetti from 'canvas-confetti';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { PlayerColor, PowerType, BotDifficulty, GameState, GameIntent } from '@/lib/types';
-import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, buildPlayerPaths, shufflePlayers } from '@/lib/boardLayout';
+import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, shufflePlayers } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
 import { useAudio } from '../app/hooks/useAudio';
 import {
@@ -48,7 +48,7 @@ export interface Player {
 interface UseGameEngineProps {
     initialPlayers: Player[];
     playerCount: '1v1' | '4P' | '2v2';
-    gameMode: 'classic' | 'power' | 'snakes';
+    gameMode: 'classic' | 'power';
     isBotMatch: boolean;
     botDifficulty?: BotDifficulty;
     colorCorner: ColorCorner;
@@ -109,7 +109,9 @@ export function useGameEngine({
         classifyAndRecordAbandon,
         recordDisconnect,
         clearDisconnect,
-        abandonGraceFor
+        abandonGraceFor,
+        roomAuthority,
+        sendRoomIntent
     } = useTeamUpContext();
     
     // 3. Authority Logic (Determines who orchestrates AI and AFK turns)
@@ -264,6 +266,8 @@ export function useGameEngine({
         address,
         isHost: isAuthority,
         isLobbyConnected,
+        roomAuthority,
+        sendRoomIntent,
         broadcastAction,
         sendIntent,
         playerCount,
@@ -447,6 +451,10 @@ export function useGameEngine({
                 handleRoll();
             } else if (action.kind === 'move') {
                 moveToken(action.color, action.tokenIndex, action.diceValue);
+            } else if (action.kind === 'power') {
+                // PW-3: the host spends the power against its OWN inventory, so a
+                // guest's request is bounded by what the host knows that seat holds.
+                void handleUsePower(action.color, action.power, action.tokenIndex);
             } else if (action.kind === 'trust') {
                 toggleAutoPlay(action.color, action.isKicked);
             } else if (action.kind === 'ignore') {
@@ -460,7 +468,7 @@ export function useGameEngine({
 
             clearIntent();
         }
-    }, [isAuthority, lastIntent, handleRoll, moveToken, toggleAutoPlay, clearIntent, localGameState.diceValue]);
+    }, [isAuthority, lastIntent, handleRoll, moveToken, handleUsePower, toggleAutoPlay, clearIntent, localGameState.diceValue]);
 
     const resetGame = useCallback(() => {
         const newCC = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
@@ -535,19 +543,33 @@ export function useGameEngine({
     // Networked guests copy only the server snapshot cached by TeamUpContext.
     useEffect(() => {
         if (!isHost && isLobbyConnected && networkGameState && networkGameState.lastUpdate > localGameState.lastUpdate) {
-            setLocalGameState(prev => ({
-                ...prev,
-                ...networkGameState,
-                isStarted: prev.isStarted || networkGameState.isStarted,
-                matchId: networkGameState.matchId || prev.matchId,
-                // Preserve local-only UI fields
-                powerTiles: networkGameState.powerTiles?.length
-                    ? networkGameState.powerTiles
-                    : prev.powerTiles,
-            }));
+            setLocalGameState(prev => {
+                // PW-3: power inventory is per-seat private state. A shared broadcast
+                // carries every colour with `type` stripped, so a blanket spread wiped
+                // the guest's OWN hand as well — the guest then held nothing usable.
+                // Take only this client's colour from the wire (delivered by the
+                // targeted POWER_HAND message) and keep every other seat local.
+                const myColor = initialPlayers.find(
+                    p => p.walletAddress?.toLowerCase() === address?.toLowerCase(),
+                )?.color;
+                const myHand = myColor ? networkGameState.playerPowers?.[myColor] : undefined;
+                return {
+                    ...prev,
+                    ...networkGameState,
+                    playerPowers: myColor && myHand
+                        ? { ...prev.playerPowers, [myColor]: myHand }
+                        : prev.playerPowers,
+                    isStarted: prev.isStarted || networkGameState.isStarted,
+                    matchId: networkGameState.matchId || prev.matchId,
+                    // Preserve local-only UI fields
+                    powerTiles: networkGameState.powerTiles?.length
+                        ? networkGameState.powerTiles
+                        : prev.powerTiles,
+                };
+            });
             if (networkGameState.lastAction?.type === 'MOVE_TOKEN') playMove();
         }
-    }, [isHost, isLobbyConnected, networkGameState, localGameState.lastUpdate, playMove]);
+    }, [isHost, isLobbyConnected, networkGameState, localGameState.lastUpdate, playMove, initialPlayers, address]);
 
     // Host: pull matchId from TeamUpContext (seeded on START_GAME) so Edge
     // rolls/moves are not stuck on match_id='local'.

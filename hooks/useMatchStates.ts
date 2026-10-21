@@ -23,6 +23,11 @@ interface UseMatchStatesProps {
      * already knows the board keeps playing while the endpoint is flapping.
      */
     hasAuthoritativeSnapshot?: () => boolean;
+    /**
+     * SA-4: steady-state reconciliation interval. 0 disables the periodic poll
+     * (tests / offline). The poll is seq-gated, so a no-op repeat costs one GET.
+     */
+    pollMs?: number;
 }
 
 /** NET-05: bounded backoff ladder for failed snapshot fetches. */
@@ -32,7 +37,7 @@ const MAX_SNAPSHOT_RETRIES = 8;
  * P4 + N2: `match_states` display authority via the single `resyncMatch` path.
  * Timers/AFK/bots stay paused while status is reconnecting/syncing (ENGINE_LOGIC section 12).
  */
-export function useMatchStates({ matchId, enabled, onServerState, getSeq, refreshState, onStatus, hasAuthoritativeSnapshot }: UseMatchStatesProps) {
+export function useMatchStates({ matchId, enabled, onServerState, getSeq, refreshState, onStatus, hasAuthoritativeSnapshot, pollMs = 6000 }: UseMatchStatesProps) {
     const onServerStateRef = useRef(onServerState);
     const getSeqRef = useRef(getSeq);
     onServerStateRef.current = onServerState;
@@ -93,6 +98,12 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq, refres
             }
             // Applied or a stale-but-successful fetch: steady state again.
             attempt = 0;
+            // SA-4: steady-state reconciliation. Before this, the hook polled once
+            // on mount and then only on error/online — so a host whose broadcast
+            // was lost (relay flap, dropped peer message) left every guest on a
+            // stale board indefinitely. The poll is seq-gated (allowEqual=false),
+            // so a repeat that has nothing new applies nothing.
+            if (active && pollMs > 0) timer = setTimeout(poll, pollMs);
         };
 
         void poll();
@@ -112,5 +123,5 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq, refres
             if (timer) clearTimeout(timer);
             window.removeEventListener('online', handleOnline);
         };
-    }, [matchId, enabled, runResync]);
+    }, [matchId, enabled, runResync, pollMs]);
 }

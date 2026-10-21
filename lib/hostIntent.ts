@@ -1,4 +1,6 @@
-import type { GameIntent, PlayerColor } from './types';
+import type { GameIntent, PlayerColor, PowerType } from './types';
+
+const POWER_TYPES: readonly PowerType[] = ['shield', 'boost', 'nuke', 'teleport'];
 
 /**
  * The host's guest-intent decision as a pure function (Phase 2 exit gate).
@@ -10,10 +12,15 @@ import type { GameIntent, PlayerColor } from './types';
  * React effect in `hooks/useGameEngine.ts` delegates to this function, and
  * `scripts/host-intent.test.ts` executes it over forged intents, so the
  * boundary is covered by execution rather than by source assertions alone.
+ *
+ * `REQUEST_POWER` (PW-3) follows the same rule: the guest may name a colour and
+ * a power, never a duration, a state or a target coordinate. Ownership and the
+ * once-per-turn budget are re-checked by `applyPower` on the host's own state.
  */
 export type HostIntentAction =
     | { kind: 'roll' }
     | { kind: 'move'; color: PlayerColor; tokenIndex: number; diceValue: number }
+    | { kind: 'power'; color: PlayerColor; power: PowerType; tokenIndex?: number }
     | { kind: 'trust'; color: PlayerColor; isKicked: boolean }
     | { kind: 'ignore' };
 
@@ -36,6 +43,17 @@ export function hostActionForIntent(
             color: payload.color as PlayerColor,
             tokenIndex: payload.tokenIndex,
             diceValue: hostDiceValue,
+        };
+    }
+    if (intent.type === 'REQUEST_POWER') {
+        const payload = intent.payload as { color?: unknown; power?: unknown; tokenIndex?: unknown };
+        if (typeof payload.power !== 'string') return { kind: 'ignore' };
+        if (!(POWER_TYPES as readonly string[]).includes(payload.power)) return { kind: 'ignore' };
+        return {
+            kind: 'power',
+            color: payload.color as PlayerColor,
+            power: payload.power as PowerType,
+            tokenIndex: typeof payload.tokenIndex === 'number' ? payload.tokenIndex : undefined,
         };
     }
     if (intent.type === 'CMD_REQUEST_TRUST') {

@@ -4,6 +4,8 @@ import { buildMatchRecordMessage, isFreshIssuedAt } from '@/lib/matchProof';
 import { verifyPersonalSign } from '@/lib/walletVerify';
 import { serviceDb, requireSession } from '@/lib/serverAuth';
 import { reportProgress } from '@/lib/missionOracle';
+import { rateKey, rateLimitHeaders } from '@/lib/rateLimit';
+import { checkRateLimitShared } from '@/lib/rateLimitShared';
 
 async function updateMissionProgress(walletAddress: string, missionId: string, increment: number) {
     // Signature-gated settlement (canonical host wallet-signs the payload).
@@ -68,6 +70,18 @@ export async function POST(request: Request) {
         }
         if (typeof wager !== 'number' || !Number.isFinite(wager) || wager < 0) {
             return NextResponse.json({ error: 'Invalid wager' }, { status: 400 });
+        }
+
+        // SA-5: this route writes progression, so its budget must not multiply by
+        // instance count. Keyed per participant wallet; the shared counter is the
+        // real ceiling, the in-process one is the cheap first pass inside it.
+        const limiterKey = rateKey('match:record', String(participants[0] ?? 'unknown').toLowerCase());
+        const sharedLimit = await checkRateLimitShared(limiterKey, 20, 60_000);
+        if (!sharedLimit.ok) {
+            return NextResponse.json(
+                { error: 'Too many result submissions', retryAfter: sharedLimit.retryAfterSec },
+                { status: 429, headers: rateLimitHeaders(sharedLimit) },
+            );
         }
 
         // P6 & SA-2: Signature proof OR session-authenticated participant
@@ -340,7 +354,10 @@ export async function POST(request: Request) {
 
         // 3. Update other participants (Loss) — progression only, no coin drain
         const others = participants.filter((p: string) => !winnerAddress || p.toLowerCase() !== winnerAddress.toLowerCase());
-        const baseLxpGain = 50 + Math.floor(wager * 0.05);
+        // R1: the loser branch must use the SAME capped wager as the winner branch.
+        // Using the raw body `wager` here left the inflation hole open from the other
+        // side — a losing participant could declare wager=1e9 and collect ~50M LXP.
+        const baseLxpGain = 50 + Math.floor(effectiveWager * 0.05);
         const lossRxpPenalty = 15;
 
         for (const addr of others) {

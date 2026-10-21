@@ -347,6 +347,21 @@ export class RoomClient {
     });
   }
 
+  /**
+   * Seed the room with the initial match state (host only, first activation).
+   *
+   * A Durable Object starts empty: `ensureInitialized` reads SQLite, so a fresh
+   * room has no board and every intent would be refused with ROOM_NOT_READY. The
+   * host therefore writes the seed it already owns. The DO accepts it only when it
+   * has nothing stored, so a reconnecting host cannot rewrite a live board.
+   */
+  public async seedState(payload: unknown): Promise<void> {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('Room is not connected');
+    }
+    this.ws.send(JSON.stringify({ t: 'seed', payload }));
+  }
+
   private rejectAllPending(err: Error): void {
     for (const [, pending] of this.pendingIntents) {
       clearTimeout(pending.timer);

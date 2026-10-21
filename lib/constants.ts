@@ -119,7 +119,6 @@ export const JOINER_SYNC_DELAY = 1500; // ms wait for Host PeerJS ID
 export const GAME_MODE_CODE: Record<string, number> = {
     classic: 0,
     power: 1,
-    snakes: 2,
 };
 
 /** Declared pool shape -> MatchPool.PoolShape. Must match contracts/src/MatchPool.sol. */

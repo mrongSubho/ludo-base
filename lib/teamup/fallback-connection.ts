@@ -54,7 +54,7 @@ export class FallbackConnectionManager {
       validationToken: 'fallback_token',
       serverTimestamp: Date.now(),
       gameConfig: {
-        mode: request.mode === 'snakes' ? 'snakes' : 'classic',
+        mode: 'classic',
         matchType: request.matchType || '1v1',
         wager: request.entryFee || 0
       }

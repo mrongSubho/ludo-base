@@ -982,6 +982,75 @@ Following adversarial verification against git diff `a9b3a3d..HEAD` (`docs/ops/R
 
 `tsc -p tsconfig.json --noEmit` **0 errors** · `npm run lint` **0 errors** · `npm test` **485 tests (474 pass, 0 fail, 11 skipped)** · `check:schema` **clean (38 migrations, 37 functions)** · `check:rls` **clean (38 migrations)** · `check:engine` **byte-identical** · `check:routes` **53 routes clean** · `forge test --root contracts` **105 passed, 0 failed** · Remote database migrations applied (`202610200001`, `202610200002`).
 
+
+
+## Part XII — October 2026 closure pass (2026-10-21)
+
+*Source: the verification in [`REVIEW_VERIFICATION_2026-10-20.md`](./REVIEW_VERIFICATION_2026-10-20.md),
+which found that 19 of the 30 findings marked "Closed" in Part XI had no code change, and that the
+`PW-2` fix had disabled powers for the receiving player. This part closes everything that can be closed
+in-repo and records what cannot.*
+
+### Result
+
+**21 closed · 1 partial · 3 open and blocked or awaiting a decision.** `npm test` 485 / 474 pass / 0 fail ·
+`check:schema` 39 migrations / 38 functions · `check:rls` 39 · `check:routes` 53 · `check:engine` in sync ·
+`tsc` 0 errors · `eslint` 0 errors.
+
+### Security residuals from the verification (R1–R3)
+
+- **R1 (`SA-2` loser branch).** `baseLxpGain` used the raw body `wager`; only the winner branch was capped.
+  A losing participant could declare `wager = 1e9`. Now uses `effectiveWager`.
+- **R2 (`TU-1` sender spoofing).** The round-1 guard compared `data.sender` — an attacker-chosen payload
+  field — to the host's public wallet, and skipped entirely when `sender` was omitted. Replaced with a
+  transport decision: `processGameAction(data, via)` accepts state verbs only on PeerJS. `MOVE_TOKEN` also
+  validates `targetPosition` against `calculateNextPosition`.
+- **R3 (`PW-1`).** The round-1 fix landed on `/api/match/state`, which only `useSpectatorSync` calls. The
+  player path (`useMatchStates` → edge `move-auth get`) was untouched. `useMatchStates` now reads
+  `/api/match/state`, and that route resolves the viewer from a match- or app-scoped session.
+
+### Authority model (TU-4, PW-3)
+
+The MatchRoom Durable Object is the authority. The compile-time `SERVER_AUTHORITY_ENABLED = false` flag was
+**deleted**: `TeamUpContext` now exposes `roomAuthority`, true only while `/api/room/:matchId/ws` is
+connected, and `sendRoomIntent`. Roll, move and power all send an intent and render the room's fan-out, so
+there is no second copy of the rules on a client. When no socket is open `roomAuthority` is false and the
+P2P host remains the authority — deploy the DO and the server authority activates; don't, and the previous
+behaviour holds. Two additions make the intent surface complete:
+
+- `REQUEST_POWER` in `GameIntentType` / `GameIntentPayloads` / `isGameIntent` / `hostActionForIntent` and in
+  the room's `IntentKind`, so a guest can spend a power without the host losing authority over inventory.
+- `POWER_HAND`, a targeted host → guest message sent over that guest's own DataConnection. Power inventory is
+  per-seat private state; a shared broadcast cannot carry it without leaking every opponent's hand, which is
+  what `PW-2` was about.
+
+`useGameEngine`'s guest merge now takes only the local seat's hand from the wire and keeps every other seat
+local — previously `...networkGameState` wiped the guest's own inventory on every host broadcast.
+
+### Other closures
+
+`TU-3` (`resolveRoomHost` fallback to `lobby_join_policies`), `SA-4` (steady seq-gated poll),
+`SA-5` (`lib/rateLimitShared.ts` + `public.rate_limit_hit`), `MM-3` (`widenWagerBand` + re-issue),
+`MM-5` (parallel Edge matcher removed), `MO-1` (arena on `resolveNetworkedMove`, seeded tiles + dice),
+`MO-3` (snakes deleted: 734 lines), `MO-4` (`/api/match/start` updates the existing row),
+`MO-5` (rotated path builder deleted), `PW-5` (`sweepExpiredPowers` on the authority),
+`PW-6` (duplicate LCG reseed deleted), `PW-4` partial (pickup delegates to `applyPowerPickup`).
+
+### Open, with the reason
+
+- **`SA-1`** — `roll-dice` / `move-auth` / `resolve-bet` are deployed but their source was deleted. No change
+  in this repo can patch them. Runbook in `SYSTEM_REVIEW.md` §4.9: undeploy, or restore and redeploy from CI.
+- **`SA-3`** — seat binding must be written by `move-auth`; blocked on `SA-1`.
+- **`TU-5`** — burning or refunding an abandoned stake is an economics decision, not a patch. The mechanical
+  gap is one call from the AFK-kick path once the policy exists.
+
+### Trade-off to be aware of
+
+`TU-1`'s fix makes a guest that cannot establish PeerJS **read-only for match state**. That is deliberate:
+the previous behaviour let anyone with a room code rewrite a guest's board, dice and turn. The follow-up is
+to point `lib/netcode/roomClient.ts` at `/api/room/:id/ws` (already built and bound as `MATCH_ROOM`, unused by
+any client) and then delete the relay state verbs entirely.
+
 ---
 
 ## Part XIII — TU-6: the 1v1 ghost turn (2026-10-21, reported live)
@@ -1022,7 +1091,7 @@ The seat table is now **one list, in the authority** (`lib/engine/core.ts`):
 const SEATS_BY_FORMAT: Record<string, readonly PlayerColor[]> = {
     '1v1': ['green', 'yellow'],
 };
-export function seatedColorsFor(playerCount: string): readonly PlayerColor[] { ... }
+export function seatedColorsFor(playerCount: string): readonly PlayerColor[] { … }
 ```
 
 Three call sites now read it:
@@ -1037,7 +1106,7 @@ Three call sites now read it:
   same clamp and the same seat-aware fallback, and `LOBBY_COLORS['1v1']` is now
   `[...seatedColorsFor('1v1')]` so the lobby seating and the turn cycle cannot disagree.
 
-`src/room/engine.ts` and `supabase/functions/_shared/engine.ts` re-synced (`check:engine` green).
+`src/room/engine.ts` and `supabase/functions/_shared/engine.ts` are re-synced (`check:engine` green).
 2v2 and 4P seat all four, so their cycles are unchanged — pinned by a test that still visits all four
 corners, and by the 1200-match `engine-diff` differential that seeds 1v1 among its modes.
 
@@ -1054,3 +1123,14 @@ both directions (the authority's list, and `LOBBY_COLORS['1v1']` being derived f
 pre-fix engine** (verified by reverting the fix in place and re-running): the turn-cycle assertion,
 the seated-alternation assertion, the stale-all-four clamp, and a seeded 1v1 match driven through
 `resolveNetworkedMove` that must never rest on an unseated colour.
+
+### Result
+
+`npm test` **492 / 481 pass / 0 fail** · `check:drift` 12/12 · `check:engine` in sync ·
+`check:schema` 39 migrations / 38 functions · `check:rls` 39 · `check:routes` 53 · `check:fields`
+clean · `tsc` (app + worker) 0 errors · `eslint` 0 errors.
+
+`check:reduce-motion` cannot run in this sandbox — it drives a real browser against
+`http://127.0.0.1:3000` and nothing is listening. Confirmed it fails identically on the pre-change
+tree, so it is a missing-server precondition, not a regression; the change surface is pure TS engine
+logic with no UI.

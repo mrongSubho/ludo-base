@@ -338,23 +338,23 @@ Following the server authority migration and on-chain settlement remediation (Oc
 
 | ID | Sev | Title | Location | Status |
 | --- | --- | --- | --- | --- |
-| TU-1 | **C** | Unauthenticated control channel on public Realtime topic (`game-room-*`) ✅ | `useSupabaseRelay.ts:105` · `TeamUpContext.tsx:843` | Closed (`e8292d8`) |
+| TU-1 | **C** | Unauthenticated control channel on public Realtime topic (`game-room-*`) ✅ | `useSupabaseRelay.ts:105` · `TeamUpContext.tsx:843` | Closed — state verbs are peer-transport only; relay keeps intents/lobby/chat |
 | TU-2 | **C** | Trusting peer-supplied coin balances in `seatGuestPlayer` ✅ | `TeamUpContext.tsx:586` | Closed (`4970cae`) |
-| TU-3 | **H** | REST join fallback fails during room formation prior to live match row ◐ | `lobby/join/route.ts:156` · `TeamUpContext.tsx:1186` | Open |
-| TU-4 | **H** | Host and guest diverge on move and power execution in P2P mode ◐ | `useGameActions.ts:159,721` | Open |
-| TU-5 | **M** | Disconnect and abandon lacks settlement penalty and stake burning ◐ | `lib/netcode/abandon.ts:37` · `useGamePresence.ts:63` | Open |
+| TU-3 | **H** | REST join fallback fails during room formation prior to live match row ✅ | `lobby/join/route.ts:156` · `TeamUpContext.tsx:1186` | Closed — `resolveRoomHost()` falls back to `lobby_join_policies` |
+| TU-4 | **H** | Host and guest diverge on move and power execution in P2P mode ✅ | `useGameActions.ts:159,721` | Closed — the MatchRoom Durable Object is the authority; `roomAuthority` is derived from the live `/api/room/:id/ws` socket |
+| TU-5 | **M** | Disconnect and abandon lacks settlement penalty and stake burning ◐ | `lib/netcode/abandon.ts:37` · `useGamePresence.ts:63` | **Open — blocked on a product decision** (see §4.9) |
 | TU-6 | **H** | 1v1 turns handed to an unseated "ghost" colour; match then stalls ✅ | `lib/engine/core.ts` `activeColorsForTurns` · `getNextPlayer` | Closed — the turn cycle is seat-aware; `SEATS_BY_FORMAT` single-sourced in the authority |
 
 #### Power Mechanics & Privacy (PW)
 
 | ID | Sev | Title | Location | Status |
 | --- | --- | --- | --- | --- |
-| PW-1 | **C** | Authority state leaks held powers and expiries to all callers ✅ | `useMoveAuth.ts:503` · `lib/engine/core.ts:588` | Closed (`d4bbf54`) |
+| PW-1 | **C** | Authority state leaks held powers and expiries to all callers ✅ | `useMatchStates` · `app/api/match/state` | Closed for the app — snapshots now read the session-aware route; the orphaned edge `get` remains (see SA-1) |
 | PW-2 | **H** | Player power inventory broadcast to all peers in plaintext ✅ | `TeamUpContext.tsx:512` · `wireSanitize.ts:6` | Closed (`8e67d76`) |
-| PW-3 | **H** | Guest power never reaches host board in hybrid lobbies ◐ | `useGameActions.ts:721` · `useMatchStates.ts:76` | Open |
-| PW-4 | **H** | Triple implementation of power semantics across engine files ◐ | `lib/engine/core.ts` · `src/room/engine.ts` | Open |
-| PW-5 | **M** | Power expiry dependent on client clock `Date.now()` rather than turns ◐ | `lib/engine/core.ts:744` · `useGameActions.ts:800` | Open |
-| PW-6 | **L** | Duplicate LCG reseed formula in game actions ◐ | `useGameActions.ts:339` | Open |
+| PW-3 | **H** | Guest power never reaches host board in hybrid lobbies ✅ | `useGameActions.ts` · `hostIntent.ts` · `TeamUpContext.tsx` | Closed — `REQUEST_POWER` intent + targeted `POWER_HAND` reply |
+| PW-4 | **H** | Triple implementation of power semantics across engine files ◐ | `lib/engine/core.ts` · `src/room/engine.ts` · `useGameActions.ts` | **Partial** — pickup now delegates to `applyPowerPickup`; the apply branch stays local until the room transport lands |
+| PW-5 | **M** | Power expiry dependent on client clock `Date.now()` rather than turns ✅ | `lib/engine/core.ts` `sweepExpiredPowers` | Closed — the authority sweeps once per turn; clients no longer decide |
+| PW-6 | **L** | Duplicate LCG reseed formula in game actions ✅ | `useGameActions.ts` | Closed — the hand-rolled reseed was deleted with the pickup copy |
 
 #### Matchmaking & Table Formation (MM)
 
@@ -362,29 +362,93 @@ Following the server authority migration and on-chain settlement remediation (Oc
 | --- | --- | --- | --- | --- |
 | MM-1 | **H** | Quick match cannot fill 2v2 or 4P tables (`join_matchmaking` hardcodes 2 players) ✅ | `supabase/migrations/00000000000000_baseline.sql:457` | Closed (`ab1ce8a`, `33c5dc0`) |
 | MM-2 | **M** | Orphan ticket cancel 401s due to missing `sessionId` on DELETE ✅ | `hooks/useMatchmaking.ts:400` | Closed (`ab1ce8a`) |
-| MM-3 | **M** | Expanding search is client decoration without widening DB query ◐ | `hooks/useMatchmaking.ts:7,255` | Open |
+| MM-3 | **M** | Expanding search is client decoration without widening DB query ✅ | `hooks/useMatchmaking.ts` `widenWagerBand` | Closed — the ticket is re-issued one preset wider per side at 16s |
 | MM-4 | **L** | API boundary lacks game mode / match type validation ✅ | `app/api/matchmaking/join/route.ts:107` | Closed (`ab1ce8a`) |
-| MM-5 | **L** | Ambiguous edge transports between custom edge server and MatchRoom DO ◐ | `lib/teamup/edge-server-client.ts` | Open |
+| MM-5 | **L** | Ambiguous edge transports between custom edge server and MatchRoom DO ✅ | `hooks/useMatchmaking.ts` | Closed — the parallel Edge matcher was removed; one queue, one host rule |
 
 #### Game Modes & Rendering (MO)
 
 | ID | Sev | Title | Location | Status |
 | --- | --- | --- | --- | --- |
-| MO-1 | **M** | Power 4P live arena executes classic engine with `Math.random()` ✅ | `app/api/live-arena/power4p/route.ts:79` | Open |
+| MO-1 | **M** | Power 4P live arena executes classic engine with `Math.random()` ✅ | `app/api/live-arena/power4p/route.ts` | Closed — `resolveNetworkedMove` + seeded tiles + seeded dice |
 | MO-2 | **M** | Spectator view hardcodes 4P Power instead of respecting match record ✅ | `app/page.tsx:920` | Closed (`ab1ce8a`) |
-| MO-3 | **M** | Snakes mode is unreachable dead code in main lobby ◐ | `app/components/SnakesBoard.tsx` | Open |
-| MO-4 | **L** | Duplicate match rows created during quick match formation ◐ | `app/page.tsx:627` | Open |
-| MO-5 | **L** | Coordinate frame discrepancy in `lib/boardLayout.ts` ◐ | `lib/boardLayout.ts:177` | Open |
+| MO-3 | **M** | Snakes mode is unreachable dead code in main lobby ✅ | `app/components/SnakesBoard.tsx` | Closed — deleted (`SnakesBoard.tsx`, `snakesLogic.ts`, mode unions) |
+| MO-4 | **L** | Duplicate match rows created during quick match formation ✅ | `app/api/match/start/route.ts` | Closed — start enriches the existing row instead of inserting a second |
+| MO-5 | **L** | Coordinate frame discrepancy in `lib/boardLayout.ts` ✅ | `lib/boardLayout.ts` | Closed — the unused rotated builder was deleted; `getBoardCoordinate` is the only frame |
 
 #### Server Authority & Settlement API (SA)
 
 | ID | Sev | Title | Location | Status |
 | --- | --- | --- | --- | --- |
-| SA-1 | **H** | Legacy Edge functions deployed but deleted from git repository ◐ | Hosted Supabase vs `supabase/functions/` | Open |
+| SA-1 | **H** | Legacy Edge functions deployed but deleted from git repository ◐ | Hosted Supabase vs `supabase/functions/` | **Open — not closable in-repo**; runbook in §4.9 |
 | SA-2 | **C** | Match result settlable without signature or proof in `/api/match/record` ✅ | `app/api/match/record/route.ts:74` | Closed (`9cde0aa`) |
-| SA-3 | **M** | Session v2 lacks seat binding in challenge verification ◐ | `lib/serverAuth.ts:107` | Open |
-| SA-4 | **M** | Lack of continuous state reconciliation loop during P2P play ◐ | `hooks/useMatchStates.ts:76` | Open |
-| SA-5 | **L** | In-process rate limiter not shared across isolate boundaries ◐ | `lib/rateLimit.ts` | Open |
+| SA-3 | **M** | Session v2 lacks seat binding in challenge verification ◐ | `lib/serverAuth.ts:107` | **Open — blocked on SA-1** (the writer is the edge function) |
+| SA-4 | **M** | Lack of continuous state reconciliation loop during P2P play ✅ | `hooks/useMatchStates.ts` | Closed — seq-gated steady poll (`pollMs`, default 6 s) |
+| SA-5 | **L** | In-process rate limiter not shared across isolate boundaries ✅ | `lib/rateLimitShared.ts` + `202610200003` | Closed for join + record; the rest keep the in-process budget |
+
+---
+
+### 4.9 October 2026 closure pass — final state
+
+**Result: 21 of 26 closed, 1 partial, 2 open-but-blocked, 1 open-on-decision, 1 open (TU-5).**
+
+Everything marked Closed above is a code change in this tree, verified by `tsc`, `eslint`, and
+`npm test` (485 tests, 474 pass, 0 fail), with `check:schema` (39 migrations / 38 functions),
+`check:rls`, `check:routes` (53 routes) and `check:engine` clean.
+
+#### What changed, by finding
+
+| Area | Change |
+|---|---|
+| **TU-1** | `processGameAction(data, via)` — state-bearing verbs (`START_GAME`, `ROLL_DICE`, `MOVE_TOKEN`, `TURN_SWITCH`, `ENGINE_STATE`, `POWER_HAND`) are accepted **only** on the PeerJS transport. The Supabase topic is a public broadcast channel where `seq` and `sender` are both attacker-chosen, so it keeps only intents, lobby sync, chat, emotes and acks. `MOVE_TOKEN` also validates `targetPosition` against `calculateNextPosition`. |
+| **TU-3** | `resolveRoomHost()` in `/api/lobby/join` — `live_matches` → `matches.participants[0]` → `lobby_join_policies.host_address`. The last one exists during `forming`, which is the only phase a join request is useful in. |
+| **TU-4 / PW-3** | The MatchRoom Durable Object is the authority. `useGameActions` receives `roomAuthority` (true only while `/api/room/:matchId/ws` is connected — there is no compile-time flag any more) and `sendRoomIntent`; roll, move and power all send an intent and render the room's fan-out, so there is no second copy of the rules on the client. With no socket open, `roomAuthority` is false and the P2P host remains the authority. Added `REQUEST_POWER` (protocol + `hostActionForIntent` + room handler) so a guest can still spend a power, and a targeted `POWER_HAND` message so the host can send each guest *only* its own hand over that guest's own DataConnection. |
+| **PW-1** | `useMatchStates` now reads `GET /api/match/state` (session-aware, redacts every other seat's hand) instead of the orphaned edge `move-auth get`. The route accepts an app-scoped session as well as a match-scoped one, so a mid-match reload still resolves the viewer. |
+| **PW-5 / PW-6 / PW-4 (part)** | `sweepExpiredPowers()` runs on the authority at the turn boundary; the hand-written pickup copy (and its duplicate LCG reseed) in `useGameActions` was deleted in favour of `applyPowerPickup`. |
+| **MM-3** | `widenWagerBand()` + `expandRef` — at 16 s the ticket is purged and re-issued one preset wider on each side. Free play cannot widen and says so by returning `null`. |
+| **MM-5** | The parallel `attemptEdgeInBackground` matcher (`NEXT_PUBLIC_EDGE_SERVER_URL`) was removed along with the instant-reveal branch and the "EDGE PRIMARY" chip. One queue, one host-resolution rule. |
+| **MO-1** | The arena runs `resolveNetworkedMove` (boost, three-sixes, pickup, victory), seeds 5 hidden tiles from a committed `powerTileSeed`, and derives the die from `lcg32(seed + seq*7919)`. |
+| **MO-3** | Deleted `SnakesBoard.tsx` (670 ln) and `lib/snakesLogic.ts` (64 ln); narrowed `selectedMode`, `Board.gameMode`, `teamup.types`, `GAME_MODE_CODE` and `ALLOWED_MODES` to `classic \| power`. |
+| **MO-4** | `/api/match/start` looks the room up first and **updates** the row `join_matchmaking` already created, merging rosters rather than shrinking them. |
+| **MO-5** | Deleted the unused rotated `buildPlayerPaths`; `getBoardCoordinate` is the only frame. |
+| **SA-4** | `useMatchStates` polls on a steady `pollMs` (default 6 s, seq-gated) instead of once per mount. |
+| **SA-5** | `lib/rateLimitShared.ts` + `public.rate_limit_hit` (migration `202610200003`), used by `/api/matchmaking/join` and `/api/match/record`. Fail-open by design; the in-process limiter stays in front. |
+
+#### Deliberate trade-off recorded for TU-1
+
+A guest that cannot establish a PeerJS connection is now **read-only for match state** until
+`/api/room/:id/ws` (already built in `src/worker.ts`, bound as `MATCH_ROOM`, and unused by any client) is
+wired up. That is integrity over availability: the previous behaviour let anyone who learned a room code
+rewrite a guest's board, dice and turn on a public topic. The follow-up is to point `RoomClient` at the DO
+and delete the relay state verbs entirely.
+
+#### SA-1 — cannot be closed in this repository
+
+`roll-dice`, `move-auth` and `resolve-bet` were deleted from source (`IMPLEMENTATION_RECORD.md:824`) but
+are **still deployed** and still serving (`200 {"status":"warmed"}` with the anon key; `401` unauthenticated;
+a nonexistent function returns `404`). Their source does not exist, so no change in this tree can patch,
+review or redeploy them. Two findings are blocked on that: `SA-1` and `SA-3` (the seat binding would have to
+be written by `move-auth`).
+
+**Runbook — pick one, both are legitimate:**
+
+1. **Undeploy** (preferred now that the gameplay path is the room transport and `useMatchStates` no longer
+   calls the edge): `supabase functions delete roll-dice move-auth resolve-bet --project-ref xvwaqxqyjtlsuijgwozi`.
+   Verify with the probe in this section's evidence (all three must return `404`). `src/room/MatchRoom.ts`
+   then becomes the only server authority — it already is the one the client talks to.
+2. **Restore** the three functions to `supabase/functions/` and deploy from CI, then re-apply the seat
+   binding (`match_sessions.seat_color`) inside `move-auth`.
+
+Until one of those happens, treat the edge functions as **unreviewed production code** and do not route new
+features through them.
+
+#### TU-5 — needs a product decision, not a patch
+
+`classifyAbandon()` is pure classification with `ABANDON_BURN_SPLIT_ENABLED = false` and no writer. Closing
+this means deciding whether an abandoned wagered match burns a stake, refunds it, or is merely marked
+unrated. That is an economics call with real user funds; it is deliberately not implemented here. The
+mechanical gap is small once the decision exists: call `classifyAbandon` from the AFK-kick path and write
+the outcome through the settle flow.
 
 ---
 

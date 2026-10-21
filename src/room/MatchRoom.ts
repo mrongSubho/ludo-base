@@ -18,7 +18,7 @@ import { DurableObject } from 'cloudflare:workers';
 import type { GameState } from '../../lib/types';
 import { hashToken } from '../../lib/sessionV2';
 import type { RateLimitDO } from '../rateLimit/RateLimitDO';
-import { getNextPlayer, getLegalTokenIndices, processMove, type PlayerColor } from './engine';
+import { getNextPlayer, getLegalTokenIndices, resolveNetworkedMove, applyPower, type PlayerColor } from './engine';
 
 export interface Env {
   MATCH_ROOM: DurableObjectNamespace<MatchRoom>;
@@ -30,7 +30,8 @@ export interface Env {
 
 export type IntentKind =
   | 'REQUEST_ROLL'
-  | 'REQUEST_MOVE';
+  | 'REQUEST_MOVE'
+  | 'REQUEST_POWER';
 
 export interface RoomSocketMeta {
   authenticated: boolean;
@@ -183,6 +184,48 @@ export class MatchRoom extends DurableObject<Env> {
     // In-band join frame
     if (t === 'join') {
       await this.handleJoinFrame(ws, frame);
+      return;
+    }
+
+    // Seed frame (host, first activation only).
+    // A fresh Durable Object has no board — `ensureInitialized` reads SQLite, which
+    // is empty for a new match, so every intent would hit ROOM_NOT_READY. The host
+    // writes the seed it already owns. Accepted only when the room holds nothing, so
+    // a reconnecting host cannot rewrite a live match, and only from an
+    // authenticated seat, so a spectator cannot inject a board.
+    if (t === 'seed') {
+      const meta = this.socketMeta.get(ws);
+      if (!meta?.authenticated || meta.role !== 'seat') {
+        ws.send(JSON.stringify({ t: 'rejected', code: 'NOT_AUTHORIZED', error: 'Only authenticated seats may seed a room' }));
+        return;
+      }
+      if (this.state) {
+        ws.send(JSON.stringify({ t: 'seed_ack', ok: true, deduped: true, seq: this.seq }));
+        return;
+      }
+      const seeded = frame.payload as GameState | undefined;
+      if (!seeded || typeof seeded !== 'object') {
+        ws.send(JSON.stringify({ t: 'rejected', code: 'MALFORMED_FRAME', error: 'Seed payload missing' }));
+        return;
+      }
+      this.state = seeded;
+      this.seq = 0;
+      await this.ctx.storage.put('state', this.state);
+      await this.ctx.storage.put('seq', this.seq);
+      const seedBroadcast = JSON.stringify({
+        t: 'state',
+        seq: this.seq,
+        state: this.state,
+        source: 'room_seed',
+      });
+      for (const sock of this.ctx.getWebSockets()) {
+        try {
+          sock.send(seedBroadcast);
+        } catch {
+          // Socket closed mid-fanout.
+        }
+      }
+      ws.send(JSON.stringify({ t: 'seed_ack', ok: true, seq: this.seq }));
       return;
     }
 
@@ -458,34 +501,46 @@ export class MatchRoom extends DurableObject<Env> {
         };
         const tokenIndex = typeof payload.tokenIndex === 'number' ? payload.tokenIndex : 0;
         const diceVal = typeof this.state.diceValue === 'number' ? this.state.diceValue : 0;
-        const legalIndices = getLegalTokenIndices(
-          this.state.positions,
-          curColor,
-          diceVal,
-          cc
-        );
 
-        if (!legalIndices.includes(tokenIndex)) {
+        // SA-1/TU-4: this used `processMove`, which owns capture, traps and victory
+        // but NOT boost consumption, the three-sixes counter, or power pickup — those
+        // live in `resolveNetworkedMove`. A room-authoritative match therefore played
+        // classic rules under a power label. One call now, same as the client path.
+        const resolved = resolveNetworkedMove({
+          state: this.state as unknown as import('./engine').EngineGameState,
+          color: curColor,
+          tokenIndex,
+          dice: diceVal,
+          cc,
+          playerCount: this.state.playerCount,
+          now: Date.now(),
+        });
+
+        if (!resolved.ok || !resolved.state) {
           ws.send(
             JSON.stringify({
               t: 'rejected',
               intentId,
-              code: 'ILLEGAL_MOVE',
-              error: 'Token move is illegal',
+              code: resolved.code || 'ILLEGAL_MOVE',
+              error: resolved.error || 'Token move is illegal',
             })
           );
           return;
         }
 
-        const moveResult = processMove(
-          this.state as unknown as import('./engine').EngineGameState,
-          curColor,
-          tokenIndex,
-          diceVal,
-          this.state.playerCount,
-          cc
-        );
-        const nextState = moveResult.newState as unknown as GameState;
+        let nextState = resolved.state as unknown as GameState;
+
+        // A bonus roll (six, capture, or a power that ended the turn) keeps the mover
+        // on turn. `processMove` has already advanced `currentPlayer`, so restore it.
+        if (resolved.bonusRoll && !nextState.winner) {
+          nextState = {
+            ...nextState,
+            currentPlayer: curColor,
+            diceValue: null,
+            isRolling: false,
+            gamePhase: 'rolling',
+          };
+        }
 
         await this.applyNewState(nextState, this.seq + 1, 'move_committed');
 
@@ -545,6 +600,76 @@ export class MatchRoom extends DurableObject<Env> {
       if (data.state) {
         await this.applyNewState(data.state, data.seq ?? this.seq + 1, 'move_committed');
       }
+      return;
+    }
+
+    if (kind === 'REQUEST_POWER') {
+      // PW-3: a power is spent against the ROOM's inventory, never the caller's.
+      // `applyPower` re-checks turn, phase, the once-per-turn budget and ownership,
+      // so a forged intent can name a power it does not hold and be refused.
+      if (this.state && !this.state.winner) {
+        const curColor = this.state.currentPlayer as PlayerColor;
+        if (meta.color && meta.color !== curColor) {
+          ws.send(
+            JSON.stringify({
+              t: 'rejected',
+              intentId,
+              code: 'NOT_YOUR_TURN',
+              error: 'Not your turn to use a power',
+            })
+          );
+          return;
+        }
+
+        const cc = this.state.initialBoardConfig?.colorCorner || {
+          green: 'BL',
+          yellow: 'BR',
+          blue: 'TR',
+          red: 'TL',
+        };
+        const powerType = typeof payload.power === 'string' ? payload.power : '';
+        const tokenIndex = typeof payload.tokenIndex === 'number' ? payload.tokenIndex : undefined;
+
+        const result = applyPower(
+          this.state as unknown as import('./engine').EngineGameState,
+          curColor,
+          powerType as Parameters<typeof applyPower>[2],
+          tokenIndex,
+          cc,
+          this.state.playerCount,
+          Date.now()
+        );
+
+        if (!result.ok) {
+          ws.send(
+            JSON.stringify({
+              t: 'rejected',
+              intentId,
+              code: result.armed ? 'POWER_ARMED' : 'POWER_REFUSED',
+              error: result.error,
+              seq: this.seq,
+            })
+          );
+          return;
+        }
+
+        await this.applyNewState(result.state as unknown as GameState, this.seq + 1, 'power_committed');
+
+        if ((result.state as unknown as GameState).winner) {
+          this.timerHeap = [];
+          await this.ctx.storage.put('timerHeap', this.timerHeap);
+        }
+        return;
+      }
+
+      ws.send(
+        JSON.stringify({
+          t: 'rejected',
+          intentId,
+          code: 'ROOM_NOT_READY',
+          error: 'No live match state in this room',
+        })
+      );
       return;
     }
 

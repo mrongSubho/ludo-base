@@ -242,8 +242,8 @@ export function getLegalTokenIndices(
  * This table exists because `activeColorsForTurns` used to be purely
  * token-shaped: an unseated colour still starts with four tokens in the yard,
  * so it looked "active" and took every second turn. In 1v1 that meant the turn
- * alternated green -> red -> yellow -> blue, and red/blue are seats no human and
- * no bot ever fills - the turn arrives, nobody rolls, the match stalls.
+ * alternated green → red → yellow → blue, and red/blue are seats no human and
+ * no bot ever fills — the turn arrives, nobody rolls, the match stalls.
  * `lib/gameLogic.ts` derives `LOBBY_COLORS['1v1']` from this same table, so the
  * lobby seating and the turn cycle cannot disagree, and `check:drift` pins the
  * two together.
@@ -306,8 +306,8 @@ export function getNextPlayer(
 }
 
 /**
- * Never return an unseated colour. `colorCorner` is a total map - the two
- * unseated colours of a 1v1 match own real corners - so a corner walk can name
+ * Never return an unseated colour. `colorCorner` is a total map — the two
+ * unseated colours of a 1v1 match own real corners — so a corner walk can name
  * one. The caller supplied the seating, so the result is clamped to it.
  */
 function clampToSeat(color: PlayerColor, current: PlayerColor, seats: readonly PlayerColor[]): PlayerColor {
@@ -605,12 +605,12 @@ export function checkThreeSixesForMove(
  *
  * TU-6: an UNSEATED colour never takes part. `assignCornersFFA('1v1')` gives
  * red and blue real corners so coordinate lookups stay total, and both start
- * with four tokens in the yard, so a token-only rule marked them active and the
- * turn walked to them — a seat nobody occupies, a turn nobody can roll, a stalled
+ * with four tokens in the yard, so a token-only rule marks them active and the
+ * turn walks to them — a seat nobody occupies, a turn nobody can roll, a stalled
  * match. Seating is the first filter here, not a patch in `getNextPlayer`.
  */
 export function activeColorsForTurns(state: EngineGameState): PlayerColor[] {
-    const all: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
+    const all: PlayerColor[] = [...ALL_COLORS];
     const hasTokens = (c: PlayerColor) =>
         (state.positions[c] || []).some(p => p !== BOARD_FINISH_INDEX);
     const mode = state.playerCount || '4P';
@@ -818,6 +818,27 @@ export function effectiveMoveSteps(state: EngineGameState, color: PlayerColor, d
 /** Sweep expired powers and return live inventory for a color. */
 export function liveInventory(state: EngineGameState, color: PlayerColor, now: number): PowerItem[] {
     return (state.playerPowers?.[color] || []).filter(p => p.expiresAt > now);
+}
+
+/**
+ * PW-5: drop expired powers for every seat in one place.
+ *
+ * Expiry used to be decided independently on each client (`liveInventory(..., Date.now())`),
+ * so a guest whose clock ran slow kept a power the authority had already retired —
+ * two boards, two hands. The authority now sweeps once per turn transition and
+ * persists the result, so every client renders the same inventory and no client
+ * decides whether a power is still alive.
+ */
+export function sweepExpiredPowers(state: EngineGameState, now: number = Date.now()): EngineGameState {
+    if (!state.playerPowers) return state;
+    let changed = false;
+    const next: Partial<Record<PlayerColor, PowerItem[]>> = {};
+    for (const [color, items] of Object.entries(state.playerPowers) as [PlayerColor, PowerItem[]][]) {
+        const live = (items || []).filter(p => p.expiresAt > now);
+        if (live.length !== (items || []).length) changed = true;
+        next[color] = live;
+    }
+    return changed ? { ...state, playerPowers: next } : state;
 }
 
 function consumeOne(inv: PowerItem[], t: PowerType): PowerItem[] {
@@ -1105,6 +1126,8 @@ export function resolveNetworkedMove(params: {
     const bonusRoll = result.bonusRoll || result.captured || dice === DICE_ROLL_SIX || !!next.winner;
     const toPos = next.positions[color][tokenIndex];
     next = applyPowerPickup(next, color, toPos, cc, now);
+    // PW-5: one sweep, on the authority, at the turn boundary.
+    next = sweepExpiredPowers(next, now);
     next = { ...next, powerSpentThisTurn: false, lastUpdate: now };
 
     return {

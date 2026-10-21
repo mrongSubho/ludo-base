@@ -286,3 +286,97 @@ closed without a code change, the two Criticals among them, and one of the two f
 
 The single most useful corrective is procedural: a finding may only be marked Closed with a **behavioural
 test that fails on the pre-fix code**. Under that rule, four would be closed today instead of thirty.
+
+---
+
+# Round 2 — re-verification after `8e67d76`…`d5816cb`
+
+**HEAD:** `d5816cb` · six new commits · `npm test` **485 / 474 pass / 0 fail** · `check:schema` 38 migrations
+/ 37 functions · `check:rls` 38 · `check:routes` 53 · `check:engine` unchanged (still vacuous).
+
+**The register is now honest.** `d5816cb` moves 17 findings to **Open** — `TU-3/4/5`, `PW-3/4/5/6`, `MM-3/5`,
+`MO-1/3/4/5`, `SA-1/3/4/5` — which matches this audit's count exactly. That is the single most valuable
+change in the round: the document no longer retires unaddressed findings.
+
+## Genuinely fixed
+
+| ID | Fix | Assessment |
+|---|---|---|
+| `PW-2` | `applyServerState` re-attaches local hand types from `prev.playerPowers`, matched by `expiresAt` with an index fallback (`TeamUpContext.tsx:233-251`) | **Correct.** The guest's own hand survives a state broadcast again. |
+| `MM-1` | `202610200002`: caller ticket now inserted with `status='matched'` and `ticket_id` returned | **Correct.** All four participants exist in `matchmaking_queue`; roster resolution and `withCallerToken` work for the triggering player. |
+| `SA-2` | Session path now requires the caller to be a participant/room owner **and** requires `match_states.state.winner`; winner must equal it; `wager` capped at 10 000 for the win branch | **Substantially correct.** Session settlement is now fail-closed on `SERVER_WINNER_REQUIRED`. See residual R1. |
+| `TU-1` | Host never accepts external `START_GAME`; guest rejects mid-match re-seed; verbs require `sender === knownHost`; `MOVE_TOKEN` validated against `calculateNextPosition` | **Large improvement.** See residual R2. |
+| `PW-1` | `/api/match/state` resolves `viewerColor` from `player_seats` via a match session; `stripPowerTypesForWire` masks `playerPowers` | **Partial.** See residual R3. |
+
+## Residuals
+
+**R1 — `SA-2`: the loser branch still uses the raw, uncapped `wager`.** `app/api/match/record/route.ts:303`
+caps only the win branch:
+
+```ts
+const effectiveWager = Math.min(Math.max(0, wager), MAX_PROGRESSION_WAGER);
+const winLxpGain = 150 + Math.floor(effectiveWager * 0.1);   // capped
+…
+const baseLxpGain = 50 + Math.floor(wager * 0.05);           // :343 — NOT capped
+```
+
+A participant who loses can still declare `wager = 1e9` and receive ~50 M LXP. Same class of bug, moved
+from the winner to the loser. One-line fix: use `effectiveWager` on `:343` too.
+
+**R2 — `TU-1`: the sender is still a self-declared string, so the move check is defeatable.** The guard is
+`sender !== knownHost`, where `sender` is a payload field the attacker writes (the host's address is public
+in `matches.participants[0]`). And the position check falls back to an attacker-supplied die:
+
+```ts
+const diceValue = gameStateRef.current.diceValue || Number(payload.diceValue || 0);
+…
+if (Number.isFinite(currentPos) && diceValue > 0 && colorCorner) { … }
+```
+
+Forge `ROLL_DICE { value: 6, sender: <host> }` — accepted, because the sender string matches — then
+`MOVE_TOKEN { diceValue: 6, targetPosition: <any legal destination> }`: `gameStateRef.current.diceValue` is
+now 6, so `calculateNextPosition` returns the attacker's target and the check passes. `TURN_SWITCH` is
+likewise accepted on the same forged string. **The gate needs a cryptographic sender proof** (a per-room
+capability token, or the `/api/room/:id/ws` transport that already exists and is unused).
+
+**R3 — `PW-1`: the fix landed on the spectator route, not the player route.** `/api/match/state` is called
+only by `hooks/useSpectatorSync.ts:75,234`. The player snapshot path is
+`useMatchStates` → `refreshState` → `moveAuth.getMatchState` → `callMoveAuth('get'|'resync')`, and
+`hooks/useMoveAuth.ts` is unchanged. `PERSISTED_STATE_FIELDS` still includes `playerPowers` with types
+(`lib/engine/core.ts:593` — only `powerTiles` is narrowed to `r`/`c`). So the unauthenticated edge `get`
+still returns every opponent's hand to anyone holding a `matchId`.
+
+This cannot be closed from this repo: the redaction would have to live inside the edge function, which is
+orphaned (`SA-1`). **The register marks `PW-1` Closed while `SA-1` is Open — those two states are mutually
+exclusive.** Either `PW-1` returns to Open, or `SA-1` is resolved first.
+
+There is a second-order coupling worth recording: `PW-2`'s cold-start behaviour works *only because* `PW-1`
+is unfixed. After a reload, `prev.playerPowers` is empty, so the re-attach has nothing to restore from — the
+guest's hand survives because the edge `get` still returns types. Close `PW-1` properly and `PW-2` must be
+re-solved with a per-viewer source (a match-session-aware snapshot), or reloads will lose the hand again.
+
+## Test quality — better, still not behavioural
+
+The three new tests (`relay-hardening`, `match-record-auth`, `power-privacy`) and the upgraded
+`matchmaking-shape` are **source-grep assertions**:
+
+```ts
+assert.match(src, /authenticatedWallet = session\.wallet\.toLowerCase\(\)/);
+assert.match(src, /const\s+expectedPos\s*=\s*calculateNextPosition\(currentPos,\s*diceValue,\s*color,\s*colorCorner\)/);
+```
+
+This is a real improvement — they now fail on the pre-fix source, unlike the old tautology that re-declared
+the constants. But they assert that a line of text exists, not that the behaviour holds, which is precisely
+how R1 (a missing cap on the *other* branch) and R2 (an attacker-controlled fallback inside the very line
+being matched) both pass a green suite.
+
+## Round 2 verdict
+
+**5 of the 5 targeted items are addressed: 2 cleanly (`PW-2`, `MM-1`), 2 substantially (`SA-2`, `TU-1`),
+1 partially (`PW-1`).** Combined with round 1, **9 of 26 findings are closed or substantially closed**:
+`TU-2`, `MM-1`, `MM-2`, `MM-4`, `MO-2`, `PW-2`, `SA-2`*, `TU-1`*, `PW-1`* (*= residual). **17 remain open,
+and the register now says so** — which is the correct state for the project to be in.
+
+Next three moves, in order: (1) cap `baseLxpGain`; (2) decide `PW-1`/`SA-1` as one item, not two; (3) replace
+the `sender` string with a capability token before any wagered match runs on the relay.
+

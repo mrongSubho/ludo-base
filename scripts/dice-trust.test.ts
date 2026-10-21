@@ -186,22 +186,25 @@ test('the dice UI cannot hand a face to the engine', () => {
 // ── No offline/client fallback for a networked seat ────────────────────────
 
 test('a networked seat has no client-side dice fallback', () => {
-    // SEC-02: an Edge RNG failure must abort the roll, not fall through to
-    // Math.random() — a local fallback is a face the client chose.
+    // SEC-02: a networked seat must never choose its own face. The minting site has
+    // moved — it was the Edge RNG, it is now the MatchRoom — but the invariant is
+    // the same and this test guards the INVARIANT, not the transport.
     const src = code('hooks/useGameActions.ts');
     const start = src.indexOf('const handleRoll = useCallback');
     assert.ok(start > 0);
-    const body = src.slice(start, start + 4200);
-    assert.match(
-        body,
-        /Edge RNG failed — aborting networked roll \(no client fallback\)/,
-        'the networked abort path must still exist',
-    );
+    const body = src.slice(start, start + 6000);
+
+    // 1. With the room connected, the die is minted server-side and arrives as a
+    //    broadcast. The client sends an intent and computes nothing.
+    assert.match(body, /if \(roomAuthority\) \{[\s\S]{0,400}?sendRoomIntent\('REQUEST_ROLL'/);
+
+    // 2. Networked WITHOUT a room => abort. No Math.random() anywhere near it.
+    const abortBranch = body.indexOf('networked roll with no server authority');
+    assert.ok(abortBranch > 0, 'the no-authority abort path must still exist');
+    assert.match(body.slice(abortBranch - 700, abortBranch + 300), /if \(isLobbyConnected\) \{[\s\S]*?return 'failed';/);
+
+    // 3. Local RNG exists, and only in the offline branch that follows the abort.
     const offlineRng = body.indexOf('Math.floor(Math.random() * 6) + 1');
-    assert.ok(offlineRng > 0, 'offline RNG should still exist for non-networked seats');
-    // The offline RNG must sit in the else branch, i.e. after the networked
-    // attempt, and never run when `isLobbyConnected`.
-    const networkedBranch = body.indexOf('if (networkedSeat) {');
-    assert.ok(networkedBranch > 0 && offlineRng > networkedBranch);
-    assert.match(body.slice(networkedBranch, offlineRng), /} catch \(err\) \{[\s\S]*?return( 'failed')?;/);
+    assert.ok(offlineRng > 0, 'offline RNG should still exist for offline seats');
+    assert.ok(offlineRng > abortBranch, 'local RNG must come after the networked abort');
 });

@@ -300,7 +300,7 @@ test('ENG-04: when every colour is finished the full cycle is kept', () => {
 // draws red and blue into the corner map (so coordinate lookups stay total) and
 // both start with four yard tokens. A token-shaped "active" test therefore
 // marked them active, and the corner ring then alternated
-// green -> red -> yellow -> blue. red/blue are seats no human and no bot occupies,
+// green → red → yellow → blue. red/blue are seats no human and no bot occupies,
 // so the turn arrives and nobody can ever roll it.
 
 test('TU-6: an unseated colour is never in the 1v1 turn cycle', () => {
@@ -314,9 +314,9 @@ test('TU-6: the 1v1 cycle only ever alternates between the two seated colours', 
     const cc = { green: 'BL', yellow: 'TR', red: 'BR', blue: 'TL' } as const;
     const active = activeColorsForTurns(st({ playerCount: '1v1' }));
     for (const from of ['green', 'yellow'] as PlayerColor[]) {
-        // With seating...
+        // With seating…
         assert.equal(getNextPlayer(from, '1v1', active, cc), from === 'green' ? 'yellow' : 'green');
-        // With NO seating - the MatchRoom pass path calls it exactly like this.
+        // With NO seating — the MatchRoom pass path calls it exactly like this.
         assert.equal(getNextPlayer(from, '1v1'), from === 'green' ? 'yellow' : 'green');
     }
     for (const ghost of ['red', 'blue'] as PlayerColor[]) {

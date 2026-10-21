@@ -29,9 +29,6 @@ const Board = dynamic(() => import('./components/Board'), {
 });
 import { derivePoolId, matchPoolAddress } from '@/lib/chips';
 import { DEFAULT_CHAIN_ID, parseChainId } from '@/lib/chains';
-const SnakesBoard = dynamic(() => import('./components/SnakesBoard'), {
-    loading: () => <BoardLoader />,
-});
 const SettingsPanel = dynamic(() => import('./components/SettingsPanel').then(m => m.SettingsPanel));
 const WalletPanel = dynamic(() => import('./components/WalletPanel'));
 const UserProfilePanel = dynamic(() => import('./components/UserProfilePanel'));
@@ -301,7 +298,7 @@ export default function Page() {
   const _finalAvatar = profile?.avatar_url || null;
 
   // Match Configuration State (Synced with GameLobby)
-  const [selectedMode, setSelectedMode] = useState<'classic' | 'power' | 'snakes'>('classic');
+  const [selectedMode, setSelectedMode] = useState<'classic' | 'power'>('classic');
   const [playerCount, setPlayerCount] = useState<'1v1' | '2v2' | '4P'>('1v1');
   const [betAmount, setBetAmount] = useState<number>(0);
   const [isBotMatch, setIsBotMatch] = useState(false);
@@ -995,7 +992,7 @@ export default function Page() {
                 onRevealMatchStatus={() => setMatchStatusReveal(value => value + 1)}
               />
               <MatchStatusStrip
-                modeLabel={`${selectedMode === 'power' ? 'Power' : selectedMode === 'snakes' ? 'Snakes' : 'Classic'} · ${playerCount} · ${betAmount === 0 ? 'Free' : betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
+                modeLabel={`${selectedMode === 'power' ? 'Power' : 'Classic'} · ${playerCount} · ${betAmount === 0 ? 'Free' : betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
                 spectators={liveSpectators}
                 matchConnectionStatus={matchConnectionStatus}
                 revealToken={matchStatusReveal}
@@ -1007,10 +1004,8 @@ export default function Page() {
                   small
                 />}
               />
-              <main className={`board-main has-top-back ${selectedMode === 'snakes' ? 'snakes-board-bg' : ''}`}>
-                {selectedMode === 'snakes' ? (
-                  <SnakesBoard playerCount={playerCount as any} onOpenProfile={(addr) => setSelectedProfileAddress(addr)} />
-                ) : (
+              <main className="board-main has-top-back">
+                {(
                   <Board
                     playerCount={playerCount}
                     gameMode={selectedMode as any}

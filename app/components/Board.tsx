@@ -61,7 +61,7 @@ export default function Board({
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
     playerCount?: '1v1' | '4P' | '2v2';
-    gameMode?: 'classic' | 'power' | 'snakes';
+    gameMode?: 'classic' | 'power';
     isBotMatch?: boolean;
     onOpenProfile?: (address: string) => void;
     initialPlayers?: Player[];
@@ -471,9 +471,8 @@ export default function Board({
                 myPlayerColor={myPlayer?.color}
             />
 
-            {/* Match footer: social controls are shared by classic and power modes.
-                Snakes keeps its board-specific surface isolated for now. */}
-            {gameMode !== 'snakes' && <div className={`match-footer ${chatOpen ? 'match-footer-chat' : ''}`}>
+            {/* Match footer: social controls, shared by classic and power. */}
+            {<div className={`match-footer ${chatOpen ? 'match-footer-chat' : ''}`}>
                 {chatOpen ? (
                     <div className="match-chat-composer">
                         <div className="match-chat-composer-head">

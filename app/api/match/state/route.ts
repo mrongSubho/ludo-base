@@ -26,9 +26,14 @@ export async function GET(request: Request) {
 
         // PW-1: Resolve viewer session if provided to allow player to see their own hand,
         // while masking all other players' power types (and masking all for spectators).
+        // A match-scoped session is preferred; an app-scoped session is accepted too,
+        // because a player who reloads mid-match may hold only the app grant — and
+        // without it their own hand would come back typeless (see PW-2 cold start).
         let viewerColor: string | undefined = undefined;
         try {
-            const session = await requireSession(request, { scope: 'match', matchId });
+            const session =
+                (await requireSession(request, { scope: 'match', matchId })) ||
+                (await requireSession(request, { scope: 'app' }));
             if (session?.wallet && data.player_seats) {
                 const seats = data.player_seats as Record<string, { kind?: string; wallet?: string }>;
                 const lowWallet = session.wallet.toLowerCase();

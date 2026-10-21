@@ -21,8 +21,8 @@ export interface MatchCaptureStat {
 }
 export type MatchCaptureStats = Record<PlayerColor, MatchCaptureStat>;
 
-export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'ENGINE_STATE' | 'CMD_REQUEST_TRUST' | 'EMOTE' | 'CHAT';
-export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE';
+export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'ENGINE_STATE' | 'CMD_REQUEST_TRUST' | 'POWER_HAND' | 'EMOTE' | 'CHAT';
+export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'REQUEST_POWER';
 
 export interface GameIntentPayloads {
     // A client may REQUEST a roll; it may never name the face. The dice value
@@ -31,6 +31,13 @@ export interface GameIntentPayloads {
     // at the type level, not merely ignored at runtime.
     REQUEST_ROLL: Record<string, never>;
     REQUEST_MOVE: { color: PlayerColor; tokenIndex: number };
+    /**
+     * PW-3: a guest asks the host to spend one of ITS held powers. The host is
+     * the authority for inventory, so it re-checks that the colour actually
+     * holds the type and that `powerSpentThisTurn` is still false before
+     * applying anything. No expiry, no state, no position is accepted here.
+     */
+    REQUEST_POWER: { color: PlayerColor; power: PowerType; tokenIndex?: number };
 }
 
 export type GameIntent = {
@@ -56,6 +63,11 @@ export interface GameActionPayloads {
     BET_WINDOW_CLOSED: BetWindowClosedPayload;
     ENGINE_STATE: unknown;
     CMD_REQUEST_TRUST: { color: PlayerColor; isBotTrusted: boolean; isKicked: boolean };
+    /**
+     * PW-3: host → one guest, over that guest's own DataConnection. Carries only
+     * that seat's hand, so a shared broadcast never exposes opponent powers.
+     */
+    POWER_HAND: { color: PlayerColor; hand: PowerItem[]; matchId?: string };
     /** G5 preset emote float (not a DM — no encryption required). */
     EMOTE: { emoteId: string; color: PlayerColor; actor?: string; customText?: string; assetUrl?: string; t?: number };
     /** In-match lobby chat bubble (seat-local, not a DM). */

@@ -129,7 +129,7 @@ import { seatedColorsFor } from './engine/core';
  * TU-6: a colour nobody sits in must never take a turn, in either engine.
  * `assignCornersFFA('1v1')` draws all four colours into the corner map so
  * coordinate lookups stay total, and the two unseated colours still hold four
- * yard tokens - so a purely token-shaped "active" test (or a plain four-colour
+ * yard tokens — so a purely token-shaped "active" test (or a plain four-colour
  * ring fallback) hands them the turn. The seat table is the authority's.
  */
 export function getNextPlayer(
@@ -177,7 +177,7 @@ export function getNextPlayer(
     }
 
     // Keep legacy color order as a safe fallback for local callers without
-    // seating - over the SEATED colours only, so a 1v1 match cannot land on an
+    // seating — over the SEATED colours only, so a 1v1 match cannot land on an
     // unoccupied seat (the MatchRoom pass path calls this with no seating).
     const idx = seats.indexOf(current);
     if (idx !== -1) return seats[(idx + 1) % seats.length];
