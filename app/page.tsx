@@ -66,13 +66,16 @@ type AppState = 'dashboard' | 'game' | 'spectating';
 type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'arena' | 'marketplace' | 'settings' | 'messages' | 'wallet' | null;
 
 /** Short brand dwell for the splash sweep; measured from hydration, never from navigation start. */
-const SPLASH_MIN_DWELL_MS = 500;
+const SPLASH_MIN_DWELL_MS = 600;
+/** Hard safety timeout so splash never hangs indefinitely if providers stall. */
+const SPLASH_MAX_TIMEOUT_MS = 2500;
 
 // Mock user data has been removed
 
 const SplashScreen = () => (
   <div
-    className="ludo-splash-scope fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/60 backdrop-blur-md"
+    className="ludo-splash-scope fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#07090e] text-white"
+    style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic, #07090e))', backgroundColor: '#07090e' }}
   >
     <div
       className="flex flex-col items-center"
@@ -266,7 +269,7 @@ export default function Page() {
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const [spectatingRoomCode, setSpectatingRoomCode] = useState<string | null>(null);
   const [broadcastOpen, setBroadcastOpen] = useState(false);
-  const { profile, address, isConnected, displayName: finalName, isGuest } = useCurrentUser();
+  const { profile, address, isConnected, displayName: finalName, isGuest, isSessionChecking } = useCurrentUser();
   // Needed to prove the canonical host to /api/match/start (SEC-06). Best-effort:
   // offline/bot games still post the anonymous marker and are simply not settleable.
   const { ensureAppSession, peekAppSession } = useAppSession();
@@ -421,25 +424,39 @@ export default function Page() {
     setAppState('dashboard');
   }, []);
 
+  const [minDwellPassed, setMinDwellPassed] = useState(false);
+  const [maxTimeoutPassed, setMaxTimeoutPassed] = useState(false);
+
   useEffect(() => {
     let alive = true;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    // The splash is a brand moment, NOT a readiness gate. It previously held
-    // the screen for a blind 1500ms wall-clock no matter how fast the app
-    // hydrated — that alone was ~1s of the 2,311ms Speed Index. Gate the hold
-    // on hydration (one frame after mount) and keep only a short dwell from
-    // there so the entrance sweep still completes.
-    const frame = requestAnimationFrame(() => {
-      timer = setTimeout(() => {
-        if (alive) setShowSplash(false);
-      }, SPLASH_MIN_DWELL_MS);
-    });
+    const dwellTimer = setTimeout(() => {
+      if (alive) setMinDwellPassed(true);
+    }, SPLASH_MIN_DWELL_MS);
+
+    const maxTimer = setTimeout(() => {
+      if (alive) setMaxTimeoutPassed(true);
+    }, SPLASH_MAX_TIMEOUT_MS);
+
     return () => {
       alive = false;
-      cancelAnimationFrame(frame);
-      if (timer) clearTimeout(timer);
+      clearTimeout(dwellTimer);
+      clearTimeout(maxTimer);
     };
   }, []);
+
+  useEffect(() => {
+    // Fail-safe timeout ensures the app never hangs on splash indefinitely
+    if (maxTimeoutPassed) {
+      setShowSplash(false);
+      return;
+    }
+
+    // Keep splash screen visible while credentials / session are actively being restored,
+    // so the sign-in modal never flashes before transitioning into the lobby.
+    if (minDwellPassed && !isSessionChecking) {
+      setShowSplash(false);
+    }
+  }, [minDwellPassed, isSessionChecking, maxTimeoutPassed]);
 
   // Sync state to ref for back-button hardware popstate interceptor
   const stateRef = useRef({ activeTab, appState, showQuitWarning });
@@ -727,7 +744,7 @@ export default function Page() {
         <div className="boot-dot !w-[180px] !h-[180px] bottom-[15%] right-[5%] opacity-[0.015]" />
       </div>
 
-      {!isConnected ? (
+      {showSplash ? null : !isConnected ? (
         <div className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center">
           <WalletConnectCard onGuest={() => enterGuest()} />
         </div>

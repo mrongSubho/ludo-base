@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAccount } from 'wagmi';
-import { useCurrentUser as useCdpSignedInUser } from '@coinbase/cdp-hooks';
+import { useCurrentUser as useCdpSignedInUser, useIsInitialized } from '@coinbase/cdp-hooks';
 import { supabase } from '@/lib/supabase';
 import { GUEST_EVENT, getGuestId, isGuestActive, migrateGuestStash } from '@/lib/guest';
 import { useAppSession } from './useAppSession';
 
 export function useCurrentUser() {
-    const { address: wagmiAddress, isConnected: isWalletConnected } = useAccount();
+    const { address: wagmiAddress, isConnected: isWalletConnected, status: wagmiStatus } = useAccount();
     // In-game CDP smart account (dual-path). Never the owner EOA. Read the
     // address straight off the CDP session: routing this through
     // useCdpParentSigner pulled @coinbase/cdp-core, viem
@@ -14,7 +14,8 @@ export function useCurrentUser() {
     // obtain one address string. useCdpParentSigner is still the right entry
     // point for signing, and it is only imported by wallet/signing surfaces.
     const { currentUser: cdpUser } = useCdpSignedInUser();
-    const { sessionId: appSessionId } = useAppSession();
+    const { isInitialized: isCdpInitialized } = useIsInitialized();
+    const { sessionId: appSessionId, ready: isAppSessionReady } = useAppSession();
     const [guestTick, setGuestTick] = useState(0);
     const [profile, setProfile] = useState<{
         username: string | null;
@@ -41,6 +42,15 @@ export function useCurrentUser() {
     const address = wagmiAddress ?? cdpAddress ?? guestId ?? undefined;
     const isGuest = !wagmiAddress && !cdpAddress && !!guestId;
     const isConnected = isWalletConnected || Boolean(cdpAddress) || isGuest;
+
+    // Session checking is in flight if no active session is found yet AND
+    // connectors/providers are still in their boot/reconnection/init stage.
+    const isSessionChecking = !isConnected && (
+        wagmiStatus === 'reconnecting' ||
+        wagmiStatus === 'connecting' ||
+        !isCdpInitialized ||
+        !isAppSessionReady
+    );
 
     useEffect(() => {
         async function fetchProfile() {
@@ -168,5 +178,5 @@ export function useCurrentUser() {
                 ? `User ${walletLabel.slice(-4).toUpperCase()}`
                 : 'Guest';
 
-    return { profile, address, isConnected, displayName, isGuest };
+    return { profile, address, isConnected, displayName, isGuest, isSessionChecking };
 }
