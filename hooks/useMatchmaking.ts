@@ -127,7 +127,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             markDegraded(err);
             return fallbackIsHost;
         }
-    }, [playerId]);
+    }, [playerId, ensureAppSession]);
 
     const dispatchMatch = useCallback(async (
         matchId: string,
@@ -268,7 +268,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         } catch (err) {
             console.error('❌ [Matchmaking] Status check failed:', err);
         }
-    }, [playerId, gameMode, matchType, dispatchMatch, ensureAppSession]);
+    }, [playerId, dispatchMatch, ensureAppSession]);
 
     // --- Continuous 1s Timer Effect ---
     useEffect(() => {
@@ -371,20 +371,23 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         return false;
     }, [playerId, gameMode, matchType, wager, checkTicketStatus, dispatchMatch, ensureAppSession]);
 
-    // 5s heartbeat: extend ticket + detect matches. Never purges, never touches Edge.
-    const heartbeatTick = useCallback(async (wagerMin?: number, wagerMax?: number) => {
+    // Poll heartbeat: check ticket status to detect matches.
+    // Does NOT call joinSupabase (which would crash on unique constraint and miss status).
+    const heartbeatTick = useCallback(async () => {
         if (statusRef.current !== 'searching' && statusRef.current !== 'expanding') return;
         if (refreshingRef.current) return;
         refreshingRef.current = true;
         try {
-            const matched = await joinSupabase(wagerMin, wagerMax);
-            if (!matched && ticketIdRef.current) await checkTicketStatus(ticketIdRef.current);
+            const currentId = ticketIdRef.current;
+            if (currentId) {
+                await checkTicketStatus(currentId);
+            }
         } catch (err) {
-            console.error('❌ [Matchmaking] Heartbeat failed:', err);
+            console.error('❌ [Matchmaking] Heartbeat ticket check failed:', err);
         } finally {
             refreshingRef.current = false;
         }
-    }, [joinSupabase, checkTicketStatus]);
+    }, [checkTicketStatus]);
 
     // --- Search Triggers ---
 
@@ -441,8 +444,8 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                 if (!matched) {
                     if (pollingRef.current) clearInterval(pollingRef.current);
                     pollingRef.current = setInterval(() => {
-                        heartbeatTick(wagerMin, wagerMax);
-                    }, 5000);
+                        void heartbeatTick();
+                    }, 2500);
                 }
             } catch (err) {
                 console.error('❌ [Matchmaking] Supabase join failed:', err);

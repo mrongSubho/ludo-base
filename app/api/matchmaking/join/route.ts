@@ -26,7 +26,15 @@ async function withCallerToken(db: any, playerId: string, data: any) {
             .maybeSingle();
         if (!ticket) return data;
         if (ticket.validation_token) return { ...data, validation_token: ticket.validation_token };
-        const minted = [...crypto.getRandomValues(new Uint8Array(16))]
+        // Check if a sibling ticket for this match already has a validation_token
+        const { data: sibling } = await db
+            .from('matchmaking_queue')
+            .select('validation_token')
+            .eq('match_id', data.match_id)
+            .not('validation_token', 'is', null)
+            .limit(1)
+            .maybeSingle();
+        const minted = sibling?.validation_token ?? [...crypto.getRandomValues(new Uint8Array(16))]
             .map(b => b.toString(16).padStart(2, '0')).join('');
         // Guarded single-mint: only persist when the row is still tokenless.
         // On a lost race (0 rows updated) re-read the winner's token instead

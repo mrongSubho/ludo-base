@@ -43,7 +43,7 @@ export async function GET(request: Request) {
         if (!ticketId) return NextResponse.json({ error: 'Missing or invalid ticketId/matchId' }, { status: 400 });
         const { data, error } = await db
             .from('matchmaking_queue')
-            .select('status, match_id, room_code, validation_token, player_id, created_at')
+            .select('id, status, match_id, room_code, validation_token, player_id, created_at')
             .eq('id', ticketId)
             .maybeSingle();
         if (error) throw error;
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
         if (!ticket || ticket.status !== 'matched') {
             const { data: candidates, error: fbError } = await db
                 .from('matchmaking_queue')
-                .select('status, match_id, room_code, validation_token, player_id, created_at')
+                .select('id, status, match_id, room_code, validation_token, player_id, created_at')
                 .eq('player_id', wallet)
                 .eq('status', 'matched')
                 .order('created_at', { ascending: false })
@@ -80,6 +80,30 @@ export async function GET(request: Request) {
         if (ticket.status === 'matched' && isStaleMatch(ticket)) {
             return NextResponse.json({ status: 'searching' });
         }
+
+        // Ensure matched ticket has a validation_token (inheriting from match sibling or minting)
+        if (ticket.status === 'matched' && ticket.match_id && !ticket.validation_token) {
+            const { data: sibling } = await db
+                .from('matchmaking_queue')
+                .select('validation_token')
+                .eq('match_id', ticket.match_id)
+                .not('validation_token', 'is', null)
+                .limit(1)
+                .maybeSingle();
+
+            const tokenToUse = sibling?.validation_token ?? [...crypto.getRandomValues(new Uint8Array(16))]
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+
+            ticket.validation_token = tokenToUse;
+            if (ticket.id) {
+                await db
+                    .from('matchmaking_queue')
+                    .update({ validation_token: tokenToUse })
+                    .eq('id', ticket.id)
+                    .is('validation_token', null);
+            }
+        }
+
         // Matched player ids for deterministic host resolution (owner-checked
         // above; player_ids are roster membership, not secrets — the secret
         // stays in validation_token).

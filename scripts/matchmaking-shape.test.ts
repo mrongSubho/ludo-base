@@ -53,3 +53,44 @@ test('MO-2: spectator view derives dynamic shape and mode from loaded match reco
     // Asserts dynamic mode based on powerTiles presence
     assert.match(pageSrc, /gameMode=\{\(spectatorGameState\?\.powerTiles\?\.length\s*\?\?\s*0\)\s*>\s*0\s*\?\s*"power"\s*:\s*"classic"\}/);
 });
+
+test('MM-6: validation_token is shared across participants in join and status routes', () => {
+    const statusSrc = read('app/api/matchmaking/status/route.ts');
+    const joinSrc = read('app/api/matchmaking/join/route.ts');
+
+    // Asserts status route looks up sibling token on matched ticket
+    assert.match(statusSrc, /ticket\.status\s*===\s*'matched'/);
+    assert.match(statusSrc, /\.eq\('match_id',\s*ticket\.match_id\)/);
+    assert.match(statusSrc, /\.not\('validation_token',\s*'is',\s*null\)/);
+
+    // Asserts join route checks for existing sibling token
+    assert.match(joinSrc, /\.eq\('match_id',\s*data\.match_id\)/);
+    assert.match(joinSrc, /\.not\('validation_token',\s*'is',\s*null\)/);
+});
+
+test('MM-7: heartbeat polls ticket status without re-invoking join RPC', () => {
+    const hookSrc = read('hooks/useMatchmaking.ts');
+
+    // Heartbeat tick checks current ticket status without calling joinSupabase
+    assert.match(hookSrc, /const\s+heartbeatTick\s*=\s*useCallback\(async\s*\(\)\s*=>\s*\{/);
+    assert.match(hookSrc, /await\s+checkTicketStatus\(currentId\)/);
+    assert.doesNotMatch(hookSrc, /heartbeatTick[\s\S]{0,100}joinSupabase/);
+});
+
+test('MM-8: hybrid matchmaking migration advertises party ticket and hunts waiters', () => {
+    const sql = read('supabase/migrations/202610210001_fix_hybrid_matchmaking.sql');
+
+    assert.match(sql, /create or replace function public\.join_matchmaking_hybrid/);
+    assert.match(sql, /where\s+player_id\s*=\s*p_player_id\s+and\s+status\s*=\s*'searching'/);
+    assert.match(sql, /room_code\s+is\s+null/);
+    assert.match(sql, /array\[p_player_id,\s*v_opponent_id\]/);
+});
+
+test('MM-9: TeamUpContext.startQuickMatch passes session and resolves host deterministically', () => {
+    const contextSrc = read('hooks/TeamUpContext.tsx');
+
+    assert.match(contextSrc, /const\s+sessionId\s*=\s*await\s+ensureAppSession\(\)/);
+    assert.match(contextSrc, /sessionId,/);
+    assert.match(contextSrc, /hash\(match_id\)|charCodeAt/);
+});
+

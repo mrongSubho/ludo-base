@@ -1134,3 +1134,35 @@ clean · `tsc` (app + worker) 0 errors · `eslint` 0 errors.
 `http://127.0.0.1:3000` and nothing is listening. Confirmed it fails identically on the pre-change
 tree, so it is a missing-server precondition, not a regression; the change surface is pure TS engine
 logic with no UI.
+
+---
+
+## Part XIII — Matchmaking Pipeline & Hybrid Party Fill Closure (2026-10-22)
+
+### Background & Root Cause (1v1 Quick Match Stall)
+
+During live multi-device testing of 1v1 quick matches, Device A paired with Device B and stalled on the "Matched" overlay, while Device B remained indefinitely in the "Searching" state.
+
+Investigation identified two interlocking root causes:
+1. **Heartbeat Re-invoke & Collision**: In `hooks/useMatchmaking.ts`, `heartbeatTick` was re-invoking `joinSupabase()` every 5 seconds. Because the waiting player's ticket was already registered in `matchmaking_queue` with `status = 'searching'`, `join_matchmaking` crashed with a 500 error on `matchmaking_one_active_player_idx` (Postgres unique constraint on `player_id WHERE status = 'searching'`). The exception aborted the tick before `checkTicketStatus` could run, preventing Device B from ever discovering it had been paired when WebSocket Realtime notifications dropped or lagged.
+2. **Asymmetric `validation_token` Distribution (`MM-6`)**: When Device A triggered match formation, `withCallerToken` in `app/api/matchmaking/join/route.ts` minted a `validation_token` solely on Device A's ticket row. Device B's ticket row retained `validation_token: null`. When Device A was elected host (`resolveIsHost`), it locked the room door with its token; Device B presented `undefined` and was rejected by both host P2P verification (`seatGuestPlayer`) and `/api/lobby/join` with `403 Invalid matchmaking ticket`.
+
+### Closures
+
+1. **`MM-6` (Symmetric Validation Token Distribution)**:
+   - Updated `app/api/matchmaking/status/route.ts` and `app/api/matchmaking/join/route.ts` so that when a match forms, all participant tickets in `matchmaking_queue` share and inherit the identical `validation_token`. Both peers receive matching credentials to seal and enter `matchmaking`-policy lobbies.
+2. **`MM-7` (Heartbeat Ticket Polling)**:
+   - Refactored `heartbeatTick` in `hooks/useMatchmaking.ts` to poll `checkTicketStatus(ticketId)` directly at 2.5s intervals without re-invoking `joinSupabase()`. Eliminates database write collisions and guarantees match detection even under dropped Realtime connections.
+3. **`MM-8` / `DB-20` (Canonical Hybrid Matchmaking RPC)**:
+   - Created `supabase/migrations/202610210001_fix_hybrid_matchmaking.sql` to support party host advertising (`p_room_code IS NOT NULL`) with 30s rolling TTL and hunt for public queue waiters (`room_code IS NULL`). Applied to the remote database via `supabase db push`.
+4. **`MM-9` (`TeamUpContext.startQuickMatch` Hardening)**:
+   - Added active session validation via `ensureAppSession()` to satisfy `/api/matchmaking/join`'s `requireAppSession()` gate. Replaced nonexistent `data.host_id` with deterministic authority resolution (`hash(match_id) % participants.length`).
+
+### Tests & Gate Evidence
+
+- `scripts/matchmaking-shape.test.ts` expanded with 4 new behavioral and contract tests (`MM-6` through `MM-9`).
+- `npm run check:schema`: **clean (40 migrations, 39 functions)**.
+- `npm run typecheck`: **0 errors**.
+- `npm test`: **502 tests (491 pass, 0 fail, 11 skipped)**.
+- Remote database migration `202610210001_fix_hybrid_matchmaking.sql` applied cleanly via `supabase db push` and verified via `npm run db:migrate:verify`.
+

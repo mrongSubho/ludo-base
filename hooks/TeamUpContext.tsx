@@ -1668,11 +1668,17 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         const matchType = opts?.matchType ?? '1v1';
         const wager = opts?.wager ?? 0;
         try {
+            const sessionId = await ensureAppSession().catch(() => null);
+            if (!sessionId) {
+                console.warn('startQuickMatch requires an active session');
+                return;
+            }
             const res = await fetch('/api/matchmaking/join', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     playerId: myAddress.toLowerCase(),
+                    sessionId,
                     gameMode,
                     matchType,
                     wager,
@@ -1685,9 +1691,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             }
             if (data.status === 'matched' && data.room_code) {
                 const token = data.validation_token as string | undefined;
-                const weAreHost = data.host_id
-                    ? String(data.host_id).toLowerCase() === myAddress.toLowerCase()
-                    : false;
+                // Deterministic host pick from participants roster, matching useMatchmaking
+                const players = ((data.participants || []) as string[]).map(p => String(p).toLowerCase());
+                const sorted = [...new Set(players)].sort();
+                let h = 0;
+                const matchId = String(data.match_id || '');
+                for (let i = 0; i < matchId.length; i++) h = (h * 31 + matchId.charCodeAt(i)) >>> 0;
+                const weAreHost = sorted.length > 0 ? sorted[h % sorted.length] === myAddress.toLowerCase() : false;
                 if (weAreHost) {
                     hostGame(data.room_code, token);
                     initQuickLobby(data.room_code, matchType, gameMode, wager);
@@ -1700,7 +1710,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } catch (err) {
             console.error('startQuickMatch failed', err);
         }
-    }, [myAddress, hostGame, joinGame, initQuickLobby]);
+    }, [myAddress, ensureAppSession, hostGame, joinGame, initQuickLobby]);
     const updateGameState = useCallback((s: Partial<GameState>) => setGameState(p => ({ ...p, ...s, lastUpdate: Date.now() })), [setGameState]);
     
     /**
