@@ -1018,6 +1018,39 @@ export type Database = {
           },
         ]
       }
+      match_seats: {
+        Row: {
+          assigned_at: string
+          color: string
+          match_id: string
+          seat_index: number
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          assigned_at?: string
+          color: string
+          match_id: string
+          seat_index: number
+          wallet_address: string
+        }
+        Update: {
+          assigned_at?: string
+          color?: string
+          match_id?: string
+          seat_index?: number
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_seats_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       match_states: {
         Row: {
           color_corner: NonNullable<Json>
