@@ -164,3 +164,61 @@ test('P3: the lobby/join host poll carries its session in a header', () => {
 });
 
 
+
+// ── MM-12: the matchmaking credential must survive the whole join chain ────
+//
+// Reported live: after a 1v1 quick match both devices sat on the Match! panel
+// forever, the host showing "Opponent hasn't linked yet…". Verified against the
+// database rather than guessed: the match row, both queue tickets and the
+// `lobby_join_policies` hash were all correct, and the guest's REST join request
+// was stored WITH the right token — the host simply never read it.
+//
+// Two independent breaks, both of which had to fire for the stall:
+//   1. the `match-found` broadcast carries only {matchId, roomCode}, so the
+//      guest dispatched with no token and the host's matchmaking door rejected
+//      the token-less JOIN_REQUEST;
+//   2. the host's REST poll selected no `validation_token`, so even the stored
+//      credential never reached `seatGuestPlayer`.
+
+test('MM-12: dispatchMatch resolves the validation_token instead of dispatching without it', () => {
+    const src = read('hooks/useMatchmaking.ts');
+    // The broadcast is a public topic, so the token must be fetched, not broadcast.
+    assert.match(
+        src,
+        /if \(!token \|\| !players \|\| players\.length === 0\) \{[\s\S]{0,900}?validation_token/,
+        'dispatchMatch must resolve the token from the status route when the caller has none',
+    );
+    assert.match(src, /onMatchFoundRef\.current\(matchId, roomCode, isHost, token \?\? undefined\)/,
+        'the resolved token must reach onMatchFound');
+    // And it must say so loudly rather than fail silently at the host.
+    assert.match(src, /No validation_token resolved/);
+});
+
+test('MM-12: the lobby/join GET returns the stored credential', () => {
+    const src = read('app/api/lobby/join/route.ts');
+    // The POST stores it; the GET must hand it back or the host cannot seat.
+    assert.match(src, /validation_token:\s*secret \? secret\.trim\(\)\.toLowerCase\(\) : null/,
+        'POST must persist the credential');
+    assert.match(
+        src,
+        /\.select\('id, room_code, wallet_address, username, avatar_url, desired_seat, validation_token, created_at'\)/,
+        'GET must select validation_token',
+    );
+});
+
+test('MM-12: the host poll forwards the credential to seatGuestPlayer', () => {
+    const ctx = read('hooks/TeamUpContext.tsx');
+    assert.match(
+        ctx,
+        /validationToken:\s*req\.validation_token \?\? undefined/,
+        'the host poll must forward the stored credential',
+    );
+});
+
+test('MM-12: seatGuestPlayer still refuses a mismatched credential', () => {
+    // The gate itself must stay strict — the fix is to deliver the token, not to
+    // stop checking it.
+    const ctx = read('hooks/TeamUpContext.tsx');
+    assert.match(ctx, /Rejected join — invalid validation token/);
+    assert.match(ctx, /if \(presented !== expected\) \{/);
+});

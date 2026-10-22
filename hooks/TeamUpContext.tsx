@@ -1505,17 +1505,24 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     username?: string | null;
                     avatar_url?: string | null;
                     desired_seat?: number | null;
+                    validation_token?: string | null;
                 }> = data?.requests || [];
                 for (const req of requests) {
                     if (cancelled) return;
                     if (!req?.wallet_address) continue;
                     if (req.id && processedJoinRequestIds.current.has(req.id)) continue;
                     if (req.id) processedJoinRequestIds.current.add(req.id);
+                    // MM-12: forward the stored credential. A matchmaking room is
+                    // sealed by the queue's validation_token, and `seatGuestPlayer`
+                    // refuses a join that does not present it — so dropping it here
+                    // rejected every REST-seated guest and stalled both devices on
+                    // the Match! panel.
                     const seated = seatGuestPlayer({
                         address: req.wallet_address,
                         username: req.username || undefined,
                         avatar_url: req.avatar_url || undefined,
                         desiredSeat: Number.isInteger(req.desired_seat) ? (req.desired_seat as number) : undefined,
+                        validationToken: req.validation_token ?? undefined,
                     });
                     if (seated && req.id) {
                         void fetch('/api/lobby/join', {

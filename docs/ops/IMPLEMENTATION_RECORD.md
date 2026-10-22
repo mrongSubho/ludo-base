@@ -1284,3 +1284,78 @@ no cross-wallet impersonation. The exposure was entirely the URL transport, whic
 Postgres) · `tsc` app + worker **0 errors** · `check:routes` **clean (53 routes)** ·
 `check:drift` 12/12 · `check:engine` in sync · `check:schema` 40 migrations / 39 functions ·
 `check:rls` 40 · `check:fields` clean · `eslint` **0 errors**.
+
+---
+
+## Part XV — MM-12: the 1v1 quick-match stall (2026-10-22, reported live)
+
+*Reported by the user with a screenshot: after a 1v1 quick match, **both** devices sat on the Match!
+panel indefinitely — the host showing "Opponent hasn't linked yet… / Holding your seat", the guest
+"Still linking both players…".*
+
+### How it was diagnosed
+
+Not by reading the diff — by querying the live database for the failing match
+(`QM-23897A`, created `2026-10-22T09:09:38Z`, matching the screenshot). Every layer of the chain
+turned out to be **correct**:
+
+| Layer | State |
+|---|---|
+| `matches` row | created, `power` / `1v1`, 2 participants |
+| `matchmaking_queue` | both tickets `matched`, same `room_code` |
+| `validation_token` | **identical** on both tickets — MM-6 works |
+| `lobby_join_policies` | `matchmaking`, `credential_hash` = `sha256(token)` — verified byte-for-byte |
+| `lobby_join_requests` | **the guest's REST join WAS stored, with the correct token** |
+
+So matchmaking, token symmetry, the door policy and the REST write all work. The failure was that
+**the host never picked the request up**, and there were two independent breaks that both had to fire.
+
+### Break 1 — the guest dispatched with no credential
+
+The `match-found` broadcast that announces a pairing carries only
+`{ matchId, roomCode }`. It is a **public** topic (`matchm-player-<wallet>` is guessable), so it
+deliberately does not carry the secret — but the client dispatched straight from it, so
+`validationToken` arrived as `undefined` and `joinGame(roomCode, undefined)` sent a token-less
+`JOIN_REQUEST`. The host's matchmaking door (`seatGuestPlayer` → `expectedValidationTokenRef`)
+rejected it with "invalid validation token". Because `dispatchMatch` is guarded by
+`matchDispatchedRef`, the guest never retried with a token.
+
+### Break 2 — the host dropped the credential it was handed
+
+`GET /api/lobby/join` selected
+`id, room_code, wallet_address, username, avatar_url, desired_seat, created_at` — **no
+`validation_token`**, even though the POST stores it. So the REST fallback, the one documented as
+"works when PeerJS and realtime broadcast fail", delivered a request the host's own gate then
+refused.
+
+### The fix
+
+Deliver the credential; do not weaken the gate.
+
+- **`dispatchMatch`** now resolves the token (and, while it is there, the roster) from the
+  session-gated status route when the caller has none. This is deliberately **not** fixed by
+  broadcasting the token: the announcing topic is public, so putting a secret on it would trade a
+  stall for a leak. If no token can be resolved it logs loudly instead of failing silently at the
+  host.
+- **`GET /api/lobby/join`** selects `validation_token`.
+- **The host poll** forwards `validationToken: req.validation_token` to `seatGuestPlayer`.
+
+`seatGuestPlayer`'s check is unchanged — a fourth test pins that a mismatched credential is still
+refused, so the fix cannot be "solved" later by deleting the gate.
+
+### Tests
+
+Four tests in `scripts/matchmaking-shape.test.ts`. **Three fail on the pre-fix code** (verified by
+reverting the three files in place and re-running): the dispatch resolution, the GET's select, and
+the host poll's forwarding. The fourth is a no-regression guard on the gate itself and passes in
+both states, which is correct.
+
+### Result
+
+`npm test` **511 / 500 pass / 0 fail** (11 skipped, all concurrency) · `tsc` app + worker **0
+errors** · `check:routes` clean (53 routes) · `check:drift` 12/12 · `check:engine` in sync ·
+`check:schema` 40/39 · `check:rls` 40 · `check:fields` clean · `eslint` 0 errors.
+
+**Not yet verified end-to-end.** The fix is proven at the unit level and against the database state,
+ but a real two-device 1v1 quick match has not been re-run. That is the acceptance test — the
+Match! panel should now advance to the board on both devices within a second or two.

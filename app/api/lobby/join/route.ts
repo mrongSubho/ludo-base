@@ -211,9 +211,15 @@ export async function GET(request: Request) {
         }
         const { data, error } = await sb
             .from('lobby_join_requests')
+            // MM-12: `validation_token` is selected and handed to the host. The
+            // POST stores it, and a matchmaking room's door is sealed by exactly
+            // this credential — omitting it from the response made the host
+            // reject every guest it seated over REST, which is the documented
+            // fallback for when PeerJS and realtime both fail.
+            //
             // No `coins`: it is never written now (SEC-12 removed the only writer),
             // so selecting it would advertise a value that is always null.
-            .select('id, room_code, wallet_address, username, avatar_url, desired_seat, created_at')
+            .select('id, room_code, wallet_address, username, avatar_url, desired_seat, validation_token, created_at')
             .eq('room_code', roomCode)
             .order('created_at', { ascending: true })
             .limit(20);

@@ -174,13 +174,51 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         if (matchDispatchedRef.current) return;
         if (statusRef.current === 'matched' && matchDispatchedRef.current) return;
         matchDispatchedRef.current = true;
-        const isHost = await resolveIsHost(matchId, fallbackIsHost, knownPlayers);
-        console.log(`🎯 [Matchmaking] Dispatch match ${matchId} room=${roomCode} isHost=${isHost}`);
+
+        // MM-12: the `match-found` broadcast that announces a pairing is a PUBLIC
+        // topic (`matchm-player-<wallet>` is guessable), so it deliberately does
+        // not carry the `validation_token`. Dispatching straight from it left the
+        // guest holding no token, and the host's matchmaking door rejects a
+        // token-less JOIN_REQUEST — so the guest could never be seated and both
+        // devices sat on the Match! panel forever.
+        //
+        // The token is secret material, so it is resolved here from the
+        // session-gated status route rather than being broadcast. This also
+        // backfills the roster, which the broadcast omits too.
+        let token = validationToken ?? null;
+        let players = knownPlayers;
+        if (!token || !players || players.length === 0) {
+            try {
+                const sessionId = await ensureAppSession().catch(() => null);
+                const params = new URLSearchParams({ matchId });
+                if (playerId) params.set('walletAddress', playerId);
+                const res = await fetch(`/api/matchmaking/status?${params.toString()}`, {
+                    headers: sessionAuthHeaders(sessionId),
+                });
+                if (res.ok) {
+                    const d = await res.json();
+                    if (!token && d?.validation_token) token = d.validation_token;
+                    if ((!players || players.length === 0) && Array.isArray(d?.players)) {
+                        players = d.players.map((p: unknown) => String(p || '').toLowerCase()).filter(Boolean);
+                    }
+                }
+            } catch {
+                // Degrade to the fallback below rather than dispatching blind.
+            }
+        }
+
+        const isHost = await resolveIsHost(matchId, fallbackIsHost, players);
+        console.log(`🎯 [Matchmaking] Dispatch match ${matchId} room=${roomCode} isHost=${isHost} token=${token ? 'yes' : 'MISSING'}`);
+        if (!token) {
+            // A matchmaking room cannot be entered without its credential. Say so
+            // loudly instead of letting the host silently reject the join.
+            console.error('❌ [Matchmaking] No validation_token resolved — the host will refuse this join');
+        }
         // Single null→undefined boundary: the status route types the token as
         // `string | null` (open rooms carry null); downstream only uses
         // truthiness guards, so null and undefined behave identically.
-        onMatchFoundRef.current(matchId, roomCode, isHost, validationToken ?? undefined);
-    }, [resolveIsHost]);
+        onMatchFoundRef.current(matchId, roomCode, isHost, token ?? undefined);
+    }, [resolveIsHost, playerId, ensureAppSession]);
 
     // --- Synchronization Effects ---
     useEffect(() => {
