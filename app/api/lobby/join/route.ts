@@ -192,7 +192,12 @@ export async function GET(request: Request) {
         }
         const sb = serviceDb();
         const hostParam = url.searchParams.get('hostAddress') || undefined;
-        const sessionParam = url.searchParams.get('sessionId') || undefined;
+        // P3: the session never travels in the query string — a URL is a bearer
+        // credential in a place that gets logged. Accepted forms are the
+        // `x-session-id` header and `Authorization: Bearer`.
+        const authHeader = request.headers.get('authorization') || '';
+        const sessionParam = request.headers.get('x-session-id')
+            || (authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : undefined);
         const hostAddress = (await requireSessionWallet(request, {
             scope: 'app',
             expectedWallet: hostParam,

@@ -1485,9 +1485,18 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             try {
                 const session = appSessionId || await ensureAppSession({ context: 'teamup' });
                 if (!session || !myAddress) return;
-                const params = new URLSearchParams({ roomCode: room, hostAddress: myAddress, sessionId: session });
+                // P3: the session is a bearer credential, so it goes in a header.
+                // This poll used to carry it in the query string, which is the
+                // one form that leaks into access logs, browser history and
+                // `Referer`. The route reads the header first, so this is the
+                // same authentication without the exposure.
+                const params = new URLSearchParams({ roomCode: room, hostAddress: myAddress });
                 const res = await fetch(`/api/lobby/join?${params}`, {
                     signal: AbortSignal.timeout(6000),
+                    headers: {
+                        'x-session-id': session,
+                        'Authorization': `Bearer ${session}`,
+                    },
                 });
                 if (!res.ok || cancelled) return;
                 const data = await res.json();

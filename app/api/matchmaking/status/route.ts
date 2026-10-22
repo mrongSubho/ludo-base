@@ -16,7 +16,10 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const ticketId = searchParams.get('ticketId');
         const matchId = searchParams.get('matchId');
-        let sessionId = searchParams.get('sessionId') || request.headers.get('x-session-id');
+        // P3: the session never travels in the query string. A URL is a bearer
+        // credential in a place that gets logged, so the only accepted forms are
+        // the `x-session-id` header and `Authorization: Bearer`.
+        let sessionId = request.headers.get('x-session-id');
         const authHeader = request.headers.get('authorization') || '';
         if (!sessionId && authHeader.toLowerCase().startsWith('bearer ')) {
             sessionId = authHeader.slice(7).trim();

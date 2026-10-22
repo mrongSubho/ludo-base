@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = join(import.meta.dirname ?? __dirname, '..');
@@ -94,23 +94,73 @@ test('MM-9: TeamUpContext.startQuickMatch passes session and resolves host deter
     assert.match(contextSrc, /hash\(match_id\)|charCodeAt/);
 });
 
-test('MM-10: status route accepts header/query session and hook uses in-memory roster for host election', () => {
+test('MM-10: status route takes the session from a header only, and the hook never puts it in a URL', () => {
     const statusSrc = read('app/api/matchmaking/status/route.ts');
     const hookSrc = read('hooks/useMatchmaking.ts');
     const authSrc = read('lib/serverAuth.ts');
 
-    // Status route extracts sessionId from headers/query and falls back to requireAppSession
-    assert.match(statusSrc, /sessionId\s*=\s*searchParams\.get\('sessionId'\)\s*\|\|\s*request\.headers\.get\('x-session-id'\)/);
+    // P3: the session is a bearer credential. The query-string form was removed
+    // (it leaked into access logs, browser history and `Referer`), so the only
+    // accepted sources are the `x-session-id` header and `Authorization: Bearer`.
+    assert.doesNotMatch(
+        statusSrc,
+        /searchParams\.get\(\s*['"`]sessionId['"`]\s*\)/,
+        'the status route must not read sessionId from the query string',
+    );
+    assert.match(statusSrc, /request\.headers\.get\('x-session-id'\)/);
+    assert.match(statusSrc, /authHeader\.slice\(7\)\.trim\(\)/);
     assert.match(statusSrc, /requireAppSession\(expectedWallet,\s*sessionId\)/);
     assert.match(statusSrc, /matches[\s\S]{0,100}participants/);
 
     // requireAppSession can resolve wallet directly when expectedWallet is omitted
     assert.match(authSrc, /(!wallet\s*\|\|\s*session\.wallet_address\.toLowerCase\(\)\s*===\s*wallet)/);
 
-    // Hook sends auth headers and propagates roster to dispatchMatch
-    assert.match(hookSrc, /headers\['x-session-id'\]\s*=\s*sessionId/);
+    // The hook sends the session as a header and never in the query string.
+    assert.doesNotMatch(
+        hookSrc,
+        /params\.set\(\s*['"`]sessionId['"`]/,
+        'the hook must not put sessionId in the query string',
+    );
+    assert.match(hookSrc, /sessionAuthHeaders\(sessionId\)/);
+    // …and the helper itself emits both header forms.
+    assert.match(hookSrc, /'x-session-id':\s*sessionId/);
+    assert.match(hookSrc, /'Authorization':\s*`Bearer \$\{sessionId\}`/);
     assert.match(hookSrc, /dispatchMatch\(typedData\.match_id,[\s\S]{0,80}typedData\.players\)/);
     assert.match(hookSrc, /dispatchMatch\(data\.match_id,[\s\S]{0,80}data\.participants\)/);
+});
+
+test('P3: no route anywhere reads sessionId from the query string', () => {
+    // The same invariant `scripts/check-routes.mjs` enforces across all 53
+    // routes, kept here so a regression fails the suite and not just CI.
+    const apiDir = join(root, 'app/api');
+    const offenders: string[] = [];
+    const walk = (dir: string, prefix: string) => {
+        for (const e of readdirSync(dir, { withFileTypes: true })) {
+            const p = join(dir, e.name);
+            if (e.isDirectory()) walk(p, prefix ? `${prefix}/${e.name}` : e.name);
+            else if (e.name === 'route.ts') {
+                const src = readFileSync(p, 'utf8');
+                if (/searchParams\.get\(\s*['"`]sessionId['"`]\s*\)/.test(src)) {
+                    offenders.push(prefix || 'root');
+                }
+            }
+        }
+    };
+    walk(apiDir, '');
+    assert.deepEqual(offenders, [], `routes reading sessionId from the query string: ${offenders.join(', ')}`);
+});
+
+test('P3: the lobby/join host poll carries its session in a header', () => {
+    const ctx = read('hooks/TeamUpContext.tsx');
+    // The host poll used to build `sessionId` into the query string with no
+    // headers at all. It now sends both header forms.
+    assert.doesNotMatch(
+        ctx,
+        /new URLSearchParams\(\{[^}]*sessionId/,
+        'TeamUpContext must not put sessionId in a query string',
+    );
+    assert.match(ctx, /'x-session-id':\s*session/);
+    assert.match(ctx, /'Authorization':\s*`Bearer \$\{session\}`/);
 });
 
 

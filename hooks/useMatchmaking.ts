@@ -31,7 +31,8 @@ export function widenWagerBand(wager: number): { min: number; max?: number } | n
     return { min, max };
 }
 
-/** Session-gated ticket poll shape (GET /api/matchmaking/status). The route
+/**
+ * Session-gated ticket poll shape (GET /api/matchmaking/status). The route
  *  returns `validation_token: string | null` — null for open rooms. */
 interface TicketStatus {
     status: string;
@@ -39,6 +40,22 @@ interface TicketStatus {
     room_code?: string | null;
     validation_token: string | null;
     players?: string[];
+}
+
+/**
+ * P3: a session token is a bearer credential, so it travels in a header and
+ * never in a URL. Query strings end up in access logs, proxy logs, browser
+ * history and `Referer` headers — every one of which is a place a credential
+ * should not be. `check:routes` enforces this with an absolute "no route reads
+ * sessionId from the query string" assertion, which is why the query form had
+ * to go even though the route still accepted it as a fallback.
+ */
+function sessionAuthHeaders(sessionId: string | null): Record<string, string> {
+    if (!sessionId) return {};
+    return {
+        'x-session-id': sessionId,
+        'Authorization': `Bearer ${sessionId}`,
+    };
 }
 
 interface UseMatchmakingProps {
@@ -129,12 +146,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             const sessionId = await ensureAppSession().catch(() => null);
             const params = new URLSearchParams({ matchId });
             if (playerId) params.set('walletAddress', playerId);
-            if (sessionId) params.set('sessionId', sessionId);
-            const headers: Record<string, string> = {};
-            if (sessionId) {
-                headers['x-session-id'] = sessionId;
-                headers['Authorization'] = `Bearer ${sessionId}`;
-            }
+            const headers = sessionAuthHeaders(sessionId);
             const res = await fetch(`/api/matchmaking/status?${params.toString()}`, { headers });
             if (!res.ok) { markDegraded(`status route failed: ${res.status}`); return fallbackIsHost; }
             const data = await res.json();
@@ -273,12 +285,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             const sessionId = await ensureAppSession();
             const params = new URLSearchParams({ ticketId: id });
             if (playerId) params.set('walletAddress', playerId);
-            if (sessionId) params.set('sessionId', sessionId);
-            const headers: Record<string, string> = {};
-            if (sessionId) {
-                headers['x-session-id'] = sessionId;
-                headers['Authorization'] = `Bearer ${sessionId}`;
-            }
+            const headers = sessionAuthHeaders(sessionId);
             const res = await fetch(`/api/matchmaking/status?${params.toString()}`, { headers });
             if (!res.ok) throw new Error(`Status route failed: ${res.status}`);
             const typedData = (await res.json()) as TicketStatus;
