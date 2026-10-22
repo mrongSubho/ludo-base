@@ -1259,16 +1259,24 @@ no cross-wallet impersonation. The exposure was entirely the URL transport, whic
   Comments are stripped before matching, because the removal is documented in place and a grep
   that matched its own explanation would be a tautology.
 
-### Still open, and why
+### The two follow-ups, both closed (2026-10-22, after owner approval)
 
-- **Commit-message hygiene (P2).** Eight of the nine audited commits have empty bodies; only
-  `3367255` carries one. The *knowledge* survives in Part XIII above, but the log itself does not
-  say why. Fixing this means rewriting pushed history (interactive rebase + force-push to
-  `origin/main`), which needs explicit owner approval — it is not something to do unprompted.
-- **`.supabase-applied.json` under-reports (P3).** It holds one entry
-  (`202610180007`); `202610210001` was applied via `supabase db push`, which does not write that
-  ledger. Nothing is broken (`db:migrate:verify` confirms what is live), but the file cannot
-  answer "what is applied?".
+- **Commit-message hygiene.** Eight of the nine audited commits had empty bodies. Rewritten in place
+  with an interactive rebase and force-pushed with `--force-with-lease`. The rewrite was
+  **message-only and verified as such**: the final tree hash is identical to the pre-rewrite tree
+  (`492358a9…`), and 12 commits went in and 12 came out. Each rewritten body states what the change
+  does and why, including the two that read as security weakenings and are not — `2bfab26` removes
+  the biometric step-up `4ae5347` added because a CDP in-game wallet's passkey already gates every
+  signature, so the extra prompt was a duplicate rather than a control.
+- **`.supabase-applied.json` under-reporting.** The missing entry was a **correctness** bug, not
+  untidiness: `latestMigration()` sorts by filename and `202610210001` is the newest, so a bare
+  `npm run db:migrate` targets it, and with no ledger entry the no-op guard could not fire — the
+  next run would have re-sent a live migration and failed on duplicate objects or double-applied.
+  The local ledger was backfilled (correct content hash, `supabase-cli`, the applying commit's
+  time), and `main()` now warns when the target has no entry, pointing at `db:migrate:verify`
+  before anything is sent. The header doc states the ledger's scope explicitly: it is a no-op guard
+  for this script, not an audit trail of the database, because `supabase db push` and the Dashboard
+  SQL Editor are legitimate transports that never write it.
 
 ### Result
 
