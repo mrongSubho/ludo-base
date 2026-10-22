@@ -302,6 +302,25 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const roomClientRef = useRef<RoomClient | null>(null);
     const [roomAuthority, setRoomAuthority] = useState(false);
     /**
+     * MM-14: has this host's door been declared yet?
+     *
+     * `resolveRoomHost` identifies the host from `lobby_join_policies` during
+     * `forming`, so the host's REST join poll 403s until the row exists. Waiting
+     * for it turns a silent failure into a known one, and the escape hatch in
+     * the poll means a door that never lands degrades instead of deadlocking.
+     */
+    const [lobbyDoorReady, setLobbyDoorReady] = useState(false);
+    /** MM-14 escape hatch: poll anyway once the door has had long enough. */
+    const [doorGraceElapsed, setDoorGraceElapsed] = useState(false);
+    useEffect(() => {
+        if (lobbyDoorReady) { setDoorGraceElapsed(false); return; }
+        const t = setTimeout(() => {
+            setDoorGraceElapsed(true);
+            console.warn('📡 [Lobby] door not declared after 10s — polling anyway (degraded)');
+        }, 10_000);
+        return () => clearTimeout(t);
+    }, [lobbyDoorReady]);
+    /**
      * TU-4: the board the host owns at the moment the room becomes reachable. A
      * Durable Object starts empty, so the host must write its seed or the room has
      * nothing to resolve against. Held until the socket reports `connected`.
@@ -1275,23 +1294,42 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         if (!myAddress) return;
         const sessionId = await ensureAppSession({ context: 'teamup' });
         if (!sessionId) return;
-        try {
-            const res = await fetch('/api/lobby/policy', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    roomCode: code,
-                    joinPolicy: policy,
-                    validationToken,
-                    walletAddress: myAddress,
-                    sessionId,
-                }),
-            });
-            const data = await res.json().catch(() => ({}));
-            // For an invite room the server mints the secret; adopt it so
-            // `inviteLinkFor` can put `?s=` on the link it shares.
-            if (res.ok && data?.roomSecret) setRoomSecret(String(data.roomSecret));
-        } catch { /* the room still works; the door stays open */ }
+        // MM-14: this row is not just a door — during `forming` it is the ONLY
+        // record that lets the host prove it is the host. `resolveRoomHost`
+        // falls back to `lobby_join_policies.host_address`, so until this lands
+        // the host's own REST poll 403s on every request and the guest is never
+        // seated. Measured live: the row took 5.06s to appear while the guest's
+        // join landed at 3.18s, so every poll in that window failed.
+        //
+        // So retry, and say so loudly. A single dropped POST used to be silent.
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                const res = await fetch('/api/lobby/policy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        roomCode: code,
+                        joinPolicy: policy,
+                        validationToken,
+                        walletAddress: myAddress,
+                        sessionId,
+                    }),
+                });
+                if (res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    // For an invite room the server mints the secret; adopt it so
+                    // `inviteLinkFor` can put `?s=` on the link it shares.
+                    if (data?.roomSecret) setRoomSecret(String(data.roomSecret));
+                    setLobbyDoorReady(true);
+                    return;
+                }
+                console.warn(`📡 [Lobby] door declaration attempt ${attempt}/3 failed: HTTP ${res.status}`);
+            } catch (err) {
+                console.warn(`📡 [Lobby] door declaration attempt ${attempt}/3 threw:`, err);
+            }
+            if (attempt < 3) await new Promise(r => setTimeout(r, 400));
+        }
+        console.error('❌ [Lobby] could not declare the door — the REST join fallback is degraded (relay still works)');
     }, [myAddress, ensureAppSession]);
 
     const hostGame = useCallback((
@@ -1303,6 +1341,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         setIsHost(true);
         fsmRef.current.reset();
         sendMatchEvent({ type: 'OPEN_LOBBY' });
+        setLobbyDoorReady(false);
         // Invite lobbies are open-join by room code (casual UX).
         // Only matchmaking passes a validation token to lock the room.
         if (expectedValidationToken) {
@@ -1478,6 +1517,17 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     }));
     useEffect(() => {
         if (!isHost || !currentRoomCode || !lobbyState || lobbyState.status !== 'forming') return;
+        // MM-14: do not poll until the door row exists. `resolveRoomHost`
+        // identifies the host from `lobby_join_policies` during `forming`, so
+        // every poll before that 403s — silently, because the poll's catch
+        // swallows the status. Measured live on QM-12D4F4: the row took 5.06s
+        // while the guest's join landed at 3.18s, so the whole 2s poll window
+        // failed and the match stalled.
+        //
+        // `doorGraceElapsed` is the deliberate escape hatch: a door that never
+        // lands must degrade to today's behaviour (403s, logged) rather than
+        // never poll at all.
+        if (!lobbyDoorReady && !doorGraceElapsed) return;
         const room = currentRoomCode;
         let cancelled = false;
         const poll = async () => {
@@ -1537,7 +1587,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         void poll();
         const iv = setInterval(() => { void poll(); }, 2000);
         return () => { cancelled = true; clearInterval(iv); };
-    }, [isHost, currentRoomCode, lobbyState, seatGuestPlayer, appSessionId, ensureAppSession, myAddress]);
+    }, [isHost, currentRoomCode, lobbyState, seatGuestPlayer, appSessionId, ensureAppSession, myAddress, lobbyDoorReady, doorGraceElapsed]);
 
     // Seats self in slot 0 and publishes immediately so the guest sees a
     // forming lobby even before P2P connects. Bypasses broadcastLobbyAction's

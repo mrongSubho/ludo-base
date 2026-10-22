@@ -140,7 +140,42 @@ test('the new route exists, is classified, and is not unlimited', () => {
 test('a failure to declare the door does not break the lobby', () => {
     // The host must still be able to host if this call fails: an open room is
     // the fallback and the route treats a missing policy row as 'open'.
-    assert.match(teamUp, /catch \{ \/\* the room still works; the door stays open \*\/ \}/);
+    //
+    // MM-14 changed the shape of this without changing the invariant. It used to
+    // be one try/catch that swallowed everything; it is now a 3-attempt retry
+    // whose catch is INSIDE the loop, so a failure logs and returns rather than
+    // throwing. The assertion below is on the invariant — no rethrow, and the
+    // host keeps going — not on the old comment.
+    const decl = teamUp.slice(
+        teamUp.indexOf('const declareLobbyPolicy'),
+        teamUp.indexOf('const hostGame'),
+    );
+    assert.ok(decl.length > 0, 'declareLobbyPolicy must exist');
+    // The catch is inside the retry loop, so a failed attempt cannot escape.
+    assert.match(decl, /for \(let attempt = 1; attempt <= 3; attempt\+\+\) \{/);
+    assert.match(decl, /\} catch \(err\) \{/);
+    assert.doesNotMatch(decl, /throw /, 'a failed declaration must never throw');
+    // And the final state is a log, not an exception.
+    assert.match(decl, /could not declare the door/);
+});
+
+test('MM-14: the host REST poll waits for the door, and can never deadlock', () => {
+    // `resolveRoomHost` identifies the host from `lobby_join_policies` during
+    // `forming`, so polling before that row lands 403s on every request.
+    // The poll must wait for it — but a door that never lands has to degrade to
+    // polling anyway rather than never polling at all.
+    const teamUp = read('hooks/TeamUpContext.tsx');
+    assert.match(teamUp, /const \[lobbyDoorReady, setLobbyDoorReady\] = useState\(false\)/);
+    assert.match(teamUp, /setLobbyDoorReady\(true\)/, 'a successful declaration must mark the door ready');
+    assert.match(teamUp, /setLobbyDoorReady\(false\)/, 'hosting a new room must reset it');
+    // The wait, and the escape hatch.
+    assert.match(teamUp, /if \(!lobbyDoorReady && !doorGraceElapsed\) return;/);
+    assert.match(teamUp, /door not declared after 10s/);
+    // Both are in the poll effect's dependency array, or the wait never lifts.
+    assert.match(
+        teamUp,
+        /\}, \[isHost, currentRoomCode, lobbyState, seatGuestPlayer, appSessionId, ensureAppSession, myAddress, lobbyDoorReady, doorGraceElapsed\]\);/,
+    );
 });
 
 function at(p: string): string {

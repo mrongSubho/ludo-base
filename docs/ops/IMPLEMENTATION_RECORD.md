@@ -1426,3 +1426,71 @@ lands. This matches the 2026-10-20 observation and is **pre-existing, not a regr
 work. It means no match has server-authoritative state, which in turn means `/api/match/record`'s
 SA-2 check against `match_states.state.winner` can never pass. It is SA-1's consequence and is
 closed by the SA-1 runbook (undeploy or restore the three functions), not from this repo.
+
+---
+
+## Part XVII — MM-14: the host's door row landed after the guest's join (2026-10-22, reported live)
+
+*Reported after MM-12/MM-13: "again stalled on the matched page on both devices."*
+
+### Diagnosis: the timestamps, not the code
+
+Queried the live database for the failing match (`QM-12D4F4`) and built a timeline:
+
+```
+t=+0.00s  match row created
+t=+3.18s  guest REST join stored      (with the correct token)
+t=+5.06s  host door policy declared
+```
+
+The door row lands **1.9s after the guest's join**. That is the whole bug.
+
+### Root cause
+
+`resolveRoomHost()` — the check `GET /api/lobby/join` uses to prove the caller owns the room —
+resolves, in order: `live_matches.host_address` → `matches.participants[0]` →
+`lobby_join_policies.host_address`. During `forming` (the only phase a join request matters) the
+first two do not exist, so **the policy row is the only thing that identifies the host**.
+
+But `hostGame` declares it with `void declareLobbyPolicy(...)` — fire-and-forget — and it took
+**5.06s** to land. Every host poll in that window got `403 "Not the room host"`, silently, because
+the poll's `catch {}` swallows the status. The poll interval is 2s, so it failed at t≈0, 2, 4 and
+would have succeeded at t≈6 — the user gave up just before.
+
+This is also why the previous run (`QM-24D8C6`) worked: that guest was seated via the **relay**
+`JOIN_REQUEST`, which needs no host proof at all. There is no `lobby_join_requests` row for it. The
+REST fallback only fires when the relay drops — which is exactly when it was broken.
+
+### The fix
+
+Make the ordering explicit instead of hoping the race resolves kindly.
+
+- **`declareLobbyPolicy` retries 3× with backoff** and sets a new `lobbyDoorReady` state on
+  success. A single dropped POST used to be silent; it now logs each attempt and, on final failure,
+  logs an error naming the consequence (REST fallback degraded, relay still works).
+- **The host's REST poll waits for `lobbyDoorReady`.** No more 403 storm in the window before the
+  row lands.
+- **An escape hatch (`doorGraceElapsed`, 10s)** guarantees a door that never lands degrades to
+  today's behaviour rather than deadlocking the poll. This is what keeps the existing
+  "a failure to declare the door does not break the lobby" invariant true — the retry loop's catch
+  is inside the loop, so a failure logs and returns; it never throws.
+
+### Tests
+
+`scripts/lobby-doors.test.ts`. The pre-existing "failure to declare the door does not break the
+lobby" test asserted the old `catch { /* … */ }` comment, which the retry loop replaced — it failed
+on the new code, correctly signalling that its anchor had moved. Rewritten to assert the
+**invariant** (no rethrow, catch inside the loop, final state is a log) rather than the old text.
+Plus a new test pinning the wait, the escape hatch, and that both are in the poll effect's
+dependency array — without that the wait would never lift.
+
+**Both fail on the pre-fix code** (verified by reverting `hooks/TeamUpContext.tsx` in place).
+
+### Result
+
+`npm test` **515 / 504 pass / 0 fail** (11 skipped, all concurrency) · `tsc` app + worker **0
+errors** · `check:routes` clean (53 routes) · `check:drift` 12/12 · `check:engine` in sync ·
+`check:schema` 40/39 · `check:rls` 40 · `check:fields` clean · `eslint` 0 errors.
+
+**Not verified end-to-end.** Needs another two-device run. The host should now seat the guest as
+soon as the door lands (~5s worst case) instead of 403ing until then.
