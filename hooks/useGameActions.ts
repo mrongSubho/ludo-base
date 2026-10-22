@@ -434,7 +434,6 @@ export function useGameActions({
 
         // Offline only: no other seat is watching, so the local die is honest.
         const rollValue = Math.floor(Math.random() * 6) + 1;
-        const rollReceiptId: string | null = null;
 
         // Wait for the tumble animation to finish
         await tumblePromise;

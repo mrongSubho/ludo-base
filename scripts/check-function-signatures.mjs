@@ -77,7 +77,7 @@ function scan(src) {
     // Walk forward to the matching close paren.
     let i = defRe.lastIndex;
     let depth = 1;
-    let start = i;
+    const start = i;
     while (i < src.length && depth > 0) {
       if (src[i] === '(') depth++;
       else if (src[i] === ')') depth--;

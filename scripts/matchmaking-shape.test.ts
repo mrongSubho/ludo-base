@@ -276,3 +276,52 @@ test('MM-15: Board announces rather than silently inventing a networked roster',
     assert.match(src, /no roster supplied — seeding a local table/);
     assert.match(src, /In a networked match this means START_GAME arrived without initialBoardConfig/);
 });
+
+// ── D2: a room that cannot connect must be visible, not silent ─────────────
+//
+// The plan's D2 decision: remove the silent P2P fallback, fail loudly with
+// "Unable to connect to game room — retrying…". It was never implemented, which
+// is why an unreachable room endpoint presented as an indefinite
+// "Still linking both players…" with no error anywhere.
+//
+// This matters concretely: `/api/room/:matchId/ws` is served only by
+// `src/worker.ts` (the Cloudflare Worker entry). There is no `app/api/room`
+// Next route, so a plain Next host — dev server, Vercel — 404s the socket. The
+// only observable difference used to be a match that never started.
+
+test('D2: connectRoom surfaces a failed room instead of reverting to host authority', () => {
+    // Strip comments first: the removal is documented in place, so a raw grep for
+    // the old wording matches its own explanation and the assertion becomes a
+    // tautology. Same trap as the relay gate — see relay-hardening.test.ts.
+    const ctx = read('hooks/TeamUpContext.tsx')
+        .split('\n')
+        .filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*'))
+        .join('\n');
+    // The old behaviour, which the plan removed.
+    assert.doesNotMatch(ctx, /host remains the authority/,
+        'the silent P2P fallback must not come back');
+    // The new signal.
+    assert.match(ctx, /setRoomStatus\('failed'\)/);
+    assert.match(ctx, /setRoomStatus\('connecting'\)/);
+    assert.match(ctx, /setRoomStatus\('connected'\)/);
+    assert.match(ctx, /roomStatus: 'idle' \| 'connecting' \| 'connected' \| 'failed'/);
+});
+
+test('D2: the room retries with backoff and gives up visibly', () => {
+    const ctx = read('hooks/TeamUpContext.tsx');
+    assert.match(ctx, /const retryRoom = useCallback/, 'a retry entry point must exist');
+    assert.match(ctx, /roomClientRef\.current\?\.disconnect\(\)/, 'a failed client must be torn down before retrying');
+    assert.match(ctx, /roomAttemptsRef\.current >= 5/, 'retries must be bounded');
+    assert.match(ctx, /giving up after 5 attempts/);
+});
+
+test('D2: the panel shows the room error, not a generic wait', () => {
+    const panel = read('app/components/QuickMatchPanel.tsx');
+    assert.match(panel, /Unable to connect to game room — retrying/);
+    // It must win over the p2pHost branch, or the host still reads "opponent hasn't linked".
+    const idx = panel.indexOf("roomStatus === 'failed'");
+    const p2p = panel.indexOf("p2pHost\n");
+    assert.ok(idx > 0, 'the failed branch must exist');
+    assert.ok(idx < panel.indexOf("Opponent hasn’t linked yet") || p2p === -1 || idx < p2p,
+        'the failed branch must be evaluated before the p2pHost branch');
+});

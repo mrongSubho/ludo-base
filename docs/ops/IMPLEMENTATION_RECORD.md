@@ -1776,3 +1776,57 @@ looks exactly like a normal update under a count, so the only signal it can prod
 changed". This is the second gate added today that checks a *property* rather than a *count* —
 `check:migrations` verifies deployment, `check:fn-signatures` verifies there is one callable
 signature per name.
+
+### D2 finally implemented: the room failure is now visible (2026-10-23)
+
+After the migrations and the overload fix, quick match got past the 500 — and stalled again on
+"Still linking both players…". Database evidence narrowed it to one step:
+
+| Layer | State for `QM-EF7758` |
+|---|---|
+| `matches` | created, 2 participants |
+| `match_seats` | **written** — `green:0xbcca5d yellow:0xe8d172` |
+| `match_states` | **empty** — the room never seeded |
+
+So S1 works and S3 does not. But that alone does not identify the cause, because the room sets
+in-memory state *before* persisting: a `commitToPostgres` failure also leaves the table empty while
+the room still fans out. The two candidates — socket never connected vs. seed failed — were
+**indistinguishable from the UI**, and that is the actual defect.
+
+**D2 was never implemented.** The plan's decision was explicit: remove the silent P2P fallback and show
+*"Unable to connect to game room — retrying…"*. Grepping `app/`, `hooks/` and `lib/` for that string
+returned nothing. `connectRoom`'s catch still said *"host remains the authority"* and collapsed
+`RoomConnectionStatus` to a boolean, so `disconnected` was indistinguishable from `connecting`.
+
+That matters concretely here: **`/api/room/:matchId/ws` is served only by `src/worker.ts`**, the
+Cloudflare Worker entry. There is no `app/api/room` Next route, and `NEXT_PUBLIC_ROOM_WS_URL` is unset,
+so the client dials same-origin. On a plain Next host — dev server, Vercel — that path 404s. The only
+observable symptom was a match that never started.
+
+**Implemented:**
+
+- `roomStatus: 'idle' | 'connecting' | 'connected' | 'failed'` on the context, driven from the client's
+  own status stream. `disconnected` and transport errors now set `failed`; nothing reverts to a P2P
+  host.
+- `retryRoom` with exponential backoff (1.5s → 12s), bounded at 5 attempts, tearing down the failed
+  client first because `connectRoom` short-circuits on an existing one.
+- `QuickMatchPanel` shows the D2 string, and it is evaluated **before** the `p2pHost` branch so a host
+  no longer reads "Opponent hasn't linked yet…" when the room itself is unreachable.
+
+Three tests, all failing on the pre-fix code. One of them asserts ordering, not just presence: a
+`roomStatus === 'failed'` branch placed after the `p2pHost` branch would look right and still show the
+wrong text. (Its `doesNotMatch` initially matched its own explanatory comment — the same tautology trap
+as the relay gate, fixed by stripping comments before matching.)
+
+Also removed a dead `rollReceiptId` in `useGameActions` left by the S5 work; it was the last remaining
+`eslint` error, so `npm run lint` was failing before this.
+
+**Verified:** 526 tests / 515 pass / 0 fail · tsc app + worker 0 errors · eslint **0 errors** ·
+check:migrations 44/44 applied · check:fn-signatures clean · check:schema 44/45 · check:rls 44 ·
+check:routes 53 · check:fields clean · check:drift 12/12.
+
+**What this does not fix.** If the deployment is not the Cloudflare Worker, the room endpoint does not
+exist and the match still cannot start — it will now *say so* instead of hanging. Resolving that needs
+either `npm run deploy` (opennextjs-cloudflare → Workers, which is what `wrangler.jsonc` +
+`src/worker.ts` are for) or `NEXT_PUBLIC_ROOM_WS_URL` pointing at a deployed Worker. That is a
+deployment decision, not a code change.

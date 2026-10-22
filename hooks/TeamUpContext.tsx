@@ -156,6 +156,9 @@ export interface TeamUpContextType {
      * the intended one.
      */
     roomAuthority: boolean;
+    /** D2: room socket state — 'failed' means the room is unreachable, not merely absent. */
+    roomStatus: 'idle' | 'connecting' | 'connected' | 'failed';
+    retryRoom: () => void;
     /** Send an intent to the room. Rejects when no room socket is open. */
     sendRoomIntent: (kind: string, payload?: unknown) => Promise<{ ok: boolean; data?: unknown }>;
     /** Connect to the match room DO. */
@@ -304,6 +307,18 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const roomClientRef = useRef<RoomClient | null>(null);
     const [roomAuthority, setRoomAuthority] = useState(false);
     /**
+     * D2: the room socket's state, surfaced instead of collapsed to a boolean.
+     *
+     * `roomAuthority` alone cannot distinguish "not connected yet" from "cannot
+     * connect" — so a room that 404s (the endpoint only exists on the Cloudflare
+     * Worker deployment, not on a plain Next host) produced an indefinite
+     * "Still linking both players…" with no error anywhere. D2 in the plan says
+     * the silent fallback must go; this is the state that replaces it.
+     */
+    const [roomStatus, setRoomStatus] = useState<'idle' | 'connecting' | 'connected' | 'failed'>('idle');
+    const roomAttemptsRef = useRef(0);
+    const lastRoomMatchIdRef = useRef<string | null>(null);
+    /**
      * TU-4: the board the host owns at the moment the room becomes reachable. A
      * Durable Object starts empty, so the host must write its seed or the room has
      * nothing to resolve against. Held until the socket reports `connected`.
@@ -320,6 +335,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const connectRoom = useCallback((matchId: string, seedPayload?: unknown) => {
         if (!matchId || matchId === 'local') return;
         if (roomClientRef.current) return;
+        lastRoomMatchIdRef.current = matchId;
+        setRoomStatus('connecting');
         pendingRoomSeedRef.current = seedPayload ?? null;
 
         const doConnect = async () => {
@@ -353,6 +370,16 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     onStatusChange: (status) => {
                         const connected = status === 'connected';
                         setRoomAuthority(connected);
+                        if (connected) {
+                            roomAttemptsRef.current = 0;
+                            setRoomStatus('connected');
+                        } else if (status === 'disconnected') {
+                            // D2: a room that drops is a failure to surface, not a
+                            // reason to quietly hand authority back to a P2P host.
+                            setRoomStatus('failed');
+                        } else if (status === 'connecting') {
+                            setRoomStatus('connecting');
+                        }
                         // The host seeds on connect; guests skip this — the room already
                         // holds the board and the fan-out above brings them level.
                         if (connected && isHost && pendingRoomSeedRef.current) {
@@ -365,19 +392,57 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     onRejected: (err) => {
                         console.warn('🏟️ [Room] intent rejected:', err.code, err.error);
                     },
-                    onError: (err) => console.warn('🏟️ [Room] transport error:', err),
+                    onError: (err) => {
+                        console.warn('🏟️ [Room] transport error:', err);
+                        setRoomStatus('failed');
+                    },
                 });
                 roomClientRef.current = client;
                 client.connect();
             } catch (err) {
-                // No WebSocket runtime / no room URL: stay on the host-authority path.
-                console.warn('🏟️ [Room] unavailable, host remains the authority:', err);
+                // D2: previously this logged "host remains the authority" and carried
+                // on, which is the silent second authority the plan removed. Surface it.
+                console.error('🏟️ [Room] unavailable — cannot start a networked match:', err);
                 setRoomAuthority(false);
+                setRoomStatus('failed');
+                roomClientRef.current = null;
             }
         };
 
         void doConnect();
     }, [applyServerState, isHost, appSessionId]);
+
+    /**
+     * D2: retry the room socket with backoff.
+     *
+     * `connectRoom` short-circuits when a client already exists, so a failed
+     * client has to be torn down first. Bounded at 5 attempts — beyond that the
+     * UI keeps showing the error and the player can leave, rather than the app
+     * silently retrying forever.
+     */
+    const retryRoom = useCallback(() => {
+        const id = lastRoomMatchIdRef.current;
+        if (!id) return;
+        try { roomClientRef.current?.disconnect(); } catch { /* already gone */ }
+        roomClientRef.current = null;
+        setRoomAuthority(false);
+        connectRoom(id);
+    }, [connectRoom]);
+
+    useEffect(() => {
+        if (roomStatus !== 'failed') return;
+        if (!lastRoomMatchIdRef.current) return;
+        if (roomAttemptsRef.current >= 5) {
+            console.error('🏟️ [Room] giving up after 5 attempts — the room endpoint is unreachable');
+            return;
+        }
+        const delay = Math.min(1500 * 2 ** roomAttemptsRef.current, 12000);
+        const t = setTimeout(() => {
+            roomAttemptsRef.current += 1;
+            retryRoom();
+        }, delay);
+        return () => clearTimeout(t);
+    }, [roomStatus, retryRoom]);
 
     const sendRoomIntent = useCallback(async (kind: string, payload?: unknown) => {
         const client = roomClientRef.current;
@@ -1642,7 +1707,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         participants, intentQueue, lastIntent: intentQueue[0] ?? null, clearIntent, sendIntentAck, leaveGame, validationToken,
         recordDisconnect, clearDisconnect, classifyAndRecordAbandon, abandonGraceFor,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot,
-        matchPhase, matchFsmIllegal, roomAuthority, sendRoomIntent, connectRoom,
+        matchPhase, matchFsmIllegal, roomAuthority, roomStatus, retryRoom, sendRoomIntent, connectRoom,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
@@ -1650,7 +1715,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         startQuickMatch, myAddress, updateGameState, participants, intentQueue, clearIntent, sendIntentAck, leaveGame, validationToken,
         recordDisconnect, clearDisconnect, classifyAndRecordAbandon, abandonGraceFor,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot, matchPhase, matchFsmIllegal,
-        roomAuthority, sendRoomIntent, connectRoom,
+        roomAuthority, roomStatus, retryRoom, sendRoomIntent, connectRoom,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     ]);
 

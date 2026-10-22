@@ -142,6 +142,7 @@ export const QuickMatchPanel = ({
         connectRoom,
         isLobbyConnected, 
         isHost: p2pHost,
+        roomStatus,
         gameState,
         lobbyState,
         participants,
@@ -938,9 +939,11 @@ export const QuickMatchPanel = ({
                                                 animate={{ opacity: 1, y: 0 }}
                                                 className="mb-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-ludo-xs font-black text-amber-500 uppercase tracking-widest animate-pulse"
                                             >
-                                                {p2pHost
-                                                    ? 'Opponent hasn’t linked yet…'
-                                                    : 'Still linking both players…'}
+                                                {roomStatus === 'failed'
+                                                    ? 'Unable to connect to game room — retrying…'
+                                                    : p2pHost
+                                                        ? 'Opponent hasn’t linked yet…'
+                                                        : 'Still linking both players…'}
                                             </motion.div>
                                         )}
                                         <div className="flex items-center gap-3">
