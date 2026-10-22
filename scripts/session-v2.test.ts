@@ -182,9 +182,9 @@ test('Session v2: Distributed Rate Limiting across isolates via RateLimitDO', as
 });
 
 test('Session v2 / S2: SA-3 match-scoped sessions enforce seat assignment and copy seat_color', () => {
-    // 1. Verify code contracts in sessionV2.ts and MatchRoom.ts
+    // 1. Verify code contracts in sessionV2.ts and MatchRoomCore.ts
     const sessionV2Code = readFileSync(join(process.cwd(), 'lib/sessionV2.ts'), 'utf8');
-    const matchRoomCode = readFileSync(join(process.cwd(), 'src/room/MatchRoom.ts'), 'utf8');
+    const matchRoomCode = readFileSync(join(process.cwd(), 'src/room/MatchRoomCore.ts'), 'utf8');
 
     // Asserts sessionV2 gates 'match' scope on match_seats
     assert.match(sessionV2Code, /from\('match_seats'\)/);

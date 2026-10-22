@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { serviceDb, requireAppSession, requireSessionWallet } from '@/lib/serverAuth';
 import { GAME_MODE_CODE } from '@/lib/constants';
 import { resolveRoomVersion } from '@/lib/serverAuthority';
+import { assignAndPersistSeats } from '@/lib/matchSeats';
 
 const ADDRESS_RE = /^0x[a-f0-9]{40}$/i;
 
@@ -173,6 +174,15 @@ export async function POST(request: Request) {
                 console.error('❌ [API] Error updating match:', error);
                 return NextResponse.json({ error: error?.message || 'Failed to start match' }, { status: 500 });
             }
+
+            if (data.id && matchShape && mergedRoster.length > 0) {
+                try {
+                    await assignAndPersistSeats(data.id, matchShape, mergedRoster);
+                } catch (e) {
+                    console.warn('⚠️ [API] Seat assignment on update warning:', e);
+                }
+            }
+
             return NextResponse.json({
                 success: true,
                 matchId: data.id,
@@ -202,6 +212,14 @@ export async function POST(request: Request) {
                 { error: error?.message || 'Failed to create match' },
                 { status: 500 },
             );
+        }
+
+        if (data.id && matchShape && roster.length > 0) {
+            try {
+                await assignAndPersistSeats(data.id, matchShape, roster);
+            } catch (e) {
+                console.warn('⚠️ [API] Seat assignment on insert warning:', e);
+            }
         }
 
         const roomVersion = resolveRoomVersion();

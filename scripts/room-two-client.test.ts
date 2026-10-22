@@ -2,37 +2,28 @@
  * Room Two-Client Verification Test (Server-Owned Lobby Phase S3 Gate)
  *
  * Asserts the core Phase S3 requirements:
- * 1. Two independent WebSocket clients against one MatchRoom Durable Object instance.
+ * 1. Two independent WebSocket clients against one room instance.
  * 2. Room self-seeds from match_shape and match_seats without any client seed frame.
  * 3. Both Client A and Client B receive identical roster and seed state (seq = 0) with ZERO peer broadcast.
  * 4. Client A (Green, active turn) issues REQUEST_ROLL -> Room executes roll and fans out seq = 1 to BOTH clients.
  * 5. Client B (Yellow, out of turn) issues REQUEST_ROLL -> Room rejects with NOT_YOUR_TURN.
  * 6. D2 Gate: unauthenticated client cannot participate as seat.
  *
+ * Imported from `MatchRoomCore`, not `MatchRoom`. The previous version imported
+ * the Durable Object and tried to shim `cloudflare:workers` by patching
+ * `Module.prototype.require`; that can never intercept an ESM bare specifier, so
+ * the suite failed at `MatchRoom is not a constructor` and verified nothing.
+ * `MatchRoomCore` is the same behaviour with the runtime binding factored out
+ * (see src/room/MatchRoom.ts), so this now exercises the real logic.
+ *
  * Run: npx tsx --test scripts/room-two-client.test.ts
  */
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
-
-// Intercept CJS loader for cloudflare:workers in Node.js test environment
-const require_ = createRequire(import.meta.url);
-const Module = require_('node:module');
-const origRequire = Module.prototype.require;
-Module.prototype.require = function (id: string, ...args: unknown[]) {
-  if (id === 'cloudflare:workers') {
-    return {
-      DurableObject: class {
-        constructor(protected ctx: unknown, protected env: unknown) {}
-      },
-    };
-  }
-  return origRequire.apply(this, [id, ...args]);
-};
-
 import { hashToken } from '../lib/sessionV2';
 import type { GameState } from '../lib/types';
+import { MatchRoomCore } from '../src/room/MatchRoomCore';
 
 // Mock WebSocket implementation for in-memory testing
 class MockWebSocket {
@@ -155,10 +146,8 @@ describe('Phase S3 — Match Room Two-Client Synchronization & Self-Seeding', ()
         SUPABASE_SERVICE_ROLE_KEY: 'test-service-key',
       };
 
-      // Instantiate MatchRoom DO
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const matchRoomModule: any = await (eval('import("../src/room/MatchRoom")'));
-      const room = new matchRoomModule.MatchRoom(mockCtx, mockEnv);
+      // Instantiate the room core (same behaviour as the DO, no runtime binding)
+      const room = new MatchRoomCore(mockCtx as never, mockEnv);
 
       // WebSocket mock pairs for Client A and Client B
       const serverSockA = new MockWebSocket();
@@ -287,9 +276,7 @@ describe('Phase S3 — Match Room Two-Client Synchronization & Self-Seeding', ()
       SUPABASE_SERVICE_ROLE_KEY: 'test-service-key',
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const matchRoomModule: any = await (eval('import("../src/room/MatchRoom")'));
-    const room = new matchRoomModule.MatchRoom(mockCtx, mockEnv);
+    const room = new MatchRoomCore(mockCtx as never, mockEnv);
 
     // Client connects without ticket and attempts seat intent
     await room.webSocketMessage(
