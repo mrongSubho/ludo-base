@@ -46,5 +46,9 @@
     "crons": [
       "0 * * * *"
     ]
+  },
+  "vars": {
+    "_comment": "Public config only. MatchRoom reads NEXT_PUBLIC_SUPABASE_URL to query match_seats and match_states; without it the room silently cannot reach Postgres and never seeds, which leaves every match stuck with no state frame. Secrets (SUPABASE_SERVICE_ROLE_KEY etc.) are NOT here — see scripts/cf-secrets.mjs.",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://xvwaqxqyjtlsuijgwozi.supabase.co"
   }
 }

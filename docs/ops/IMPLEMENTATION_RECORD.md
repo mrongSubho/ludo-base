@@ -1862,3 +1862,43 @@ check:migrations 44/44 · check:fn-signatures clean · check:schema 44/45 · che
 Linting per-directory (`app hooks lib scripts src types`) reports **0 errors** and is what the numbers
 above are from. `NODE_OPTIONS=--max-old-space-size` is not a workaround here: the injected fs-broker
 shim is enabled by it and makes eslint report ~83k spurious errors.
+
+### The room could not reach Postgres: `wrangler.jsonc` had no `vars` (2026-10-23)
+
+After D2's preflight, the remaining stall is explained by one missing config value.
+
+`wrangler secret list` on the deployed Worker showed `SUPABASE_SERVICE_ROLE_KEY` present — but
+**`NEXT_PUBLIC_SUPABASE_URL` was absent**, and `wrangler.jsonc` had **no `vars` block** at all.
+`MatchRoom` reads it at two sites (`ensureInitialized`'s restore and self-seed, plus
+`commitToPostgres`) to query `match_seats`, `match_states` and `match_commit_action`. With it
+`undefined`, `fetch("undefined/rest/v1/…")` throws, and the outer catch logs *"Failed to self-seed
+from match_seats"*.
+
+That is exactly the observed state: **`match_seats` written by the SQL RPC (which needs no Worker),
+`match_states` empty** (which does). The D2 preflight will now return 404 or 426 depending on the
+host, and this was the 426 branch — the DO was there and healthy, it simply could not talk to
+Postgres.
+
+**Fixed:** added a `vars` block to `wrangler.jsonc` carrying `NEXT_PUBLIC_SUPABASE_URL`. It is a
+public value (already in the client bundle), so it belongs in `vars`, not in secrets; the
+service-role key stays a Worker secret via `scripts/cf-secrets.mjs`.
+
+**Also removed three silent skips.** All three sites guarded with `if (supabaseUrl && serviceKey)`,
+which reads as validation but behaves as "do nothing, log nothing" when either is missing. Each now
+logs an error naming what is missing and how to fix it. My first patch covered two sites; the test's
+`doesNotMatch` on the old pattern caught the third, in `commitToPostgres` — which would have made a
+match look live while nothing persisted.
+
+**Fixed a latent test bug.** `server-authority.test.ts` stripped JSONC comments with
+`/\/\/.*$/gm`, which also strips the `//` inside `https://`. It passed only because no URL value had
+ever been configured; the moment one is, the value is truncated and `JSON.parse` throws *"Bad control
+character in string literal"*. Replaced with a string-aware scanner.
+
+**Verified:** 531 tests / 520 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors (per
+directory; the whole-repo run OOMs) · check:migrations 44/44 · check:fn-signatures clean ·
+check:schema 44/45 · check:rls 44 · check:routes 53 · check:fields clean · check:drift 12/12.
+
+**Requires a redeploy to take effect.** The `vars` change only reaches the Worker on
+`npm run deploy`. Until then the deployed Worker still has no `NEXT_PUBLIC_SUPABASE_URL`, and the
+room will keep logging the new error instead of silently failing — which is the point: the cause is
+now visible in `wrangler tail` rather than invisible.

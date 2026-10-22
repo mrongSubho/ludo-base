@@ -91,8 +91,35 @@ test('P0-4 & P0-5: wrangler.jsonc configures src/worker.ts, DO bindings, and mig
   assert.ok(existsSync(wranglerPath), 'wrangler.jsonc must exist');
 
   const raw = readFileSync(wranglerPath, 'utf8');
-  // Strip jsonc comments for JSON.parse
-  const stripped = raw.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+  // Strip JSONC comments for JSON.parse.
+  //
+  // Must be string-aware: `//` also appears inside values, most obviously the
+  // `https://` in NEXT_PUBLIC_SUPABASE_URL. A plain `/\/\/.*$/gm` replacement
+  // truncates that value and leaves an unterminated string, so the config stops
+  // parsing the moment any URL is configured. Scan instead, tracking quotes.
+  const stripped = (() => {
+    let out = '';
+    let inStr = false;
+    let inLine = false;
+    let inBlock = false;
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      const n = raw[i + 1];
+      if (inLine) { if (c === '\n') { inLine = false; out += c; } continue; }
+      if (inBlock) { if (c === '*' && n === '/') { inBlock = false; i++; } continue; }
+      if (inStr) {
+        out += c;
+        if (c === '\\') { out += n ?? ''; i++; }
+        else if (c === '"') inStr = false;
+        continue;
+      }
+      if (c === '"') { inStr = true; out += c; continue; }
+      if (c === '/' && n === '/') { inLine = true; i++; continue; }
+      if (c === '/' && n === '*') { inBlock = true; i++; continue; }
+      out += c;
+    }
+    return out;
+  })();
   const config = JSON.parse(stripped);
 
   assert.equal(config.main, 'src/worker.ts', 'main entrypoint must be src/worker.ts');

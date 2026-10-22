@@ -145,7 +145,16 @@ export class MatchRoomCore {
         (this.env as unknown as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY ||
         process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-      if (supabaseUrl && serviceKey) {
+      if (!supabaseUrl || !serviceKey) {
+        // Never silent. A missing URL made the room skip Postgres entirely and
+        // every match then stalled with no state frame and no error anywhere.
+        console.error(
+          '[MatchRoom] cannot reach Postgres — missing NEXT_PUBLIC_SUPABASE_URL' +
+          ' and/or SUPABASE_SERVICE_ROLE_KEY in the Worker env. Add a `vars` block to' +
+          ' wrangler.jsonc (public config) and `wrangler secret put SUPABASE_SERVICE_ROLE_KEY`,' +
+          ' then redeploy.',
+        );
+      } else {
         try {
           const res = await fetch(`${supabaseUrl}/rest/v1/match_states?match_id=eq.${matchId}&select=seq,state`, {
             headers: {
@@ -177,7 +186,13 @@ export class MatchRoomCore {
         (this.env as unknown as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY ||
         process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-      if (supabaseUrl && serviceKey) {
+      if (!supabaseUrl || !serviceKey) {
+        console.error(
+          '[MatchRoom] cannot self-seed — NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY' +
+          ' is missing from the Worker env. The room has no seats to build a roster from, so it' +
+          ' will never fan out a state frame.',
+        );
+      } else {
         try {
           const [matchRes, seatsRes] = await Promise.all([
             fetch(`${supabaseUrl}/rest/v1/matches?id=eq.${matchId}&select=match_shape,game_mode`, {
@@ -883,9 +898,18 @@ export class MatchRoomCore {
       (this.env as unknown as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY ||
       process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (supabaseUrl && serviceKey) {
-      try {
-        await fetch(`${supabaseUrl}/rest/v1/rpc/match_commit_action`, {
+    if (!supabaseUrl || !serviceKey) {
+      // Same silent-skip as the two seeding sites: the commit would vanish with
+      // no trace, which is how a match could look live while nothing persisted.
+      console.error(
+        '[MatchRoom] cannot commit to Postgres — NEXT_PUBLIC_SUPABASE_URL or' +
+        ' SUPABASE_SERVICE_ROLE_KEY is missing from the Worker env.',
+      );
+      return;
+    }
+
+    try {
+      await fetch(`${supabaseUrl}/rest/v1/rpc/match_commit_action`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -903,7 +927,6 @@ export class MatchRoomCore {
       } catch (e) {
         console.warn('[MatchRoom] match_commit_action warning:', e);
       }
-    }
   }
 
   /**

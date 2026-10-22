@@ -364,3 +364,43 @@ test('D2 panel names the cause when the endpoint is missing', () => {
     // roomError must be destructured, or the branch is dead code.
     assert.match(panel, /roomError,/);
 });
+
+// ── The room must never silently skip Postgres ──────────────────────────────
+//
+// `wrangler.jsonc` had no `vars` block, so `NEXT_PUBLIC_SUPABASE_URL` was absent
+// from the Worker env. `MatchRoom` reads it to query `match_seats` and
+// `match_states`; with it undefined, `fetch("undefined/rest/v1/…")` throws, the
+// outer catch logs "Failed to self-seed", and no state frame is ever fanned out.
+// That is the 2026-10-23 stall: seats written, `match_states` empty, no error the
+// client could act on.
+//
+// Both the restore and the seed site guarded with `if (url && key)`, which reads
+// as a check but behaves as a silent skip.
+
+test('the room logs loudly instead of silently skipping Postgres', () => {
+    const core = read('src/room/MatchRoomCore.ts');
+    // The restore site and the seed site both need the guard.
+    assert.match(core, /cannot reach Postgres — missing NEXT_PUBLIC_SUPABASE_URL/);
+    assert.match(core, /cannot self-seed — NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY/);
+    // They must name the fix, or the log is not actionable. (Matched as two
+    // strings: the message is built by string concatenation across lines.)
+    assert.match(core, /Add a `vars` block to/);
+    assert.match(core, /wrangler\.jsonc/);
+    // The silent form must be gone — an `if (url && key) { try {` is the bug.
+    assert.doesNotMatch(
+        core,
+        /if \(supabaseUrl && serviceKey\) \{\s*\n\s*try \{/,
+        'the silent skip pattern must not come back',
+    );
+});
+
+test('wrangler.jsonc declares the public config the room needs', () => {
+    const raw = read('wrangler.jsonc');
+    // Strip // comments so JSONC parses.
+    const stripped = raw.replace(/^\s*\/\/.*$/gm, '');
+    const cfg = JSON.parse(stripped);
+    assert.equal(cfg.vars?.NEXT_PUBLIC_SUPABASE_URL, 'https://xvwaqxqyjtlsuijgwozi.supabase.co');
+    // The service key is a secret and must NOT be in vars.
+    assert.equal(cfg.vars?.SUPABASE_SERVICE_ROLE_KEY, undefined,
+        'the service-role key is a Worker secret, not a public var');
+});
