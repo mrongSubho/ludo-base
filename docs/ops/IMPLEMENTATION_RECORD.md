@@ -1558,3 +1558,55 @@ divergence is fixed and provable; whether "nobody can roll" was entirely a conse
 invented roster is an inference, not a measurement. If it recurs, the console now distinguishes the
 two cases: `guest start pending — waiting for the host roster` (the gate held) versus
 `no roster supplied — seeding a local table` (something else is dropping `initialBoardConfig`).
+
+---
+
+## Server-Owned Lobby Migration (Phases S0–S5)
+
+### Problem
+
+Under the legacy P2P formation architecture, quick-match and multiplayer lobbies relied on client-side formation:
+1. One client acted as a P2P "host", electing slots, minting rosters via `shufflePlayers` and broadcasting via PeerJS / Realtime.
+2. Multiple race conditions (MM-12, MM-13, MM-14, MM-15) occurred whenever guests navigated before receiving host rosters, missed broadcast packets, or deadlocked waiting for door declarations.
+3. Authority was fragmented between the client host and the server Durable Object, with client fallbacks silently masking network failures (violating D2).
+
+### The Migration (Phases S0–S5)
+
+Executed sequentially according to `docs/planning/SERVER_OWNED_LOBBY_PLAN.md` with zero regressions:
+
+1. **Phase S0 (`e77ba9b`) — Unblock Persistence via DO Seed Commit**:
+   - MatchRoom DO self-seeds initial match state directly to Postgres via `match_commit_action` RPC at `seq = 0`.
+   - Restores state on DO reactivation from `match_states` table.
+
+2. **Phase S1 (`f2ca95d`) — Deterministic Seating & `match_seats`**:
+   - Added canonical migration `supabase/migrations/202610220002_match_seats.sql` creating `public.match_seats`.
+   - Created `assign_match_seats` RPC with strict byte-order collation (`COLLATE "C"`).
+   - Authored TypeScript library `lib/matchSeats.ts` and test `scripts/match-seats.test.ts`.
+
+3. **Phase S2 (`7e427bd`) — Seat-Bound Sessions (Closes SA-3)**:
+   - Added `seat_color` column to `public.sessions` (`supabase/migrations/202610220003_session_seat_color.sql`).
+   - `issueMatchSession` in `lib/sessionV2.ts` verifies seat assignment in `match_seats` and copies `seat_color`.
+   - MatchRoom DO enforces turn color on mutating intents (`REQUEST_ROLL`, `REQUEST_MOVE`, `REQUEST_POWER`), rejecting out-of-turn actions with `NOT_YOUR_TURN`.
+
+4. **Phase S3 (`d76d435`) — Room Self-Seeding & Two-Client Synchronization**:
+   - Room DO reads `match_seats` and self-seeds initial board state at formation.
+   - Built `scripts/room-two-client.test.ts` verifying two WebSocket clients receive identical seed state with zero peer broadcast.
+
+5. **Phase S4 (`2de29cd`) — Retire P2P Formation Path**:
+   - Removed client-side `seatGuestPlayer`, `JOIN_REQUEST`, and host REST polling from `TeamUpContext.tsx` and `QuickMatchPanel.tsx`.
+   - Enforced total predicate `isLocalMatch` in `app/page.tsx:handlePlayNow` (§6.7).
+   - Created static gate `scripts/check-no-p2p-formation.mjs` (`npm run check:no-p2p`).
+
+6. **Phase S5 (`386dc82`) — Move AI/AFK/Timers to Room DO & Retire `isHost`**:
+   - MatchRoom DO schedules `ai_turn` alarms and executes bot turns deterministically using `lcg32` seeded per `(matchId, seq)`.
+   - Human turn timeouts increment AFK strikes and transition into autoPlay at strike 3.
+   - Eliminated `isHost` authority from gameplay hooks (`useAFKManager.ts`, `useAIBrain.ts`, `useGameActions.ts`, `useGameEngine.ts`).
+
+### Verification & Gates
+
+- **Static Gate (`npm run check:no-p2p`)**: Clean — 0 P2P formation calls in `app/` and `hooks/`.
+- **Database Schema Gate (`npm run check:schema`)**: Clean (43 migrations, 43 functions).
+- **RLS Static Gate (`npm run check:rls`)**: Clean (43 migrations).
+- **TypeScript Gate (`npx tsc -p tsconfig.json --noEmit`)**: 0 errors.
+- **Test Suite (`npm test`)**: All **523 tests pass**, 0 failures, 11 skipped.
+- **Production Build (`npm run build`)**: Next.js 16 Webpack production build clean (65/65 static/dynamic routes compiled).
