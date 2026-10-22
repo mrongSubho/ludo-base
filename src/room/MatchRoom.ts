@@ -78,6 +78,38 @@ export class MatchRoom extends DurableObject<Env> {
     if (storedVersion !== undefined) this.roomVersion = storedVersion;
     if (storedTimers) this.timerHeap = storedTimers;
 
+    // S0: If state not cached in DO SQLite, restore from Postgres match_states
+    if (!this.state) {
+      const supabaseUrl =
+        (this.env as unknown as Record<string, string>).NEXT_PUBLIC_SUPABASE_URL ||
+        process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const serviceKey =
+        (this.env as unknown as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY ||
+        process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (supabaseUrl && serviceKey) {
+        try {
+          const res = await fetch(`${supabaseUrl}/rest/v1/match_states?match_id=eq.${matchId}&select=seq,state`, {
+            headers: {
+              apikey: serviceKey,
+              Authorization: `Bearer ${serviceKey}`,
+            },
+          });
+          if (res.ok) {
+            const rows = (await res.json()) as Array<{ seq: number; state: GameState }>;
+            if (rows && rows.length > 0 && rows[0].state) {
+              this.state = rows[0].state;
+              this.seq = rows[0].seq;
+              await this.ctx.storage.put('state', this.state);
+              await this.ctx.storage.put('seq', this.seq);
+            }
+          }
+        } catch (err) {
+          console.warn('[MatchRoom] Failed to load match_states from Postgres:', err);
+        }
+      }
+    }
+
     this.initialized = true;
   }
 
@@ -212,6 +244,14 @@ export class MatchRoom extends DurableObject<Env> {
       this.seq = 0;
       await this.ctx.storage.put('state', this.state);
       await this.ctx.storage.put('seq', this.seq);
+
+      // S0: Commit initial seed directly to Postgres match_states via match_commit_action
+      await this.commitToPostgres(this.state, 0, 'match_seeded', {
+        seq: 0,
+        currentPlayer: this.state.currentPlayer,
+        winner: this.state.winner,
+      });
+
       const seedBroadcast = JSON.stringify({
         t: 'state',
         seq: this.seq,
@@ -678,16 +718,14 @@ export class MatchRoom extends DurableObject<Env> {
   }
 
   /**
-   * Apply validated state transition, save to SQLite and broadcast to all connected sockets.
-   * Atomically calls match_commit_action RPC on Postgres to record state and room events.
+   * Commit state transition to Postgres match_states atomically via match_commit_action RPC.
    */
-  private async applyNewState(newState: GameState, newSeq: number, eventType: string = 'move_committed'): Promise<void> {
-    this.state = newState;
-    this.seq = newSeq;
-
-    await this.ctx.storage.put('state', this.state);
-    await this.ctx.storage.put('seq', this.seq);
-
+  private async commitToPostgres(
+    state: GameState,
+    expectedSeq: number,
+    eventType: string,
+    eventPayload: Record<string, unknown>
+  ): Promise<void> {
     const supabaseUrl =
       (this.env as unknown as Record<string, string>).NEXT_PUBLIC_SUPABASE_URL ||
       process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -705,13 +743,31 @@ export class MatchRoom extends DurableObject<Env> {
         },
         body: JSON.stringify({
           p_match_id: this.matchId,
-          p_expected_seq: newSeq - 1,
-          p_new_state: newState,
+          p_expected_seq: expectedSeq,
+          p_new_state: state,
           p_event_type: eventType,
-          p_event_payload: { seq: newSeq, currentPlayer: newState.currentPlayer, winner: newState.winner },
+          p_event_payload: eventPayload,
         }),
       }).catch((e) => console.warn('[MatchRoom] match_commit_action warning:', e));
     }
+  }
+
+  /**
+   * Apply validated state transition, save to SQLite and broadcast to all connected sockets.
+   * Atomically calls match_commit_action RPC on Postgres to record state and room events.
+   */
+  private async applyNewState(newState: GameState, newSeq: number, eventType: string = 'move_committed'): Promise<void> {
+    this.state = newState;
+    this.seq = newSeq;
+
+    await this.ctx.storage.put('state', this.state);
+    await this.ctx.storage.put('seq', this.seq);
+
+    await this.commitToPostgres(newState, newSeq - 1, eventType, {
+      seq: newSeq,
+      currentPlayer: newState.currentPlayer,
+      winner: newState.winner,
+    });
 
     const deadlineAt = this.getEarliestDeadline();
 

@@ -64,10 +64,11 @@ describe('Phase 4 — Match Room Clock, Lifecycle, and Relocation', () => {
     assert.notEqual(rngC(), drawA1, 'Different turn seq must produce distinct draw');
   });
 
-  // ── 3. match_commit_action Atomic CAS Contract ─────────────────────────────
-  it('P4-3: match_commit_action enforces atomic CAS, advancing seq and rejecting stale seq', () => {
-    // Model atomic CAS behavior of match_commit_action
-    let dbSeq = 5;
+  // ── 3. match_commit_action Atomic CAS Contract & S0 Seed Persistence ────────
+  it('P4-3 / S0: match_commit_action enforces atomic CAS, supports initial seed insertion, and rejects stale seq', () => {
+    // Model atomic CAS behavior of match_commit_action including S0 initial seed insertion
+    let dbExists = false;
+    let dbSeq = 0;
     let dbState = { currentPlayer: 'green', winner: null };
     const eventLog: Array<{ eventType: string; seq: number }> = [];
 
@@ -76,6 +77,17 @@ describe('Phase 4 — Match Room Clock, Lifecycle, and Relocation', () => {
       newState: typeof dbState,
       eventType: string = 'move_committed'
     ) => {
+      if (!dbExists) {
+        if (expectedSeq <= 0) {
+          dbExists = true;
+          dbSeq = 0;
+          dbState = newState;
+          eventLog.push({ eventType, seq: 0 });
+          return { ok: true, seq: 0, state: dbState };
+        }
+        return { ok: false, error: 'MATCH_NOT_FOUND' };
+      }
+
       if (dbSeq !== expectedSeq) {
         return {
           ok: false,
@@ -94,23 +106,29 @@ describe('Phase 4 — Match Room Clock, Lifecycle, and Relocation', () => {
       };
     };
 
-    // 1. Move with expectedSeq = 5 succeeds
-    const res1 = matchCommitAction(5, { currentPlayer: 'yellow', winner: null }, 'move_committed');
-    assert.equal(res1.ok, true);
-    assert.equal(res1.seq, 6);
-    assert.equal(eventLog.length, 1);
-    assert.equal(eventLog[0].eventType, 'move_committed');
+    // 0. S0: Initial match seed with expectedSeq = 0 creates match_states row
+    const res0 = matchCommitAction(0, { currentPlayer: 'green', winner: null }, 'match_seeded');
+    assert.equal(res0.ok, true);
+    assert.equal(res0.seq, 0);
+    assert.equal(eventLog[0].eventType, 'match_seeded');
 
-    // 2. Concurrent/replayed move with old expectedSeq = 5 fails with STALE_SEQ
-    const res2 = matchCommitAction(5, { currentPlayer: 'red', winner: null });
+    // 1. Move with expectedSeq = 0 succeeds and bumps to seq 1
+    const res1 = matchCommitAction(0, { currentPlayer: 'yellow', winner: null }, 'move_committed');
+    assert.equal(res1.ok, true);
+    assert.equal(res1.seq, 1);
+    assert.equal(eventLog.length, 2);
+    assert.equal(eventLog[1].eventType, 'move_committed');
+
+    // 2. Concurrent/replayed move with old expectedSeq = 0 fails with STALE_SEQ
+    const res2 = matchCommitAction(0, { currentPlayer: 'red', winner: null });
     assert.equal(res2.ok, false);
     assert.equal(res2.error, 'STALE_SEQ');
-    assert.equal(res2.current_seq, 6);
+    assert.equal(res2.current_seq, 1);
 
-    // 3. Sequential move with fresh expectedSeq = 6 succeeds
-    const res3 = matchCommitAction(6, { currentPlayer: 'blue', winner: null });
+    // 3. Sequential move with fresh expectedSeq = 1 succeeds
+    const res3 = matchCommitAction(1, { currentPlayer: 'blue', winner: null });
     assert.equal(res3.ok, true);
-    assert.equal(res3.seq, 7);
+    assert.equal(res3.seq, 2);
   });
 
   // ── 4. DO Alarm-Driven Turn Deadlines & AFK Strikes ────────────────────────
