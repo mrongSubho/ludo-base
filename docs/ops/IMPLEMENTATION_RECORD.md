@@ -1680,3 +1680,55 @@ the suite fail with `expected: 2, actual: 1`; restoring it passes.
 all of them can be satisfied by a tree that does not actually work. The S3 gate was green in
 `package.json` and red in reality. Verify by running, and where a test could pass vacuously,
 mutate the code and confirm it fails.
+
+### The 1v1 stall after S0–S5: the migrations were never pushed (2026-10-22)
+
+Reported live: after a 1v1 quick match, both devices sat on the Match! panel — this time on the
+**guest** branch ("Still linking both players…"), with Subho as the guest.
+
+**Not a code bug. The schema was never deployed.**
+
+`match_seats` and `assign_match_seats` were absent from the remote database:
+
+```
+match_seats: 404  "Could not find the table 'public.match_seats'"
+rpc assign_match_seats: 404  "no matches"  (function does not exist)
+```
+
+`supabase migration list` confirmed it — the Remote column was empty for all three:
+
+```
+202610220001 | (empty) | 202610220001
+202610220002 | (empty) | 202610220002
+202610220003 | (empty) | 202610220003
+```
+
+**Consequence chain.** `join_matchmaking` on the live database was still the old version, so no seats
+were written. The room's `ensureInitialized` requires `seatsRows.length > 0`, so it never seeded.
+`match_states` stayed empty. No state frame was ever fanned out, so the client waited forever with no
+error anywhere.
+
+**Why every gate was green.** `check:schema` and `check:rls` compare migration *files* to each other.
+They never touch the database. So "43 migrations, 43 function defs, clean" was true and irrelevant:
+the functions did not exist remotely. The `npm test` suite mocks fetch, so it passed too.
+
+**Fixed** by applying the three pending migrations (`supabase --yes db push`, all additive — zero
+`DROP`/`TRUNCATE`/`DELETE` verified before applying) and backfilling `.supabase-applied.json`.
+
+**New gate: `npm run check:migrations`** (`scripts/check-migrations-applied.mjs`). Compares local
+migration files against the remote history and fails when any local migration has no remote
+counterpart. Skips with a printed notice — never a pass — when there is no CLI, no linked project, or
+no credentials, so CI without database access is unaffected.
+
+Proven load-bearing: adding a fake unapplied migration makes it exit 1 naming the version; removing it
+exits 0.
+
+**The lesson, which is the same one three times over:** every gate here is a `grep`, a `tsc`, or a
+`test` with mocked I/O. None of them can observe the deployed system. A green suite and a green
+schema gate coexisted with a feature that could not possibly work. Static gates verify intent;
+`check:migrations` is the first one that verifies *deployment*.
+
+**Still open:** `lib/matchSeats.ts` (TS) and `assign_match_seats` (SQL) are two writers of
+`match_seats`. They serve different flows — TS for custom/invite lobbies via `/api/match/start`, SQL
+for quick match and team-up hunt via `join_matchmaking` — so no single match is written twice, but
+§6.6 said one writer. Worth collapsing once the invite path is fully on the server-owned route.

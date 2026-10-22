@@ -61,7 +61,8 @@
     "deploy:contracts": "bash scripts/deploy-contracts.sh",
     "claim:fund": "cd contracts && set -a && . ./.env && FUND_AMOUNT=${FUND_AMOUNT:-500} && set +a && PATH=$HOME/.foundry/bin:$PATH base-forge script script/FundMissionClaim.s.sol --rpc-url ${SEPOLIA_RPC:-$BASE_RPC} --account mydeployer --broadcast",
     "test:contracts": "bash scripts/anvil-e2e.sh",
-    "test:concurrency": "npx --yes tsx --test scripts/concurrency.test.ts"
+    "test:concurrency": "npx --yes tsx --test scripts/concurrency.test.ts",
+    "check:migrations": "node scripts/check-migrations-applied.mjs"
   },
   "dependencies": {
     "@base-org/account": "^2.5.10",
