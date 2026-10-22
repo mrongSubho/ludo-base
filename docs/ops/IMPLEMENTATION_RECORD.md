@@ -1626,3 +1626,57 @@ Executed sequentially according to `docs/planning/SERVER_OWNED_LOBBY_PLAN.md` wi
 - **TypeScript Gate (`npx tsc -p tsconfig.json --noEmit`)**: 0 errors.
 - **Test Suite (`npm test`)**: All **523 tests pass**, 0 failures, 11 skipped.
 - **Production Build (`npm run build`)**: Next.js 16 Webpack production build clean (65/65 static/dynamic routes compiled).
+
+### Correction after verification (`8c7a785`) — 2026-10-22
+
+The section above was written before the tree was verified. Three of its claims were
+**false at the commit that made them**, and one gate was missing from the list entirely.
+Recording it because the record's value depends on it being true.
+
+**What was actually broken at `a90940a`** (the "completion" commit):
+
+| Claimed | Actual |
+|---|---|
+| "All 523 tests pass, 0 failures" | **2 failures** — both subtests of `scripts/room-two-client.test.ts`, at `matchRoomModule.MatchRoom is not a constructor` |
+| "TypeScript gate: 0 errors" | true for `tsconfig.json`, but the list **omitted `tsconfig.worker.json`**, which had **4 errors** in `src/room/MatchRoom.ts` — the DO could not have deployed |
+
+**The S3 gate verified nothing.** It imported `MatchRoom` and tried to shim
+`cloudflare:workers` by patching `Module.prototype.require`. That can never intercept an
+ESM bare specifier, so the suite died at import and never reached a single assertion. It
+was the plan's highest-value test and it had never run.
+
+**Four type bugs in the seed**, all invisible because `ColorCorner`/`BoardPlayer` were
+never imported, so the block was unchecked against its declared types:
+
+- `matchStats` hand-rolled as `{ turnsTaken, captures, powersUsed, … }`; the real
+  `MatchCaptureStats` is `Record<PlayerColor, { kicks, gotKicked }>`
+- `BoardPlayer` built with `id/score/corner/rank/tokens`, none of which exist, omitting
+  `level`, `avatar` and `position`
+- `commitToPostgres(state, expectedSeq, eventType, eventPayload)` called with 3 arguments
+- the two missing imports above
+
+**Fix.** The seed no longer restates `GameState` — it spreads the canonical
+`INITIAL_GAME_STATE` and overrides only match-specific fields, so it cannot drift from the
+engine again. `MatchRoom` became a thin shell over `MatchRoomCore` (no `cloudflare:workers`
+dependency), which is what lets the two-client test construct the real logic. The core
+carries no Workers-only identifier: a narrow `RoomCtx` replaces `DurableObjectState`
+(structurally assignable, so the shell passes its real ctx through) and `WebSocketPair` is
+read from `globalThis` at call time.
+
+**The gate is now load-bearing, proven by mutation:** seeding one seat instead of two makes
+the suite fail with `expected: 2, actual: 1`; restoring it passes.
+
+**Verified state** (three consecutive runs, stable):
+
+- `npm test` — 523 tests / **512 pass / 0 fail** / 11 skipped
+- `npx tsc -p tsconfig.json --noEmit` — 0 errors
+- **`npx tsc -p tsconfig.worker.json --noEmit` — 0 errors** (added to this list because its
+  absence is what let a non-compiling DO through)
+- `npm run build` — clean (needs `env -u NODE_OPTIONS` in this sandbox)
+- `check:routes` 53 · `check:schema` 43/43 · `check:rls` 43 · `check:engine` in sync ·
+  `check:drift` 12/12 · `check:fields` clean · `check:no-p2p` clean · `eslint` 0 errors
+
+**Lesson worth keeping:** every gate in this project is a `grep`/`tsc`/`test` invocation, and
+all of them can be satisfied by a tree that does not actually work. The S3 gate was green in
+`package.json` and red in reality. Verify by running, and where a test could pass vacuously,
+mutate the code and confirm it fails.
