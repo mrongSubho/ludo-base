@@ -127,23 +127,9 @@ export const QuickMatchPanel = ({
         matchType,
         // Always queue on a snapped preset — percentage bands fragment the pool.
         wager: snapFee(wager),
-        onMatchFound: (matchId: string, foundRoomCode: string, isMatchHost: boolean, validationToken?: string) => {
-            console.log(`🎲 [Matchmaking] Match Found! MatchId: ${matchId}, Room: ${foundRoomCode}, Host: ${isMatchHost}, Token: ${validationToken}`);
-            // Phase S3: Connect to room DO immediately upon match formation
+        onMatchFound: (matchId: string, foundRoomCode: string) => {
+            console.log(`🎲 [Matchmaking] Match Found! MatchId: ${matchId}, Room: ${foundRoomCode}`);
             connectRoom(matchId);
-            // Hybrid hosting: WE are the room. Guests come to us via joinGame —
-            // never re-host or leave our own lobby on our own match events.
-            if (isHybrid && roomCode) {
-                console.log('🏟️ [QuickMatch] Hybrid host: ignoring self-match event, waiting for guests to join.');
-                return;
-            }
-            const fee = activeWagerRef.current;
-            if (isMatchHost) {
-                hostGame(foundRoomCode, validationToken);
-                initQuickLobby(foundRoomCode, matchType as '1v1' | '2v2' | '4P', gameMode as 'classic' | 'power', fee);
-            } else {
-                joinGame(foundRoomCode, validationToken);
-            }
         }
     });
 
@@ -212,33 +198,13 @@ export const QuickMatchPanel = ({
         return () => clearInterval(interval);
     }, []);
 
-    // ─── Phase 24: Universal Transition Resilience ───
+    // ─── Phase S4: Server-owned match start transition ───
     useEffect(() => {
-        // SCENARIO 1: I am the Host.
-        // Start the INSTANT seats are full — do NOT wait on PeerJS (REST/JOIN_REQUEST
-        // can seat without it). Never force-start an incomplete table: handlePlayNow
-        // aborts and the Match! panel would stall forever.
-        if (status === 'matched' && p2pHost) {
-            const joinedSlots = lobbyState?.slots.filter(s => s.status === 'joined') || [];
-            const targetCount = matchType === '1v1' ? 2 : 4;
-            const expectedOpponentJoined = !expectedOpponent || joinedSlots.some(s => s.playerId?.toLowerCase() === expectedOpponent.toLowerCase());
-            const seatsReady = joinedSlots.length >= targetCount;
-
-            if (seatsReady && expectedOpponentJoined) {
-                console.log('🚀 [QuickMatch] Seats ready — starting game...');
-                onStartGame(false);
-            }
-            // Incomplete seats: isStalled UI (4s) offers Play with AI / Leave.
-            return;
-        }
-
-        // SCENARIO 2: I am the Guest and the Game has already started on the Host
-        if (status === 'matched' && !p2pHost && gameState?.isStarted) {
-            console.log('🏁 [QuickMatch] Received GAME_START or playing status from Host. Synchronizing UI...');
+        if (status === 'matched' && gameState?.isStarted) {
+            console.log('🏁 [QuickMatch] Server room state received. Synchronizing UI to board...');
             onStartGame(false);
         }
-        // Guest with no START_GAME: isStalled UI offers Play with AI / Leave.
-    }, [status, isLobbyConnected, p2pHost, lobbyState, matchType, onStartGame, gameState?.isStarted, expectedOpponent, isHybrid]);
+    }, [status, gameState?.isStarted, onStartGame]);
 
     // Use roomCode from hook preferentially (it updates dynamically during match)
     const activeRoomCode = hookRoomCode || roomCode;

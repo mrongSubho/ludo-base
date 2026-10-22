@@ -179,7 +179,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         // topic (`matchm-player-<wallet>` is guessable), so it deliberately does
         // not carry the `validation_token`. Dispatching straight from it left the
         // guest holding no token, and the host's matchmaking door rejects a
-        // token-less JOIN_REQUEST — so the guest could never be seated and both
+        // token-less join attempt — so the guest could never be seated and both
         // devices sat on the Match! panel forever.
         //
         // The token is secret material, so it is resolved here from the

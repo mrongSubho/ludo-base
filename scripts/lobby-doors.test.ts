@@ -159,23 +159,12 @@ test('a failure to declare the door does not break the lobby', () => {
     assert.match(decl, /could not declare the door/);
 });
 
-test('MM-14: the host REST poll waits for the door, and can never deadlock', () => {
-    // `resolveRoomHost` identifies the host from `lobby_join_policies` during
-    // `forming`, so polling before that row lands 403s on every request.
-    // The poll must wait for it — but a door that never lands has to degrade to
-    // polling anyway rather than never polling at all.
+test('MM-14: legacy P2P host REST poll and door deadlock are retired in Phase S4', () => {
+    // In Phase S4, the server room DO is the sole authority for seating and formation.
+    // Host REST polling, resolveRoomHost, and lobbyDoorReady are retired from TeamUpContext.
     const teamUp = read('hooks/TeamUpContext.tsx');
-    assert.match(teamUp, /const \[lobbyDoorReady, setLobbyDoorReady\] = useState\(false\)/);
-    assert.match(teamUp, /setLobbyDoorReady\(true\)/, 'a successful declaration must mark the door ready');
-    assert.match(teamUp, /setLobbyDoorReady\(false\)/, 'hosting a new room must reset it');
-    // The wait, and the escape hatch.
-    assert.match(teamUp, /if \(!lobbyDoorReady && !doorGraceElapsed\) return;/);
-    assert.match(teamUp, /door not declared after 10s/);
-    // Both are in the poll effect's dependency array, or the wait never lifts.
-    assert.match(
-        teamUp,
-        /\}, \[isHost, currentRoomCode, lobbyState, seatGuestPlayer, appSessionId, ensureAppSession, myAddress, lobbyDoorReady, doorGraceElapsed\]\);/,
-    );
+    assert.doesNotMatch(teamUp, /lobbyDoorReady/, 'lobbyDoorReady retired from TeamUpContext');
+    assert.doesNotMatch(teamUp, /doorGraceElapsed/, 'doorGraceElapsed retired from TeamUpContext');
 });
 
 function at(p: string): string {

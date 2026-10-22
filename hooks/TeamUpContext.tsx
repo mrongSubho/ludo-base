@@ -304,25 +304,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const roomClientRef = useRef<RoomClient | null>(null);
     const [roomAuthority, setRoomAuthority] = useState(false);
     /**
-     * MM-14: has this host's door been declared yet?
-     *
-     * `resolveRoomHost` identifies the host from `lobby_join_policies` during
-     * `forming`, so the host's REST join poll 403s until the row exists. Waiting
-     * for it turns a silent failure into a known one, and the escape hatch in
-     * the poll means a door that never lands degrades instead of deadlocking.
-     */
-    const [lobbyDoorReady, setLobbyDoorReady] = useState(false);
-    /** MM-14 escape hatch: poll anyway once the door has had long enough. */
-    const [doorGraceElapsed, setDoorGraceElapsed] = useState(false);
-    useEffect(() => {
-        if (lobbyDoorReady) { setDoorGraceElapsed(false); return; }
-        const t = setTimeout(() => {
-            setDoorGraceElapsed(true);
-            console.warn('📡 [Lobby] door not declared after 10s — polling anyway (degraded)');
-        }, 10_000);
-        return () => clearTimeout(t);
-    }, [lobbyDoorReady]);
-    /**
      * TU-4: the board the host owns at the moment the room becomes reachable. A
      * Durable Object starts empty, so the host must write its seed or the room has
      * nothing to resolve against. Held until the socket reports `connected`.
@@ -783,77 +764,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         resolveBet,
     });
 
-    // Seat a joiner (host authority). Shared by PeerJS SYNC_PROFILE and
-    // Supabase JOIN_REQUEST so NAT/Brave guests can seat without P2P.
-    const seatGuestPlayer = useCallback((payload: {
-        address: string;
-        username?: string;
-        avatar_url?: string;
-        desiredSeat?: number;
-        validationToken?: string;
-        peerId?: string;
-        coins?: number | null;
-    }) => {
-        if (!isHost || !payload.address) return false;
-        if (expectedValidationTokenRef.current) {
-            const presented = typeof payload.validationToken === 'string'
-                ? payload.validationToken.trim().toLowerCase()
-                : '';
-            const expected = expectedValidationTokenRef.current.trim().toLowerCase();
-            if (presented !== expected) {
-                console.warn('🚫 [Host] Rejected join — invalid validation token', payload.address);
-                return false;
-            }
-        }
-        sendMatchEvent({ type: 'GUEST_SEATED' });
-        // TU-2: Never trust client-supplied coin claims from peer payloads.
-        const coins: number | null = null;
-        setParticipants(prev => ({
-            ...prev,
-            [payload.address]: {
-                address: payload.address,
-                username: payload.username,
-                avatar_url: payload.avatar_url,
-                color: prev[payload.address]?.color
-            }
-        }));
-        const cur = lobbyStateRef.current;
-        if (!cur) return false;
-        const addr = payload.address.toLowerCase();
-        if (cur.slots.some(s => s.playerId?.toLowerCase() === addr && s.status === 'joined')) {
-            return true;
-        }
-        const invitedIdx = cur.slots.findIndex(s => s.playerId?.toLowerCase() === addr && s.status !== 'joined');
-        const peerId = payload.peerId || `supabase:${addr}`;
-        let next: LobbySlot[] | null = null;
-        const want = Number.isInteger(payload.desiredSeat) ? (payload.desiredSeat as number) : -1;
-        if (want >= 0 && want < cur.slots.length && cur.slots[want]?.status === 'empty') {
-            next = cur.slots.map((s, i) => i === want
-                ? { ...s, status: 'joined' as const, playerId: payload.address, playerName: payload.username || `Player ${want + 1}`, playerAvatar: payload.avatar_url, peerId, playerCoins: coins }
-                : { ...s });
-        } else if (invitedIdx !== -1) {
-            next = cur.slots.map((s, i) => i === invitedIdx
-                ? { ...s, status: 'joined' as const, playerName: payload.username || s.playerName, playerAvatar: payload.avatar_url || s.playerAvatar, peerId, playerCoins: coins }
-                : { ...s });
-        } else {
-            next = assignJoinerToSlot(cur.slots, cur.matchType, payload.address, payload.username || 'Player', payload.avatar_url || '', peerId);
-            if (next) {
-                const seat = next.findIndex(s => s.playerId?.toLowerCase() === addr && s.status === 'joined');
-                if (seat !== -1) next[seat] = { ...next[seat], playerCoins: coins };
-            }
-        }
-        if (!next) {
-            console.warn('🚫 [Host] seatGuestPlayer: room full or already seated', payload.address);
-            return false;
-        }
-        const lobby = { ...cur, slots: next };
-        setLobbyState(lobby);
-        lobbyStateRef.current = lobby;
-        broadcastLobbyAction('LOBBY_SYNC', { lobbyState: lobby });
-        console.log('✅ [Host] Seated guest via', payload.peerId ? 'PeerJS' : 'Supabase', payload.address);
-        return true;
-    }, [isHost, setParticipants, setLobbyState, lobbyStateRef, broadcastLobbyAction, sendMatchEvent]);
-
     // 6. Game Engine Action Processor
     /** NET-04: watch one intent's ACK; resend the identical intentId on a lapse. */
     const MAX_INTENT_RETRIES = 2;
@@ -895,7 +805,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         if (room === null) return;
         processedActionIds.current.clear();
         processedIntentIds.current.clear();
-        processedJoinRequestIds.current.clear();
         clearAllMoveSessions();
         intentAckTimers.current.forEach(t => clearTimeout(t));
         intentAckTimers.current.clear();
@@ -1019,31 +928,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             console.log('📬 [Host] Intent via Supabase:', action?.type);
             setIntentQueue(q => [...q, action]);
             sendIntentAck(action.intentId);
-            return;
-        }
-
-        // 🪑 Guest seat request via Supabase (works without PeerJS)
-        if (type === 'JOIN_REQUEST' && isHost) {
-            const payload = {
-                address: String(data.address || data.playerId || ''),
-                username: data.username as string | undefined,
-                avatar_url: data.avatar_url as string | undefined,
-                desiredSeat: data.desiredSeat as number | undefined,
-                validationToken: data.validationToken as string | undefined,
-                coins: typeof data.coins === 'number' ? data.coins as number : undefined,
-            };
-            const seated = seatGuestPlayer(payload);
-            if (!seated) {
-                // Lobby may not exist yet (host still minting room) — retry briefly.
-                let tries = 0;
-                const retry = () => {
-                    tries += 1;
-                    if (seatGuestPlayer(payload)) return;
-                    if (tries < 6) scheduleRetry(retry, 800);
-                    else console.warn('🪑 [Host] Could not seat JOIN_REQUEST', payload.address);
-                };
-                scheduleRetry(retry, 400);
-            }
             return;
         }
 
@@ -1235,7 +1119,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (type === 'DICE_REVEAL') {
             handleRevealReceived(String(data.sender || ''), String(data.nonce || ''), lobbyStateRef);
         }
-    }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, setIsLobbyConnected, isHost, isComputeHost, myAddress, currentRoomCode, roomId, applyServerState, seatGuestPlayer, connectRoom]);
+    }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, setIsLobbyConnected, isHost, isComputeHost, myAddress, currentRoomCode, roomId, applyServerState, connectRoom]);
 
     // 🔄 Sync Profile to peers when local profile updates
     useEffect(() => {
@@ -1258,17 +1142,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     }, [myProfile, myAddress, connections, isLobbyConnected, validationToken]);
 
     const handleGuestData = useCallback((data: any, conn: DataConnection) => {
-        if (data.type === 'SYNC_PROFILE') {
-            seatGuestPlayer({
-                address: data.address,
-                username: data.username,
-                avatar_url: data.avatar_url,
-                desiredSeat: data.desiredSeat,
-                validationToken: data.validationToken,
-                peerId: conn.peer,
-                coins: typeof data.coins === 'number' ? data.coins : undefined,
-            });
-        } else if (data.type === 'LOBBY_SYNC' && data.lobbyState && !isHost) {
+        if (data.type === 'LOBBY_SYNC' && data.lobbyState && !isHost) {
             setLobbyState(data.lobbyState);
         } else if (data.type === 'START_GAME') {
             // TU-1: PeerJS is the only transport allowed to carry state verbs.
@@ -1297,7 +1171,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         } else if (data.type === 'DICE_COMMIT' || data.type === 'DICE_REVEAL') {
             processGameAction(data, 'peer');
         }
-    }, [processGameAction, seatGuestPlayer, isHost, setLobbyState]);
+    }, [processGameAction, isHost, setLobbyState]);
 
     /**
      * SEC-12: declare which door this lobby admits.
@@ -1321,7 +1195,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         const sessionId = await ensureAppSession({ context: 'teamup' });
         if (!sessionId) return;
         // MM-14: this row is not just a door — during `forming` it is the ONLY
-        // record that lets the host prove it is the host. `resolveRoomHost`
+        // record that lets the host prove it is the host. Policy verification
         // falls back to `lobby_join_policies.host_address`, so until this lands
         // the host's own REST poll 403s on every request and the guest is never
         // seated. Measured live: the row took 5.06s to appear while the guest's
@@ -1346,7 +1220,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     // For an invite room the server mints the secret; adopt it so
                     // `inviteLinkFor` can put `?s=` on the link it shares.
                     if (data?.roomSecret) setRoomSecret(String(data.roomSecret));
-                    setLobbyDoorReady(true);
                     return;
                 }
                 console.warn(`📡 [Lobby] door declaration attempt ${attempt}/3 failed: HTTP ${res.status}`);
@@ -1367,7 +1240,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         setIsHost(true);
         fsmRef.current.reset();
         sendMatchEvent({ type: 'OPEN_LOBBY' });
-        setLobbyDoorReady(false);
         // Invite lobbies are open-join by room code (casual UX).
         // Only matchmaking passes a validation token to lock the room.
         if (expectedValidationToken) {
@@ -1439,52 +1311,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         sendMatchEvent({ type: 'OPEN_LOBBY' });
         setValidationToken(token);
         setCurrentRoomCode(targetRoomId);
-        // Sync ref immediately so JOIN_REQUEST hits the right channel this tick.
+        // Sync ref immediately so relay hits the right channel this tick.
         setRelayRoom(targetRoomId);
         desiredSeatRef.current = Number.isInteger(desiredSeat) ? desiredSeat : undefined;
 
-        // Dual-path seat: Supabase JOIN_REQUEST (works when PeerJS is blocked).
-        // Retry a few times so the host channel subscription can come up.
         if (myAddress) {
-            const joinPayload = {
-                type: 'JOIN_REQUEST',
-                address: myAddress,
-                username: myProfile?.username,
-                avatar_url: myProfile?.avatar_url,
-                desiredSeat: desiredSeatRef.current,
-                validationToken: token ? String(token).trim().toLowerCase() : undefined,
-                coins: typeof myProfile?.coins === 'number' ? myProfile.coins : undefined,
-            };
-            let attempts = 0;
-            const sendJoin = () => {
-                attempts += 1;
-                relayViaSupabase('lobby-action', joinPayload, lobbyStateRef);
-                // Host channel may come up after us — keep retrying through the 8s UI window.
-                if (attempts < 8) scheduleRetry(sendJoin, 1200);
-            };
-            sendJoin();
-            // REST third path — survives realtime + PeerJS both being blocked.
-            // Host polls /api/lobby/join and seats via seatGuestPlayer.
-            //
-            // SEC-12: the session identifies us. `wallet` is no longer sent (the
-            // route derives it) and `coins` is gone entirely — it was persisted
-            // verbatim and shown to the host as a real balance. Resolved outside
-            // the fetch call because this callback is synchronous.
-            void ensureAppSession({ context: 'teamup' }).then(sessionId => fetch('/api/lobby/join', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    roomCode: targetRoomId,
-                    walletAddress: myAddress,
-                    sessionId,
-                    username: myProfile?.username,
-                    avatarUrl: myProfile?.avatar_url,
-                    desiredSeat: desiredSeatRef.current,
-                    secret: token,
-                }),
-                signal: AbortSignal.timeout(12000),
-            })).catch(() => { /* host may not have REST yet */ });
-            // Treat lobby as connected once we can talk to the channel
             setIsLobbyConnected(true);
         }
 
@@ -1534,86 +1365,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             });
         })();
     }, [destroyPeer, setIsHost, setValidationToken, setCurrentRoomCode, peerRef, myAddress, myProfile, setConnections, setIsLobbyConnected, handleGuestData, relayViaSupabase, lobbyStateRef, setRelayRoom, sendMatchEvent]);
-
-    // Host polls REST join requests (works when realtime JOIN_REQUEST never lands).
-    // NET-08: bounded store, not an unbounded Set.
-    const processedJoinRequestIds = useRef<DedupStore>(createDedupStore({
-        max: 1024,
-        ttlMs: 60 * 60 * 1000,
-    }));
-    useEffect(() => {
-        if (!isHost || !currentRoomCode || !lobbyState || lobbyState.status !== 'forming') return;
-        // MM-14: do not poll until the door row exists. `resolveRoomHost`
-        // identifies the host from `lobby_join_policies` during `forming`, so
-        // every poll before that 403s — silently, because the poll's catch
-        // swallows the status. Measured live on QM-12D4F4: the row took 5.06s
-        // while the guest's join landed at 3.18s, so the whole 2s poll window
-        // failed and the match stalled.
-        //
-        // `doorGraceElapsed` is the deliberate escape hatch: a door that never
-        // lands must degrade to today's behaviour (403s, logged) rather than
-        // never poll at all.
-        if (!lobbyDoorReady && !doorGraceElapsed) return;
-        const room = currentRoomCode;
-        let cancelled = false;
-        const poll = async () => {
-            try {
-                const session = appSessionId || await ensureAppSession({ context: 'teamup' });
-                if (!session || !myAddress) return;
-                // P3: the session is a bearer credential, so it goes in a header.
-                // This poll used to carry it in the query string, which is the
-                // one form that leaks into access logs, browser history and
-                // `Referer`. The route reads the header first, so this is the
-                // same authentication without the exposure.
-                const params = new URLSearchParams({ roomCode: room, hostAddress: myAddress });
-                const res = await fetch(`/api/lobby/join?${params}`, {
-                    signal: AbortSignal.timeout(6000),
-                    headers: {
-                        'x-session-id': session,
-                        'Authorization': `Bearer ${session}`,
-                    },
-                });
-                if (!res.ok || cancelled) return;
-                const data = await res.json();
-                const requests: Array<{
-                    id?: string;
-                    wallet_address: string;
-                    username?: string | null;
-                    avatar_url?: string | null;
-                    desired_seat?: number | null;
-                    validation_token?: string | null;
-                }> = data?.requests || [];
-                for (const req of requests) {
-                    if (cancelled) return;
-                    if (!req?.wallet_address) continue;
-                    if (req.id && processedJoinRequestIds.current.has(req.id)) continue;
-                    if (req.id) processedJoinRequestIds.current.add(req.id);
-                    // MM-12: forward the stored credential. A matchmaking room is
-                    // sealed by the queue's validation_token, and `seatGuestPlayer`
-                    // refuses a join that does not present it — so dropping it here
-                    // rejected every REST-seated guest and stalled both devices on
-                    // the Match! panel.
-                    const seated = seatGuestPlayer({
-                        address: req.wallet_address,
-                        username: req.username || undefined,
-                        avatar_url: req.avatar_url || undefined,
-                        desiredSeat: Number.isInteger(req.desired_seat) ? (req.desired_seat as number) : undefined,
-                        validationToken: req.validation_token ?? undefined,
-                    });
-                    if (seated && req.id) {
-                        void fetch('/api/lobby/join', {
-                            method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ id: req.id, hostAddress: myAddress, sessionId: session }),
-                        }).catch(() => { /* cleanup only */ });
-                    }
-                }
-            } catch { /* timeout / offline */ }
-        };
-        void poll();
-        const iv = setInterval(() => { void poll(); }, 2000);
-        return () => { cancelled = true; clearInterval(iv); };
-    }, [isHost, currentRoomCode, lobbyState, seatGuestPlayer, appSessionId, ensureAppSession, myAddress, lobbyDoorReady, doorGraceElapsed]);
 
     // Seats self in slot 0 and publishes immediately so the guest sees a
     // forming lobby even before P2P connects. Bypasses broadcastLobbyAction's
@@ -1722,7 +1473,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         // map (keyed by matchId) so a stale grant cannot act on a new match.
         processedActionIds.current.clear();
         processedIntentIds.current.clear();
-        processedJoinRequestIds.current.clear();
         clearAllMoveSessions();
         intentAckTimers.current.forEach(t => clearTimeout(t));
         intentAckTimers.current.clear();

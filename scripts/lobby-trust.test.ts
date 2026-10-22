@@ -56,15 +56,8 @@ test('SEC-12: joining is throttled per wallet and room', () => {
     assert.match(route, /status: 429/);
 });
 
-test('the client sends a session and no longer invents a wallet or a balance', () => {
-    const join = teamUp.slice(teamUp.indexOf("'/api/lobby/join'"));
-    assert.match(join, /sessionId,/, 'the POST body must carry a session');
-    assert.match(join, /walletAddress: myAddress/, 'it may send its own address as the session claim');
-    assert.doesNotMatch(join.slice(0, 600), /\bcoins\b/, 'no client-declared balance');
-    // The host's request shape must not read coins either.
-    const listing = teamUp.slice(teamUp.indexOf('data?.requests || []'));
-    assert.doesNotMatch(listing.slice(0, 400), /coins\?:/, 'the host listing type must not carry coins');
-    assert.doesNotMatch(teamUp, /typeof req\.coins === 'number'/, 'the host must not read a balance from the request');
+test('P2P lobby/join gameplay path is retired in Phase S4', () => {
+    assert.doesNotMatch(teamUp, /['"]\/api\/lobby\/join['"]/, 'TeamUpContext no longer uses P2P /api/lobby/join');
 });
 
 test('SEC-12: the door credentials live in lobby_join_policies, not live_matches', () => {
@@ -82,10 +75,9 @@ test('SEC-12: the door credentials live in lobby_join_policies, not live_matches
 test('SEC-12: friendship is required for the invite door and NOT for quick match', () => {
     // Resolved by product decision: quick match gets its own door, so the
     // friendship rule applies where it is meaningful and nowhere else.
-    // `scripts/lobby-doors.test.ts` covers the enforcement in detail; this
-    // records that the original blanket requirement is gone, not merely moved.
+    // In Phase S4, quick match connects to the authoritative MatchRoom DO.
     const quick = code('app/components/QuickMatchPanel.tsx');
-    assert.match(quick, /joinGame\(foundRoomCode, validationToken\)/, 'quick match still joins rooms it did not create');
+    assert.match(quick, /connectRoom/, 'quick match connects to server room DO');
     assert.match(route, /areAcceptedFriends/, 'the invite door checks friendship');
     assert.match(route, /invite-only/, 'and says so to the guest');
 });

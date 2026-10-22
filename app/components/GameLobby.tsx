@@ -174,7 +174,7 @@ export default function GameLobby({
     const lobbyRef = useRef(lobbyState);
     lobbyRef.current = lobbyState;
     const joinedCodeRef = useRef<string | null>(null);
-    // Fail fast: Supabase JOIN_REQUEST seats in ~1s when the host is online.
+    // Fail fast: Lobby seating takes ~1s when the host is online.
     // 8s covers one realtime round-trip + PeerJS retry without a 20s dead wait.
     const JOIN_TIMEOUT_MS = 8000;
 

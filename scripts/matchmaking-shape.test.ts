@@ -150,17 +150,13 @@ test('P3: no route anywhere reads sessionId from the query string', () => {
     assert.deepEqual(offenders, [], `routes reading sessionId from the query string: ${offenders.join(', ')}`);
 });
 
-test('P3: the lobby/join host poll carries its session in a header', () => {
+test('P3: P2P lobby/join host poll is retired from TeamUpContext in Phase S4', () => {
     const ctx = read('hooks/TeamUpContext.tsx');
-    // The host poll used to build `sessionId` into the query string with no
-    // headers at all. It now sends both header forms.
     assert.doesNotMatch(
         ctx,
-        /new URLSearchParams\(\{[^}]*sessionId/,
-        'TeamUpContext must not put sessionId in a query string',
+        /['"]\/api\/lobby\/join['"]/,
+        'TeamUpContext no longer polls /api/lobby/join',
     );
-    assert.match(ctx, /'x-session-id':\s*session/);
-    assert.match(ctx, /'Authorization':\s*`Bearer \$\{session\}`/);
 });
 
 
@@ -206,21 +202,12 @@ test('MM-12: the lobby/join GET returns the stored credential', () => {
     );
 });
 
-test('MM-12: the host poll forwards the credential to seatGuestPlayer', () => {
+test('MM-12: P2P seatGuestPlayer formation is retired from client in Phase S4', () => {
     const ctx = read('hooks/TeamUpContext.tsx');
-    assert.match(
-        ctx,
-        /validationToken:\s*req\.validation_token \?\? undefined/,
-        'the host poll must forward the stored credential',
+    assert.ok(
+        !ctx.includes('seatGuestPlayer'),
+        'seatGuestPlayer must not exist in client TeamUpContext; seating is server-authoritative via assign_match_seats',
     );
-});
-
-test('MM-12: seatGuestPlayer still refuses a mismatched credential', () => {
-    // The gate itself must stay strict — the fix is to deliver the token, not to
-    // stop checking it.
-    const ctx = read('hooks/TeamUpContext.tsx');
-    assert.match(ctx, /Rejected join — invalid validation token/);
-    assert.match(ctx, /if \(presented !== expected\) \{/);
 });
 
 // ── MM-13: a guest adopts the host's roster, it never mints its own ────────
@@ -235,35 +222,19 @@ test('MM-12: seatGuestPlayer still refuses a mismatched credential', () => {
 // calls `shufflePlayers(...)` on `Math.random()` — minting a second, random
 // roster. The host's broadcast is the only authority on who is seated.
 
-test('MM-13: handlePlayNow short-circuits a guest onto the host roster', () => {
-    const src = read('app/page.tsx');
-    // The guard must come BEFORE the lobby/bot branching, otherwise the guest
-    // has already been sent down the shufflePlayers path.
-    const guardAt = src.indexOf('MM-13: a guest NEVER builds its own roster');
-    const branchAt = src.indexOf('const isInLobby = isLobbyConnected');
-    assert.ok(guardAt > 0, 'the guest-roster guard must exist');
-    assert.ok(branchAt > guardAt, `the guard must precede the lobby/bot branch (guard=${guardAt}, branch=${branchAt})`);
+// ── MM-13: Server-owned lobby total predicate (§6.7) ──────────────────────
+//
+// Replaces the legacy P2P host/guest branching with a total predicate:
+// a match is either local/bot or networked. In a networked match, the server
+// room DO is the sole authority for roster, seats, and seeding.
 
-    // It adopts the broadcast roster verbatim rather than deriving one.
-    assert.match(src, /if \(!isHost\) \{[\s\S]{0,700}?initialBoardConfig\?\.players/);
-    assert.match(src, /players: broadcastPlayers,/);
+test('MM-13: handlePlayNow uses server-owned total predicate (§6.7)', () => {
+    const src = read('app/page.tsx');
+    assert.match(src, /const isLocalMatch =\s*effectiveIsBotMatch \|\|\s*!currentMatchId \|\|\s*currentMatchId === 'local' \|\|\s*currentMatchId\.startsWith\('local-'\);/);
+    assert.match(src, /ARM 1: OFFLINE \/ BOT \/ LOCAL MATCH/);
+    assert.match(src, /ARM 2: NETWORKED MATCH \(Server room DO is sole authority\)/);
+    assert.match(src, /connectRoom\(currentMatchId\);/);
     assert.match(src, /setAppState\('game'\);/);
-});
-
-test('MM-13: a guest with no host roster waits instead of inventing one', () => {
-    const src = read('app/page.tsx');
-    // Falling through to `shufflePlayers` is the bug, so the no-roster path must
-    // return rather than continue to the bot branch.
-    assert.match(src, /No roster yet: stay on the panel rather than inventing one/);
-    assert.match(src, /console\.warn\('⚠️ \[Page\] Guest start with no host roster/);
-});
-
-test('MM-13: the host still builds its roster from lobby slots', () => {
-    // The fix must not break the host path — that is where the real roster
-    // comes from, and the DB confirmed it is correct (both wallets present).
-    const src = read('app/page.tsx');
-    assert.match(src, /players = lobbyState\.slots/);
-    assert.match(src, /joinedHumanCount < requiredHumans/);
 });
 
 // ── MM-15: the auto-navigate effect must not bypass the roster gate ────────

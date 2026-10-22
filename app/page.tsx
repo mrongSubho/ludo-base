@@ -278,7 +278,7 @@ export default function Page() {
   // cleans the instant a thread opens (no second source of truth).
   const { totalUnreadCount } = useGameData();
   const { notifCount } = useNotifications();
-  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot } = useTeamUp();
+  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot, connectRoom } = useTeamUp();
 
   // NET-07: the HOST_ELECT handshake's authority layer. The panel asks this to
   // elect; the answer must be a seat that can prove it holds the current
@@ -549,185 +549,45 @@ export default function Page() {
    // REA-24: useCallback so memoized panels receiving these handlers (lobby,
    // arena, board chrome) don't re-render on every unrelated Page render.
    const handlePlayNow = useCallback(async (isBotOverride?: boolean) => {
-    // MM-13: a guest NEVER builds its own roster.
-    //
-    // `joinGame` does not call `initQuickLobby`, so a guest's `lobbyState` is
-    // still null when QuickMatchPanel fires `onStartGame` — it only arrives
-    // later, via the host's LOBBY_SYNC broadcast. That sent the guest down the
-    // offline/bot branch below, which calls `shufflePlayers(...)` with
-    // `Math.random()`: the guest minted a second, random table and rendered
-    // seats that have nothing to do with the host's. Reported live as device A
-    // showing "me + a generic Player seat" while device B showed "two random
-    // bots" — two different matches on two devices.
-    //
-    // The host's START_GAME broadcast is the only authority on who is seated,
-    // so adopt it verbatim. `initialBoardConfig` is applied to `gameState`
-    // before QuickMatchPanel's Scenario 2 fires, so it is already here.
-    if (!isHost) {
-      const broadcastPlayers = gameState?.initialBoardConfig?.players;
-      if (Array.isArray(broadcastPlayers) && broadcastPlayers.length > 0) {
-        setBoardSeed({
-          players: broadcastPlayers,
-          colorCorner: gameState?.initialBoardConfig?.colorCorner,
-          isBotMatch: false,
+    const effectiveIsBotMatch = isBotOverride ?? isBotMatch;
+    const currentMatchId = gameState?.matchId;
+    const isLocalMatch =
+      effectiveIsBotMatch ||
+      !currentMatchId ||
+      currentMatchId === 'local' ||
+      currentMatchId.startsWith('local-');
+
+    if (isLocalMatch) {
+      // ── ARM 1: OFFLINE / BOT / LOCAL MATCH ──
+      const effectiveMatchType = playerCount;
+      const cc = effectiveMatchType === '2v2' ? assignCorners2v2() : assignCornersFFA(effectiveMatchType);
+      let players = shufflePlayers(playerCount, effectiveIsBotMatch, cc) as Player[];
+
+      const myAddr = address?.toLowerCase();
+      if (myAddr && effectiveIsBotMatch) {
+        const profileData = participants[myAddr];
+        players = players.map(p => {
+          if (p && !p.isAi && !p.walletAddress) {
+            return {
+              ...p,
+              walletAddress: myAddr,
+              name: finalName || profileData?.username || 'You',
+              avatar: profileData?.avatar_url || p.avatar
+            } as Player;
+          }
+          return p;
         });
-        setAppState('game');
-        return;
       }
-      // No roster yet: stay on the panel rather than inventing one. The board
-      // appears when START_GAME lands and this runs again.
-      console.warn('⚠️ [Page] Guest start with no host roster — waiting for START_GAME');
+
+      setBoardSeed({ players, colorCorner: cc, isBotMatch: effectiveIsBotMatch });
+      setAppState('game');
       return;
     }
 
-    const effectiveIsBotMatch = isBotOverride ?? isBotMatch;
-    // Lobby ticket is the source of truth for seat count — never the UI selector.
-    const effectiveMatchType = (lobbyState?.matchType || playerCount) as '1v1' | '2v2' | '4P';
-    console.log('🎲 [Page] handlePlayNow called. isHost:', isHost, 'matchType:', effectiveMatchType, 'isBotMatch:', effectiveIsBotMatch);
-
-    const cc = effectiveMatchType === '2v2' ? assignCorners2v2() : assignCornersFFA(effectiveMatchType);
-    let players: Player[] = [];
-    const isInLobby = isLobbyConnected || (isHost && !!lobbyState);
-
-    if (isInLobby && lobbyState && !effectiveIsBotMatch) {
-      // --- MULTIPLAYER LOBBY START (host only; guests hydrate from broadcast) ---
-      if (!isHost) return;
-      // Map Lobby Slots directly to Player objects
-      players = lobbyState.slots
-          .filter(slot => slot.status === 'joined')
-          .map(slot => {
-            const addr = slot.playerId || '';
-            const profileData = participants[addr.toLowerCase()];
-            const corner = cc[slot.color];
-
-              return {
-                name: slot.playerName || profileData?.username || (addr ? `User ${addr.slice(-4).toUpperCase()}` : 'Guest'),
-                avatar: slot.playerAvatar || profileData?.avatar_url || '🎮',
-                level: calculateLevel(profileData?.lxp || 0).level,
-                isAi: false,
-                color: slot.color,
-                position: corner ? CORNER_TO_POSITION[corner] : 'bottom-left',
-                walletAddress: addr
-              } as Player;
-          });
-
-        // --- Strict Synchronous Validation ---
-        // Required seats come from the LOBBY's match type (the ticket), never the
-        // local UI selector — a 1v1 ticket starts at 2 even if the UI says 4P.
-        const joinedHumanCount = players.length;
-        const requiredHumans = effectiveMatchType === '1v1' ? 2 : 4;
-
-        if (joinedHumanCount < requiredHumans) {
-          console.warn(`⚠️ Only ${joinedHumanCount}/${requiredHumans} players joined. Aborting multiplayer start to prevent ghost fallback.`);
-          // Caller (QuickMatchPanel) surfaces stall recovery — do not setAppState.
-          return;
-        }
-      } else {
-        // --- OFFLINE / BOT MATCH START ---
-        // Bot match: exactly one human + AI fill.
-        // Pass & Play (G2): all seats human on one device (isBotMatch=false).
-        players = shufflePlayers(playerCount, effectiveIsBotMatch, cc) as Player[];
-
-        // Bind the local user to the single human seat so wallet-keyed lookups resolve.
-        // Pass & Play keeps every seat as a distinct local human (no wallet bind).
-        const myAddr = address?.toLowerCase();
-        if (myAddr && effectiveIsBotMatch) {
-          const profileData = participants[myAddr];
-          players = players.map(p => {
-            if (p && !p.isAi && !p.walletAddress) {
-              return {
-                ...p,
-                walletAddress: myAddr,
-                name: finalName || profileData?.username || 'You',
-                avatar: profileData?.avatar_url || p.avatar
-              } as Player;
-            }
-            return p;
-          });
-        }
-
-        // Legacy mapping for simple teamup without lobby (if still reachable)
-        if (isLobbyConnected && !effectiveIsBotMatch && !lobbyState) {
-          const attendeeAddresses = Object.keys(participants);
-          if (address && !attendeeAddresses.map(a => a.toLowerCase()).includes(address.toLowerCase())) {
-            attendeeAddresses.unshift(address.toLowerCase());
-          }
-
-          let attendeeIndex = 0;
-          players = players.map(p => {
-            if (p && !p.isAi && attendeeIndex < attendeeAddresses.length) {
-              const addr = attendeeAddresses[attendeeIndex++];
-              const profileData = participants[addr];
-              return {
-                ...p,
-                walletAddress: addr,
-                name: profileData?.username || (addr === address?.toLowerCase() ? (finalName || 'Host') : (addr ? `User ${addr.slice(-4).toUpperCase()}` : 'Guest')),
-                avatar: profileData?.avatar_url || p.avatar
-              } as Player;
-            }
-            return p;
-          });
-        }
-      }
-
-      let newMatchId: string | undefined;
-
-      // Authoritative seating for locally-started games: hand the exact roster we
-      // just built to the Board, bypassing any stale networked gameState.
-      setBoardSeed({ players, colorCorner: cc, isBotMatch: effectiveIsBotMatch });
-
-      try {
-        // Prove the canonical host so the match is settleable. If a wallet is
-        // connected we try for a session; if that fails we fall back to the
-        // anonymous marker, which creates a valid but non-settleable local match.
-        const roster = players.filter(p => !p.isAi).map(p => p.walletAddress || 'anonymous');
-        const rosterHasWallet = /^0x[a-f0-9]{40}$/i.test(String(roster[0] || ''));
-        let hostProof: { walletAddress?: string; sessionId?: string } = {};
-        if (rosterHasWallet && address) {
-          try {
-            const sid = await ensureAppSession();
-            if (sid) hostProof = { walletAddress: address, sessionId: sid };
-          } catch {
-            hostProof = {};
-          }
-        }
-
-        const res = await fetch('/api/match/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-             roomCode: lobbyState?.roomCode || `local-${Date.now()}`,
-             gameMode: lobbyState?.gameMode || selectedMode,
-             // ECO-08: persist the declared pool shape. The payout split is
-             // decided on-chain from this, so it must not be re-derived from the
-             // UI selector or from seat colours at settle time.
-             matchShape: effectiveMatchType,
-             participants: roster,
-             ...hostProof,
-          })
-        });
-        if (res.ok) {
-           const data = await res.json();
-           newMatchId = data.matchId;
-           if (!data.settleable) {
-             console.info('ℹ️ Match recorded without a proven host — progression will not record.');
-           }
-        } else {
-           console.warn('⚠️ /api/match/start failed:', await res.text());
-        }
-      } catch (err) {
-        console.error('❌ Error calling /api/match/start:', err);
-      }
-
-      broadcastAction('START_GAME', {
-        initialBoardConfig: { players, colorCorner: cc },
-        playerCount: effectiveMatchType,
-        isBotMatch: effectiveIsBotMatch,
-        matchId: newMatchId
-      });
-
+    // ── ARM 2: NETWORKED MATCH (Server room DO is sole authority) ──
+    connectRoom(currentMatchId);
     setAppState('game');
-  }, [isBotMatch, isHost, lobbyState, playerCount, address, broadcastAction, signMessageAsync, setAppState]);
+  }, [isBotMatch, gameState?.matchId, playerCount, address, participants, finalName, setBoardSeed, setAppState, connectRoom]);
 
   const handleBackToSubMenu = useCallback(async () => {
     // Host leaving a live stream should drop the Live Arena row.
