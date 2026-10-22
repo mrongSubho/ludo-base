@@ -5,8 +5,8 @@
 | **Scope** | Everything built in this repo, from the pre-audit baseline through the audit closure — one file, in order |
 | **Supersedes** | `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` (2026-09-28 plan) and `docs/ops/REMEDIATION_CHECKLIST.md` (checklist → record). Both are now redirect stubs; nothing was dropped. |
 | **Companion** | [`SYSTEM_REVIEW.md`](./SYSTEM_REVIEW.md) — the point-in-time 2026-10-05 audit this record answers |
-| **Status** | Baseline verified 2026-10-13 · audit **154/154 closed or signed off** (last item DB-22, 2026-10-13) · **Server Authority Migration P0–P6 completed (2026-10-18)** · remaining open work in Part IV |
-| **Gates, re-run 2026-10-18** | `tsc` 0 errors · worker `tsc` 0 errors · `lint` clean (0 errors) · `npm test` 454 pass / 0 fail / 11 skipped · `check:engine` in sync (`lib/engine/core.ts` ↔ `src/room/engine.ts`) · `check:rls` clean · `check:schema` clean (static + DB mode, 35 migrations, 35 functions) · `check:drift` 10/10 · `check:routes` 53/53 · `host-retirement-gate` 5/5 |
+| **Status** | Baseline verified 2026-10-13 · audit **154/154 closed or signed off** (last item DB-22, 2026-10-13) · **Server Authority Migration P0–P6 completed (2026-10-18)** · **Server-Owned Lobby Migration S0–S5 completed (2026-10-22)** · remaining open work in Part IV |
+| **Gates, re-run 2026-10-22** | `tsc` 0 errors · worker `tsc` 0 errors · `lint` clean (0 errors) · `npm test` 523 pass / 0 fail / 11 skipped · `check:no-p2p` clean · `check:engine` in sync (`lib/engine/core.ts` ↔ `src/room/engine.ts`) · `check:rls` clean (43 migrations) · `check:schema` clean (static + DB mode, 43 migrations, 43 functions) · `check:drift` 12/12 · `check:routes` 65 routes · `host-retirement-gate` 5/5 |
 
 **How to read this record.** Three parts, in chronological order:
 
@@ -619,6 +619,8 @@ Coins are frozen (`202609300001`) and CHIPS became the only money. Rewards had b
 | Phase 5 exit | — | 2026-10-11 | **PASS (one dated deferral)** — Android device trace deferred as measurement, not code |
 | Phase 6 exit | — | 2026-10-13 | **PASS** — DB-22 closed; 154/154 findings closed or signed off |
 | October 2026 review | — | 2026-10-21 | **PASS** — 14 findings closed with behavioral gates; 16 backlog items tracked; DB migrated; 485 tests green |
+| Server Authority Migration (P0–P6) | — | 2026-10-18 | **PASS** — Cloudflare MatchRoom DO authority, session v2, atomic commits via `match_commit_action`, edge retired |
+| Server-Owned Lobby Migration (S0–S5) | — | 2026-10-22 | **PASS** — MatchRoom DO self-seeding, `match_seats`, session `seat_color` binding, P2P formation retired, 523 tests green |
 | **Wagered + 2v2 play** | owner | 2026-10-11 | **Ship-rule condition met** — Phase 0–2 closed on 2026-10-11, which is what the rule required; whether wagered play is enabled is an owner call (the arming pair is deployed and verified on Sepolia) |
 
 **Ship rule.** Wagered pools and 2v2 mode stayed disabled until Phase 0–2 closed; that condition was met on 2026-10-11. Non-wagered 4P offline play was blocked on ENG-01 only (one engine must be authoritative), which closed with the engine-diff harness and golden corpus above.
@@ -1601,6 +1603,20 @@ Executed sequentially according to `docs/planning/SERVER_OWNED_LOBBY_PLAN.md` wi
    - MatchRoom DO schedules `ai_turn` alarms and executes bot turns deterministically using `lcg32` seeded per `(matchId, seq)`.
    - Human turn timeouts increment AFK strikes and transition into autoPlay at strike 3.
    - Eliminated `isHost` authority from gameplay hooks (`useAFKManager.ts`, `useAIBrain.ts`, `useGameActions.ts`, `useGameEngine.ts`).
+
+7. **Harness & Custom Lobby Start Refinement (`c35f2b9`)**:
+   - Extracted `MatchRoomCore` from `MatchRoom.ts` so Node/`tsx` test runners can execute full DO logic without unresolvable `cloudflare:workers` ESM imports.
+   - Wired `app/api/match/start/route.ts` to call `assignAndPersistSeats` (`assign_match_seats` RPC) so custom lobbies immediately assign canonical Postgres `match_seats` upon start.
+   - Updated `scripts/session-v2.test.ts` code-contract assertions against `src/room/MatchRoomCore.ts`.
+
+### Matchmaking & Lobby Systems Matrix (Post-S5)
+
+| System | Pre-Match Waiting / Staging | Match Formation & Seating | In-Match Authority & Clock | Client Host Used? |
+| --- | --- | --- | --- | --- |
+| **QuickMatch** | Direct queue submit | Server atomic RPC (`join_matchmaking` → `assign_match_seats`) | MatchRoom DO (`/api/room/:id/ws`) | **No** (0% client authority) |
+| **Team-Up Hunt** | Party formation & search | Server atomic RPC (`join_matchmaking_hybrid` → `assign_match_seats`) | MatchRoom DO (`/api/room/:id/ws`) | **No** (0% client authority) |
+| **Team-Up (Custom / Invite Lobby)** | Realtime broadcast channel (`game-room-<roomCode>`) for presence & chat | Server start route (`POST /api/match/start` → `assign_match_seats`) | MatchRoom DO (`/api/room/:id/ws`) | **No** (0% client authority) |
+| **Pass & Play / Bot Practice** | Local setup panel | Local seed (`page.tsx:handlePlayNow` / `isLocalMatch`) | Local client engine (`processMove`) | Yes (local sandbox only) |
 
 ### Verification & Gates
 
