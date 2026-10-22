@@ -158,6 +158,8 @@ export interface TeamUpContextType {
     roomAuthority: boolean;
     /** Send an intent to the room. Rejects when no room socket is open. */
     sendRoomIntent: (kind: string, payload?: unknown) => Promise<{ ok: boolean; data?: unknown }>;
+    /** Connect to the match room DO. */
+    connectRoom: (matchId: string, seedPayload?: unknown) => void;
 }
 
 const TeamUpContext = createContext<TeamUpContextType | undefined>(undefined);
@@ -338,39 +340,63 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         if (!matchId || matchId === 'local') return;
         if (roomClientRef.current) return;
         pendingRoomSeedRef.current = seedPayload ?? null;
-        try {
-            const client = new RoomClient({
-                matchId,
-                onState: (state, seq) => {
-                    // The room's fan-out is the authority stream; seq-gate it like any
-                    // other snapshot so a late frame cannot rewind the board.
-                    applyServerState(state, seq);
-                },
-                onStatusChange: (status) => {
-                    const connected = status === 'connected';
-                    setRoomAuthority(connected);
-                    // The host seeds on connect; guests skip this — the room already
-                    // holds the board and the fan-out above brings them level.
-                    if (connected && isHost && pendingRoomSeedRef.current) {
-                        void client
-                            .seedState(pendingRoomSeedRef.current)
-                            .catch((err) => console.warn('🏟️ [Room] seed failed:', err));
-                        pendingRoomSeedRef.current = null;
-                    }
-                },
-                onRejected: (err) => {
-                    console.warn('🏟️ [Room] intent rejected:', err.code, err.error);
-                },
-                onError: (err) => console.warn('🏟️ [Room] transport error:', err),
-            });
-            roomClientRef.current = client;
-            client.connect();
-        } catch (err) {
-            // No WebSocket runtime / no room URL: stay on the host-authority path.
-            console.warn('🏟️ [Room] unavailable, host remains the authority:', err);
-            setRoomAuthority(false);
-        }
-    }, [applyServerState, isHost]);
+
+        const doConnect = async () => {
+            let ticket: string | undefined;
+            try {
+                const sid = appSessionId || peekAppSession();
+                const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                if (sid) headers['authorization'] = `Bearer ${sid}`;
+                const res = await fetch('/api/auth/match', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ matchId, as: 'match' }),
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    ticket = data.ticket;
+                }
+            } catch (e) {
+                console.warn('[Room] Could not pre-fetch match ticket:', e);
+            }
+
+            try {
+                const client = new RoomClient({
+                    matchId,
+                    ticket,
+                    onState: (state, seq) => {
+                        // The room's fan-out is the authority stream; seq-gate it like any
+                        // other snapshot so a late frame cannot rewind the board.
+                        applyServerState(state, seq);
+                    },
+                    onStatusChange: (status) => {
+                        const connected = status === 'connected';
+                        setRoomAuthority(connected);
+                        // The host seeds on connect; guests skip this — the room already
+                        // holds the board and the fan-out above brings them level.
+                        if (connected && isHost && pendingRoomSeedRef.current) {
+                            void client
+                                .seedState(pendingRoomSeedRef.current)
+                                .catch((err) => console.warn('🏟️ [Room] seed failed:', err));
+                            pendingRoomSeedRef.current = null;
+                        }
+                    },
+                    onRejected: (err) => {
+                        console.warn('🏟️ [Room] intent rejected:', err.code, err.error);
+                    },
+                    onError: (err) => console.warn('🏟️ [Room] transport error:', err),
+                });
+                roomClientRef.current = client;
+                client.connect();
+            } catch (err) {
+                // No WebSocket runtime / no room URL: stay on the host-authority path.
+                console.warn('🏟️ [Room] unavailable, host remains the authority:', err);
+                setRoomAuthority(false);
+            }
+        };
+
+        void doConnect();
+    }, [applyServerState, isHost, appSessionId]);
 
     const sendRoomIntent = useCallback(async (kind: string, payload?: unknown) => {
         const client = roomClientRef.current;
@@ -1756,11 +1782,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             }
             if (data.status === 'matched' && data.room_code) {
                 const token = data.validation_token as string | undefined;
+                const matchId = String(data.match_id || '');
+                connectRoom(matchId);
                 // Deterministic host pick from participants roster, matching useMatchmaking
                 const players = ((data.participants || []) as string[]).map(p => String(p).toLowerCase());
                 const sorted = [...new Set(players)].sort();
                 let h = 0;
-                const matchId = String(data.match_id || '');
                 for (let i = 0; i < matchId.length; i++) h = (h * 31 + matchId.charCodeAt(i)) >>> 0;
                 const weAreHost = sorted.length > 0 ? sorted[h % sorted.length] === myAddress.toLowerCase() : false;
                 if (weAreHost) {
@@ -1865,7 +1892,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         participants, intentQueue, lastIntent: intentQueue[0] ?? null, clearIntent, sendIntentAck, leaveGame, validationToken,
         recordDisconnect, clearDisconnect, classifyAndRecordAbandon, abandonGraceFor,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot,
-        matchPhase, matchFsmIllegal, roomAuthority, sendRoomIntent,
+        matchPhase, matchFsmIllegal, roomAuthority, sendRoomIntent, connectRoom,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
@@ -1873,6 +1900,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         startQuickMatch, myAddress, updateGameState, participants, intentQueue, clearIntent, sendIntentAck, leaveGame, validationToken,
         recordDisconnect, clearDisconnect, classifyAndRecordAbandon, abandonGraceFor,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot, matchPhase, matchFsmIllegal,
+        roomAuthority, sendRoomIntent, connectRoom,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     ]);
 

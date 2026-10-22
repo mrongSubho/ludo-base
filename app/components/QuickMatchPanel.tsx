@@ -129,6 +129,8 @@ export const QuickMatchPanel = ({
         wager: snapFee(wager),
         onMatchFound: (matchId: string, foundRoomCode: string, isMatchHost: boolean, validationToken?: string) => {
             console.log(`🎲 [Matchmaking] Match Found! MatchId: ${matchId}, Room: ${foundRoomCode}, Host: ${isMatchHost}, Token: ${validationToken}`);
+            // Phase S3: Connect to room DO immediately upon match formation
+            connectRoom(matchId);
             // Hybrid hosting: WE are the room. Guests come to us via joinGame —
             // never re-host or leave our own lobby on our own match events.
             if (isHybrid && roomCode) {
@@ -151,6 +153,7 @@ export const QuickMatchPanel = ({
         joinGame,
         initQuickLobby,
         leaveGame,
+        connectRoom,
         isLobbyConnected, 
         isHost: p2pHost,
         gameState,

@@ -110,6 +110,127 @@ export class MatchRoom extends DurableObject<Env> {
       }
     }
 
+    // S3: If still no state, seed itself from matches + match_seats
+    if (!this.state) {
+      const supabaseUrl =
+        (this.env as unknown as Record<string, string>).NEXT_PUBLIC_SUPABASE_URL ||
+        process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const serviceKey =
+        (this.env as unknown as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY ||
+        process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+      if (supabaseUrl && serviceKey) {
+        try {
+          const [matchRes, seatsRes] = await Promise.all([
+            fetch(`${supabaseUrl}/rest/v1/matches?id=eq.${matchId}&select=match_shape,game_mode`, {
+              headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+            }),
+            fetch(`${supabaseUrl}/rest/v1/match_seats?match_id=eq.${matchId}&select=color,wallet_address,seat_index&order=seat_index.asc`, {
+              headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
+            }),
+          ]);
+
+          if (matchRes.ok && seatsRes.ok) {
+            const matchRows = (await matchRes.json()) as Array<{ match_shape: string; game_mode: string }>;
+            const seatsRows = (await seatsRes.json()) as Array<{ color: string; wallet_address: string; seat_index: number }>;
+
+            if (matchRows.length > 0 && seatsRows.length > 0) {
+              const matchShape = (matchRows[0].match_shape || '4P') as '1v1' | '2v2' | '4P';
+              const defaultCorners: ColorCorner = {
+                green: 'BL',
+                yellow: 'BR',
+                blue: 'TR',
+                red: 'TL',
+              };
+
+              const boardPlayers: BoardPlayer[] = seatsRows.map((s) => ({
+                id: s.seat_index + 1,
+                name: s.wallet_address ? `Player ${s.wallet_address.slice(0, 6)}` : `Player ${s.color}`,
+                color: s.color as PlayerColor,
+                walletAddress: s.wallet_address,
+                isAi: false,
+                score: 0,
+                corner: defaultCorners[s.color as PlayerColor] || 'BL',
+                rank: 0,
+                tokens: [
+                  { id: 0, position: -1, stepCount: 0, isSafe: false, inHome: false, inWinning: false, color: s.color as PlayerColor, rank: 0 },
+                  { id: 1, position: -1, stepCount: 0, isSafe: false, inHome: false, inWinning: false, color: s.color as PlayerColor, rank: 0 },
+                  { id: 2, position: -1, stepCount: 0, isSafe: false, inHome: false, inWinning: false, color: s.color as PlayerColor, rank: 0 },
+                  { id: 3, position: -1, stepCount: 0, isSafe: false, inHome: false, inWinning: false, color: s.color as PlayerColor, rank: 0 },
+                ],
+              }));
+
+              const seededState: GameState = {
+                positions: {
+                  green: [-1, -1, -1, -1],
+                  red: [-1, -1, -1, -1],
+                  yellow: [-1, -1, -1, -1],
+                  blue: [-1, -1, -1, -1],
+                },
+                currentPlayer: (seatsRows[0]?.color as PlayerColor) || 'green',
+                diceValue: null,
+                isRolling: false,
+                gamePhase: 'rolling',
+                status: 'playing',
+                winner: null,
+                winners: [],
+                captureMessage: null,
+                timeLeft: 15,
+                strikes: { green: 0, red: 0, yellow: 0, blue: 0 },
+                powerTiles: [],
+                playerPowers: { green: [], red: [], yellow: [], blue: [] },
+                powerSpentThisTurn: false,
+                activeBoost: null,
+                nukeFlash: [],
+                boostTrail: null,
+                activeTraps: [],
+                activeShields: [],
+                consecutiveSixes: 0,
+                afkStats: {
+                  green: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+                  red: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+                  yellow: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+                  blue: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
+                },
+                matchStats: {
+                  turnsTaken: 0,
+                  captures: 0,
+                  powersUsed: 0,
+                  timeSpentSeconds: 0,
+                  byPlayer: {
+                    green: { turns: 0, captures: 0, sixes: 0, kicks: 0, gotKicked: 0, powersUsed: 0 },
+                    red: { turns: 0, captures: 0, sixes: 0, kicks: 0, gotKicked: 0, powersUsed: 0 },
+                    yellow: { turns: 0, captures: 0, sixes: 0, kicks: 0, gotKicked: 0, powersUsed: 0 },
+                    blue: { turns: 0, captures: 0, sixes: 0, kicks: 0, gotKicked: 0, powersUsed: 0 },
+                  },
+                },
+                idleWarning: null,
+                participantPeers: {},
+                isStarted: true,
+                isBotMatch: false,
+                botDifficulty: 'pro',
+                lastUpdate: Date.now(),
+                playerCount: matchShape,
+                matchId,
+                initialBoardConfig: {
+                  players: boardPlayers,
+                  colorCorner: defaultCorners,
+                },
+              };
+
+              this.state = seededState;
+              this.seq = 0;
+              await this.ctx.storage.put('state', this.state);
+              await this.ctx.storage.put('seq', this.seq);
+              await this.commitToPostgres(this.state, 0, 'server_seeded');
+            }
+          }
+        } catch (err) {
+          console.warn('[MatchRoom] Failed to self-seed from match_seats:', err);
+        }
+      }
+    }
+
     this.initialized = true;
   }
 
@@ -179,7 +300,11 @@ export class MatchRoom extends DurableObject<Env> {
         );
       }
 
-      return new Response(null, { status: 101, webSocket: client });
+      try {
+        return new Response(null, { status: 101, webSocket: client } as ResponseInit & { webSocket?: unknown });
+      } catch {
+        return new Response(null, { status: 200, webSocket: client } as ResponseInit & { webSocket?: unknown });
+      }
     }
 
     if (url.pathname.endsWith('/info')) {
@@ -291,6 +416,7 @@ export class MatchRoom extends DurableObject<Env> {
           );
         }
       });
+      await this.actionQueue;
       return;
     }
 
@@ -739,21 +865,25 @@ export class MatchRoom extends DurableObject<Env> {
       process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (supabaseUrl && serviceKey) {
-      fetch(`${supabaseUrl}/rest/v1/rpc/match_commit_action`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: serviceKey,
-          Authorization: `Bearer ${serviceKey}`,
-        },
-        body: JSON.stringify({
-          p_match_id: this.matchId,
-          p_expected_seq: expectedSeq,
-          p_new_state: state,
-          p_event_type: eventType,
-          p_event_payload: eventPayload,
-        }),
-      }).catch((e) => console.warn('[MatchRoom] match_commit_action warning:', e));
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/rpc/match_commit_action`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({
+            p_match_id: this.matchId,
+            p_expected_seq: expectedSeq,
+            p_new_state: state,
+            p_event_type: eventType,
+            p_event_payload: eventPayload,
+          }),
+        });
+      } catch (e) {
+        console.warn('[MatchRoom] match_commit_action warning:', e);
+      }
     }
   }
 
@@ -805,7 +935,7 @@ export class MatchRoom extends DurableObject<Env> {
     await this.ctx.storage.put('timerHeap', this.timerHeap);
 
     const nextEarliest = this.timerHeap[0]?.deadlineAt;
-    if (nextEarliest) {
+    if (nextEarliest && typeof this.ctx.storage.setAlarm === 'function') {
       await this.ctx.storage.setAlarm(nextEarliest);
     }
   }
@@ -870,7 +1000,7 @@ export class MatchRoom extends DurableObject<Env> {
     }
 
     const nextEarliest = this.timerHeap[0]?.deadlineAt;
-    if (nextEarliest) {
+    if (nextEarliest && typeof this.ctx.storage.setAlarm === 'function') {
       await this.ctx.storage.setAlarm(nextEarliest);
     }
   }
