@@ -73,7 +73,7 @@ describe('Phase S3 — Match Room Two-Client Synchronization & Self-Seeding', ()
 
     // Mock global fetch to answer Supabase REST calls made by MatchRoom
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    globalThis.fetch = async (input: RequestInfo | URL, _init?: RequestInit): Promise<Response> => {
       const url = String(input);
 
       // 1. match_states lookup (initially empty)
@@ -258,7 +258,6 @@ describe('Phase S3 — Match Room Two-Client Synchronization & Self-Seeding', ()
   });
 
   it('S3-2: D2 Gate — unauthenticated client without seat cannot participate or send intents', async () => {
-    const matchId = '11111111-2222-3333-4444-555555555555';
     const serverSock = new MockWebSocket();
     const storageMap = new Map<string, unknown>();
 
