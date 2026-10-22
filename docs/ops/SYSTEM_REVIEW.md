@@ -385,12 +385,13 @@ Following the server authority migration and on-chain settlement remediation (Oc
 | SA-3 | **M** | Session v2 lacks seat binding in challenge verification ◐ | `lib/serverAuth.ts:107` | **Open — blocked on SA-1** (the writer is the edge function) |
 | SA-4 | **M** | Lack of continuous state reconciliation loop during P2P play ✅ | `hooks/useMatchStates.ts` | Closed — seq-gated steady poll (`pollMs`, default 6 s) |
 | SA-5 | **L** | In-process rate limiter not shared across isolate boundaries ✅ | `lib/rateLimitShared.ts` + `202610200003` | Closed for join + record; the rest keep the in-process budget |
+| SEC-13 | **H** | Session tokens travelled in URLs on two routes ✅ | `matchmaking/status` · `lobby/join` · `useMatchmaking` · `TeamUpContext` | Closed (`20fff41`) — header-only transport; `check:routes` clean |
 
 ---
 
 ### 4.9 October 2026 closure pass — final state
 
-**Result: 21 of 26 closed, 1 partial, 2 open-but-blocked, 1 open-on-decision, 1 open (TU-5).**
+**Result: 22 of 27 closed, 1 partial, 2 open-but-blocked, 1 open-on-decision, 1 open (TU-5).**
 
 Everything marked Closed above is a code change in this tree, verified by `tsc`, `eslint`, and
 `npm test` (485 tests, 474 pass, 0 fail), with `check:schema` (39 migrations / 38 functions),

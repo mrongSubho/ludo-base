@@ -1176,3 +1176,103 @@ Investigation identified two interlocking root causes:
 - `npm test`: **503 tests (492 pass, 0 fail, 11 skipped)**.
 - Remote database migration `202610210001_fix_hybrid_matchmaking.sql` applied cleanly via `supabase db push` and verified via `npm run db:migrate:verify`.
 
+
+---
+
+## Part XIV — Post-push audit closures (2026-10-22)
+
+*Source: a line-by-line audit of the nine commits that landed on `main` after `abee4c1`
+(`3367255` … `9d1ab06`). The audit is what produced this part; nothing here was assumed
+from the commit subjects, eight of which had empty bodies.*
+
+### What the audit found first: a red gate
+
+`npm run check:routes` **failed at `9d1ab06`** with two findings — `lobby/join` and
+`matchmaking/status` both read `sessionId` from the query string. That gate is in the CI
+`engine-tests` job, so the build was red. The query-string form had been added by `de823b2` /
+`9d1ab06` as a fallback for a 401 regression.
+
+### SEC-13 · session tokens travelled in URLs
+
+`de823b2` and `9d1ab06` added `searchParams.get('sessionId')` to two routes so clients that
+could not set headers could still authenticate. The problem is not the routes — it is that a
+URL is a bearer credential in a place that gets logged: access logs, proxy logs, browser
+history and `Referer` headers all see it. The exposure was sharper than usual because
+`requireAppSession` had just been changed (MM-10) to resolve the wallet from the session alone
+when `expectedWallet` is omitted, so a leaked URL was a leaked *identity*, not just a leaked
+token.
+
+Four call sites. Two never needed the change — both `useMatchmaking` status polls were already
+sending `x-session-id` **and** `Authorization: Bearer`, so the query copy was pure redundancy.
+One genuinely relied on it: `TeamUpContext`'s host poll built the session into the query string
+and sent no headers at all. Both routes lost the query-string read and keep the two header
+forms, so authentication behaviour is identical for every client already sending a header.
+
+The duplicated header construction in `useMatchmaking` collapsed into one `sessionAuthHeaders()`
+helper, so the two polls cannot drift apart again.
+
+### TU-1 (second verb) · the relay could relocate a client
+
+`useSupabaseRelay` listened for a `host-migrated` broadcast on the public `game-room-<code>`
+topic and called `joinGame(payload.newRoomCode)` on it. **Nothing in the repository ever sent
+that event** — no producer, no documented plan, no validation of `newRoomCode`. It was a
+receive-only, unauthenticated control verb: anyone who learned a room code could bounce every
+subscribed client into an arbitrary room.
+
+AGENTS.md invariant 3 already says the relay is not an authority channel and must not carry a
+verb the relay may apply, so the handler is **removed rather than gated**. Validating a field on
+a channel with no sender authentication only makes the attack harder to explain, not impossible.
+The removal also drops `joinGame` from the hook's props entirely, so the path cannot be quietly
+reintroduced by a future edit to the handler.
+
+### Verified intact (audited, not assumed)
+
+- **SA-2** — `app/api/match/record/route.ts` caps `effectiveWager` on **both** branches
+  (`150 + w*0.1` win, `50 + w*0.05` loss), derives the winner from `match_states.state.winner`,
+  and still requires `requireSession`. The `3367255` diff *looks* like it removed
+  `checkRateLimitShared`, but it moved — it is live behind the new `MAX_SEATS` guard.
+- **SA-5** — the shared limiter is still wired at that route, so the register's claim holds.
+- **TU-6** — the seat-aware turn cycle is intact, and the "1v1 stall" those nine commits fixed is
+  a *different* stall (matchmaking formation, MM-6..MM-11), not a second copy of the turn bug.
+- **`daily_bonus` target-0 trap** — `lib/onboardingProgressWriter.ts` falls back to the
+  definition's target when the stored target is 0, so a mission can never be marked complete by
+  a zero target.
+- **The 11 skipped tests are honest** — all in `scripts/concurrency.test.ts`, all
+  `ok … # SKIP set LUDO_SCHEMA_DB_URL`, all needing a real Postgres. Not newly hidden failures.
+- **Migration `202610210001` is genuinely live** — `npm run db:migrate:verify` passes against
+  the remote database.
+
+### Verified safe (was flagged, is not a defect)
+
+`requireAppSession`'s bearer semantics were flagged as a possible second-factor removal. Audited:
+every caller passes a request-supplied wallet, and a wallet that does not match the session
+returns `null` — so the function can only ever resolve to the **caller's own** wallet. There is
+no cross-wallet impersonation. The exposure was entirely the URL transport, which SEC-13 closes.
+
+### Tests
+
+- `scripts/matchmaking-shape.test.ts` — MM-10 inverted from "accepts header/query session" to
+  "header only", plus two new behavioural tests: a sweep of all 53 routes asserting none reads
+  `sessionId` from a query string (the same invariant `check:routes` enforces, so a regression
+  fails the suite and not just CI), and one pinning the `TeamUpContext` poll's headers.
+- `scripts/relay-hardening.test.ts` — two new assertions pinning the `host-migrated` removal.
+  Comments are stripped before matching, because the removal is documented in place and a grep
+  that matched its own explanation would be a tautology.
+
+### Still open, and why
+
+- **Commit-message hygiene (P2).** Eight of the nine audited commits have empty bodies; only
+  `3367255` carries one. The *knowledge* survives in Part XIII above, but the log itself does not
+  say why. Fixing this means rewriting pushed history (interactive rebase + force-push to
+  `origin/main`), which needs explicit owner approval — it is not something to do unprompted.
+- **`.supabase-applied.json` under-reports (P3).** It holds one entry
+  (`202610180007`); `202610210001` was applied via `supabase db push`, which does not write that
+  ledger. Nothing is broken (`db:migrate:verify` confirms what is live), but the file cannot
+  answer "what is applied?".
+
+### Result
+
+`npm test` **507 / 496 pass / 0 fail** (11 skipped, all concurrency, all needing a real
+Postgres) · `tsc` app + worker **0 errors** · `check:routes` **clean (53 routes)** ·
+`check:drift` 12/12 · `check:engine` in sync · `check:schema` 40 migrations / 39 functions ·
+`check:rls` 40 · `check:fields` clean · `eslint` **0 errors**.
