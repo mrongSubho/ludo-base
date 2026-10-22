@@ -1732,3 +1732,47 @@ schema gate coexisted with a feature that could not possibly work. Static gates 
 `match_seats`. They serve different flows — TS for custom/invite lobbies via `/api/match/start`, SQL
 for quick match and team-up hunt via `join_matchmaking` — so no single match is written twice, but
 §6.6 said one writer. Worth collapsing once the invite path is fully on the server-owned route.
+
+### The join 500: a silent function overload (2026-10-22)
+
+After the migrations were applied, quick match moved from "stalls on the Match! panel" to a hard
+error:
+
+```
+Join request failed (500): {"error":"Could not choose the best candidate function between:
+  public.join_matchmaking(p_player_id => text, p_game_mode ...
+```
+
+**Cause: `CREATE OR REPLACE FUNCTION` with a different argument list creates an OVERLOAD, not a
+replacement.**
+
+The baseline declares `join_matchmaking(text, text, text, numeric, numeric, numeric)`.
+Migration `202610220002` re-declared it with `integer` wagers. Postgres therefore held **both**, and
+PostgREST refuses to guess between overloads — so every call 500'd. The same drift hit
+`join_matchmaking_hybrid`.
+
+`match_commit_action` was checked and is consistent across `202610180004` and `202610220001`
+(both `uuid, integer, jsonb, text, jsonb`) — only the two matchmaking functions drifted.
+
+**Fix** (`202610220004_fix_matchmaking_overloads.sql`): drop the `integer` overloads and re-create
+the canonical `numeric` signatures carrying the seat-assignment logic. `numeric` is the baseline
+signature, so the original REVOKE/GRANT keeps its meaning; DROP removes those grants, so they are
+re-issued. The migration ends with `NOTIFY pgrst, 'reload schema'` so the cache clears immediately.
+
+Applied and verified: both functions now resolve. A probe with a non-existent wallet returns a
+`23503` foreign-key error rather than the ambiguity — which proves the function was chosen and
+executed, reaching the INSERT.
+
+**New gate: `npm run check:fn-signatures`** (`scripts/check-function-signatures.mjs`). Replays the
+migration chain tracking the set of live signatures per function name; fails if any name ends with
+more than one. That is the database's own invariant, and it permits a legitimate signature change as
+long as the old one is dropped.
+
+Proven load-bearing: with the fix migration removed it reports both overloads and exits 1; with it
+present, clean.
+
+**Why `check:schema` missed it.** It counts migrations and function definitions. A silent overload
+looks exactly like a normal update under a count, so the only signal it can produce is "the number
+changed". This is the second gate added today that checks a *property* rather than a *count* —
+`check:migrations` verifies deployment, `check:fn-signatures` verifies there is one callable
+signature per name.
