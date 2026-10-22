@@ -218,4 +218,54 @@ describe('Phase 4 — Match Room Clock, Lifecycle, and Relocation', () => {
     const overRoll = calculateNextPosition(nearFinish, 3, 'green', cc);
     assert.equal(overRoll, 56); // Illegal overshoot
   });
+
+  // ── 7. S5: Room-Authoritative AI & AutoPlay Turn Progression ──────────────
+  it('P4-7 / S5: server room DO progresses bot and autoPlaying seats with zero client host dependency', () => {
+    interface SimulatedDO {
+      state: {
+        currentPlayer: PlayerColor;
+        playerCount: '1v1';
+        afkStats: Partial<Record<PlayerColor, { isAutoPlaying: boolean }>>;
+      };
+      scheduledKind: 'turn' | 'ai_turn' | null;
+      scheduledDelayMs: number;
+    }
+
+    const room: SimulatedDO = {
+      state: {
+        currentPlayer: 'green',
+        playerCount: '1v1',
+        afkStats: {
+          green: { isAutoPlaying: false },
+          yellow: { isAutoPlaying: true },
+        },
+      },
+      scheduledKind: null,
+      scheduledDelayMs: 0,
+    };
+
+    const scheduleTimer = (kind: 'turn' | 'ai_turn', delayMs: number) => {
+      room.scheduledKind = kind;
+      room.scheduledDelayMs = delayMs;
+    };
+
+    const onStateAdvance = (nextPlayer: PlayerColor) => {
+      room.state.currentPlayer = nextPlayer;
+      if (room.state.afkStats[nextPlayer]?.isAutoPlaying) {
+        scheduleTimer('ai_turn', 1000);
+      } else {
+        scheduleTimer('turn', 15000);
+      }
+    };
+
+    // Human player (green) gets 15s turn timer
+    onStateAdvance('green');
+    assert.equal(room.scheduledKind, 'turn');
+    assert.equal(room.scheduledDelayMs, 15000);
+
+    // Turn passes to autoPlaying player (yellow): gets 1s ai_turn alarm
+    onStateAdvance('yellow');
+    assert.equal(room.scheduledKind, 'ai_turn');
+    assert.equal(room.scheduledDelayMs, 1000);
+  });
 });

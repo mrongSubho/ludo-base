@@ -18,7 +18,7 @@ import { DurableObject } from 'cloudflare:workers';
 import type { GameState } from '../../lib/types';
 import { hashToken } from '../../lib/sessionV2';
 import type { RateLimitDO } from '../rateLimit/RateLimitDO';
-import { getNextPlayer, getLegalTokenIndices, resolveNetworkedMove, applyPower, type PlayerColor } from './engine';
+import { getNextPlayer, getLegalTokenIndices, resolveNetworkedMove, applyPower, lcg32, type PlayerColor } from './engine';
 
 export interface Env {
   MATCH_ROOM: DurableObjectNamespace<MatchRoom>;
@@ -43,7 +43,7 @@ export interface RoomSocketMeta {
 
 export interface ScheduledTimer {
   id: string;
-  kind: 'turn' | 'bet_window' | 'afk_strike' | 'reconnect_grace' | 'TURN_TIMEOUT' | 'BET_TIMEOUT';
+  kind: 'turn' | 'ai_turn' | 'bet_window' | 'afk_strike' | 'reconnect_grace' | 'TURN_TIMEOUT' | 'BET_TIMEOUT';
   deadlineAt: number;
 }
 
@@ -921,6 +921,101 @@ export class MatchRoom extends DurableObject<Env> {
         // Socket closed
       }
     }
+
+    if (newState.winner) {
+      this.timerHeap = [];
+      await this.ctx.storage.put('timerHeap', this.timerHeap);
+    } else {
+      const curColor = newState.currentPlayer as PlayerColor;
+      if (this.isBotOrAutoPlaying(curColor)) {
+        await this.scheduleTimer(this.matchId, 'ai_turn', 1000);
+      } else {
+        await this.scheduleTimer(this.matchId, 'turn', 15000);
+      }
+    }
+  }
+
+  private isBotOrAutoPlaying(color: PlayerColor): boolean {
+    if (!this.state) return false;
+    const player = this.state.initialBoardConfig?.players?.find(p => p.color === color);
+    if (player?.isAi) return true;
+    const afk = this.state.afkStats?.[color];
+    return Boolean(afk?.isAutoPlaying || afk?.isKicked);
+  }
+
+  private async executeServerBotTurn(color: PlayerColor): Promise<void> {
+    if (!this.state || this.state.winner || this.state.currentPlayer !== color) return;
+
+    let seed = 0;
+    for (let i = 0; i < this.matchId.length; i++) {
+      seed = (seed * 31 + this.matchId.charCodeAt(i)) >>> 0;
+    }
+    seed = (seed + this.seq * 1013904223) >>> 0;
+    const rng = lcg32(seed);
+    const rollValue = Math.floor(rng() * 6) + 1;
+
+    const cc = this.state.initialBoardConfig?.colorCorner || {
+      green: 'BL',
+      yellow: 'BR',
+      blue: 'TR',
+      red: 'TL',
+    };
+
+    const legalMoves = getLegalTokenIndices(
+      this.state.positions,
+      color,
+      rollValue,
+      cc
+    );
+
+    if (legalMoves.length === 0) {
+      const nextPlayer = getNextPlayer(color, this.state.playerCount);
+      const nextState: GameState = {
+        ...this.state,
+        diceValue: rollValue,
+        currentPlayer: nextPlayer,
+        isRolling: false,
+        gamePhase: 'rolling',
+      };
+      await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
+      return;
+    }
+
+    let chosenToken = legalMoves[0];
+    for (const tIdx of legalMoves) {
+      const pos = this.state.positions[color][tIdx];
+      if (pos === -1 && rollValue === 6) {
+        chosenToken = tIdx;
+        break;
+      }
+      if (pos > this.state.positions[color][chosenToken]) {
+        chosenToken = tIdx;
+      }
+    }
+
+    const resolved = resolveNetworkedMove({
+      state: this.state as unknown as import('./engine').EngineGameState,
+      color,
+      tokenIndex: chosenToken,
+      dice: rollValue,
+      cc,
+      playerCount: this.state.playerCount,
+      now: Date.now(),
+    });
+
+    if (resolved.ok && resolved.state) {
+      await this.applyNewState(resolved.state as unknown as GameState, this.seq + 1, 'move_committed');
+    } else {
+      const nextPlayer = getNextPlayer(color, this.state.playerCount);
+      const nextState: GameState = {
+        ...this.state,
+        diceValue: rollValue,
+        currentPlayer: nextPlayer,
+        isRolling: false,
+        gamePhase: 'rolling',
+      };
+      await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
+    }
   }
 
   /**
@@ -957,6 +1052,13 @@ export class MatchRoom extends DurableObject<Env> {
     await this.ctx.storage.put('timerHeap', this.timerHeap);
 
     for (const timer of expired) {
+      if (timer.kind === 'ai_turn' && this.state && !this.state.winner) {
+        const cur = this.state.currentPlayer as PlayerColor;
+        if (this.isBotOrAutoPlaying(cur)) {
+          await this.executeServerBotTurn(cur);
+        }
+      }
+
       if ((timer.kind === 'turn' || timer.kind === 'TURN_TIMEOUT') && this.state && !this.state.winner) {
         const cur = this.state.currentPlayer as PlayerColor;
         const strikes = { ...this.state.strikes };
@@ -981,7 +1083,6 @@ export class MatchRoom extends DurableObject<Env> {
           afkStats: afk,
         };
         await this.applyNewState(nextState, this.seq + 1, 'turn_timeout');
-        await this.scheduleTimer(this.matchId, 'turn', 15000);
       }
 
       const timerMsg = JSON.stringify({

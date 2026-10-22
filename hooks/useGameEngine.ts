@@ -87,7 +87,6 @@ export function useGameEngine({
 
     const {
         gameState: networkGameState,
-        isHost,
         isComputeHost,
         sendIntent,
         broadcastAction,
@@ -118,7 +117,6 @@ export function useGameEngine({
     // In multiplayer, authority rests with the P2P Host (or Compute Host if P2P Host leaves).
     // In offline matches, the local player always has authority.
     const isNetworkedMatch = isLobbyConnected
-        || isHost
         || isComputeHost
         || Boolean(networkGameState?.matchId && networkGameState.matchId !== 'local');
     // NET-07: a compute host orchestrates only when it can PROVE it knows the
@@ -128,7 +126,7 @@ export function useGameEngine({
     // `test:netcode` through `computeAuthority`, not re-derived here.
     const isAuthority = computeAuthority({
         isNetworkedMatch,
-        isHost,
+        isHost: false,
         isComputeHost,
         connectionStatus: matchConnectionStatus,
         hasAuthoritativeSnapshot,
@@ -264,7 +262,6 @@ export function useGameEngine({
         setLocalGameState,
         initialPlayers,
         address,
-        isHost: isAuthority,
         isLobbyConnected,
         roomAuthority,
         sendRoomIntent,
@@ -300,7 +297,6 @@ export function useGameEngine({
         moveToken,
         getNextPlayer,
         broadcastAction,
-        isHost: isAuthority,
         colorCorner,
         matchConnectionStatus,
         moveAuth,
@@ -323,7 +319,6 @@ export function useGameEngine({
     useAIBrain({
         localGameState,
         initialPlayers,
-        isHost: isAuthority,
         handleRoll,
         moveToken,
         handleUsePower,
@@ -373,7 +368,7 @@ export function useGameEngine({
     // transition instead of surprising the player on their first action.
     useEffect(() => {
         const matchId = networkGameState?.matchId;
-        if (!isLobbyConnected || isHost || !networkGameState?.isStarted || !matchId || matchId === 'local') return;
+        if (!isLobbyConnected || !networkGameState?.isStarted || !matchId || matchId === 'local') return;
         if (preAuthMatchRef.current === matchId) return;
         preAuthMatchRef.current = matchId;
         const provisionalKeys = [
@@ -398,7 +393,7 @@ export function useGameEngine({
                 preAuthMatchRef.current = null;
             }
         });
-    }, [isLobbyConnected, isHost, networkGameState?.isStarted, networkGameState?.matchId, roomId, moveAuth]);
+    }, [isLobbyConnected, networkGameState?.isStarted, networkGameState?.matchId, roomId, moveAuth]);
 
     const cancelAfk = useCallback((color: PlayerColor) => {
         setLocalGameState((prev) => ({
@@ -428,12 +423,12 @@ export function useGameEngine({
                     }
                 }
             };
-            if (isHost && isLobbyConnected) {
+            if (isLobbyConnected && broadcastAction) {
                 broadcastAction('CMD_REQUEST_TRUST', { color, isBotTrusted: nextState.afkStats[color].isAutoPlaying, isKicked: nextState.afkStats[color].isKicked }, nextState);
             }
             return nextState;
         });
-    }, [isHost, isLobbyConnected, broadcastAction]);
+    }, [isLobbyConnected, broadcastAction]);
 
     // 📬 Listen for Guest Intents (Host only)
     useEffect(() => {
@@ -529,7 +524,7 @@ export function useGameEngine({
         const decision = shouldFlushServerState({
             flushedId: flushedMatchIdRef.current ?? null,
             matchId: ctxMatchId,
-            isHost,
+            isHost: false,
             isLobbyConnected,
         });
         if (decision === 'flush') {
@@ -538,11 +533,11 @@ export function useGameEngine({
         } else if (decision === 'reset') {
             flushedMatchIdRef.current = null;
         }
-    }, [isHost, isLobbyConnected, localGameState.matchId, localGameState.isStarted, updateGameState]);
+    }, [isLobbyConnected, localGameState.matchId, localGameState.isStarted, updateGameState]);
 
-    // Networked guests copy only the server snapshot cached by TeamUpContext.
+    // Networked clients copy only the server snapshot cached by TeamUpContext.
     useEffect(() => {
-        if (!isHost && isLobbyConnected && networkGameState && networkGameState.lastUpdate > localGameState.lastUpdate) {
+        if (isLobbyConnected && networkGameState && networkGameState.lastUpdate > localGameState.lastUpdate) {
             setLocalGameState(prev => {
                 // PW-3: power inventory is per-seat private state. A shared broadcast
                 // carries every colour with `type` stripped, so a blanket spread wiped
@@ -569,7 +564,7 @@ export function useGameEngine({
             });
             if (networkGameState.lastAction?.type === 'MOVE_TOKEN') playMove();
         }
-    }, [isHost, isLobbyConnected, networkGameState, localGameState.lastUpdate, playMove, initialPlayers, address]);
+    }, [isLobbyConnected, networkGameState, localGameState.lastUpdate, playMove, initialPlayers, address]);
 
     // Host: pull matchId from TeamUpContext (seeded on START_GAME) so Edge
     // rolls/moves are not stuck on match_id='local'.

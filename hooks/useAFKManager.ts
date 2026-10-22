@@ -14,7 +14,6 @@ interface UseAFKManagerProps {
     moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => Promise<MoveTokenOutcome>;
     getNextPlayer: (current: PlayerColor) => PlayerColor;
     broadcastAction?: <T extends GameActionType>(type: T, payload?: GameActionPayload<T>, stateOverride?: GameState) => void;
-    isHost?: boolean;
     colorCorner?: ColorCorner;
     matchConnectionStatus?: MatchConnectionStatus;
     /** Networked authority handles for AFK auto-play (host drives bot seats). */
@@ -44,7 +43,6 @@ export function useAFKManager({
     moveToken,
     getNextPlayer,
     broadcastAction,
-    isHost,
     colorCorner,
     matchConnectionStatus = 'offline',
     moveAuth,
@@ -58,7 +56,7 @@ export function useAFKManager({
     useEffect(() => {
         if (localGameState.winner || localGameState.idleWarning ||
             matchConnectionStatus === 'ended' || matchConnectionStatus === 'reconnecting' ||
-            matchConnectionStatus === 'syncing') return;
+            matchConnectionStatus === 'syncing' || matchConnectionStatus === 'connected') return;
 
         const color = localGameState.currentPlayer;
         const currentPlayerInfo = initialPlayers.find(p => p.color === color);
@@ -105,7 +103,7 @@ export function useAFKManager({
     useEffect(() => {
         if (localGameState.winner || localGameState.idleWarning ||
             matchConnectionStatus === 'ended' || matchConnectionStatus === 'reconnecting' ||
-            matchConnectionStatus === 'syncing') return;
+            matchConnectionStatus === 'syncing' || matchConnectionStatus === 'connected') return;
 
         const color = localGameState.currentPlayer;
         const currentPlayerInfo = initialPlayers.find(p => p.color === color);
@@ -113,9 +111,8 @@ export function useAFKManager({
         const isKicked = localGameState.afkStats[color].isKicked;
         const isCurrentlyBot = isOriginalBot || isKicked;
 
-        // ONLY the Host (or Computer Host) triggers forced AFK actions for ANY player.
-        // This prevents Guests from spamming intents while 'timeLeft' is 0.
-        if (isHost && !isCurrentlyBot && localGameState.afkStats[color].isAutoPlaying && localGameState.timeLeft <= 0) {
+        // Striking & auto-play actions in offline matches when 'timeLeft' is 0.
+        if (!isCurrentlyBot && localGameState.afkStats[color].isAutoPlaying && localGameState.timeLeft <= 0) {
             if (localGameState.gamePhase === 'rolling') {
                 // No pre-rolled face: handleRoll uses Edge RNG in networked
                 // matches and local RNG only offline (see useGameActions).
@@ -177,7 +174,7 @@ export function useAFKManager({
                             timeLeft: 15,
                             lastUpdate: Date.now()
                         };
-                        if (isHost && broadcastAction) {
+                        if (broadcastAction) {
                             broadcastAction('TURN_SWITCH', { nextPlayer }, switchState);
                         }
                         return switchState;
@@ -195,5 +192,5 @@ export function useAFKManager({
                 }
             }
         }
-    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.gamePhase, localGameState.winner, localGameState.diceValue, localGameState.afkStats, localGameState.idleWarning, handleRoll, moveToken, initialPlayers, getNextPlayer, setLocalGameState, isHost, broadcastAction, colorCorner, matchConnectionStatus]);
+    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.gamePhase, localGameState.winner, localGameState.diceValue, localGameState.afkStats, localGameState.idleWarning, handleRoll, moveToken, initialPlayers, getNextPlayer, setLocalGameState, broadcastAction, colorCorner, matchConnectionStatus]);
 }

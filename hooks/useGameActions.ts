@@ -31,7 +31,6 @@ interface UseGameActionsProps {
     setLocalGameState: GameStateSetter;
     initialPlayers: Player[];
     address: string | undefined;
-    isHost: boolean;
     isLobbyConnected: boolean;
     broadcastAction: <T extends GameActionType>(type: T, payload?: GameActionPayload<T>, fullState?: GameState) => void;
     sendIntent: <T extends GameIntentType>(type: T, payload: GameIntentPayloads[T]) => void;
@@ -111,7 +110,6 @@ export function useGameActions({
     setLocalGameState,
     initialPlayers,
     address,
-    isHost,
     isLobbyConnected,
     roomAuthority,
     sendRoomIntent,
@@ -197,14 +195,6 @@ export function useGameActions({
             } finally {
                 serverActionPendingRef.current = false;
             }
-        }
-
-        // Guest without server path: intent to host (legacy)
-        if (isLobbyConnected && !isHost && !isRemote) {
-            console.log('🏃 [Guest] Sending REQUEST_MOVE intent');
-            // No diceValue: the host moves with the face it already rolled.
-            sendIntent('REQUEST_MOVE', { color, tokenIndex });
-            return 'deferred';
         }
 
         if (autoMoveTimeoutRef.current) {
@@ -300,19 +290,17 @@ export function useGameActions({
             finalState as unknown as Parameters<typeof sweepExpiredPowers>[0],
         ).playerPowers as GameState['playerPowers'];
 
-        if (isHost && !isRemote) {
-            if (newState.currentPlayer !== currentState.currentPlayer || isBonusTurn) {                pTurnSwitchPending = true;
+        if (!isRemote) {
+            if (newState.currentPlayer !== currentState.currentPlayer || isBonusTurn) {
+                pTurnSwitchPending = true;
                 pNextPlayer = isBonusTurn ? color : newState.currentPlayer;
             }
         }
 
         setLocalGameState(finalState);
 
-        // NET-03: no MOVE_TOKEN broadcast. The partial target-position hint let
-        // a guest advance its own rules state from a peer's word, and it could
-        // disagree with match_states (the audit's live divergence). The state
-        // travels as the seq-gated match_states override below instead.
-        if (isHost && isLobbyConnected && !isRemote) {
+        // State travels via server room DO or local state.
+        if (broadcastAction && isLobbyConnected && !isRemote) {
             broadcastAction('ENGINE_STATE', {}, finalState);
         }
 
@@ -346,14 +334,13 @@ export function useGameActions({
                         lastUpdate: Date.now(),
                         timeLeft: 15 // Reset for next turn
                     };
-                    // NET-03: full state instead of a TURN_SWITCH hint.
-                    if (isHost && isLobbyConnected) broadcastAction('ENGINE_STATE', {}, switchState);
+                    if (broadcastAction && isLobbyConnected) broadcastAction('ENGINE_STATE', {}, switchState);
                     return switchState;
                 });
             }, 800);
         }
         return 'applied';
-    }, [isHost, isLobbyConnected, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers, applyServerState]);
+    }, [isLobbyConnected, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers, applyServerState]);
 
     /**
      * Pull the authoritative snapshot after a refused write (403 wrong turn,
@@ -403,29 +390,19 @@ export function useGameActions({
         const currentPlayerInfo = initialPlayers.find(p => p.color === color);
         const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.afkStats?.[color]?.isKicked;
         
-        // 🚨 CRITICAL FIX: Bots are host-only in lobby, but in local match, we are the host.
-        if (!isRemote && (isLobbyConnected && !isHost) && isCurrentlyBot) {
+        // In a networked match, bots are rolled by the server room DO.
+        if (!isRemote && isLobbyConnected && isCurrentlyBot) {
             rollingRef.current = false;
             return 'failed';
         }
 
-        // 🎲 Guest: Ask the host to roll. No face is sent — the host rolls.
-        if (isLobbyConnected && !isHost && !isRemote) {
-            console.log('🎲 [Guest] Sending REQUEST_ROLL intent');
+        // Degraded fallback intent when server room DO is not yet open
+        if (isLobbyConnected && !roomAuthority && !isRemote) {
             sendIntent('REQUEST_ROLL', {});
             rollingRef.current = false;
             return 'failed';
         }
 
-        // 🎰 Host: Open betting window (Only for human players)
-        if (isHost && isLobbyConnected && !isRemote && !isCurrentlyBot) {
-            await startBettingWindow('dice_roll');
-        }
-
-        // 1. Start Tumble Phase
-        if (isHost && isLobbyConnected && !isRemote) {
-            broadcastAction('ROLL_DICE', { isRolling: true, diceValue: null });
-        }
         setLocalGameState((prev) => ({ ...prev, isRolling: true, diceValue: null, timeLeft: 15 }));
 
         const tumblePromise = new Promise(r => setTimeout(r, 1200));
@@ -461,11 +438,6 @@ export function useGameActions({
 
         // Wait for the tumble animation to finish
         await tumblePromise;
-
-        // 🚨 Broadcast result to Guests (rollId is the server receipt from match_rolls)
-        if (isHost && isLobbyConnected && !isRemote) {
-            broadcastAction('ROLL_DICE', { isRolling: false, diceValue: rollValue, rollId: rollReceiptId });
-        }
 
         setLocalGameState((prev) => ({
             ...prev,
@@ -561,7 +533,7 @@ export function useGameActions({
         }
 
         // 🚀 Executing side effects OUTSIDE the setLocalGameState!
-        if (isHost && isLobbyConnected && !isRemote && pFinalStateForBroadcast) {
+        if (broadcastAction && isLobbyConnected && !isRemote && pFinalStateForBroadcast) {
             broadcastAction('ENGINE_STATE', {}, pFinalStateForBroadcast);
         }
 
@@ -576,7 +548,7 @@ export function useGameActions({
                 const passSeat = initialPlayers.find(p => p.color === pTargetColor);
                 const passIsBot = passSeat?.isAi || !!stateRef.current.afkStats?.[pTargetColor]?.isKicked;
                 const passSource: 'player' | 'host-assist' =
-                    passIsBot && isHost ? 'host-assist' : 'player';
+                    passIsBot ? 'host-assist' : 'player';
                 serverActionPendingRef.current = true;
                 try {
                     const pass = await moveAuth!.passTurn({
@@ -598,7 +570,7 @@ export function useGameActions({
                             timeLeft: 15,
                             lastUpdate: Date.now(),
                         }));
-                        if (isHost) broadcastAction('ENGINE_STATE', {}, pass.state!);
+                        if (broadcastAction) broadcastAction('ENGINE_STATE', {}, pass.state!);
                     } else {
                         // Server refused the pass (usually a seq race). Recover
                         // from the authoritative snapshot instead of wedging.
@@ -625,7 +597,7 @@ export function useGameActions({
                 };
                 console.log(`🎲 [Engine] Auto-switching to ${pNextPlayer}`);
                 // NET-03: full state instead of a TURN_SWITCH hint.
-                if (isHost && isLobbyConnected) broadcastAction('ENGINE_STATE', {}, switchState);
+                if (broadcastAction && isLobbyConnected) broadcastAction('ENGINE_STATE', {}, switchState);
                 rollingRef.current = false;
                 return switchState;
             });
@@ -638,7 +610,7 @@ export function useGameActions({
             }, 1500);
         }
         return 'applied';
-    }, [isHost, isLobbyConnected, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address, moveAuth, serverSeqRef, lastRollIdRef, applyServerState, resyncFromServer]);
+    }, [isLobbyConnected, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address, moveAuth, serverSeqRef, lastRollIdRef, applyServerState, resyncFromServer]);
 
     const handleUsePower = useCallback(async (color: PlayerColor, type?: PowerType, tokenIdx?: number) => {
         const prev = stateRef.current;
@@ -691,17 +663,6 @@ export function useGameActions({
         const liveInv: PowerItem[] = (prev.playerPowers[myColor] || []).filter((p: PowerItem) => p.expiresAt > now);
         const pick: PowerType | undefined = type ?? (['nuke', 'shield', 'boost', 'teleport'] as PowerType[]).find(t => liveInv.some(p => p.type === t));
         if (!pick || !liveInv.some(p => p.type === pick)) return;
-
-        // PW-3: in a networked room the HOST owns the board and the inventory, so a
-        // guest must not apply a power to its own copy of the state — the next host
-        // broadcast would overwrite it and the two boards would diverge. Ask the
-        // host instead, exactly like REQUEST_MOVE. (Before this, a guest's power was
-        // resolved by the edge function against `match_states`, which the host never
-        // observed — so the guest saw a shield the host's board did not have.)
-        if (isLobbyConnected && !isHost) {
-            sendIntent('REQUEST_POWER', { color: myColor, power: pick, tokenIndex: tokenIdx });
-            return;
-        }
 
         const consume = (inv: PowerItem[], t: PowerType) => {
             const i = inv.findIndex(p => p.type === t);
@@ -842,7 +803,7 @@ export function useGameActions({
                 setLocalGameState((latest) => ({ ...latest, nukeFlash: [], lastUpdate: Date.now() }));
             }, 1400);
         }
-    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, moveAuth, serverSeqRef, isHost, address, initialPlayers, applyServerState, lastRollIdRef, resyncFromServer, sendIntent]);
+    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, moveAuth, serverSeqRef, address, initialPlayers, applyServerState, lastRollIdRef, resyncFromServer, sendIntent]);
 
     const handleTokenClick = useCallback((color: PlayerColor, tokenIndex: number) => {
         if (localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;
@@ -863,13 +824,13 @@ export function useGameActions({
         if (isCurrentlyBot) return;
         if (color !== myColor && !isTeammateAssist) return;
 
-        if (!isHost && isLobbyConnected) {
+        if (isLobbyConnected && !roomAuthority) {
             sendIntent('REQUEST_MOVE', { color, tokenIndex });
             return;
         }
 
         moveToken(color, tokenIndex, localGameState.diceValue);
-    }, [localGameState.gamePhase, localGameState.diceValue, localGameState.currentPlayer, localGameState.positions, playerCount, isHost, isLobbyConnected, sendIntent, moveToken, address, initialPlayers]);
+    }, [localGameState.gamePhase, localGameState.diceValue, localGameState.currentPlayer, localGameState.positions, playerCount, isLobbyConnected, sendIntent, moveToken, address, initialPlayers]);
 
     return {
         moveToken,

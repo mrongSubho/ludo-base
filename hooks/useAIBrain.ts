@@ -17,7 +17,6 @@ import type { RollOutcome } from './useGameActions';
 interface UseAIBrainProps {
     localGameState: GameState;
     initialPlayers: Player[];
-    isHost: boolean;
     handleRoll: (isRemote?: boolean) => Promise<RollOutcome>;
     moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => void;
     handleUsePower: (color: PlayerColor, type?: PowerType, tokenIdx?: number) => void;
@@ -30,7 +29,6 @@ interface UseAIBrainProps {
 export function useAIBrain({
     localGameState,
     initialPlayers,
-    isHost,
     handleRoll,
     moveToken,
     handleUsePower,
@@ -58,8 +56,8 @@ export function useAIBrain({
     useEffect(() => {
         if (localGameState.winner || shouldPauseLocalOrchestration(matchConnectionStatus)) return;
 
-        // In networked matches, only the Host orchestrates the AI.
-        if (isLobbyConnected && !isHost) return;
+        // In networked matches, server room DO orchestrates AI.
+        if (isLobbyConnected || matchConnectionStatus === 'connected') return;
 
         const color = localGameState.currentPlayer;
         const phase = localGameState.gamePhase;
@@ -165,7 +163,6 @@ export function useAIBrain({
         localGameState.isRolling,
         isLobbyConnected,
         matchConnectionStatus,
-        isHost, 
         initialPlayers, 
         localGameState.afkStats, 
         localGameState.playerPowers, 
