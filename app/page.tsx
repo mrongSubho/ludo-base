@@ -499,16 +499,39 @@ export default function Page() {
 
     if (isActuallyStarted && appState !== 'game') {
       console.log('🏁 TRANSITIONING TO GAME! (isStarted:', gameState?.isStarted, 'lobbyStatus:', lobbyState?.status, ')');
-      
-      // 🔧 SYNC FIX: If we are joining a game as a Guest, reset local isBotMatch 
+
+      // MM-15: a guest must never reach the board without the host's roster.
+      //
+      // This effect is the "missed START_GAME" recovery path, and it used to
+      // navigate unconditionally. That bypassed `handlePlayNow` entirely — so a
+      // guest's `boardSeed` stayed null and `Board` mounted with
+      // `initialPlayers` undefined, at which point it fell back to
+      // `shufflePlayers(...)` and invented a random table with bots. Reported
+      // live as device B showing "a random bot player" in an otherwise correct
+      // match. The `lobbyState.status === 'playing'` half of the condition is
+      // the usual trigger: LOBBY_SYNC arrives before START_GAME.
+      if (!isHost) {
+        const roster = gameState?.initialBoardConfig?.players;
+        if (!Array.isArray(roster) || roster.length === 0) {
+          console.warn('⏳ [Page] guest start pending — waiting for the host roster before mounting the board');
+          return;
+        }
+        setBoardSeed({
+          players: roster,
+          colorCorner: gameState?.initialBoardConfig?.colorCorner,
+          isBotMatch: false,
+        });
+      }
+
+      // 🔧 SYNC FIX: If we are joining a game as a Guest, reset local isBotMatch
       // based on the authoritative Host broadcast.
       if (!isHost && gameState?.isBotMatch !== undefined) {
         setIsBotMatch(gameState.isBotMatch);
       }
-      
+
       setAppState('game');
     }
-  }, [gameState?.isStarted, gameState?.isBotMatch, lobbyState?.status, appState, isHost]);
+  }, [gameState?.isStarted, gameState?.isBotMatch, gameState?.initialBoardConfig, lobbyState?.status, appState, isHost]);
 
   const closeTab = () => setActiveTab(null);
   const [burnOpen, setBurnOpen] = useState(false);

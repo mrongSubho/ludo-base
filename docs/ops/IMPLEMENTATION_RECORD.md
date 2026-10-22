@@ -1494,3 +1494,67 @@ errors** · `check:routes` clean (53 routes) · `check:drift` 12/12 · `check:en
 
 **Not verified end-to-end.** Needs another two-device run. The host should now seat the guest as
 soon as the door lands (~5s worst case) instead of 403ing until then.
+
+---
+
+## Part XVIII — MM-15: a second route onto the board bypassed the roster gate (2026-10-22)
+
+*Reported after MM-13/MM-14: the match now reaches the board on both devices. Device A showed the
+correct roster; device B showed "a random bot player"; neither device could roll.*
+
+### What the database said first
+
+For the failing match (`QM-1DEBD3`):
+
+- **elected host = `0xe8d172…`** (device B), and **that is also who declared the door policy** — host
+  election is consistent, so that was not the problem.
+- **no `lobby_join_requests` row** — the guest was seated over the **relay**, not REST.
+- `match_states` still empty (the pre-existing SA-1 consequence, unchanged).
+
+Note the roles had **flipped** from the earlier runs: `0xbcca…` (Subho, "me") was the *guest* this
+time. That reframed both symptoms — the correct roster was on the guest, the bot roster on the host.
+
+### Root cause: `handlePlayNow` is not the only way onto the board
+
+MM-13 gated `handlePlayNow`. But `app/page.tsx` has a **second** path: a "missed START_GAME"
+recovery effect that navigates as soon as `gameState.isStarted` **or** `lobbyState.status ===
+'playing'`.
+
+That effect called `setAppState('game')` unconditionally. So the guest's `boardSeed` stayed `null`,
+`Board` mounted with `initialPlayers` undefined, and its `shufflePlayers(...)` fallback **invented a
+random table with bots**. The `status === 'playing'` half is the usual trigger: `LOBBY_SYNC` arrives
+before `START_GAME`, so the guest is navigated to the board while `initialBoardConfig` is still
+absent.
+
+This also explains why the stall felt like a roll problem rather than a roster problem: with an
+invented roster the seat colours, `walletAddress` bindings and `isAi` flags are all fiction, so
+`ownColor` resolves to the wrong seat and `isAi` seats disable the human roll (`canRoll` requires
+`!isCurrentlyBot`) while the AI brain refuses to act for a non-host.
+
+### The fix
+
+- **The recovery effect gates the guest on the host roster**, exactly like `handlePlayNow`, and sets
+  `boardSeed` *before* navigating. `initialBoardConfig` is in its dependency array — without that the
+  wait would never lift.
+- **`Board` now announces** when it has to seed a local table, naming the likely cause
+  (`START_GAME` arrived without `initialBoardConfig`). It still seeds, so offline play is unchanged,
+  but a networked match can no longer invent a table silently.
+
+### Tests
+
+Two tests in `scripts/matchmaking-shape.test.ts`, **both failing on the pre-fix code** (verified by
+reverting both files in place). One asserts the guard's presence *and* its ordering — `setBoardSeed`
+must precede `setAppState('game')` — because a guard that navigates first has the same bug with
+extra steps.
+
+### Result
+
+`npm test` **517 / 506 pass / 0 fail** (11 skipped) · `tsc` app + worker **0 errors** ·
+`check:routes` clean · `check:drift` 12/12 · `check:engine` in sync · `check:schema` 40/39 ·
+`check:rls` 40 · `check:fields` clean · `eslint` 0 errors.
+
+**Not verified end-to-end, and the roll symptom specifically is not proven fixed.** The roster
+divergence is fixed and provable; whether "nobody can roll" was entirely a consequence of the
+invented roster is an inference, not a measurement. If it recurs, the console now distinguishes the
+two cases: `guest start pending — waiting for the host roster` (the gate held) versus
+`no roster supplied — seeding a local table` (something else is dropping `initialBoardConfig`).

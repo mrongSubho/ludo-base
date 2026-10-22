@@ -147,6 +147,15 @@ export default function Board({
             };
         }
         const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
+        // MM-15: `shufflePlayers` is the OFFLINE seeding path — it invents a
+        // random table. Reaching it in a networked match means the roster never
+        // arrived, and the old code silently rendered that invented table: one
+        // device showed the real players, the other showed random bots, and
+        // neither could reconcile a turn. Say so instead of hiding it.
+        console.warn(
+            `🎲 [Board] no roster supplied — seeding a local table (isBotMatch=${isBotMatch}). ` +
+            'In a networked match this means START_GAME arrived without initialBoardConfig.',
+        );
         const generatedPlayers = shufflePlayers(playerCount, isBotMatch, cc) as Player[];
         return {
             players: generatedPlayers,

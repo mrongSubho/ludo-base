@@ -265,3 +265,43 @@ test('MM-13: the host still builds its roster from lobby slots', () => {
     assert.match(src, /players = lobbyState\.slots/);
     assert.match(src, /joinedHumanCount < requiredHumans/);
 });
+
+// ── MM-15: the auto-navigate effect must not bypass the roster gate ────────
+//
+// Reported after MM-13/MM-14: the match reaches the board, device A shows the
+// correct roster, device B shows "a random bot player", and nobody can roll.
+//
+// MM-13 gated `handlePlayNow`, but page.tsx has a SECOND way onto the board: a
+// "missed START_GAME" recovery effect that navigates as soon as `isStarted` OR
+// `lobbyState.status === 'playing'`. That bypassed `handlePlayNow` entirely, so
+// the guest's `boardSeed` stayed null, `Board` mounted with `initialPlayers`
+// undefined, and its `shufflePlayers` fallback invented a random table. The
+// `status === 'playing'` half is the usual trigger — LOBBY_SYNC lands before
+// START_GAME.
+
+test('MM-15: the game-start recovery effect gates the guest on the host roster', () => {
+    const src = read('app/page.tsx');
+    // Locate the effect by its recovery-path comment, then check the guard.
+    const at = src.indexOf('TeamUp Game Start Sync');
+    assert.ok(at > 0, 'the game-start sync effect must exist');
+    const effect = src.slice(at, at + 2000);
+    assert.match(effect, /if \(!isHost\) \{/);
+    assert.match(effect, /const roster = gameState\?\.initialBoardConfig\?\.players/);
+    assert.match(effect, /guest start pending — waiting for the host roster/);
+    // It must set boardSeed before navigating, or Board still has nothing.
+    assert.ok(
+        effect.indexOf('setBoardSeed(') < effect.indexOf("setAppState('game')"),
+        'boardSeed must be set before navigating to the board',
+    );
+    // And the roster must be in the dep array, or the wait never lifts.
+    assert.match(
+        src,
+        /\[gameState\?\.isStarted, gameState\?\.isBotMatch, gameState\?\.initialBoardConfig, lobbyState\?\.status, appState, isHost\]/,
+    );
+});
+
+test('MM-15: Board announces rather than silently inventing a networked roster', () => {
+    const src = read('app/components/Board.tsx');
+    assert.match(src, /no roster supplied — seeding a local table/);
+    assert.match(src, /In a networked match this means START_GAME arrived without initialBoardConfig/);
+});
