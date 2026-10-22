@@ -39,3 +39,45 @@ test('TU-1: calculateNextPosition correctly rejects illegal position leaps', () 
     const illegalTarget = 57;
     assert.notEqual(valid, illegalTarget, 'illegal leap directly to home stretch must be rejected');
 });
+
+test('TU-1: the relay cannot move a client to another room', () => {
+    // `host-migrated` was a receive-only, unauthenticated control verb on the
+    // public `game-room-<code>` topic: nothing in the repo ever sent it, and it
+    // called `joinGame(payload.newRoomCode)` with an attacker-supplied value.
+    // Anyone who learned a room code could bounce every subscribed client into
+    // an arbitrary room. It is removed, not gated — AGENTS.md invariant 3 says
+    // the relay must not carry a verb that relocates a client.
+    //
+    // Comments are stripped first: the removal is documented in place, and a
+    // grep that matched its own explanation would be a tautology.
+    const relay = read('hooks/useSupabaseRelay.ts')
+        .split('\n')
+        .filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*'))
+        .join('\n');
+    assert.doesNotMatch(relay, /host-migrated/, 'the relay must not listen for host-migrated');
+    assert.doesNotMatch(relay, /joinGame/, 'the relay must not be able to join a room');
+
+    // The hook no longer takes a room-joining callback at all, so a future
+    // edit cannot quietly reintroduce the path.
+    assert.doesNotMatch(relay, /joinGame\??:/, 'joinGame must not be a prop of useSupabaseRelay');
+
+    // And no other module broadcasts it either — if someone re-adds a sender,
+    // this test tells them to build it on the peer transport instead.
+    const ctx = read('hooks/TeamUpContext.tsx')
+        .split('\n')
+        .filter((l) => !l.trim().startsWith('//') && !l.trim().startsWith('*') && !l.trim().startsWith('/*'))
+        .join('\n');
+    assert.doesNotMatch(ctx, /host-migrated/, 'nothing may broadcast host-migrated');
+});
+
+test('TU-1: the only relay-applied verb is game-action, and it stays transport-gated', () => {
+    const relay = read('hooks/useSupabaseRelay.ts');
+    // Exactly one broadcast handler: game-action. It calls processGameAction
+    // with a single argument, so `via` defaults to 'relay' and the state-verb
+    // gate in TeamUpContext rejects every state-bearing action.
+    const handlers = relay.match(/\.on\('broadcast'/g) || [];
+    assert.equal(handlers.length, 1, 'the relay must listen for exactly one event');
+    assert.match(relay, /processGameAction\(payload\)/);
+    assert.doesNotMatch(relay, /processGameAction\(payload,\s*'peer'\)/,
+        'a relay-received payload must never be applied as a peer payload');
+});

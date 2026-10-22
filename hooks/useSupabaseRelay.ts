@@ -10,7 +10,6 @@ interface UseSupabaseRelayProps {
     lobbyState: LobbyState | null;
     currentRoomCode: string | null;
     processGameAction: (data: any) => void;
-    joinGame: (targetRoomId: string) => void;
 }
 
 export function useSupabaseRelay({
@@ -18,7 +17,6 @@ export function useSupabaseRelay({
     lobbyState,
     currentRoomCode,
     processGameAction,
-    joinGame
 }: UseSupabaseRelayProps) {
     // NET-08: TTL + LRU-bounded eviction replaces an unbounded Set that grew
     // for the whole session. Evictions meter net_intent_dup so a dropped id
@@ -63,19 +61,23 @@ export function useSupabaseRelay({
                 console.log('🛰️ Action received via Supabase Relay:', payload.type);
                 processGameAction(payload);
             })
-            .on('broadcast', { event: 'host-migrated' }, ({ payload }) => {
-                console.log('🔄 MIGRATION SIGNAL RECEIVED:', payload);
-                if (payload.newRoomCode) {
-                    joinGame(payload.newRoomCode);
-                }
-            })
+            // TU-1: this channel previously also listened for `host-migrated`
+            // and called `joinGame(payload.newRoomCode)` on it. Nothing in the
+            // repo ever *sent* that event — it had no producer, no documented
+            // plan, and no validation — so it was a receive-only, unauthenticated
+            // control verb on a public topic: anyone who learned the room code
+            // could bounce every subscribed client into an arbitrary room.
+            // AGENTS.md invariant 3 says the relay is not an authority channel
+            // and must not carry a verb that moves a client between rooms, so
+            // the handler is gone rather than gated. `joinGame` is therefore no
+            // longer a dependency of this hook at all.
             .subscribe((status) => {
                 console.log(`📡 [Relay] Channel status for game-room-${code}:`, status);
             });
 
         activeChannelRef.current = { code, channel: ch };
         return ch;
-    }, [processGameAction, joinGame]);
+    }, [processGameAction]);
 
     const setRelayRoom = useCallback((code: string | null) => {
         roomCodeRef.current = code;

@@ -486,7 +486,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         lobbyState,
         currentRoomCode,
         processGameAction: (data: Record<string, unknown>) => processGameAction(data),
-        joinGame: (id: string) => joinGame(id)
     });
 
     // 2.5. Presence Manager (AFK Failsafe Baton Pass)
