@@ -1830,3 +1830,35 @@ exist and the match still cannot start — it will now *say so* instead of hangi
 either `npm run deploy` (opennextjs-cloudflare → Workers, which is what `wrangler.jsonc` +
 `src/worker.ts` are for) or `NEXT_PUBLIC_ROOM_WS_URL` pointing at a deployed Worker. That is a
 deployment decision, not a code change.
+
+### D2 preflight: the room failure now names its cause (2026-10-23)
+
+D2 turned the silent stall into "Unable to connect to game room — retrying…", which is honest but not
+actionable: the two real causes need different fixes by different people, and the message cannot tell
+them apart. So the client now asks the endpoint directly before dialling the socket.
+
+The discriminator is already in the room: `MatchRoomCore.fetch` answers a request to `/ws` without an
+`Upgrade` header with **426 "Expected WebSocket upgrade"**. So a plain GET distinguishes them exactly:
+
+| Response | Meaning | Fix |
+|---|---|---|
+| **404** | this deployment has no room endpoint. Only `src/worker.ts` serves it, and there is no `app/api/room` Next route, so a plain Next host — dev server, Vercel — can never work | deploy to Cloudflare Workers (`npm run deploy`), or set `NEXT_PUBLIC_ROOM_WS_URL` at a Worker that hosts the DO |
+| **426** | the Durable Object is present; the socket itself is what fails | ticket / auth / network |
+
+On 404 the client sets `roomError = 'not-deployed'` and short-circuits *before* the socket attempt, so
+it does not also fail a doomed connect. The panel then shows **"Game room unavailable on this
+deployment"**. Any other status clears the reason, so a retry cannot inherit a stale one.
+
+Three tests, all failing pre-fix. One asserts **ordering** — the preflight must precede
+`new RoomClient(` — because a preflight placed after the socket attempt can report a cause it never
+actually tested.
+
+**Verified:** 529 tests / 518 pass / 0 fail · tsc app + worker 0 errors · eslint **0 errors** ·
+check:migrations 44/44 · check:fn-signatures clean · check:schema 44/45 · check:rls 44 · check:routes
+53 · check:fields clean · check:drift 12/12.
+
+**Environment note:** `npx eslint .` over the whole repo now dies with `JavaScript heap out of memory`
+(~2 GB ceiling) — it succeeded earlier in this session, so it is a resource limit, not a regression.
+Linting per-directory (`app hooks lib scripts src types`) reports **0 errors** and is what the numbers
+above are from. `NODE_OPTIONS=--max-old-space-size` is not a workaround here: the injected fs-broker
+shim is enabled by it and makes eslint report ~83k spurious errors.

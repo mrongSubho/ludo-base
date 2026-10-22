@@ -143,6 +143,7 @@ export const QuickMatchPanel = ({
         isLobbyConnected, 
         isHost: p2pHost,
         roomStatus,
+        roomError,
         gameState,
         lobbyState,
         participants,
@@ -940,7 +941,9 @@ export const QuickMatchPanel = ({
                                                 className="mb-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-ludo-xs font-black text-amber-500 uppercase tracking-widest animate-pulse"
                                             >
                                                 {roomStatus === 'failed'
-                                                    ? 'Unable to connect to game room — retrying…'
+                                                    ? roomError === 'not-deployed'
+                                                        ? 'Game room unavailable on this deployment'
+                                                        : 'Unable to connect to game room — retrying…'
                                                     : p2pHost
                                                         ? 'Opponent hasn’t linked yet…'
                                                         : 'Still linking both players…'}

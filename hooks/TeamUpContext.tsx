@@ -158,6 +158,8 @@ export interface TeamUpContextType {
     roomAuthority: boolean;
     /** D2: room socket state — 'failed' means the room is unreachable, not merely absent. */
     roomStatus: 'idle' | 'connecting' | 'connected' | 'failed';
+    /** D2: why it failed — 'not-deployed' needs a Cloudflare Workers deploy. */
+    roomError: 'none' | 'not-deployed' | 'unreachable';
     retryRoom: () => void;
     /** Send an intent to the room. Rejects when no room socket is open. */
     sendRoomIntent: (kind: string, payload?: unknown) => Promise<{ ok: boolean; data?: unknown }>;
@@ -316,6 +318,16 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
      * the silent fallback must go; this is the state that replaces it.
      */
     const [roomStatus, setRoomStatus] = useState<'idle' | 'connecting' | 'connected' | 'failed'>('idle');
+    /**
+     * D2: WHY the room failed. A bare 'failed' still leaves the player guessing, and
+     * the two real causes need different fixes by different people:
+     *   'not-deployed'  /api/room/:id/ws returned 404 — this host has no room endpoint.
+     *                    Only `src/worker.ts` serves it, so a plain Next host (dev,
+     *                    Vercel) can never work. Fix: deploy to Cloudflare Workers.
+     *   'unreachable'   network-level failure or no 426 — Worker missing/unroutable.
+     * Fix: deployment / connectivity.
+     */
+    const [roomError, setRoomError] = useState<'none' | 'not-deployed' | 'unreachable'>('none');
     const roomAttemptsRef = useRef(0);
     const lastRoomMatchIdRef = useRef<string | null>(null);
     /**
@@ -340,6 +352,26 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         pendingRoomSeedRef.current = seedPayload ?? null;
 
         const doConnect = async () => {
+            // D2 preflight: distinguish "this host has no room endpoint" from
+            // "the room is reachable but the socket failed". The room answers a
+            // plain GET on /ws with 426 'Expected WebSocket upgrade', so 426 means
+            // the Durable Object is there and something else is wrong; 404 means
+            // the path does not exist on this deployment at all.
+            try {
+                const probe = await fetch(`/api/room/${encodeURIComponent(matchId)}/ws`);
+                if (probe.status === 404) {
+                    console.error('🏟️ [Room] /api/room/:id/ws returned 404 — this deployment does not serve the game room');
+                    setRoomError('not-deployed');
+                    setRoomStatus('failed');
+                    return;
+                }
+                setRoomError('none');
+            } catch (e) {
+                // Network-level failure. Let the socket attempt report it too.
+                console.warn('🏟️ [Room] preflight could not reach the room endpoint:', e);
+                setRoomError('unreachable');
+            }
+
             let ticket: string | undefined;
             try {
                 const sid = appSessionId || peekAppSession();
@@ -374,6 +406,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                             roomAttemptsRef.current = 0;
                             setRoomStatus('connected');
                         } else if (status === 'disconnected') {
+                            setRoomError((prev) => (prev === 'none' ? 'unreachable' : prev));
                             // D2: a room that drops is a failure to surface, not a
                             // reason to quietly hand authority back to a P2P host.
                             setRoomStatus('failed');
@@ -395,6 +428,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     onError: (err) => {
                         console.warn('🏟️ [Room] transport error:', err);
                         setRoomStatus('failed');
+                        setRoomError((prev) => (prev === 'none' ? 'unreachable' : prev));
                     },
                 });
                 roomClientRef.current = client;
@@ -405,6 +439,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 console.error('🏟️ [Room] unavailable — cannot start a networked match:', err);
                 setRoomAuthority(false);
                 setRoomStatus('failed');
+                setRoomError((prev) => (prev === 'none' ? 'unreachable' : prev));
                 roomClientRef.current = null;
             }
         };
@@ -1707,7 +1742,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         participants, intentQueue, lastIntent: intentQueue[0] ?? null, clearIntent, sendIntentAck, leaveGame, validationToken,
         recordDisconnect, clearDisconnect, classifyAndRecordAbandon, abandonGraceFor,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot,
-        matchPhase, matchFsmIllegal, roomAuthority, roomStatus, retryRoom, sendRoomIntent, connectRoom,
+        matchPhase, matchFsmIllegal, roomAuthority, roomStatus, roomError, retryRoom, sendRoomIntent, connectRoom,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
@@ -1715,7 +1750,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         startQuickMatch, myAddress, updateGameState, participants, intentQueue, clearIntent, sendIntentAck, leaveGame, validationToken,
         recordDisconnect, clearDisconnect, classifyAndRecordAbandon, abandonGraceFor,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot, matchPhase, matchFsmIllegal,
-        roomAuthority, roomStatus, retryRoom, sendRoomIntent, connectRoom,
+        roomAuthority, roomStatus, roomError, retryRoom, sendRoomIntent, connectRoom,
         activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
     ]);
 

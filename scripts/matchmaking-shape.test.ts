@@ -325,3 +325,42 @@ test('D2: the panel shows the room error, not a generic wait', () => {
     assert.ok(idx < panel.indexOf("Opponent hasn’t linked yet") || p2p === -1 || idx < p2p,
         'the failed branch must be evaluated before the p2pHost branch');
 });
+
+// ── D2 preflight: name the cause, not just the failure ────────────────────
+//
+// "Unable to connect to game room" is honest but not actionable — the two real
+// causes need different fixes by different people. A plain GET on
+// `/api/room/:id/ws` discriminates them, because the room answers a non-upgrade
+// request with 426 while a host without the endpoint 404s:
+//
+//   404  → this deployment has no room endpoint. Only `src/worker.ts` serves it,
+//          so a plain Next host (dev, Vercel) can never work. Fix: deploy to
+//          Cloudflare Workers, or set NEXT_PUBLIC_ROOM_WS_URL.
+//   426  → the Durable Object is there; something else is wrong.
+
+test('D2 preflight distinguishes a missing endpoint from an unreachable one', () => {
+    const ctx = read('hooks/TeamUpContext.tsx');
+    assert.match(ctx, /const probe = await fetch\(`\/api\/room\/\$\{encodeURIComponent\(matchId\)\}\/ws`\)/);
+    assert.match(ctx, /if \(probe\.status === 404\) \{/);
+    assert.match(ctx, /setRoomError\('not-deployed'\)/);
+    // A non-404 clears the reason, so a later retry does not inherit a stale one.
+    assert.match(ctx, /setRoomError\('none'\)/);
+});
+
+test('D2 preflight runs before the socket attempt, so it can short-circuit', () => {
+    const ctx = read('hooks/TeamUpContext.tsx');
+    const preflightAt = ctx.indexOf('D2 preflight');
+    const connectAt = ctx.indexOf('new RoomClient(');
+    assert.ok(preflightAt > 0, 'the preflight must exist');
+    assert.ok(connectAt > preflightAt, `preflight must precede the socket attempt (preflight=${preflightAt}, connect=${connectAt})`);
+    // And it must bail out, not fall through to a doomed connect.
+    assert.match(ctx, /setRoomStatus\('failed'\);\s*\n\s*return;/);
+});
+
+test('D2 panel names the cause when the endpoint is missing', () => {
+    const panel = read('app/components/QuickMatchPanel.tsx');
+    assert.match(panel, /Game room unavailable on this deployment/);
+    assert.match(panel, /roomError === 'not-deployed'/);
+    // roomError must be destructured, or the branch is dead code.
+    assert.match(panel, /roomError,/);
+});
