@@ -222,3 +222,46 @@ test('MM-12: seatGuestPlayer still refuses a mismatched credential', () => {
     assert.match(ctx, /Rejected join — invalid validation token/);
     assert.match(ctx, /if \(presented !== expected\) \{/);
 });
+
+// ── MM-13: a guest adopts the host's roster, it never mints its own ────────
+//
+// Reported live after MM-12 landed: the match now forms and the board appears,
+// but device A showed "me + a generic Player seat" while device B showed "two
+// random bots" — two different tables on two devices.
+//
+// `joinGame` does not call `initQuickLobby`, so a guest's `lobbyState` is still
+// null when QuickMatchPanel fires `onStartGame`; it only arrives later via the
+// host's LOBBY_SYNC. That sent the guest down the offline/bot branch, which
+// calls `shufflePlayers(...)` on `Math.random()` — minting a second, random
+// roster. The host's broadcast is the only authority on who is seated.
+
+test('MM-13: handlePlayNow short-circuits a guest onto the host roster', () => {
+    const src = read('app/page.tsx');
+    // The guard must come BEFORE the lobby/bot branching, otherwise the guest
+    // has already been sent down the shufflePlayers path.
+    const guardAt = src.indexOf('MM-13: a guest NEVER builds its own roster');
+    const branchAt = src.indexOf('const isInLobby = isLobbyConnected');
+    assert.ok(guardAt > 0, 'the guest-roster guard must exist');
+    assert.ok(branchAt > guardAt, `the guard must precede the lobby/bot branch (guard=${guardAt}, branch=${branchAt})`);
+
+    // It adopts the broadcast roster verbatim rather than deriving one.
+    assert.match(src, /if \(!isHost\) \{[\s\S]{0,700}?initialBoardConfig\?\.players/);
+    assert.match(src, /players: broadcastPlayers,/);
+    assert.match(src, /setAppState\('game'\);/);
+});
+
+test('MM-13: a guest with no host roster waits instead of inventing one', () => {
+    const src = read('app/page.tsx');
+    // Falling through to `shufflePlayers` is the bug, so the no-roster path must
+    // return rather than continue to the bot branch.
+    assert.match(src, /No roster yet: stay on the panel rather than inventing one/);
+    assert.match(src, /console\.warn\('⚠️ \[Page\] Guest start with no host roster/);
+});
+
+test('MM-13: the host still builds its roster from lobby slots', () => {
+    // The fix must not break the host path — that is where the real roster
+    // comes from, and the DB confirmed it is correct (both wallets present).
+    const src = read('app/page.tsx');
+    assert.match(src, /players = lobbyState\.slots/);
+    assert.match(src, /joinedHumanCount < requiredHumans/);
+});

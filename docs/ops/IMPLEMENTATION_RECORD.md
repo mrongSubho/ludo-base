@@ -1359,3 +1359,70 @@ errors** · `check:routes` clean (53 routes) · `check:drift` 12/12 · `check:en
 **Not yet verified end-to-end.** The fix is proven at the unit level and against the database state,
  but a real two-device 1v1 quick match has not been re-run. That is the acceptance test — the
 Match! panel should now advance to the board on both devices within a second or two.
+
+---
+
+## Part XVI — MM-13: the guest minted its own roster (2026-10-22, reported live)
+
+*Reported immediately after MM-12 landed: the match now forms and the board appears, but device A
+showed "me + a random bot labeled as player" while device B showed "two random bots" — two different
+tables on two devices.*
+
+### Root cause
+
+`joinGame` does **not** call `initQuickLobby` — only the host does. A guest's `lobbyState` therefore
+arrives later, via the host's `LOBBY_SYNC broadcast, and is still `null` when QuickMatchPanel fires
+`onStartGame`.
+
+`handlePlayNow` branches on `isInLobby && lobbyState && !effectiveIsBotMatch`. With `lobbyState`
+null the guest fell into the **offline/bot branch**, which calls
+`shufflePlayers(playerCount, isBotMatch, cc)` — and `shufflePlayers` shuffles on `Math.random()`.
+So the guest minted a second, random table with no relationship to the host's, then rendered it.
+
+The host's own roster was correct the whole time. Confirmed from the database: the `matches` row for
+the failing match (`QM-24D8C6`) carries **both** participants as real wallets, because
+`/api/match/start` is fed `players.filter(p => !p.isAi)` — two humans. So device A's "generic Player
+seat" was the real guest seat rendering with a fallback name (the guest's `lobby_join_requests`
+row has `username: null`, because `myProfile` had not resolved when it POSTed), and device B's "two
+random bots" was a fully invented roster.
+
+### The fix
+
+A guest adopts the host's roster; it never derives one. `handlePlayNow` now short-circuits **before**
+the lobby/bot branching when `!isHost`, taking `gameState.initialBoardConfig.players` verbatim —
+the same payload the host broadcast in `START_GAME`, and already applied to `gameState` by the time
+QuickMatchPanel's Scenario 2 fires. With no roster yet it waits and logs, rather than inventing one
+and desynchronising from the host.
+
+The host path is untouched: it still builds from `lobbyState.slots` and still aborts below the
+required seat count, which is the ghost-fallback guard.
+
+### Tests
+
+Three tests. **Two fail on the pre-fix code** (verified by reverting `app/page.tsx` in place and
+re-running): the guest short-circuit, and the no-roster wait. The third asserts the host path is
+unchanged and correctly passes in both states — it is a no-regression guard, not a fix test.
+
+One of them also pins *ordering*: the guard must precede `const isInLobby = …`, because a guard
+placed after the branch has already let the guest through to `shufflePlayers`.
+
+### Result
+
+`npm test` **514 / 503 pass / 0 fail** (11 skipped, all concurrency) · `tsc` app + worker **0
+errors** · `check:routes` clean (53 routes) · `check:drift` 12/12 · `check:engine` in sync ·
+`check:schema` 40/39 · `check:rls` 40 · `check:fields` clean · `eslint` 0 errors.
+
+**Not verified end-to-end.** Needs another two-device 1v1 run: both devices should now show the same
+two seats, and device A's opponent seat should show the guest's real identity once their profile
+resolves.
+
+### Separate pre-existing finding observed while diagnosing
+
+`match_states` has **zero rows** in production, so `moveAuth.seedMatch` has never successfully
+seeded a match. Probed directly: `POST /functions/v1/move-auth` with `action: 'seed'` returns
+`400 {"error":"Missing seed payload"}` and `action: 'get'` returns `500 INTERNAL`, while a
+nonexistent function returns `404` — so the function is deployed and answering (SA-1), but nothing
+lands. This matches the 2026-10-20 observation and is **pre-existing, not a regression** from this
+work. It means no match has server-authoritative state, which in turn means `/api/match/record`'s
+SA-2 check against `match_states.state.winner` can never pass. It is SA-1's consequence and is
+closed by the SA-1 runbook (undeploy or restore the three functions), not from this repo.

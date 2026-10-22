@@ -524,8 +524,39 @@ export default function Page() {
   }, [isConnected, isGuest]);
 
    // REA-24: useCallback so memoized panels receiving these handlers (lobby,
-  // arena, board chrome) don't re-render on every unrelated Page render.
-  const handlePlayNow = useCallback(async (isBotOverride?: boolean) => {
+   // arena, board chrome) don't re-render on every unrelated Page render.
+   const handlePlayNow = useCallback(async (isBotOverride?: boolean) => {
+    // MM-13: a guest NEVER builds its own roster.
+    //
+    // `joinGame` does not call `initQuickLobby`, so a guest's `lobbyState` is
+    // still null when QuickMatchPanel fires `onStartGame` — it only arrives
+    // later, via the host's LOBBY_SYNC broadcast. That sent the guest down the
+    // offline/bot branch below, which calls `shufflePlayers(...)` with
+    // `Math.random()`: the guest minted a second, random table and rendered
+    // seats that have nothing to do with the host's. Reported live as device A
+    // showing "me + a generic Player seat" while device B showed "two random
+    // bots" — two different matches on two devices.
+    //
+    // The host's START_GAME broadcast is the only authority on who is seated,
+    // so adopt it verbatim. `initialBoardConfig` is applied to `gameState`
+    // before QuickMatchPanel's Scenario 2 fires, so it is already here.
+    if (!isHost) {
+      const broadcastPlayers = gameState?.initialBoardConfig?.players;
+      if (Array.isArray(broadcastPlayers) && broadcastPlayers.length > 0) {
+        setBoardSeed({
+          players: broadcastPlayers,
+          colorCorner: gameState?.initialBoardConfig?.colorCorner,
+          isBotMatch: false,
+        });
+        setAppState('game');
+        return;
+      }
+      // No roster yet: stay on the panel rather than inventing one. The board
+      // appears when START_GAME lands and this runs again.
+      console.warn('⚠️ [Page] Guest start with no host roster — waiting for START_GAME');
+      return;
+    }
+
     const effectiveIsBotMatch = isBotOverride ?? isBotMatch;
     // Lobby ticket is the source of truth for seat count — never the UI selector.
     const effectiveMatchType = (lobbyState?.matchType || playerCount) as '1v1' | '2v2' | '4P';
