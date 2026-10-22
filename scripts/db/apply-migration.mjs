@@ -31,6 +31,14 @@
  *
  * A gitignored `.supabase-applied.json` ledger records what was applied, keyed
  * by content hash, so a re-run is a no-op unless `--force` is passed.
+ *
+ * Scope, because it is easy to misread: the ledger is a **no-op guard for this
+ * script**, not an audit trail of the database. `supabase db push` and the
+ * Dashboard SQL Editor are legitimate transports that never write it, so a
+ * migration can be live and absent from the file. Answer "what is applied?" with
+ * `--verify-only` (which queries the database), not with the ledger. The script
+ * warns when the target has no entry, because proceeding would re-send a
+ * migration that may already be live.
  */
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -429,6 +437,21 @@ async function main() {
     console.log('already applied (ledger match) — nothing to do. Use --force to re-run.');
     const ok = await verify(env);
     process.exit(ok === false ? 1 : 0);
+  }
+
+  if (!done) {
+    // The ledger only records what THIS script applied. `supabase db push` and
+    // the Dashboard SQL Editor are legitimate transports that bypass it, so a
+    // missing entry does not mean "not applied" — it means "not applied here".
+    // Without this warning the next `db:migrate` would re-send a migration that
+    // is already live, which fails on duplicate objects or silently double-
+    // applies. That is exactly what happened with 202610210001.
+    console.warn(
+      `! no ledger entry for ${rel} — it has never been applied through this script.\n` +
+      `  It may already be live (applied via \`supabase db push\` or the Dashboard).\n` +
+      `  Re-applying can fail on duplicate objects. Run \`npm run db:migrate:verify\`\n` +
+      `  first, and if it passes, record the entry with --force --dry-run reviewed.`
+    );
   }
 
   if (flag('--dry-run')) {
