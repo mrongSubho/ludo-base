@@ -39,6 +39,7 @@ export async function POST(request: Request) {
         const response = NextResponse.json({
             matchId: session.match_id,
             scope: session.scope,
+            seatColor: session.seat_color,
             token, // Token for in-band join frame or bearer
             ticket, // Single-use ticket for wss upgrade URL (?ticket=...)
             expiresAt: session.expires_at,

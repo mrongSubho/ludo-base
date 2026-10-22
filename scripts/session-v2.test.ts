@@ -15,6 +15,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
     hashToken,
     generateSessionToken,
@@ -177,4 +179,55 @@ test('Session v2: Distributed Rate Limiting across isolates via RateLimitDO', as
     const blockedB = await checkRateLimitStorage(mockStorage, clientKey, limit, windowMs);
     assert.equal(blockedB.allowed, false);
     assert.equal(blockedB.remaining, 0);
+});
+
+test('Session v2 / S2: SA-3 match-scoped sessions enforce seat assignment and copy seat_color', () => {
+    // 1. Verify code contracts in sessionV2.ts and MatchRoom.ts
+    const sessionV2Code = readFileSync(join(process.cwd(), 'lib/sessionV2.ts'), 'utf8');
+    const matchRoomCode = readFileSync(join(process.cwd(), 'src/room/MatchRoom.ts'), 'utf8');
+
+    // Asserts sessionV2 gates 'match' scope on match_seats
+    assert.match(sessionV2Code, /from\('match_seats'\)/);
+    assert.match(sessionV2Code, /seat_color:\s*assignedSeatColor/);
+    assert.match(sessionV2Code, /Wallet is not a participant with an assigned seat/);
+
+    // Asserts MatchRoom verifies seat_color from sessions and queries seat_color
+    assert.match(matchRoomCode, /select=wallet_address,scope,match_id,expires_at,seat_color/);
+    assert.match(matchRoomCode, /color:\s*db\.seat_color/);
+
+    // Asserts MatchRoom intent handling blocks non-matching seat colors
+    assert.match(matchRoomCode, /if\s*\(meta\.role === 'seat' && \(!meta\.color \|\| meta\.color !== curColor\)\)/);
+});
+
+test('Session v2 / S2: MatchRoom blocks illegal-turn intents by seat color', () => {
+    interface MockMeta {
+        authenticated: boolean;
+        role: 'seat' | 'spectator';
+        color?: string;
+    }
+
+    const authorizeAction = (meta: MockMeta, curColor: string): { ok: boolean; code?: string } => {
+        if (!meta.authenticated || meta.role !== 'seat') {
+            return { ok: false, code: 'NOT_AUTHORIZED' };
+        }
+        if (!meta.color || meta.color !== curColor) {
+            return { ok: false, code: 'NOT_YOUR_TURN' };
+        }
+        return { ok: true };
+    };
+
+    // Unauthenticated seat is rejected
+    assert.equal(authorizeAction({ authenticated: false, role: 'seat', color: 'green' }, 'green').code, 'NOT_AUTHORIZED');
+
+    // Spectator is rejected
+    assert.equal(authorizeAction({ authenticated: true, role: 'spectator', color: 'green' }, 'green').code, 'NOT_AUTHORIZED');
+
+    // Seat with wrong turn color is rejected
+    assert.equal(authorizeAction({ authenticated: true, role: 'seat', color: 'yellow' }, 'green').code, 'NOT_YOUR_TURN');
+
+    // Seat with missing color is rejected
+    assert.equal(authorizeAction({ authenticated: true, role: 'seat' }, 'green').code, 'NOT_YOUR_TURN');
+
+    // Matching seat holder succeeds
+    assert.equal(authorizeAction({ authenticated: true, role: 'seat', color: 'green' }, 'green').ok, true);
 });

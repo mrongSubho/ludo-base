@@ -29,6 +29,7 @@ export interface SessionAuthResult {
     wallet: string;
     scope: SessionScope;
     matchId: string | null;
+    seatColor?: string | null;
     session: SessionRecord | null;
 }
 
@@ -139,6 +140,7 @@ export async function requireSession(
                 wallet: session.wallet_address.toLowerCase(),
                 scope: session.scope as SessionScope,
                 matchId: session.match_id,
+                seatColor: session.seat_color ?? null,
                 session,
             };
         }

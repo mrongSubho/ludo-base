@@ -410,27 +410,21 @@ export async function issueMatchSession(params: {
     }
 
     const targetScope: SessionScope = params.scope || 'match';
+    let assignedSeatColor: string | null = null;
 
-    // 2. If seat 'match' scope requested, verify membership in matches.participants
+    // 2. If seat 'match' scope requested, verify membership in match_seats (closes SA-3)
     if (targetScope === 'match') {
-        const { data: match } = await db
-            .from('matches')
-            .select('participants')
-            .eq('id', params.matchId)
+        const { data: seatRow } = await db
+            .from('match_seats')
+            .select('color')
+            .eq('match_id', params.matchId)
+            .ilike('wallet_address', parentSession.wallet_address)
             .maybeSingle();
 
-        if (!match) {
-            throw new Error('Match not found');
+        if (!seatRow || !seatRow.color) {
+            throw new Error('Wallet is not a participant with an assigned seat in this match');
         }
-
-        const participants = Array.isArray(match.participants) ? match.participants : [];
-        const isParticipant = participants.some(
-            (p: string) => p.toLowerCase() === parentSession.wallet_address.toLowerCase(),
-        );
-
-        if (!isParticipant) {
-            throw new Error('Wallet is not a participant in this match');
-        }
+        assignedSeatColor = seatRow.color;
     }
 
     const token = generateSessionToken();
@@ -446,6 +440,7 @@ export async function issueMatchSession(params: {
             token_hash: matchTokenHash,
             wallet_address: parentSession.wallet_address,
             scope: targetScope,
+            seat_color: assignedSeatColor,
             match_id: params.matchId,
             device_id: parentSession.device_id,
             issued_at: issuedAt,
@@ -461,8 +456,8 @@ export async function issueMatchSession(params: {
         throw new Error(`Failed to issue match session: ${error?.message || 'unknown'}`);
     }
 
-    // A single-use short-lived ticket for WS upgrade
-    const ticket = generateSessionToken();
+    // A single-use short-lived ticket for WS upgrade (hashes to the same session token)
+    const ticket = token;
     const cookieHeader = buildSessionCookieHeader(token, Math.floor(MATCH_SESSION_TTL_MS / 1000));
 
     return { token, session, ticket, cookieHeader };

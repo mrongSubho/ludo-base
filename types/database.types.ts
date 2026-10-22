@@ -1734,6 +1734,7 @@ export type Database = {
           revoked_at: string | null
           rotated_from: string | null
           scope: string
+          seat_color: string | null
           token_hash: string
           wallet_address: string
         }
@@ -1749,6 +1750,7 @@ export type Database = {
           revoked_at?: string | null
           rotated_from?: string | null
           scope: string
+          seat_color?: string | null
           token_hash: string
           wallet_address: string
         }
@@ -1763,6 +1765,7 @@ export type Database = {
           revoked_at?: string | null
           rotated_from?: string | null
           scope?: string
+          seat_color?: string | null
           token_hash?: string
           wallet_address?: string
         }

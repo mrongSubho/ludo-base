@@ -131,6 +131,7 @@ export class MatchRoom extends DurableObject<Env> {
       const cookieHeader = request.headers.get('Cookie') || '';
       let initialWallet: string | undefined;
       let initialRole: 'seat' | 'spectator' = 'spectator';
+      let initialColor: string | undefined;
       let authenticated = false;
 
       if (ticket) {
@@ -139,6 +140,7 @@ export class MatchRoom extends DurableObject<Env> {
         if (verified.ok) {
           initialWallet = verified.wallet;
           initialRole = verified.role;
+          initialColor = verified.color;
           authenticated = true;
         }
       } else if (cookieHeader) {
@@ -146,6 +148,7 @@ export class MatchRoom extends DurableObject<Env> {
         if (verified.ok) {
           initialWallet = verified.wallet;
           initialRole = verified.role;
+          initialColor = verified.color;
           authenticated = true;
         }
       }
@@ -159,6 +162,7 @@ export class MatchRoom extends DurableObject<Env> {
         authenticated,
         wallet: initialWallet,
         role: initialRole,
+        color: initialColor,
         connectedAt: Date.now(),
       });
 
@@ -324,6 +328,7 @@ export class MatchRoom extends DurableObject<Env> {
         meta.authenticated = true;
         meta.wallet = verified.wallet;
         meta.role = verified.role;
+        meta.color = verified.color;
       } else {
         ws.send(
           JSON.stringify({
@@ -398,7 +403,7 @@ export class MatchRoom extends DurableObject<Env> {
       // In-process roll execution (P4)
       if (this.state && !this.state.winner) {
         const curColor = this.state.currentPlayer as PlayerColor;
-        if (meta.color && meta.color !== curColor) {
+        if (meta.role === 'seat' && (!meta.color || meta.color !== curColor)) {
           ws.send(
             JSON.stringify({
               t: 'rejected',
@@ -507,7 +512,7 @@ export class MatchRoom extends DurableObject<Env> {
       // In-process move execution (P4)
       if (this.state && !this.state.winner) {
         const curColor = this.state.currentPlayer as PlayerColor;
-        if (meta.color && meta.color !== curColor) {
+        if (meta.role === 'seat' && (!meta.color || meta.color !== curColor)) {
           ws.send(
             JSON.stringify({
               t: 'rejected',
@@ -649,7 +654,7 @@ export class MatchRoom extends DurableObject<Env> {
       // so a forged intent can name a power it does not hold and be refused.
       if (this.state && !this.state.winner) {
         const curColor = this.state.currentPlayer as PlayerColor;
-        if (meta.color && meta.color !== curColor) {
+        if (meta.role === 'seat' && (!meta.color || meta.color !== curColor)) {
           ws.send(
             JSON.stringify({
               t: 'rejected',
@@ -875,7 +880,7 @@ export class MatchRoom extends DurableObject<Env> {
   }
 
   // ─── Verification helpers ──────────────────────────────────────────────────
-  private async verifyTicket(ticket: string, matchId: string): Promise<{ ok: boolean; wallet?: string; role: 'seat' | 'spectator'; error?: string }> {
+  private async verifyTicket(ticket: string, matchId: string): Promise<{ ok: boolean; wallet?: string; role: 'seat' | 'spectator'; color?: string; error?: string }> {
     const tokenHash = await hashToken(ticket);
     const db = await this.queryDatabaseSession(tokenHash, matchId);
     if (!db || db.match_id !== matchId) {
@@ -885,23 +890,24 @@ export class MatchRoom extends DurableObject<Env> {
       ok: true,
       wallet: db.wallet_address,
       role: db.scope === 'match' ? 'seat' : 'spectator',
+      color: db.seat_color || undefined,
     };
   }
 
-  private async verifyCookie(cookieHeader: string, matchId: string): Promise<{ ok: boolean; wallet?: string; role: 'seat' | 'spectator' }> {
+  private async verifyCookie(cookieHeader: string, matchId: string): Promise<{ ok: boolean; wallet?: string; role: 'seat' | 'spectator'; color?: string }> {
     const match = cookieHeader.match(/(?:__Host-ludo_session|ludo_session)=([^;]+)/);
     if (!match || !match[1]) return { ok: false, role: 'spectator' };
     return this.verifySessionToken(match[1], matchId);
   }
 
-  private async verifySessionToken(token: string, matchId: string): Promise<{ ok: boolean; wallet?: string; role: 'seat' | 'spectator'; error?: string }> {
+  private async verifySessionToken(token: string, matchId: string): Promise<{ ok: boolean; wallet?: string; role: 'seat' | 'spectator'; color?: string; error?: string }> {
     const tokenHash = await hashToken(token);
     const db = await this.queryDatabaseSession(tokenHash, matchId);
     if (!db) {
       return { ok: false, role: 'spectator', error: 'Session not found' };
     }
     if (db.scope === 'match' && db.match_id === matchId) {
-      return { ok: true, wallet: db.wallet_address, role: 'seat' };
+      return { ok: true, wallet: db.wallet_address, role: 'seat', color: db.seat_color || undefined };
     }
     if (db.scope === 'spectator' && db.match_id === matchId) {
       return { ok: true, wallet: db.wallet_address, role: 'spectator' };
@@ -912,7 +918,7 @@ export class MatchRoom extends DurableObject<Env> {
     return { ok: false, role: 'spectator', error: 'Insufficient session scope' };
   }
 
-  private async queryDatabaseSession(tokenHash: string, _matchId: string): Promise<{ wallet_address: string; scope: string; match_id?: string } | null> {
+  private async queryDatabaseSession(tokenHash: string, _matchId: string): Promise<{ wallet_address: string; scope: string; match_id?: string; seat_color?: string | null } | null> {
     const supabaseUrl =
       (this.env as unknown as Record<string, string>).NEXT_PUBLIC_SUPABASE_URL ||
       process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -923,7 +929,7 @@ export class MatchRoom extends DurableObject<Env> {
     if (!supabaseUrl || !serviceKey) return null;
 
     try {
-      const url = `${supabaseUrl}/rest/v1/sessions?token_hash=eq.${tokenHash}&revoked_at=is.null&select=wallet_address,scope,match_id,expires_at`;
+      const url = `${supabaseUrl}/rest/v1/sessions?token_hash=eq.${tokenHash}&revoked_at=is.null&select=wallet_address,scope,match_id,expires_at,seat_color`;
       const res = await fetch(url, {
         headers: {
           apikey: serviceKey,
