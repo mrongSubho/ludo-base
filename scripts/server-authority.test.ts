@@ -194,3 +194,39 @@ test('P0-6: Local development documentation exists', () => {
   assert.ok(content.includes('Option A: Staging DO Tunnel'), 'Must document Option A');
   assert.ok(content.includes('Option B: Dev WS Sidecar'), 'Must document Option B');
 });
+
+// ── Build-time env guard ───────────────────────────────────────────────────
+//
+// The Cloudflare Workers Builds pipeline deployed a bundle built with
+// placeholder Supabase values and no CDP project id — it logged "Supabase
+// environment variables are missing. Using placeholders for build." and then
+// deployed successfully. The live site had no wallet and no database, and
+// nothing on the deploy side reported a problem. It then overwrote a correct
+// deploy.
+//
+// `NEXT_PUBLIC_*` values are inlined at build time, so a missing variable is
+// baked into the bundle. A placeholder build is strictly worse than a failed
+// build: one is silently broken, the other is honest.
+
+test('P0-8: the build fails when required NEXT_PUBLIC_* vars are missing', () => {
+  const guard = join(root, 'scripts', 'check-build-env.mjs');
+  assert.ok(existsSync(guard), 'scripts/check-build-env.mjs must exist');
+
+  const src = readFileSync(guard, 'utf8');
+  for (const v of [
+    'NEXT_PUBLIC_SUPABASE_URL',
+    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    'NEXT_PUBLIC_CDP_PROJECT_ID',
+    'NEXT_PUBLIC_CDP_AUTH',
+  ]) {
+    assert.ok(src.includes(v), `${v} must be required by the build guard`);
+  }
+  // It must actually fail, and name the dashboard location that fixes it.
+  assert.match(src, /process\.exit\(1\)/);
+  assert.match(src, /Settings → Build → Variables and secrets/);
+
+  // And it must be wired into the build that CI runs.
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  assert.match(pkg.scripts.build, /check-build-env\.mjs/,
+    'npm run build must run the guard — opennextjs-cloudflare build invokes it');
+});

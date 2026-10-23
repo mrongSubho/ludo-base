@@ -2065,3 +2065,53 @@ today's "the fix didn't work" reports were actually *my fix had been overwritten
 config. After any deploy, **verify the live artifact before concluding the fix failed**: compare the
 served chunk hash against the local `.open-next`, and confirm a known build-time constant is present
 in the live bundle. A green `wrangler deploy` says nothing about what is currently serving traffic.
+
+### The CI pipeline was building without env vars — and overwrote the fix twice (2026-10-23)
+
+"CDP, chips still missing" on `play.ludobase.live`. The build log supplied the answer:
+
+```
+⚠️ Supabase environment variables are missing. Using placeholders for build.
+```
+
+That log is from the **Cloudflare Workers Builds pipeline**, not a local build — and it deployed
+(version `69815837`, at `09:11:09Z`), six minutes **after** my own deploy at `09:05`. The pipeline has
+**no build variables configured**, so `NEXT_PUBLIC_*` values were inlined as placeholders: no CDP
+project id, no Supabase URL. It then replaced the correct deploy.
+
+This is the second time a correct deploy was overwritten by the concurrent writer — the first was the
+Supabase URL work earlier the same day.
+
+**Why a placeholder build is the worst outcome.** `NEXT_PUBLIC_*` values are inlined at build time, so
+a missing variable is not runtime configuration — it is baked into the bundle and cannot be fixed
+without a rebuild. The build logs a warning, succeeds, and deploys a site with no wallet and no
+database. A *failed* build would have been strictly better: it is visible.
+
+**Fixed on the repo side:** `scripts/check-build-env.mjs`, wired into `npm run build` (which
+`opennextjs-cloudflare build` invokes — visible in the CI log as `> ludo-base@0.1.0 build`). It fails
+the build when any of `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+`NEXT_PUBLIC_CDP_PROJECT_ID`, `NEXT_PUBLIC_CDP_AUTH`, `NEXT_PUBLIC_WC_PROJECT_ID` or
+`NEXT_PUBLIC_ONCHAINKIT_API_KEY` is missing, and names the dashboard location that fixes it. Vars with
+safe defaults (PeerJS, room WS, paymaster) are deliberately excluded so the guard cannot fail a build
+that would otherwise work. `SKIP_ENV_CHECK=1` is the escape hatch.
+
+Verified both directions: passes with `.env.local` present; with it hidden (simulating CI) it exits
+non-zero listing every missing variable.
+
+**Redeployed** as version `1bf62de4` and verified live:
+
+```
+live chunk      1174-9440f1e43bc3b5ce.js   (matches the local build)
+CDP project id  ✓ present
+Supabase URL    ✓ present
+/               → 200
+/api/room/…/ws  → 426
+```
+
+**Still required — the actual root fix, which only you can do:** the pipeline's build variables are
+empty. Until they are set, every push will fail the build (correctly) rather than deploy a broken
+bundle. In the Cloudflare dashboard: **Workers & Pages → ludo-base → Settings → Build → Variables and
+secrets**, and add the six vars above. They are `NEXT_PUBLIC_*` values, so they are already public in
+the client bundle — no secret exposure.
+
+**Verified:** 534 tests / 523 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.
