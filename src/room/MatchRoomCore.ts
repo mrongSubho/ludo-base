@@ -513,6 +513,29 @@ export class MatchRoomCore {
       return;
     }
 
+    // Acknowledge the join.
+    //
+    // `RoomClient` has exactly one transition into 'connected' — a `t: 'joined'`
+    // frame — and everything downstream hangs off it: the host writing its seed,
+    // `roomAuthority` engaging, `roomStatus` leaving 'connecting'. This handler
+    // used to answer with `state` (or `rejected`) only, so a perfectly healthy
+    // room left every client parked at 'connecting' forever. That is the whole
+    // of "Still linking both players…".
+    //
+    // Sent before the catch-up frame so the client is marked connected before it
+    // processes the board, and deliberately WITHOUT `state` — the frame below
+    // carries it, and the client's own `knownSeq` gate dedupes regardless.
+    ws.send(
+      JSON.stringify({
+        t: 'joined',
+        role: meta.role,
+        seat: meta.color ?? null,
+        wallet: meta.wallet ?? null,
+        seq: this.seq,
+        hasState: !!this.state,
+      })
+    );
+
     // If client requested catch-up or has stale state
     if (this.state) {
       ws.send(

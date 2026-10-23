@@ -392,14 +392,40 @@ export async function issueMatchSession(params: {
     const db = serviceDb();
     const tokenHash = hashToken(params.appSessionToken);
 
-    // 1. Validate the parent app session
-    const { data: parentSession } = await db
+    // 1. Validate the parent app session.
+    //
+    // Dual-read `app_sessions`, exactly as `requireSession` now does. Sign-in
+    // (`/api/siwe/verify`) writes `app_sessions` — the row id IS the token — and
+    // never touches `sessions` v2. This lookup used to read `sessions` only,
+    // found nothing, and threw "Valid app session required to enter match", so
+    // `/api/auth/match` could never issue a match ticket: no client could enter a
+    // room as a seat, and a 1v1 match could never leave the linking screen.
+    let parentSession: { wallet_address: string; expires_at: string; device_id?: string | null; id?: string } | null = null;
+
+    const { data: v2Session } = await db
         .from('sessions')
         .select('*')
         .eq('token_hash', tokenHash)
         .eq('scope', 'app')
         .is('revoked_at', null)
         .maybeSingle();
+
+    if (v2Session) {
+        parentSession = v2Session;
+    } else {
+        // `app_sessions` has no token_hash column — the session id is the secret.
+        const { data: legacy } = await db
+            .from('app_sessions')
+            .select('wallet_address, expires_at, revoked_at')
+            .eq('id', params.appSessionToken)
+            .maybeSingle();
+        if (legacy && !legacy.revoked_at) {
+            parentSession = {
+                wallet_address: legacy.wallet_address,
+                expires_at: legacy.expires_at,
+            };
+        }
+    }
 
     if (!parentSession) {
         throw new Error('Valid app session required to enter match');

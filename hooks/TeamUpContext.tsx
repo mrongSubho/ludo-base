@@ -240,7 +240,18 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     }, []);
 
     const applyServerState = useCallback((state: GameState, seq: number, allowEqual = false) => {
-        if (!Number.isFinite(seq) || (allowEqual ? seq < serverSeqRef.current : seq <= serverSeqRef.current)) return;
+        if (!Number.isFinite(seq)) return;
+        // A seq-0 frame IS the room's seed — `MatchRoomCore` self-seeds a fresh
+        // room at `this.seq = 0`. `serverSeqRef` also starts at 0, so the old
+        // `seq <= serverSeqRef.current` gate evaluated `0 <= 0` and dropped every
+        // seed on every client. The board therefore never reached `gameState`,
+        // `isStarted` stayed false, and matchmaking sat on "Still linking both
+        // players…" forever with a healthy room on the other end.
+        //
+        // The first frame through the door is authoritative whatever its seq;
+        // only later frames are gated, so a late snapshot still cannot rewind.
+        const isFirstSnapshot = !hasAuthoritativeSnapshotRef.current;
+        if (!isFirstSnapshot && (allowEqual ? seq < serverSeqRef.current : seq <= serverSeqRef.current)) return;
         serverSeqRef.current = Math.max(serverSeqRef.current, seq);
         setServerSeq(seq);
         setHasAuthoritativeSnapshot(true);

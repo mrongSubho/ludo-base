@@ -513,3 +513,86 @@ test('P0-12b: the taxonomy covers the failure classes the user must be able to t
   assert.match(src, /Check your connection/, 'network copy must tell the user what to check');
   assert.match(src, /Sign in again/, 'auth copy must tell the user what to do');
 });
+
+// ── The room handshake, the seed frame, and the match ticket ───────────────
+//
+// A 1v1 match on 2026-10-23 sat on "Still linking both players…" forever while
+// the server side was provably healthy: `match_seats` had both seats,
+// `match_states` held a seeded `status: "playing"` board, and `match_room_events`
+// recorded the room seeding itself. Three independent breaks sat between that
+// healthy room and the player's screen, and each one alone was sufficient.
+//
+// 1. The client's only transition into 'connected' is a `t: 'joined'` frame, and
+//    the room never sent one — it answered a join with `state` (or `rejected`).
+//    So `roomStatus` parked at 'connecting', the host never wrote its seed, and
+//    `roomAuthority` never engaged.
+// 2. The room self-seeds at `seq = 0` and the client's `serverSeqRef` also starts
+//    at 0, so `applyServerState`'s `seq <= serverSeqRef.current` gate evaluated
+//    `0 <= 0` and discarded the seed on every client. `isStarted` never became
+//    true, which is precisely the condition the stall detector watches.
+// 3. `issueMatchSession` validated the parent app session against `sessions` v2,
+//    but `/api/siwe/verify` writes `app_sessions` — so `/api/auth/match` could
+//    never issue a ticket and no client could enter a room as a seat.
+//
+// All three were invisible from the outside: the routes answered 200, the room
+// answered 426, and the only symptom was a UI string that never changed.
+
+test('P0-13: the room acknowledges a join with the frame the client waits for', () => {
+  const core = readFileSync(join(root, 'src', 'room', 'MatchRoomCore.ts'), 'utf8');
+  const client = readFileSync(join(root, 'lib', 'netcode', 'roomClient.ts'), 'utf8');
+
+  // The client's contract: 'connected' is reachable only via `t: 'joined'`.
+  assert.match(client, /if \(type === 'joined'\)[\s\S]*?setStatus\('connected'\)/,
+    'RoomClient must still derive connected from the joined frame');
+
+  // The server must actually send it, from the join handler, for seats AND
+  // spectators — an unauthenticated spectator still needs the handshake to
+  // complete or it is stuck at 'connecting' too.
+  const joinFn = core.slice(core.indexOf('private async handleJoinFrame'));
+  const joinBody = joinFn.slice(0, joinFn.indexOf('\n  }'));
+  assert.match(joinBody, /t:\s*'joined'/, 'handleJoinFrame must send a joined frame');
+  assert.match(joinBody, /role:\s*meta\.role/, 'joined must carry the role');
+  // And it must be sent before the catch-up frame, so the client is marked
+  // connected before it processes the board.
+  assert.ok(joinBody.indexOf("t: 'joined'") < joinBody.indexOf("t: 'state'"),
+    'joined must precede the catch-up state frame');
+});
+
+test('P0-14: the first server frame is accepted whatever its seq — the seed is seq 0', () => {
+  const ctx = readFileSync(join(root, 'hooks', 'TeamUpContext.tsx'), 'utf8');
+  const fn = ctx.slice(ctx.indexOf('const applyServerState = useCallback'));
+  const body = fn.slice(0, fn.indexOf('\n    }, [sendMatchEvent])'));
+
+  // The room self-seeds at seq 0 (MatchRoomCore sets `this.seq = 0` before its
+  // first commit) and `serverSeqRef` starts at 0, so a plain `seq <= current`
+  // gate eats the seed. There must be an explicit first-snapshot bypass.
+  assert.match(body, /isFirstSnapshot/, 'the seq gate must exempt the first frame');
+  assert.match(body, /!isFirstSnapshot &&/, 'and only the first frame');
+
+  // The room really does seed at 0 — pin the other half of the invariant.
+  const core = readFileSync(join(root, 'src', 'room', 'MatchRoomCore.ts'), 'utf8');
+  assert.match(core, /this\.seq = 0;/, 'MatchRoomCore must still self-seed at seq 0');
+});
+
+test('P0-15: issueMatchSession reads the table sign-in actually writes', () => {
+  const v2 = readFileSync(join(root, 'lib', 'sessionV2.ts'), 'utf8');
+  const fn = v2.slice(v2.indexOf('export async function issueMatchSession'));
+  // End at the next top-level declaration — the params object literal closes at
+  // column 0, so `\n}` would stop 130 characters in.
+  const nextTop = fn.slice(1).search(/\nexport (?:async )?(?:function|const)/);
+  const body = nextTop === -1 ? fn : fn.slice(0, nextTop + 1);
+
+  // `/api/siwe/verify` inserts into app_sessions and hands back that row's id.
+  const verify = readFileSync(join(root, 'app', 'api', 'siwe', 'verify', 'route.ts'), 'utf8');
+  assert.match(verify, /from\('app_sessions'\)/, 'siwe/verify must still write app_sessions');
+
+  // So the parent lookup must fall back to app_sessions, keyed on the id —
+  // app_sessions has no token_hash column.
+  assert.match(body, /from\('app_sessions'\)/, 'issueMatchSession must dual-read app_sessions');
+  assert.match(body, /\.eq\('id', params\.appSessionToken\)/, 'the legacy lookup is by session id');
+  assert.match(body, /!legacy\.revoked_at/, 'and a revoked legacy session must not pass');
+
+  // And the ticket route must still scope the seat from the DB, not the client.
+  const route = readFileSync(join(root, 'app', 'api', 'auth', 'match', 'route.ts'), 'utf8');
+  assert.match(route, /issueMatchSession\(/, 'the route must go through issueMatchSession');
+});

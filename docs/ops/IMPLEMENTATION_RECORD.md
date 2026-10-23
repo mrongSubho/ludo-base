@@ -2427,3 +2427,61 @@ auth (DM)  {"error":"Your session expired. Sign in again to keep chatting.","cod
 
 **Verified:** 542 tests / 531 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors ·
 check:routes clean (53 routes).
+
+### The 1v1 stall: three breaks between a healthy room and the player's screen (2026-10-24)
+
+A 1v1 match sat on **"Still linking both players…"** forever. The server side was provably healthy,
+which is what made this hard: `match_seats` held both seats, `match_states` held a seeded
+`status: "playing"` board with `isStarted: true`, and `match_room_events` recorded the room seeding
+itself. Every route answered correctly. Only a UI string never changed.
+
+**Three independent breaks, each alone sufficient to stall the match.** All three were invisible
+from outside — the room answered 426, the routes answered 200, and nothing errored anywhere.
+
+**1. The room never sent the frame the client waits for.**
+`RoomClient` has exactly one transition into `'connected'`: a `t: 'joined'` frame. `MatchRoomCore`'s
+`handleJoinFrame` answered a join with `state` (or `rejected`) and nothing else. So `onStatusChange`
+never fired `'connected'`, the host never wrote its seed, `roomAuthority` never engaged, and
+`roomStatus` parked at `'connecting'` — exactly the state the UI reads as "not failed, not linked".
+
+**2. The seed frame was discarded on every client.**
+The room self-seeds at `this.seq = 0`. `serverSeqRef` also starts at `0`. `applyServerState`'s gate
+`seq <= serverSeqRef.current` therefore evaluated `0 <= 0` and returned — the seed never reached
+`gameState`, so `isStarted` stayed false, which is precisely the condition the stall detector watches.
+A guard written to stop a late frame rewinding the board was eating the *first* frame instead.
+
+**3. A match ticket could never be issued.**
+`issueMatchSession` validated the parent app session against `sessions` v2. `/api/siwe/verify` writes
+`app_sessions` — the row id *is* the token — and never touches `sessions`. The lookup always missed,
+so `/api/auth/match` always threw *"Valid app session required to enter match"*, and no client could
+enter a room as a seat. This is the same reader/writer split as the earlier session bug, one layer
+further down.
+
+**Fixes.**
+
+- `MatchRoomCore.handleJoinFrame` now sends `t: 'joined'` carrying `role`, `seat`, `wallet` and `seq`,
+  before the catch-up frame, for seats and spectators alike. An unauthenticated spectator needs the
+  handshake to complete too or it is equally stuck.
+- `applyServerState` exempts the first frame from the seq gate via `hasAuthoritativeSnapshotRef`.
+  Later frames are still gated, so a late snapshot cannot rewind the board.
+- `issueMatchSession` dual-reads `app_sessions`, keyed on the session id (that table has no
+  `token_hash` column), and rejects a revoked legacy row.
+
+**Verified live against production with two real clients** (a throwaway match, cleaned up):
+
+```
+host  ticket: yes seat=green      guest ticket: yes seat=yellow
+guest: state seq=0 isStarted=true status=playing | joined role=seat seat=yellow
+host : state seq=0 isStarted=true status=playing | joined role=seat seat=green
+intent: REQUEST_ROLL committed — seq 0 → 1, event turn_passed@1
+```
+
+Both clients now complete the handshake, both receive the seeded board, and an intent round-trips and
+commits. Live build verified as `1174-62d23f0c8b3cdcfe.js` (matches local), `/` → 200, room → 426.
+
+**Gates `P0-13` / `P0-14` / `P0-15`** pin the three invariants that broke — the room must acknowledge a
+join with the frame the client waits for; the first server frame must be accepted whatever its seq; and
+the ticket issuer must read the table sign-in actually writes. All three fail with their fix reverted
+(proven by reverting each in turn) and pass with it restored.
+
+**Verified:** 545 tests / 534 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.
