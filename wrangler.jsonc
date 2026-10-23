@@ -50,5 +50,18 @@
   "vars": {
     "_comment": "Public config only. MatchRoom reads NEXT_PUBLIC_SUPABASE_URL to query match_seats and match_states; without it the room silently cannot reach Postgres and never seeds, which leaves every match stuck with no state frame. Secrets (SUPABASE_SERVICE_ROLE_KEY etc.) are NOT here — see scripts/cf-secrets.mjs.",
     "NEXT_PUBLIC_SUPABASE_URL": "https://xvwaqxqyjtlsuijgwozi.supabase.co"
-  }
+  },
+  "routes": [
+    // Wallet sign-in requires a custom domain. `*.workers.dev` is a free, shared,
+    // unverified Cloudflare subdomain — the exact shape MetaMask and Coinbase
+    // Wallet (Base Account) treat as high-risk and block at the domain level, so
+    // connect() never runs. There is no CSP in this app; the block is the domain.
+    //
+    // To enable: add the domain to this Cloudflare account, then uncomment with
+    // your real domain and redeploy. Both entries are supported; custom_domain
+    // also provisions the DNS record and certificate for you.
+    //
+    // { "pattern": "play.YOUR-DOMAIN.com", "custom_domain": true }
+    // { "pattern": "play.YOUR-DOMAIN.com/*", "zone_name": "YOUR-DOMAIN.com" }
+  ]
 }

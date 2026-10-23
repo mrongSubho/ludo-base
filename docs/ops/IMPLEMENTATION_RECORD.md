@@ -1902,3 +1902,58 @@ check:schema 44/45 · check:rls 44 · check:routes 53 · check:fields clean · c
 `npm run deploy`. Until then the deployed Worker still has no `NEXT_PUBLIC_SUPABASE_URL`, and the
 room will keep logging the new error instead of silently failing — which is the point: the cause is
 now visible in `wrangler tail` rather than invisible.
+
+### Wallet sign-in is blocked by the domain, not by the app (2026-10-23)
+
+Reported: both MetaMask and Base Account block the site on
+`https://ludo-base.ludobase.workers.dev/`.
+
+**The room endpoint is fine on that host.** Probed directly:
+
+```
+GET /api/room/<uuid>/ws  →  426     (the Durable Object answered; it wants an upgrade)
+GET /                    →  200
+```
+
+426 is the expected response for a non-upgrade request, so the DO is live and reachable there. The
+remaining game blocker is the missing `NEXT_PUBLIC_SUPABASE_URL` from the previous entry, which needs a
+redeploy.
+
+**The wallet block is the domain.** `*.workers.dev` is a free, shared, unverified Cloudflare
+subdomain — precisely the shape MetaMask and Coinbase Wallet (Base Account) treat as high-risk and
+block at the domain level, before `connect()` ever runs. There is **no CSP in this app** (verified:
+no `Content-Security-Policy` in `middleware.ts`, `next.config.ts`, or anywhere else), so nothing on
+our side is refusing the connection.
+
+I could not confirm which specific blocklist entry applies — searches surfaced general phishing
+coverage rather than a documented `workers.dev` denial — so this is stated as the mechanism, not as a
+cited list. The fix is the same regardless: **a custom domain**. Wallets trust a domain you own and
+control; they do not trust a shared free subdomain.
+
+**Prepared, not enabled.** `wrangler.jsonc` now carries a `routes` block with the exact template,
+commented out so it is inert until a real domain exists:
+
+```jsonc
+"routes": [
+  // { "pattern": "play.YOUR-DOMAIN.com", "custom_domain": true }
+  // { "pattern": "play.YOUR-DOMAIN.com/*", "zone_name": "YOUR-DOMAIN.com" }
+]
+```
+
+`custom_domain: true` is the simpler option — it provisions the DNS record and certificate. The
+`zone_name` form is for an existing zone you want to route manually.
+
+Two regression tests added: `P0-6` asserts `vars.NEXT_PUBLIC_SUPABASE_URL` (the previous root cause,
+now guarded in config since no code gate can observe the deployed Worker), and `P0-7` asserts the
+custom-domain template stays documented. The JSONC comment stripper was hoisted to a shared
+string-aware helper.
+
+**Verified:** 533 tests / 522 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.
+
+**Two blockers, both outside code:**
+
+1. **`npm run deploy`** — the `vars` fix only reaches the Worker on deploy. Until then the live Worker
+   still cannot reach Postgres and matches still stall (now with a named error in `wrangler tail`).
+2. **A custom domain** on the Cloudflare account, then uncomment the matching `routes` line. I cannot
+   add a domain to the account without knowing which one, and the OAuth token here is scoped
+   `user (read)` — enough to list deployments and secrets, not to manage zones.

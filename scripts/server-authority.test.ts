@@ -86,6 +86,38 @@ test('P0-3: SLOS.md records Server Authority Migration numeric targets and basel
   assert.ok(content.includes('Worker CPU p95'), 'Must track Worker CPU SLO');
 });
 
+/**
+ * Strip JSONC comments so JSON.parse can read wrangler.jsonc.
+ *
+ * Must be string-aware: `//` also appears inside values — most obviously the
+ * `https://` in NEXT_PUBLIC_SUPABASE_URL. A naive `/\/\/.*$/gm` replacement
+ * truncates that value and leaves an unterminated string, so the config stops
+ * parsing the moment any URL is configured. Scan, tracking quotes and escapes.
+ */
+function stripJsonc(raw: string): string {
+  let out = '';
+  let inStr = false;
+  let inLine = false;
+  let inBlock = false;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    const n = raw[i + 1];
+    if (inLine) { if (c === '\n') { inLine = false; out += c; } continue; }
+    if (inBlock) { if (c === '*' && n === '/') { inBlock = false; i++; } continue; }
+    if (inStr) {
+      out += c;
+      if (c === '\\') { out += n ?? ''; i++; }
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; out += c; continue; }
+    if (c === '/' && n === '/') { inLine = true; i++; continue; }
+    if (c === '/' && n === '*') { inBlock = true; i++; continue; }
+    out += c;
+  }
+  return out;
+}
+
 test('P0-4 & P0-5: wrangler.jsonc configures src/worker.ts, DO bindings, and migrations', () => {
   const wranglerPath = join(root, 'wrangler.jsonc');
   assert.ok(existsSync(wranglerPath), 'wrangler.jsonc must exist');
@@ -97,29 +129,7 @@ test('P0-4 & P0-5: wrangler.jsonc configures src/worker.ts, DO bindings, and mig
   // `https://` in NEXT_PUBLIC_SUPABASE_URL. A plain `/\/\/.*$/gm` replacement
   // truncates that value and leaves an unterminated string, so the config stops
   // parsing the moment any URL is configured. Scan instead, tracking quotes.
-  const stripped = (() => {
-    let out = '';
-    let inStr = false;
-    let inLine = false;
-    let inBlock = false;
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      const n = raw[i + 1];
-      if (inLine) { if (c === '\n') { inLine = false; out += c; } continue; }
-      if (inBlock) { if (c === '*' && n === '/') { inBlock = false; i++; } continue; }
-      if (inStr) {
-        out += c;
-        if (c === '\\') { out += n ?? ''; i++; }
-        else if (c === '"') inStr = false;
-        continue;
-      }
-      if (c === '"') { inStr = true; out += c; continue; }
-      if (c === '/' && n === '/') { inLine = true; i++; continue; }
-      if (c === '/' && n === '*') { inBlock = true; i++; continue; }
-      out += c;
-    }
-    return out;
-  })();
+  const stripped = stripJsonc(raw);
   const config = JSON.parse(stripped);
 
   assert.equal(config.main, 'src/worker.ts', 'main entrypoint must be src/worker.ts');
@@ -133,6 +143,39 @@ test('P0-4 & P0-5: wrangler.jsonc configures src/worker.ts, DO bindings, and mig
   const sqliteClasses = config.migrations[0].new_sqlite_classes;
   assert.ok(sqliteClasses.includes('MatchRoom'), 'Must declare MatchRoom in new_sqlite_classes');
   assert.ok(sqliteClasses.includes('RateLimitDO'), 'Must declare RateLimitDO in new_sqlite_classes');
+});
+
+// ── The Worker must carry the public config the room needs ─────────────────
+//
+// Root cause of the 2026-10-23 1v1 stall: wrangler.jsonc had NO `vars` block, so
+// the deployed Worker had no NEXT_PUBLIC_SUPABASE_URL. MatchRoom reads it to
+// query match_seats/match_states, so with it undefined the room never seeded and
+// no state frame was ever fanned out. Verified live: `wrangler secret list`
+// showed SUPABASE_SERVICE_ROLE_KEY present and the URL absent.
+//
+// This is a config regression that no code gate could catch — the value is only
+// observable on the deployed Worker — so it is asserted here instead.
+
+test('P0-6: wrangler.jsonc declares the public Supabase URL the room requires', () => {
+  const raw = readFileSync(join(root, 'wrangler.jsonc'), 'utf8');
+  const config = JSON.parse(stripJsonc(raw));
+
+  assert.equal(
+    config.vars?.NEXT_PUBLIC_SUPABASE_URL,
+    'https://xvwaqxqyjtlsuijgwozi.supabase.co',
+    'the room cannot reach Postgres without this — see MatchRoomCore.ensureInitialized',
+  );
+  // The service-role key is a secret and must never be a public var.
+  assert.equal(config.vars?.SUPABASE_SERVICE_ROLE_KEY, undefined);
+});
+
+test('P0-7: wrangler.jsonc documents the custom-domain requirement for wallet sign-in', () => {
+  const raw = readFileSync(join(root, 'wrangler.jsonc'), 'utf8');
+  // MetaMask and Coinbase Wallet block *.workers.dev at the domain level, so the
+  // routes template must be present and clearly marked as requiring a real domain.
+  assert.match(raw, /Wallet sign-in requires a custom domain/);
+  assert.match(raw, /custom_domain/);
+  assert.match(raw, /play\.YOUR-DOMAIN\.com/);
 });
 
 test('P0-6: Local development documentation exists', () => {
