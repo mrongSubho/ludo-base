@@ -2238,3 +2238,45 @@ deployed. Confirmed the routes are healthy: `/api/chips/escrow-balance` → 401 
 a 500.
 
 **Verified:** 534 tests / 523 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.
+
+### Live broadcast and DMs down: an unprovisioned foreign key (2026-10-23)
+
+Sending in live broadcast did nothing; DMs were down too. The leaderboard worked.
+
+**The routes were healthy.** Probing them directly: `/api/live-chat` POST → 400 on an empty body,
+`/api/messages` → 401, `/api/live-matches/window` → 401/405, `/api/presence/online` → 200. All correct
+responses, no 500s — so this was not a missing build var like the last two.
+
+**The real error came from the Worker log** (`wrangler tail` while probing):
+
+```
+insert or update on table "live_chat" violates foreign key constraint
+"live_chat_sender_id_fkey"
+```
+
+`live_chat.sender_id` references `public.players(wallet_address)`. The newest `players` row predated
+the sign-ins by nearly two weeks — **the social-login smart account never got a `players` row**, so
+every insert failed. AGENTS.md is explicit that player identity is the Smart Account, never the EOA,
+so social login mints an address that has never existed in `players`.
+
+The route caught the error and returned a bare `{"error":"Failed to send"}`, which is why the UI showed
+nothing at all.
+
+**The helper already existed.** `ensurePlayerRow()` in `lib/serverAuth.ts` does exactly this, and its
+own doc says *"any server flow that stores a third-party address must provision first"*. It was called
+from galxe, lobby invite, friendships, poke, and onboarding — but **not** from `/api/live-chat` or
+`/api/messages`.
+
+**Fixed:** both routes now provision before inserting (`/api/messages` provisions sender *and*
+receiver). Provisioning also fixes a second latent bug in live-chat: the username/avatar snapshot reads
+`players` with the anon client, which returned nothing for an unknown wallet.
+
+**New gate `P0-9`:** walks every `app/api/**/route.ts` and fails if a route inserts or upserts into
+`live_chat`, `messages` or `conversations` without calling `ensurePlayerRow`. Proven load-bearing — a
+temporary route that skips provisioning makes it fail naming that file; removing it passes.
+
+An earlier version of the gate failed for the wrong reason: it used `readdirSync` without importing it,
+so the walk threw and the test failed as an error rather than an assertion. Worth noting because a gate
+that fails for the wrong reason is nearly as misleading as one that cannot fail.
+
+**Verified:** 536 tests / 525 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireSessionWallet, requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
 import { isSealedBox } from '@/lib/encryption';
 import { MAX_DM_CONTENT_LEN } from '@/lib/constants';
 
@@ -63,6 +63,17 @@ export async function POST(request: Request) {
             // `messages.content` DB CHECK — one constant, not two numbers.
             if (!/^0x[a-f0-9]{40}$/.test(receiver) || !content || String(content).length > MAX_DM_CONTENT_LEN)
                 return NextResponse.json({ error: 'Invalid message' }, { status: 400 });
+            // messages.sender_id / receiver_id reference players(wallet_address).
+            // A fresh social-login smart account has no players row, so the insert
+            // fails with a foreign-key violation — which is what took DMs down.
+            // Provision both sides first (idempotent), per ensurePlayerRow's contract.
+            for (const party of [wallet, receiver]) {
+                const provisionErr = await ensurePlayerRow(party);
+                if (provisionErr) {
+                    console.error('[messages] could not provision party:', party, provisionErr);
+                    return NextResponse.json({ error: 'Failed to send' }, { status: 500 });
+                }
+            }
             const { data, error } = await db.from('messages').insert({
                 sender_id: wallet, receiver_id: receiver, content: String(content),
             }).select().single();

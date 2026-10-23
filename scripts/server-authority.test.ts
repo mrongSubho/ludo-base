@@ -10,7 +10,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   isAuthV2Enabled,
@@ -247,4 +247,59 @@ test('P0-8: the build guard covers every NEXT_PUBLIC_* var the app reads', () =>
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   assert.match(pkg.scripts.build, /check-build-env\.mjs/,
     'npm run build must run the guard — opennextjs-cloudflare build invokes it');
+});
+
+// ── FK provisioning: any route storing an address must provision it ─────────
+//
+// live_chat and DMs both went down on 2026-10-23 with a bare "Failed to send".
+// The Worker log showed the real cause:
+//
+//   insert or update on table "live_chat" violates foreign key constraint
+//   "live_chat_sender_id_fkey"
+//
+// sender_id references players(wallet_address). Social login mints a NEW smart
+// account (AGENTS.md: player identity is the Smart Account, never the EOA), and
+// the newest players row predated the sign-ins — so no row existed and every
+// insert failed. The UI showed nothing because the route caught the error and
+// returned a generic message.
+//
+// `ensurePlayerRow` exists for exactly this, and its own doc says "any server
+// flow that stores a third-party address must provision first". These two routes
+// simply never called it.
+
+const FK_TABLES = ['live_chat', 'messages', 'conversations'];
+
+test('P0-9: every route inserting into an FK-bound table provisions the address first', () => {
+  const apiDir = join(root, 'app', 'api');
+  const offenders: string[] = [];
+
+  const walk = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) out.push(...walk(full));
+      else if (entry.name === 'route.ts') out.push(full);
+    }
+    return out;
+  };
+
+  for (const file of walk(apiDir)) {
+    const src = readFileSync(file, 'utf8');
+    const touchesFkTable = FK_TABLES.some((t) => src.includes(`from('${t}')`) || src.includes(`from("${t}")`));
+    const inserts = /\.insert\(|\.upsert\(/.test(src);
+    if (touchesFkTable && inserts && !src.includes('ensurePlayerRow')) {
+      offenders.push(file.slice(root.length + 1));
+    }
+  }
+
+  assert.deepEqual(offenders, [],
+    `these routes insert into FK-bound tables without provisioning the address: ${offenders.join(', ')}`);
+});
+
+test('P0-9b: ensurePlayerRow is idempotent and accepts the app identity shapes', () => {
+  const src = readFileSync(join(root, 'lib', 'serverAuth.ts'), 'utf8');
+  const fn = src.slice(src.indexOf('export async function ensurePlayerRow'));
+  assert.match(fn, /ignoreDuplicates: true/, 'must be idempotent');
+  assert.match(fn, /guest_/, 'guest ids are valid chat senders');
+  assert.match(fn, /0x\[a-f0-9\]\{40\}/, 'must validate the address shape');
 });

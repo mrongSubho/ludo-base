@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { requireSessionWallet, requireAppSession } from '@/lib/serverAuth';
+import { requireSessionWallet, requireAppSession, ensurePlayerRow } from '@/lib/serverAuth';
 import { MAX_CHAT_LEN } from '@/lib/constants';
 
 const LIMIT = 20;
@@ -89,6 +89,17 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Session required to chat' }, { status: 401 });
             }
             wallet = sessionWallet.toLowerCase();
+        }
+
+        // live_chat.sender_id references players(wallet_address). A wallet with no
+        // players row — every fresh social-login smart account — makes the insert
+        // fail with a foreign-key violation, which surfaced as a bare
+        // "Failed to send" and a silent no-op in the UI. Provision first, per the
+        // contract on ensurePlayerRow. Idempotent.
+        const provisionErr = await ensurePlayerRow(wallet);
+        if (provisionErr) {
+            console.error('[live-chat] could not provision sender:', provisionErr);
+            return NextResponse.json({ error: 'Failed to send' }, { status: 500 });
         }
 
         // Slow-mode applies to fresh shouts only — room state syncs bypass it.
