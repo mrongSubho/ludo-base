@@ -169,20 +169,19 @@ test('P0-6: wrangler.jsonc declares the public Supabase URL the room requires', 
   assert.equal(config.vars?.SUPABASE_SERVICE_ROLE_KEY, undefined);
 });
 
-test('P0-7: wrangler.jsonc documents the custom-domain requirement for wallet sign-in', () => {
+test('P0-7: wrangler.jsonc serves the app on a custom domain, not *.workers.dev', () => {
   const raw = readFileSync(join(root, 'wrangler.jsonc'), 'utf8');
-  // MetaMask and Coinbase Wallet block *.workers.dev at the domain level, so the
-  // routes template must be present and clearly marked as requiring a real domain.
-  assert.match(raw, /Wallet sign-in requires a custom domain/);
+  // Wallet sign-in requires a domain we own: MetaMask and Coinbase Wallet block
+  // *.workers.dev at the domain level, before connect() runs.
   assert.match(raw, /custom_domain/);
-  assert.match(raw, /play\.ludobase\.live/);
-  // The route must be live, not still a comment.
   const cfg = JSON.parse(stripJsonc(raw));
   const route = cfg.routes?.[0];
   assert.equal(route?.pattern, 'play.ludobase.live');
   assert.equal(route?.custom_domain, true);
-  // And it must NOT be the apex, which would silently take the hostname off Vercel.
+  // Not the apex — moving it would take the hostname off the Vercel origin.
   assert.notEqual(route?.pattern, 'ludobase.live', 'moving the apex takes it off Vercel');
+  // And not the shared subdomain that wallets block.
+  assert.doesNotMatch(raw, /workers\.dev/);
 });
 
 test('P0-6: Local development documentation exists', () => {
@@ -208,7 +207,7 @@ test('P0-6: Local development documentation exists', () => {
 // baked into the bundle. A placeholder build is strictly worse than a failed
 // build: one is silently broken, the other is honest.
 
-test('P0-8: the build fails when required NEXT_PUBLIC_* vars are missing', () => {
+test('P0-8: the build injects public vars from wrangler.jsonc, then fails if any are missing', () => {
   const guard = join(root, 'scripts', 'check-build-env.mjs');
   assert.ok(existsSync(guard), 'scripts/check-build-env.mjs must exist');
 
@@ -221,9 +220,31 @@ test('P0-8: the build fails when required NEXT_PUBLIC_* vars are missing', () =>
   ]) {
     assert.ok(src.includes(v), `${v} must be required by the build guard`);
   }
-  // It must actually fail, and name the dashboard location that fixes it.
+  // It must actually fail, and name the fix.
   assert.match(src, /process\.exit\(1\)/);
-  assert.match(src, /Settings → Build → Variables and secrets/);
+  assert.match(src, /Runtime production variables do NOT reach the build/);
+  // The critical half: it must INJECT wrangler.jsonc vars, so a build never
+  // depends on dashboard configuration. Runtime prod vars do not reach the
+  // build — that is exactly what broke on 2026-10-23.
+  //
+  // It must be a FILE, not process.env: `npm run build` runs this guard and
+  // `next build` as separate processes, so a process.env mutation in the guard
+  // never reaches the build. (Tried that first; the guard reported success and
+  // the bundle still had placeholders.)
+  assert.match(src, /wrangler\.jsonc/);
+  assert.match(src, /\.env\.production/);
+  assert.match(src, /writeFileSync\(ENV_PROD/);
+  // And it must not clobber a local .env.local, which outranks nothing but
+  // would be silently overridden otherwise.
+  assert.match(src, /\.env\.local present/);
+
+  // And wrangler.jsonc must actually carry them.
+  const cfg = JSON.parse(stripJsonc(readFileSync(join(root, 'wrangler.jsonc'), 'utf8')));
+  for (const v of ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_CDP_PROJECT_ID', 'NEXT_PUBLIC_CDP_AUTH']) {
+    assert.ok(cfg.vars?.[v], `wrangler.jsonc vars must declare ${v}`);
+  }
+  // Secrets must NOT be in vars.
+  assert.equal(cfg.vars?.SUPABASE_SERVICE_ROLE_KEY, undefined);
 
   // And it must be wired into the build that CI runs.
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));

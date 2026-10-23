@@ -2115,3 +2115,42 @@ secrets**, and add the six vars above. They are `NEXT_PUBLIC_*` values, so they 
 the client bundle — no secret exposure.
 
 **Verified:** 534 tests / 523 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.
+
+### Correction: the vars existed — as runtime, not build (2026-10-23)
+
+I claimed "the pipeline's build variables are empty". That was an overreach, and the owner corrected
+it: **8 secrets and 18 production variables were configured** the day before. I had inferred an empty
+configuration from a single warning line, when what I had actually observed was narrower — the build
+step did not receive them.
+
+**The real distinction.** Cloudflare keeps two separate configuration surfaces:
+
+- **Runtime variables and secrets** — visible to the Worker via `env.X` when it executes. The 8
+  secrets confirmed this: `wrangler secret list` matches exactly what was configured.
+- **Build variables** — visible to the build command. `NEXT_PUBLIC_*` inlining reads `process.env`
+  **at build time**, so runtime variables never reach it.
+
+So 18 correctly-configured runtime vars produced a bundle with none of them. The pipeline was not
+misconfigured in the way I said; it was configured in the place that does not feed the bundle.
+
+**The fix removes the dependency on either.** `NEXT_PUBLIC_*` values are inlined into the client
+bundle and shipped to every browser — public by definition — so they now live in `wrangler.jsonc`
+`vars`, and `scripts/check-build-env.mjs` generates `.env.production` from them before `next build`
+runs. No dashboard step is involved, and it cannot drift again.
+
+Two implementation notes, both learned by trying the wrong thing first:
+
+1. **It has to be a file, not `process.env`.** `npm run build` runs the guard and `next build` as
+   separate processes, so mutating `process.env` in the guard never reaches the build — the guard
+   reported success while the bundle still held placeholders.
+2. **`.env.production` outranks `.env.local`**, so the guard writes it only when no `.env.local`
+   exists. In CI there is none and it is the source of truth; locally there is one and it must win.
+   `.env*` is gitignored, so the generated file is never committed.
+
+**Proven in the conditions that failed.** A build with no `.env.local` and every `NEXT_PUBLIC_*`
+unset — exactly the CI environment — now produces a bundle containing the CDP project id, and the
+"Supabase environment variables are missing" warning is gone. Deployed as `417e7d41` and verified
+live: chunk `1174-33775760595a6596.js` matches the local build, CDP project id and Supabase URL
+present, `/` → 200, room → 426.
+
+**Verified:** 534 tests / 523 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.

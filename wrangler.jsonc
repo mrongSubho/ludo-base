@@ -1,27 +1,23 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "main": "src/worker.ts",
-  "name": "ludo-base",
-  "compatibility_date": "2025-01-01",
-  "compatibility_flags": [
-    // Enable Node.js APIs (node:crypto, web-push, etc.)
-    // see https://developers.cloudflare.com/workers/configuration/compatibility-flags/#nodejs-compatibility-flag
+  "$schema":   "node_modules/wrangler/config-schema.json",
+  "main":   "src/worker.ts",
+  "name":   "ludo-base",
+  "compatibility_date":   "2025-01-01",
+  "compatibility_flags":   [
     "nodejs_compat",
-    // Allow fetch() to same-zone / private URLs from API routes
-    // see https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public
     "global_fetch_strictly_public"
   ],
-  "assets": {
+  "assets":   {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
-  "services": [
+  "services":   [
     {
       "binding": "WORKER_SELF_REFERENCE",
       "service": "ludo-base"
     }
   ],
-  "durable_objects": {
+  "durable_objects":   {
     "bindings": [
       {
         "name": "MATCH_ROOM",
@@ -33,7 +29,7 @@
       }
     ]
   },
-  "migrations": [
+  "migrations":   [
     {
       "tag": "v1",
       "new_sqlite_classes": [
@@ -42,29 +38,39 @@
       ]
     }
   ],
-  "triggers": {
+  "triggers":   {
     "crons": [
       "0 * * * *"
     ]
   },
-  "vars": {
-    "_comment": "Public config only. MatchRoom reads NEXT_PUBLIC_SUPABASE_URL to query match_seats and match_states; without it the room silently cannot reach Postgres and never seeds, which leaves every match stuck with no state frame. Secrets (SUPABASE_SERVICE_ROLE_KEY etc.) are NOT here — see scripts/cf-secrets.mjs.",
-    "NEXT_PUBLIC_SUPABASE_URL": "https://xvwaqxqyjtlsuijgwozi.supabase.co"
+  // Public, build-time configuration.
+  //
+  // These are NEXT_PUBLIC_* values, which Next.js INLINES INTO THE CLIENT BUNDLE at
+  // build time and ships to every browser — public by definition, so committing them
+  // exposes nothing that is not already public.
+  //
+  // They live here rather than only in the Cloudflare dashboard because RUNTIME
+  // variables are NOT visible to the build: on 2026-10-23 the Workers Builds pipeline
+  // had 18 runtime prod vars configured, yet the build still logged "Supabase
+  // environment variables are missing. Using placeholders for build." and deployed a
+  // bundle with no CDP project id and no Supabase URL. Declaring them here makes the
+  // build self-sufficient — scripts/check-build-env.mjs injects this block into
+  // process.env before `next build` runs.
+  //
+  // Secrets (SUPABASE_SERVICE_ROLE_KEY, CDP API secrets, ...) do NOT belong here —
+  // they stay in Worker secrets via `wrangler secret put` / scripts/cf-secrets.mjs.
+  "vars":   {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://xvwaqxqyjtlsuijgwozi.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2d2FxeHF5anRsc3Vpamd3b3ppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2NjIzOTgsImV4cCI6MjEwNTIzODM5OH0.meIJe2yyRv69d8NGqAGGilm04VZ7gR4wXQqO__LaYd4",
+    "NEXT_PUBLIC_CDP_PROJECT_ID": "364b3239-e4ab-4d34-a7c4-81ec35003720",
+    "NEXT_PUBLIC_CDP_AUTH": "1",
+    "NEXT_PUBLIC_WC_PROJECT_ID": "673e0d259a5dc10d64b0fec83f6e8eca",
+    "NEXT_PUBLIC_ONCHAINKIT_API_KEY": "YxhGPF4gkkpnfqWoNqrTDfqxUX1kKWdU"
   },
-  "routes": [
-    // Wallet sign-in requires a custom domain. `*.workers.dev` is a free, shared,
-    // unverified Cloudflare subdomain — the exact shape MetaMask and Coinbase
-    // Wallet (Base Account) treat as high-risk and block at the domain level, so
-    // connect() never runs. There is no CSP in this app; the block is the domain.
-    //
-    // ludobase.live is owned and its nameservers already point at Cloudflare
-    // (amos/tess.ns.cloudflare.com), but the origin was Vercel — which has no
-    // /api/room endpoint, so the room socket could never connect there.
-    //
-    // Served on `play.ludobase.live` rather than the apex so the existing Vercel
-    // deployment keeps working while this is verified. To move the apex, change
-    // the pattern to "ludobase.live" — the Worker then owns that hostname and
-    // Vercel stops serving it.
-    { "pattern": "play.ludobase.live", "custom_domain": true }
+  "routes":   [
+    {
+      "pattern": "play.ludobase.live",
+      "custom_domain": true
+    }
   ]
 }

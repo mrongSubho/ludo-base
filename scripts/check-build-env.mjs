@@ -1,38 +1,71 @@
 #!/usr/bin/env node
 /**
- * Build-time environment guard.
+ * Build-time environment guard AND injector.
  *
- * Why this exists: on 2026-10-23 the Cloudflare Workers Builds pipeline produced
- * a bundle with no CDP project id and no Supabase URL, because the pipeline had
- * no build variables configured. The build logged:
+ * Two jobs:
+ *
+ * 1. INJECT. Load the `vars` block from wrangler.jsonc into `process.env` before
+ *    `next build` runs, so a build never depends on dashboard configuration.
+ *
+ * 2. VALIDATE. Fail the build if any required NEXT_PUBLIC_* value is still
+ *    missing.
+ *
+ * Why (2026-10-23): the Cloudflare Workers Builds pipeline had 18 runtime
+ * production variables and 8 secrets configured, yet the build still logged
  *
  *   ⚠️ Supabase environment variables are missing. Using placeholders for build.
  *
- * ...and then deployed successfully. The result was a live site with no CDP
- * wallet and no Supabase connection, and nothing on the deploy side said so. A
- * second deploy (mine, with correct env) was then overwritten by the pipeline.
+ * ...and deployed a bundle with no CDP project id and no Supabase URL. Runtime
+ * variables are visible to the Worker via `env.X` when it executes, but
+ * `NEXT_PUBLIC_*` inlining happens at BUILD time from `process.env` — the two are
+ * separate configuration surfaces in Cloudflare, and only one of them feeds the
+ * bundle. A placeholder build is strictly worse than a failed build: one is
+ * silently broken, the other is visible.
  *
- * `NEXT_PUBLIC_*` values are inlined at build time, so a missing variable is not
- * a runtime configuration problem — it is baked into the bundle and cannot be
- * fixed without a rebuild. A placeholder build is therefore strictly worse than a
- * failed build: one is silently broken, the other is honest.
+ * Precedence: an existing `process.env` value always wins (dashboard build
+ * variables, or a local `.env`), then wrangler.jsonc `vars`, then failure.
  *
- * Runs as part of `npm run build`, which `opennextjs-cloudflare build` invokes
- * (visible in CI logs as `> ludo-base@0.1.0 build`), so this covers both local
- * and pipeline builds.
+ * Runs as part of `npm run build`, which `opennextjs-cloudflare build` invokes —
+ * visible in CI logs as `> ludo-base@0.1.0 build` — so it covers local and
+ * pipeline builds alike.
  *
  * Escape hatch: SKIP_ENV_CHECK=1 for deliberate local experiments.
  */
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 
+/** Strip JSONC comments so the config parses as JSON. */
+function stripJsonc(raw) {
+  let out = '';
+  let inStr = false;
+  let inLine = false;
+  let inBlock = false;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    const n = raw[i + 1];
+    if (inLine) { if (c === '\n') { inLine = false; out += c; } continue; }
+    if (inBlock) { if (c === '*' && n === '/') { inBlock = false; i++; } continue; }
+    if (inStr) {
+      out += c;
+      if (c === '\\') { out += n ?? ''; i++; }
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; out += c; continue; }
+    if (c === '/' && n === '/') { inLine = true; i++; continue; }
+    if (c === '/' && n === '*') { inBlock = true; i++; continue; }
+    out += c;
+  }
+  return out;
+}
+
 /**
  * Required: absence silently breaks wallet sign-in or data access, and the
- * failure is invisible at runtime. Deliberately NOT an exhaustive list — vars
- * with safe defaults (PeerJS, room WS, paymaster) are excluded so this cannot
- * fail a build that would otherwise work.
+ * failure is invisible at runtime. Deliberately NOT exhaustive — vars with safe
+ * defaults (PeerJS, room WS, paymaster) are excluded so this cannot fail a build
+ * that would otherwise work.
  */
 const REQUIRED = [
   ['NEXT_PUBLIC_SUPABASE_URL', 'Supabase client — no DB, no auth, no realtime'],
@@ -48,22 +81,74 @@ if (process.env.SKIP_ENV_CHECK === '1') {
   process.exit(0);
 }
 
-// `.env.local` is not loaded by Next in this context, so read it directly for
-// local builds. In CI the variables come from the environment instead.
-function fromEnvLocal(key) {
-  const p = join(ROOT, '.env.local');
-  if (!existsSync(p)) return undefined;
-  for (const line of readFileSync(p, 'utf8').split('\n')) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-    if (m && m[1] === key) return m[2].replace(/^["']|["']$/g, '').trim() || undefined;
+// ── 1. Inject wrangler.jsonc vars via .env.production ───────────────────────
+//
+// Must be a FILE, not `process.env`: `npm run build` runs this guard and
+// `next build` as separate processes, so mutating process.env here never reaches
+// the build. (Tried that first — the guard reported success and the bundle still
+// had placeholder values.)
+//
+// `.env.production` is read automatically by `next build`. It outranks
+// `.env.local`, so it is written ONLY when no `.env.local` exists: in CI there is
+// none and this is the source of truth; locally there is one and it must win.
+// `.env*` is gitignored, so the generated file is never committed.
+const ENV_PROD = join(ROOT, '.env.production');
+const ENV_LOCAL = join(ROOT, '.env.local');
+
+let injected = 0;
+const wranglerPath = join(ROOT, 'wrangler.jsonc');
+if (existsSync(wranglerPath)) {
+  let wrangler;
+  try {
+    wrangler = JSON.parse(stripJsonc(readFileSync(wranglerPath, 'utf8')));
+  } catch (err) {
+    console.error('✗ build-env check: wrangler.jsonc does not parse:', err.message);
+    process.exit(1);
+  }
+
+  const publicVars = Object.entries(wrangler.vars || {}).filter(
+    ([k, v]) => k !== '_comment' && typeof v === 'string' && v,
+  );
+
+  if (existsSync(ENV_LOCAL)) {
+    console.log('○ build-env: .env.local present — it takes precedence, not writing .env.production');
+  } else if (publicVars.length > 0) {
+    const lines = [
+      '# GENERATED by scripts/check-build-env.mjs from wrangler.jsonc `vars`.',
+      '# Do not edit; change wrangler.jsonc. Gitignored by design.',
+      ...publicVars.map(([k, v]) => `${k}=${v}`),
+      '',
+    ];
+    writeFileSync(ENV_PROD, lines.join('\n'));
+    injected = publicVars.length;
+    console.log(`○ build-env: wrote ${injected} public var(s) to .env.production from wrangler.jsonc`);
+  }
+}
+
+// ── 2. Validate ─────────────────────────────────────────────────────────────
+// Resolve each required var from (in order): the real environment, an existing
+// .env.production, or wrangler.jsonc. What matters is that the BUILD will see a
+// value — not that this process happens to have one in process.env.
+function resolve(key) {
+  if (process.env[key]) return process.env[key];
+  if (existsSync(ENV_PROD)) {
+    for (const line of readFileSync(ENV_PROD, 'utf8').split('\n')) {
+      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (m && m[1] === key && m[2]) return m[2].replace(/^["']|["']$/g, '');
+    }
+  }
+  if (existsSync(wranglerPath)) {
+    try {
+      const w = JSON.parse(stripJsonc(readFileSync(wranglerPath, 'utf8')));
+      if (w.vars && typeof w.vars[key] === 'string' && w.vars[key]) return w.vars[key];
+    } catch { /* reported above */ }
   }
   return undefined;
 }
 
 const missing = [];
 for (const [key, why] of REQUIRED) {
-  const value = process.env[key] || fromEnvLocal(key);
-  if (!value) missing.push([key, why]);
+  if (!resolve(key)) missing.push([key, why]);
 }
 
 if (missing.length > 0) {
@@ -74,11 +159,12 @@ if (missing.length > 0) {
   }
   console.error('\n  These are inlined at build time, so a missing value is baked into the');
   console.error('  bundle and cannot be fixed without a rebuild. Deploying anyway produces a');
-  console.error('  silently broken site — no wallet, no database — which is what happened on');
-  console.error('  2026-10-23 when the Workers Builds pipeline had no variables configured.');
-  console.error('\n  Fix (Cloudflare dashboard):');
-  console.error('    Workers & Pages → ludo-base → Settings → Build → Variables and secrets');
-  console.error('\n  Fix (local): add them to .env.local, or SKIP_ENV_CHECK=1 to override.');
+  console.error('  silently broken site — no wallet, no database.');
+  console.error('\n  Fix: add them to the `vars` block of wrangler.jsonc (they are NEXT_PUBLIC_*,');
+  console.error('  i.e. already public in the client bundle), or to the Cloudflare BUILD');
+  console.error('  variables — Workers & Pages → ludo-base → Settings → Build → Variables and');
+  console.error('  secrets. Runtime production variables do NOT reach the build.');
+  console.error('\n  Escape hatch: SKIP_ENV_CHECK=1.');
   process.exit(1);
 }
 
