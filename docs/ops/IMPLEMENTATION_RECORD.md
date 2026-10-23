@@ -2371,3 +2371,59 @@ query string.
 
 **Verified:** 540 tests / 529 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors ·
 check:routes clean (53 routes).
+
+### Every send failure now says why (2026-10-23)
+
+The instruction was direct: when a user fails to send a message they must see an error explaining
+whether it is their network, a system fault, or a database failure.
+
+**This is the fix for the thing that cost the most time today.** The live-chat route returned a bare
+`{"error":"Failed to send"}` and the client swallowed it entirely — `if (!res.ok) { … }` with no UI
+feedback, then `catch { /* realtime will fill the gap on retry */ }`. A 401 was indistinguishable from
+a success. The only visible signal was a 10-second cooldown counting down. Four rounds of debugging
+were spent because no layer carried a reason.
+
+**`lib/sendErrors.ts`** — a shared taxonomy of eight codes, each with user-facing copy that answers
+*whose fault is it and what do I do*:
+
+| Code | Meaning | What the user reads |
+|---|---|---|
+| `network` | request never completed | "Can't reach the game server. Check your connection and try again." |
+| `auth` | session missing/expired | "Your session expired. Sign in again to keep chatting." |
+| `validation` | input rejected | "That message was rejected — check what you typed." |
+| `rate_limited` | slow mode | "Slow mode — wait a moment before your next message." |
+| `db_write` | the insert failed | "Couldn't save your message. That's on us, not you…" |
+| `db_read` | a dependent read failed | "Couldn't load what's needed to send that…" |
+| `config` | server missing config | "The server is missing configuration it needs." |
+| `server` | anything else | "Something went wrong on our side." |
+
+`classifyWriteError()` maps a PostgREST error to the right code — a Postgres SQLSTATE `23503`/`23505`/
+`42501` becomes `db_write`, a fetch failure becomes `network`, a missing service key becomes `config`.
+`describeSendFailure()` is the client-side mirror, so one place decides what a failure means and no
+component invents its own wording.
+
+**Wired through both send paths.** `/api/live-chat` and `/api/messages` return
+`{ error, code, detail }` on every failure; the raw `error.message` passthroughs that leaked Postgres
+internals to the client are gone. On the client, the chat panels render a dismissible red banner above
+the composer (both `LiveChatPanel` and `UnifiedBroadcastFeed`), and a failed DM bubble shows the
+specific sentence instead of "Failed to send". The room announce logs its reason rather than returning
+a bare `false`.
+
+**Gate `P0-12`** fails if either send route hand-rolls a generic failure string, and `P0-12b` fails if
+the taxonomy loses a class or its copy stops saying whose fault it is. Both proven load-bearing.
+
+**Two regressions from my own change, both caught by the suite and fixed:** an unused type import
+(ESLint error), and `P6` asserting the old literal `'Session required to chat'`. The P6 fix is the
+right shape — it now asserts `sendError('auth')`, i.e. the *behaviour*, not the wording. A test pinned
+to copy breaks every time the copy improves.
+
+**Verified live** as `f6127817` — three distinct failure classes return three distinct coded reasons:
+
+```
+auth       {"error":"Your session expired. Sign in again to keep chatting.","code":"auth",…}
+validation {"error":"That message was rejected — check what you typed.","code":"validation",…}
+auth (DM)  {"error":"Your session expired. Sign in again to keep chatting.","code":"auth",…}
+```
+
+**Verified:** 542 tests / 531 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors ·
+check:routes clean (53 routes).

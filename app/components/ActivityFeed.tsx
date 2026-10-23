@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
+import { describeSendFailure } from '@/lib/sendErrors';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PanelChildTabs } from './PanelTabs';
@@ -112,6 +113,9 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
     const [emojiOpen, setEmojiOpen] = useState(false);
     const [inputEmotes, setInputEmotes] = useState<ChatDraftEmote[]>([]);
     const [cooldown, setCooldown] = useState(0);
+    // The last send failure, shown to the user. A silent failure is indistinguishable
+    // from success, which is how the shoutbox went a full day reporting nothing.
+    const [sendError, setSendError] = useState<string | null>(null);
     const [country, setCountry] = useState('XX');
     const chatScrollRef = useRef<HTMLDivElement>(null);
 
@@ -205,9 +209,15 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
                 if (res.status === 429 && err.waitLeft) setCooldown(err.waitLeft);
+                // Tell the user WHY. Previously this was swallowed, so a 401 looked
+                // exactly like a success and the only feedback was the cooldown.
+                const { message } = await describeSendFailure(res);
+                setSendError(message);
+            } else {
+                setSendError(null);
             }
         } catch {
-            /* realtime will fill the gap on retry */
+            setSendError("Can't reach the game server. Check your connection and try again.");
         }
     };
 
@@ -304,6 +314,25 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                     </div>
                 )}
             </div>
+
+            {/* Send failure — says WHY, not just that something failed. */}
+            {sendError && (
+                <div
+                    role="alert"
+                    className="mx-5 mb-1 flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] leading-snug text-red-200"
+                >
+                    <span aria-hidden="true">⚠</span>
+                    <span className="flex-1">{sendError}</span>
+                    <button
+                        type="button"
+                        onClick={() => setSendError(null)}
+                        aria-label="Dismiss"
+                        className="shrink-0 text-red-300/70 hover:text-red-100"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
 
             {/* Input */}
             <div className="px-5 pt-2 pb-3">
@@ -914,6 +943,9 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
     const [emojiOpen, setEmojiOpen] = useState(false);
     const [inputEmotes, setInputEmotes] = useState<ChatDraftEmote[]>([]);
     const [cooldown, setCooldown] = useState(0);
+    // The last send failure, shown to the user. A silent failure is indistinguishable
+    // from success, which is how the shoutbox went a full day reporting nothing.
+    const [sendError, setSendError] = useState<string | null>(null);
     const feedScrollRef = useRef<HTMLDivElement>(null);
 
     // Broadcast card "On air" CTA opens this feed in matches-only mode.
@@ -956,9 +988,15 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
                 if (res.status === 429 && err.waitLeft) setCooldown(err.waitLeft);
+                // Tell the user WHY. Previously this was swallowed, so a 401 looked
+                // exactly like a success and the only feedback was the cooldown.
+                const { message } = await describeSendFailure(res);
+                setSendError(message);
+            } else {
+                setSendError(null);
             }
         } catch {
-            /* realtime will fill the gap on retry */
+            setSendError("Can't reach the game server. Check your connection and try again.");
         }
     };
 
@@ -1280,6 +1318,25 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                     </div>
                 )}
             </div>
+
+            {/* Send failure — says WHY, not just that something failed. */}
+            {sendError && (
+                <div
+                    role="alert"
+                    className="mx-5 mb-1 flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] leading-snug text-red-200"
+                >
+                    <span aria-hidden="true">⚠</span>
+                    <span className="flex-1">{sendError}</span>
+                    <button
+                        type="button"
+                        onClick={() => setSendError(null)}
+                        aria-label="Dismiss"
+                        className="shrink-0 text-red-300/70 hover:text-red-100"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
 
             {/* Input (always live — sending is orthogonal to filters) */}
             <div className="px-5 pt-2 pb-3">

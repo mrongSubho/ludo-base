@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { requireSessionWallet, requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
 import { isSealedBox } from '@/lib/encryption';
 import { MAX_DM_CONTENT_LEN } from '@/lib/constants';
+import { sendError, classifyWriteError, SEND_ERROR_STATUS } from '@/lib/sendErrors';
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const expectedWallet = searchParams.get('walletAddress') || undefined;
         const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
-        if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+        if (!wallet) return NextResponse.json(sendError('auth', 'invalid or missing app session'), { status: 401 });
 
         const db = serviceDb();
         const [conversations, messages] = await Promise.all([
@@ -22,11 +23,13 @@ export async function GET(request: Request) {
                 .order('created_at', { ascending: false })
                 .limit(30),
         ]);
-        if (conversations.error) return NextResponse.json({ error: conversations.error.message }, { status: 500 });
-        if (messages.error) return NextResponse.json({ error: messages.error.message }, { status: 500 });
+        if (conversations.error) return NextResponse.json(sendError('db_read', conversations.error.message), { status: 500 });
+        if (messages.error) return NextResponse.json(sendError('db_read', messages.error.message), { status: 500 });
         return NextResponse.json({ conversations: conversations.data || [], messages: messages.data || [] });
     } catch (error) {
-        return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+        const { code, detail } = classifyWriteError(error);
+        console.error('[messages] unhandled:', detail);
+        return NextResponse.json(sendError(code, detail), { status: SEND_ERROR_STATUS[code] || 500 });
     }
 }
 
@@ -44,7 +47,7 @@ export async function POST(request: Request) {
         const wallet =
             (await requireSessionWallet(request, { scope: 'app', expectedWallet: walletAddress })) ||
             (await requireAppSession(walletAddress, sessionId));
-        if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+        if (!wallet) return NextResponse.json(sendError('auth', 'invalid or missing app session'), { status: 401 });
         const db = serviceDb();
         if (action === 'send') {
             const receiver = String(receiverId || '').toLowerCase();
@@ -71,13 +74,17 @@ export async function POST(request: Request) {
                 const provisionErr = await ensurePlayerRow(party);
                 if (provisionErr) {
                     console.error('[messages] could not provision party:', party, provisionErr);
-                    return NextResponse.json({ error: 'Failed to send' }, { status: 500 });
+                    return NextResponse.json(sendError('db_write', provisionErr), { status: 500 });
                 }
             }
             const { data, error } = await db.from('messages').insert({
                 sender_id: wallet, receiver_id: receiver, content: String(content),
             }).select().single();
-            if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+            if (error) {
+                const { code, detail } = classifyWriteError(error);
+                console.error('[messages] DM insert failed:', detail);
+                return NextResponse.json(sendError(code, detail), { status: SEND_ERROR_STATUS[code] || 500 });
+            }
             try {
                 const { recordSocialOnboarding } = await import('@/lib/onboardingProgressWriter');
                 await recordSocialOnboarding(db, wallet, 'friend_dm', 1);
@@ -97,7 +104,7 @@ export async function POST(request: Request) {
                 me: wallet,
                 friend: sender,
             } as never);
-            if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+            if (error) return NextResponse.json(sendError('db_write', error.message), { status: 500 });
         } else if (action === 'delete') {
             const { data: message } = await db.from('messages').select('sender_id, receiver_id')
                 .eq('id', messageId).maybeSingle();
@@ -108,10 +115,12 @@ export async function POST(request: Request) {
             // client set both flags, nuking the other side's copy.
             const field = String(message.sender_id).toLowerCase() === wallet ? 'deleted_by_sender' : 'deleted_by_receiver';
             const { error } = await db.from('messages').update({ [field]: true }).eq('id', messageId);
-            if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+            if (error) return NextResponse.json(sendError('db_write', error.message), { status: 500 });
         } else return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
         return NextResponse.json({ success: true });
     } catch (error) {
-        return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+        const { code, detail } = classifyWriteError(error);
+        console.error('[messages] unhandled:', detail);
+        return NextResponse.json(sendError(code, detail), { status: SEND_ERROR_STATUS[code] || 500 });
     }
 }

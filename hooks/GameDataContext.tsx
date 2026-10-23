@@ -49,6 +49,8 @@ export interface MessageData {
     deleted_by_sender: boolean | null;
     deleted_by_receiver: boolean | null;
     send_status?: 'sending' | 'failed' | 'sent';
+    /** Why the last send failed, in the user's words. Shown on the bubble. */
+    send_error?: string;
 }
 
 export interface Conversation {

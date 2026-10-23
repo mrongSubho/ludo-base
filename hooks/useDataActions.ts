@@ -223,10 +223,18 @@ export const useDataActions = ({
                 body: JSON.stringify({ walletAddress: lowerAddr, sessionId, action: 'send', receiverId: targetId, content: JSON.stringify(encrypted) })
             });
             const data = response.ok ? await response.json() : null;
-            const error = response.ok ? null : new Error((await response.json()).error || 'Message send failed');
+            // The server now always sends { error, code, detail }. Keep the
+            // human sentence so the bubble can say WHY it failed, not just that
+            // it did.
+            const failure = response.ok
+                ? null
+                : await response.json().catch(() => null);
+            const error = response.ok
+                ? null
+                : new Error(failure?.error || "Couldn't send that message.");
 
             if (error && !p2pSent) {
-                setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
+                setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed', send_error: error?.message } : m));
             } else {
                 setMessages(prev => prev.map(m => {
                     if (m.id === tempId) {
@@ -245,7 +253,12 @@ export const useDataActions = ({
 
         } catch (err) {
             console.error('sendMessage failed', err);
-            setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed' } : m));
+            // The request never completed — that is a network/reachability failure,
+            // not a server rejection, so say so rather than showing a generic one.
+            const reason = err instanceof Error && err.message
+                ? err.message
+                : "Can't reach the game server. Check your connection and try again.";
+            setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed', send_error: reason } : m));
         }
     }, [address, peer, connections, profilesMap, setMessages, setupConnectionListeners, ensureAppSession, signMessageAsync]);
 

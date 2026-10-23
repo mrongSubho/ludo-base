@@ -817,7 +817,15 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                                 </div>
                                                             )}
                                                             {msg.send_status === 'failed' && (
-                                                                <button onClick={() => isMe && retrySend(msg)} className="text-ludo-xs text-red-400 mt-1 px-1 font-bold hover:text-red-300 transition-colors">Failed to send · tap to retry</button>
+                                                                <button
+                                                                    onClick={() => isMe && retrySend(msg)}
+                                                                    className="text-left text-ludo-xs text-red-400 mt-1 px-1 font-bold hover:text-red-300 transition-colors"
+                                                                >
+                                                                    {/* The reason, not just the fact. The server sends a
+                                                                        human sentence per failure class. */}
+                                                                    {msg.send_error || "Couldn't send that message."}
+                                                                    <span className="ml-1 font-normal opacity-70">· tap to retry</span>
+                                                                </button>
                                                             )}
                                                         </div>
                                                     </div>

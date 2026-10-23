@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { requireSessionWallet, requireAppSession, ensurePlayerRow } from '@/lib/serverAuth';
 import { MAX_CHAT_LEN } from '@/lib/constants';
+import { sendError, classifyWriteError, SEND_ERROR_STATUS } from '@/lib/sendErrors';
 
 const LIMIT = 20;
 const SLOW_MODE_S = 10;
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
         return NextResponse.json([...(data || [])].reverse());
     } catch (err) {
         console.error('[live-chat] GET failed:', err);
-        return NextResponse.json({ error: 'Failed to load chat' }, { status: 500 });
+        return NextResponse.json(sendError('db_read'), { status: 500 });
     }
 }
 
@@ -77,7 +78,10 @@ export async function POST(request: Request) {
         const isWallet = rawWallet.startsWith('0x');
         const isGuestId = rawWallet.startsWith('guest_');
         if ((!isWallet && !isGuestId) || !content) {
-            return NextResponse.json({ error: !content ? 'Empty message' : 'Wallet required' }, { status: !content ? 400 : 401 });
+            return NextResponse.json(
+                sendError('validation', !content ? 'empty content' : 'wallet required'),
+                { status: 400 },
+            );
         }
 
         // P6: Live chat identity is bound to the session wallet for real wallets
@@ -86,7 +90,7 @@ export async function POST(request: Request) {
             const sessionWallet = (await requireSessionWallet(request, { scope: 'app', expectedWallet: rawWallet })) ||
                 (body.sessionId ? await requireAppSession(rawWallet, body.sessionId) : null);
             if (!sessionWallet) {
-                return NextResponse.json({ error: 'Session required to chat' }, { status: 401 });
+                return NextResponse.json(sendError('auth', 'no app session for a 0x sender'), { status: 401 });
             }
             wallet = sessionWallet.toLowerCase();
         }
@@ -99,7 +103,7 @@ export async function POST(request: Request) {
         const provisionErr = await ensurePlayerRow(wallet);
         if (provisionErr) {
             console.error('[live-chat] could not provision sender:', provisionErr);
-            return NextResponse.json({ error: 'Failed to send' }, { status: 500 });
+            return NextResponse.json(sendError('db_write', provisionErr), { status: 500 });
         }
 
         // Slow-mode applies to fresh shouts only — room state syncs bypass it.
@@ -114,7 +118,7 @@ export async function POST(request: Request) {
             const lastAt = last?.[0]?.created_at ? new Date(last[0].created_at).getTime() : 0;
             const waitLeft = Math.ceil((SLOW_MODE_S * 1000 - (Date.now() - lastAt)) / 1000);
             if (waitLeft > 0) {
-                return NextResponse.json({ error: `Slow mode — wait ${waitLeft}s`, waitLeft }, { status: 429 });
+                return NextResponse.json({ ...sendError('rate_limited'), waitLeft }, { status: 429 });
             }
         }
 
@@ -236,6 +240,7 @@ export async function POST(request: Request) {
         return NextResponse.json(inserted);
     } catch (err) {
         console.error('[live-chat] POST failed:', err);
-        return NextResponse.json({ error: 'Failed to send' }, { status: 500 });
+        const { code, detail } = classifyWriteError(err);
+        return NextResponse.json(sendError(code, detail), { status: SEND_ERROR_STATUS[code] || 500 });
     }
 }

@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
+import { describeSendFailure } from '@/lib/sendErrors';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { LobbyState, LobbySlot } from '@/lib/types';
 import { canStartMatch } from '@/lib/gameLogic';
@@ -465,8 +466,18 @@ export const TeamUpMatchPanel = ({
                 },
                 body: JSON.stringify({ wallet: address, content, roomCode: roomCodeValue, roomOpen: open, sessionId: sid ?? undefined }),
             });
+            if (!res.ok) {
+                // The room announce is a live_chat insert. A failure here used to
+                // return `false` with no reason, so a room that never appeared in
+                // the arena feed looked like it simply had not been announced yet.
+                const { message } = await describeSendFailure(res);
+                console.warn('[room-announce] failed:', message);
+            }
             return res.ok;
-        } catch { return false; }
+        } catch {
+            console.warn('[room-announce] unreachable — network error');
+            return false;
+        }
     };
     const announceContent = (joined: number, total: number) =>
         `${matchType} · ${modeLabel} · ${feeLabel} · ${joined}/${total} · join`;

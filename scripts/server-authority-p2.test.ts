@@ -48,9 +48,14 @@ test('P2: match/start assigns room_owner from authenticated session', () => {
 // ─── P6: Live chat identity bound to session wallet ───────────────────────────
 test('P6: live-chat binds sender identity to session wallet and rejects unauthenticated shouts', () => {
     const src = read('app/api/live-chat/route.ts');
+    // Identity is bound to the session wallet, never taken from the client.
     assert.match(src, /requireSessionWallet\(request/);
-    assert.match(src, /Session required to chat/);
     assert.match(src, /wallet = sessionWallet\.toLowerCase\(\)/);
+    // An unauthenticated 0x sender is rejected with the `auth` code. The literal
+    // string used to be 'Session required to chat'; it now comes from the shared
+    // taxonomy so the user is told to sign in again rather than shown a bare
+    // failure — assert the code, not the wording.
+    assert.match(src, /sendError\('auth'/);
 });
 
 // ─── P7: Onboarding game tracks derived from recorded matches ─────────────────

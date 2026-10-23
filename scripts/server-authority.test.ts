@@ -460,3 +460,56 @@ test('P0-11b: the missions client sends its session as a header, not a query par
   assert.doesNotMatch(route, /searchParams\.get\(\s*['"`]sessionId['"`]\s*\)/,
     'no route may read a session from the query string');
 });
+
+// ── No send route may return a generic failure ─────────────────────────────
+//
+// On 2026-10-23 a signed-in user could not send a live-chat message and saw
+// nothing at all — no error, just a 10-second cooldown. The route had returned
+// 401, the client had swallowed it, and the cause took four rounds to find
+// because no layer carried a reason.
+//
+// `Failed to send` is not an error message; it is the absence of one. It does not
+// tell the user whether to check their connection, sign in again, or wait — and it
+// does not tell an operator whether the DB, the config or the network broke.
+
+const SEND_ROUTES = ['app/api/live-chat/route.ts', 'app/api/messages/route.ts'];
+
+test('P0-12: every send-route failure carries a classified code, never a bare message', () => {
+  for (const rel of SEND_ROUTES) {
+    const src = readFileSync(join(root, rel), 'utf8');
+
+    // It must use the shared taxonomy…
+    assert.match(src, /from '@\/lib\/sendErrors'/,
+      `${rel} must import the send-error taxonomy`);
+
+    // …and must not hand-roll a generic failure string anywhere.
+    const generic = [
+      /error:\s*'Failed to send'/,
+      /error:\s*"Failed to send"/,
+      /error:\s*'Message send failed'/,
+      /error:\s*'Invalid session'/,
+      /error:\s*error\.message/,
+      /error:\s*\(\w+ as Error\)\.message/,
+      /error:\s*conversations\.error\.message/,
+      /error:\s*messages\.error\.message/,
+    ];
+    for (const re of generic) {
+      assert.doesNotMatch(src, re,
+        `${rel} still returns a generic/raw failure — use sendError(code) so the user is told why`);
+    }
+  }
+});
+
+test('P0-12b: the taxonomy covers the failure classes the user must be able to tell apart', () => {
+  const src = readFileSync(join(root, 'lib', 'sendErrors.ts'), 'utf8');
+  // The user's question is "is it my network, your system, or the database?" —
+  // each of those must be its own code with its own copy.
+  for (const code of ['network', 'auth', 'validation', 'rate_limited', 'db_write', 'db_read', 'config', 'server']) {
+    assert.match(src, new RegExp(`\\|\\s*'${code}'`), `missing code: ${code}`);
+    assert.ok(src.includes(`${code}:`), `missing user-facing copy for: ${code}`);
+  }
+  // Copy must say whose fault it is, not just that it failed.
+  assert.match(src, /on us, not you/, 'db_write copy must tell the user it is not their fault');
+  assert.match(src, /Check your connection/, 'network copy must tell the user what to check');
+  assert.match(src, /Sign in again/, 'auth copy must tell the user what to do');
+});
