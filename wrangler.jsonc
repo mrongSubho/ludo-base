@@ -53,19 +53,35 @@
   // variables are NOT visible to the build: on 2026-10-23 the Workers Builds pipeline
   // had 18 runtime prod vars configured, yet the build still logged "Supabase
   // environment variables are missing. Using placeholders for build." and deployed a
-  // bundle with no CDP project id and no Supabase URL. Declaring them here makes the
-  // build self-sufficient — scripts/check-build-env.mjs injects this block into
-  // process.env before `next build` runs.
+  // bundle with no CDP project id and no Supabase URL.
   //
-  // Secrets (SUPABASE_SERVICE_ROLE_KEY, CDP API secrets, ...) do NOT belong here —
-  // they stay in Worker secrets via `wrangler secret put` / scripts/cf-secrets.mjs.
+  // Every NEXT_PUBLIC_* var the app reads must appear here. Missing ones fail
+  // SILENTLY: chips balance and daily/weekly missions both vanished on 2026-10-23
+  // because NEXT_PUBLIC_CHIPS_ADDRESS and NEXT_PUBLIC_MISSION_SYSTEM_ADDRESS were
+  // absent — no contract address to read, no error, just empty UI. The leaderboard
+  // kept working because it reads Supabase only.
+  //
+  // scripts/check-build-env.mjs writes these to .env.production before `next build`.
+  // Secrets do NOT belong here — they stay in Worker secrets (cf-secrets.mjs).
   "vars":   {
     "NEXT_PUBLIC_SUPABASE_URL": "https://xvwaqxqyjtlsuijgwozi.supabase.co",
     "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2d2FxeHF5anRsc3Vpamd3b3ppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2NjIzOTgsImV4cCI6MjEwNTIzODM5OH0.meIJe2yyRv69d8NGqAGGilm04VZ7gR4wXQqO__LaYd4",
     "NEXT_PUBLIC_CDP_PROJECT_ID": "364b3239-e4ab-4d34-a7c4-81ec35003720",
     "NEXT_PUBLIC_CDP_AUTH": "1",
     "NEXT_PUBLIC_WC_PROJECT_ID": "673e0d259a5dc10d64b0fec83f6e8eca",
-    "NEXT_PUBLIC_ONCHAINKIT_API_KEY": "YxhGPF4gkkpnfqWoNqrTDfqxUX1kKWdU"
+    "NEXT_PUBLIC_ONCHAINKIT_API_KEY": "YxhGPF4gkkpnfqWoNqrTDfqxUX1kKWdU",
+    "NEXT_PUBLIC_EDGE_SERVER_URL": "wss://ludo-edge-server.onrender.com",
+    "NEXT_PUBLIC_BUILDER_CODE": "bc_nao85n7u",
+    "NEXT_PUBLIC_SENTRY_DSN": "https://37b16533b00dc5638f71670a3e19b28f@o4512138565255168.ingest.us.sentry.io/4512138573053952",
+    "NEXT_PUBLIC_CHIPS_ADDRESS": "0xB200000000000000000000821408122b9Ed3d05B",
+    "NEXT_PUBLIC_MATCH_POOL_ADDRESS": "0x4740048bdBAF5A5bbD37c7ce6dce666910993091",
+    "NEXT_PUBLIC_MISSION_CLAIM_ADDRESS": "0x1A3371805ACff5eea1B1A5C9A231a7d9d78Cacd9",
+    "NEXT_PUBLIC_LEGACY_CLAIM_ADDRESS": "0x6f9E12D5F9d81132214cdA8369410ab7c187227F",
+    "NEXT_PUBLIC_CLAIM_HUB_ADDRESS": "0x15dF536466Ef58f77e95D7432089DeEBDf276821",
+    "NEXT_PUBLIC_SEASON_CLAIM_ADDRESS": "0x1A27120eab8638e40ed8eEf60fAe13cC18277bd3",
+    "NEXT_PUBLIC_WALLET_INGAME": "1",
+    "NEXT_PUBLIC_VAPID_PUBLIC_KEY": "BLKZUPgz1lB2ZFUv60t_BjJ7t5s2NY0kHAP4VbeF0CbMRz1u-ugyopRhIS76Z_0nFkFPNE7h_jAwidYxs07kvI4",
+    "NEXT_PUBLIC_MISSION_SYSTEM_ADDRESS": "0x663d7c6b13A43962901e7665ad018A52B849709F"
   },
   "routes":   [
     {

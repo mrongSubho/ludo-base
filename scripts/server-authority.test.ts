@@ -207,40 +207,37 @@ test('P0-6: Local development documentation exists', () => {
 // baked into the bundle. A placeholder build is strictly worse than a failed
 // build: one is silently broken, the other is honest.
 
-test('P0-8: the build injects public vars from wrangler.jsonc, then fails if any are missing', () => {
+test('P0-8: the build guard covers every NEXT_PUBLIC_* var the app reads', () => {
   const guard = join(root, 'scripts', 'check-build-env.mjs');
   assert.ok(existsSync(guard), 'scripts/check-build-env.mjs must exist');
-
   const src = readFileSync(guard, 'utf8');
+
+  // It must derive the requirement from the code, not from a hand-kept list —
+  // a fixed list is exactly why chips and missions vanished on 2026-10-23:
+  // NEXT_PUBLIC_CHIPS_ADDRESS and NEXT_PUBLIC_MISSION_SYSTEM_ADDRESS were
+  // missing from wrangler.jsonc and nothing noticed.
+  assert.match(src, /function referencedVars\(\)/);
+  assert.match(src, /KNOWN_OPTIONAL/);
+  // Vars with safe defaults must be allow-listed, or the guard fails a build
+  // that would otherwise work.
+  assert.match(src, /NEXT_PUBLIC_ROOM_WS_URL/);
+  assert.match(src, /NEXT_PUBLIC_PEERJS_HOST/);
+
+  // It must fail, and it must inject from wrangler.jsonc as a FILE.
+  assert.match(src, /process\.exit\(1\)/);
+  assert.match(src, /writeFileSync\(ENV_PROD/);
+  assert.match(src, /\.env\.production/);
+
+  // And wrangler.jsonc must actually carry the economy vars.
+  const cfg = JSON.parse(stripJsonc(readFileSync(join(root, 'wrangler.jsonc'), 'utf8')));
   for (const v of [
     'NEXT_PUBLIC_SUPABASE_URL',
-    'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     'NEXT_PUBLIC_CDP_PROJECT_ID',
-    'NEXT_PUBLIC_CDP_AUTH',
+    'NEXT_PUBLIC_CHIPS_ADDRESS',
+    'NEXT_PUBLIC_MISSION_SYSTEM_ADDRESS',
+    'NEXT_PUBLIC_MISSION_CLAIM_ADDRESS',
+    'NEXT_PUBLIC_CLAIM_HUB_ADDRESS',
   ]) {
-    assert.ok(src.includes(v), `${v} must be required by the build guard`);
-  }
-  // It must actually fail, and name the fix.
-  assert.match(src, /process\.exit\(1\)/);
-  assert.match(src, /Runtime production variables do NOT reach the build/);
-  // The critical half: it must INJECT wrangler.jsonc vars, so a build never
-  // depends on dashboard configuration. Runtime prod vars do not reach the
-  // build — that is exactly what broke on 2026-10-23.
-  //
-  // It must be a FILE, not process.env: `npm run build` runs this guard and
-  // `next build` as separate processes, so a process.env mutation in the guard
-  // never reaches the build. (Tried that first; the guard reported success and
-  // the bundle still had placeholders.)
-  assert.match(src, /wrangler\.jsonc/);
-  assert.match(src, /\.env\.production/);
-  assert.match(src, /writeFileSync\(ENV_PROD/);
-  // And it must not clobber a local .env.local, which outranks nothing but
-  // would be silently overridden otherwise.
-  assert.match(src, /\.env\.local present/);
-
-  // And wrangler.jsonc must actually carry them.
-  const cfg = JSON.parse(stripJsonc(readFileSync(join(root, 'wrangler.jsonc'), 'utf8')));
-  for (const v of ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_CDP_PROJECT_ID', 'NEXT_PUBLIC_CDP_AUTH']) {
     assert.ok(cfg.vars?.[v], `wrangler.jsonc vars must declare ${v}`);
   }
   // Secrets must NOT be in vars.

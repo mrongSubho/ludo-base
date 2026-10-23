@@ -31,7 +31,7 @@
  *
  * Escape hatch: SKIP_ENV_CHECK=1 for deliberate local experiments.
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
@@ -62,19 +62,42 @@ function stripJsonc(raw) {
 }
 
 /**
- * Required: absence silently breaks wallet sign-in or data access, and the
- * failure is invisible at runtime. Deliberately NOT exhaustive — vars with safe
- * defaults (PeerJS, room WS, paymaster) are excluded so this cannot fail a build
- * that would otherwise work.
+ * Vars with safe defaults, so a missing value degrades rather than breaks.
+ * Everything else the app reads must be resolvable or the build fails.
  */
-const REQUIRED = [
-  ['NEXT_PUBLIC_SUPABASE_URL', 'Supabase client — no DB, no auth, no realtime'],
-  ['NEXT_PUBLIC_SUPABASE_ANON_KEY', 'Supabase anon key — no auth'],
-  ['NEXT_PUBLIC_CDP_PROJECT_ID', 'OnchainKit CDP — no embedded wallet'],
-  ['NEXT_PUBLIC_CDP_AUTH', 'OnchainKit CDP auth — no embedded wallet'],
-  ['NEXT_PUBLIC_WC_PROJECT_ID', 'WalletConnect — no external wallets'],
-  ['NEXT_PUBLIC_ONCHAINKIT_API_KEY', 'OnchainKit API'],
-];
+const KNOWN_OPTIONAL = {
+  NEXT_PUBLIC_BUILD_NUMBER: 'injected by CI when present',
+  NEXT_PUBLIC_GIT_HASH: 'injected by CI when present',
+  NEXT_PUBLIC_MISSION_RPC_URL: 'falls back to the default Base RPC',
+  NEXT_PUBLIC_PAYMASTER_URL: 'paymaster is off by default',
+  NEXT_PUBLIC_ROOM_WS_URL: 'unset means same-origin /api/room/:id/ws',
+  NEXT_PUBLIC_PEERJS_HOST: 'falls back to the public PeerJS cloud',
+  NEXT_PUBLIC_PEERJS_KEY: 'falls back to the public PeerJS cloud',
+  NEXT_PUBLIC_PEERJS_PATH: 'falls back to the public PeerJS cloud',
+  NEXT_PUBLIC_PEERJS_PORT: 'falls back to the public PeerJS cloud',
+  NEXT_PUBLIC_PEERJS_SECURE: 'defaults to secure',
+  NEXT_PUBLIC_USDC_ADDRESS: 'USDC path is not wired',
+};
+
+/** Every NEXT_PUBLIC_* var the app actually reads, scanned from source. */
+function referencedVars() {
+  const dirs = ['app', 'lib', 'hooks', 'src'];
+  const found = new Set();
+  for (const dir of dirs) {
+    let files = [];
+    try {
+      files = readdirSync(join(ROOT, dir), { recursive: true, withFileTypes: true })
+        .filter((e) => e.isFile() && /\.(ts|tsx)$/.test(e.name))
+        .map((e) => join(e.parentPath ?? join(ROOT, dir), e.name));
+    } catch { continue; }
+    for (const f of files) {
+      const text = readFileSync(f, 'utf8');
+      for (const m of text.matchAll(/process\.env\.(NEXT_PUBLIC_[A-Z0-9_]+)/g)) found.add(m[1]);
+      for (const m of text.matchAll(/\b(NEXT_PUBLIC_[A-Z0-9_]{3,})\b/g)) found.add(m[1]);
+    }
+  }
+  return [...found].filter((k) => !KNOWN_OPTIONAL[k]);
+}
 
 if (process.env.SKIP_ENV_CHECK === '1') {
   console.log('○ build-env check SKIPPED (SKIP_ENV_CHECK=1)');
@@ -146,9 +169,10 @@ function resolve(key) {
   return undefined;
 }
 
+const required = referencedVars();
 const missing = [];
-for (const [key, why] of REQUIRED) {
-  if (!resolve(key)) missing.push([key, why]);
+for (const key of required) {
+  if (!resolve(key)) missing.push([key, 'read by the app but not resolvable at build time']);
 }
 
 if (missing.length > 0) {
@@ -168,4 +192,4 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-console.log(`✓ build-env check clean (${REQUIRED.length} required NEXT_PUBLIC_* vars present)`);
+console.log(`✓ build-env check clean (${required.length} required NEXT_PUBLIC_* vars present)`);

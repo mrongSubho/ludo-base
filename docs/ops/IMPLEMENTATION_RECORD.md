@@ -2189,3 +2189,52 @@ network error rather than a permission error.
 
 Note the protocol and host must match exactly what the browser reports: `https://play.ludobase.live`,
 no trailing slash, no `www`. If both origins are wanted, add both rather than replacing.
+
+### Chips balance and daily/weekly missions missing — two more absent build vars (2026-10-23)
+
+Social login worked. Chips balance and daily/weekly missions were still missing; the leaderboard was
+fine.
+
+**Cause: `NEXT_PUBLIC_CHIPS_ADDRESS` and `NEXT_PUBLIC_MISSION_SYSTEM_ADDRESS` were in `.env.local`
+but not in `wrangler.jsonc` `vars`.** The leaderboard kept working because it reads Supabase only —
+no contract address — which is exactly the signature of a missing build var rather than a broken API.
+
+This was the same class of bug as the CDP project id, and it was **my gap**: the guard I added the
+hour before only checked six hand-picked vars, so twelve public vars were still free to go missing.
+
+**Fixed in two parts.**
+
+1. **`wrangler.jsonc` now carries all 18 `NEXT_PUBLIC_*` vars** the app reads, not six. They are public
+   by definition — Next inlines them into the client bundle and ships them to every browser — so
+   committing them exposes nothing new.
+
+2. **The guard now derives its requirement from the code instead of a hand-kept list.**
+   `scripts/check-build-env.mjs` scans `app/`, `lib/`, `hooks/`, `src/` for `NEXT_PUBLIC_*`
+   references and requires each one to be resolvable, minus an explicit `KNOWN_OPTIONAL` list for vars
+   with safe defaults (PeerJS, room WS, paymaster, build number, git hash, USDC). Adding a new var to
+   the code now fails the build until it is declared, so this cannot silently recur.
+
+Verified in the conditions that broke: a build with no `.env.local` and every `NEXT_PUBLIC_*` unset
+writes all 18 vars and produces a bundle containing the chips and mission addresses. Removing
+`NEXT_PUBLIC_CHIPS_ADDRESS` from `wrangler.jsonc` makes the guard fail naming exactly that variable.
+
+**Live, checked across all 229 chunks** (not just the ones the initial HTML references — the mission
+chunks are lazy-loaded):
+
+| Var | Live |
+|---|---|
+| `NEXT_PUBLIC_CHIPS_ADDRESS` | ✓ `chunks/3146-…js` |
+| `NEXT_PUBLIC_MISSION_SYSTEM_ADDRESS` | ✓ `chunks/4623.…js` |
+| `NEXT_PUBLIC_MISSION_CLAIM_ADDRESS` | ✓ `chunks/4623.…js` |
+| `NEXT_PUBLIC_MATCH_POOL_ADDRESS` | ✓ `chunks/3146-…js` |
+| `NEXT_PUBLIC_CDP_PROJECT_ID` | ✓ `chunks/1174-…js` |
+| `NEXT_PUBLIC_SUPABASE_URL` | ✓ `chunks/1174-…js` |
+
+`NEXT_PUBLIC_CLAIM_HUB_ADDRESS`, `SEASON_CLAIM_ADDRESS` and `LEGACY_CLAIM_ADDRESS` appear in no client
+chunk: they are referenced only by `lib/chips.ts` functions the client does not import, so webpack
+tree-shakes them. They are server-side reads, satisfied by the Worker's runtime vars — all 18 are
+deployed. Confirmed the routes are healthy: `/api/chips/escrow-balance` → 401 (auth required) and
+`/api/chips/lobby-ticket` → 405 (wrong method), which is correct behaviour; a missing config would be
+a 500.
+
+**Verified:** 534 tests / 523 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.
