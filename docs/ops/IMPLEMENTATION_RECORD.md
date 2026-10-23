@@ -2154,3 +2154,38 @@ live: chunk `1174-33775760595a6596.js` matches the local build, CDP project id a
 present, `/` → 200, room → 426.
 
 **Verified:** 534 tests / 523 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.
+
+### CDP social login fails on the new origin — portal CORS allowlist (2026-10-23)
+
+The embedded wallet now works on `play.ludobase.live` (the build-var fix landed), but every social
+sign-in — Google, Apple, X, Telegram — fails with a network error.
+
+**Cause: the CDP Portal's CORS origin allowlist does not include `play.ludobase.live`.**
+
+The evidence is in this repo's own planning docs, which listed it as outstanding:
+
+- `docs/planning/SMART_WALLET_PLANNING.md:422` — *"CDP Portal manual steps: passkey MFA ON + CORS
+  origin allowlist."*
+- `docs/planning/PHASE_0A_SPIKE_CHECKLIST.md:9` — status ends with *"Remaining: portal domain
+  allowlist confirmation + live C1–C4 click-through"*.
+- `PHASE_0A_SPIKE_CHECKLIST.md:45–46` — the allowlist was seeded with `http://localhost:3000` for dev,
+  and the note says production must carry only the real production origin.
+
+The wallet proves the project id is valid and CDP is reachable — wallet creation does not require the
+OAuth origin check. Social sign-in does: it is an OAuth redirect against the calling origin, so an
+unlisted origin is rejected before any provider is contacted. That is why the failure looks like a
+network error rather than a permission error.
+
+**Why it broke now.** The app moved from the Vercel origin (`ludobase.live`, which was allowlisted) to
+`play.ludobase.live`, a brand-new origin. Nothing in the code changed; the origin did.
+
+**Fix — portal only, cannot be done from here** (needs the owner's CDP Portal login):
+
+1. https://portal.cdp.coinbase.com → the project
+2. **Wallets → Non-custodial → Clients → Add domain**
+3. Add `https://play.ludobase.live`
+4. Confirm the OAuth methods are enabled for the project (Google / Apple / X / Telegram)
+5. No redeploy is needed — the allowlist is read per request, so it takes effect on the next attempt
+
+Note the protocol and host must match exactly what the browser reports: `https://play.ludobase.live`,
+no trailing slash, no `www`. If both origins are wanted, add both rather than replacing.
