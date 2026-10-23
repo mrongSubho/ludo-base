@@ -303,3 +303,90 @@ test('P0-9b: ensurePlayerRow is idempotent and accepts the app identity shapes',
   assert.match(fn, /guest_/, 'guest ids are valid chat senders');
   assert.match(fn, /0x\[a-f0-9\]\{40\}/, 'must validate the address shape');
 });
+
+// ── Session reader and writer must agree on the table ──────────────────────
+//
+// `/api/siwe/verify` mints sessions by INSERTing into `app_sessions` and handing
+// the client that row's id. `requireSession` hashed the incoming token and looked
+// for `sessions.token_hash` — a match that can never occur, because the writer
+// never touches `sessions`.
+//
+// The read side had "retired" the app_sessions dual-read on the assumption the
+// writer had migrated. It had not. Every route authenticating through here
+// returned 401, which took live broadcast, DMs and missions down while the
+// session-free surfaces (chips, leaderboard, activity feed) kept working —
+// the exact signature of an auth failure rather than a data failure.
+//
+// The function's own header documented the fallback ("Dual-read fallback to
+// app_sessions for backward compatibility during rollout"); the implementation
+// disagreed with its own doc, and the implementation was wrong.
+
+test('P0-10: requireSession reads the table the sign-in route writes', () => {
+  const serverAuth = readFileSync(join(root, 'lib', 'serverAuth.ts'), 'utf8');
+  const verify = readFileSync(join(root, 'app', 'api', 'siwe', 'verify', 'route.ts'), 'utf8');
+
+  // The writer still targets app_sessions.
+  assert.match(verify, /from\('app_sessions'\)[\s\S]*?\.insert\(/, 'siwe/verify must still be inserting into app_sessions');
+
+  // So the reader must fall back to it. `requireAppSession` is the existing
+  // dual-read helper — the fallback must go through it rather than reimplementing.
+  const fn = serverAuth.slice(serverAuth.indexOf('export async function requireSession('));
+  const body = fn.slice(0, fn.indexOf('\n}'));
+  assert.match(body, /requireAppSession\(/, 'requireSession must dual-read app_sessions via requireAppSession');
+  assert.doesNotMatch(body, /dual-read is retired/,
+    'the retired-dual-read comment must not come back — it is what broke this');
+
+  // And the fallback must not leak scope: app_sessions has no scope column, so a
+  // match-scoped request must not authenticate off a legacy session.
+  assert.match(body, /expectedScope !== 'app'/, 'legacy sessions are app-scope only');
+});
+
+test('P0-10b: a legacy session authenticates for app scope and is refused for match scope', async () => {
+  const env = readFileSync(join(root, '.env.local'), 'utf8');
+  const get = (k: string) => (env.match(new RegExp('^' + k + '=(.*)$', 'm')) || [])[1]?.trim().replace(/^["']|["']$/g, '');
+  const url = get('NEXT_PUBLIC_SUPABASE_URL');
+  const svc = get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !svc) {
+    // No credentials available (CI) — the static assertions above still hold.
+    return;
+  }
+  process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || svc;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || url;
+
+  const { requireSession } = await import('../lib/serverAuth');
+  const H = { apikey: svc, Authorization: `Bearer ${svc}`, 'Content-Type': 'application/json' };
+
+  const players = await (await fetch(`${url}/rest/v1/players?select=wallet_address&limit=1`, { headers: H })).json();
+  const wallet = String(players?.[0]?.wallet_address || '');
+  if (!wallet) return;
+
+  // one live session per wallet — revoke first, exactly as siwe/verify does.
+  await fetch(`${url}/rest/v1/app_sessions?wallet_address=eq.${wallet}&revoked_at=is.null`, {
+    method: 'PATCH', headers: H, body: JSON.stringify({ revoked_at: new Date().toISOString() }),
+  });
+  const ins = await fetch(`${url}/rest/v1/app_sessions`, {
+    method: 'POST', headers: { ...H, Prefer: 'return=representation' },
+    body: JSON.stringify({
+      wallet_address: wallet,
+      nonce: `gate_${Date.now()}`,
+      expires_at: new Date(Date.now() + 3600_000).toISOString(),
+    }),
+  });
+  const [row] = await ins.json();
+  if (!row?.id) return;
+
+  try {
+    const mk = () => new Request('https://play.ludobase.live/api/missions/list', {
+      method: 'GET',
+      headers: { authorization: `Bearer ${row.id}`, origin: 'https://play.ludobase.live' },
+    });
+
+    const app = await requireSession(mk(), { scope: 'app', expectedWallet: wallet });
+    assert.equal(app?.wallet, wallet, 'a legacy app_session must authenticate for app scope');
+
+    const match = await requireSession(mk(), { scope: 'match' });
+    assert.equal(match, null, 'a legacy app_session must NOT authenticate for match scope');
+  } finally {
+    await fetch(`${url}/rest/v1/app_sessions?id=eq.${row.id}`, { method: 'DELETE', headers: H });
+  }
+});

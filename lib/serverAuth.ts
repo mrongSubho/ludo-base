@@ -146,7 +146,39 @@ export async function requireSession(
         }
     }
 
-    // 4. In P6, app_sessions dual-read is retired. Sessions table is sole authority.
+    // 4. Dual-read fallback to `app_sessions` (restored).
+    //
+    // This was retired here on the assumption that the writer had migrated to
+    // `sessions` v2. It had not: `/api/siwe/verify` still inserts into
+    // `app_sessions` and hands the client that row's id, while this function hashed
+    // it and looked for `sessions.token_hash` — a match that can never occur. Every
+    // route authenticating through here returned 401, which took live broadcast,
+    // DMs and missions down while the session-free surfaces (chips, leaderboard,
+    // activity feed) kept working.
+    //
+    // The header on this function already documented this fallback ("Dual-read
+    // fallback to app_sessions for backward compatibility during rollout"); the
+    // implementation and its own doc disagreed, and the implementation was wrong.
+    //
+    // `app_sessions` has no scope column, so a fallback session is treated as
+    // 'app' scope — which is the only scope the legacy writer ever minted.
+    if (token) {
+        const legacy = await requireAppSession(undefined, token);
+        if (legacy) {
+            // Honour the requested scope: legacy sessions are app-scope only, so a
+            // match-scoped request must not authenticate off one.
+            if (expectedScope !== 'app') return null;
+            if (opts.expectedWallet && opts.expectedWallet.toLowerCase() !== legacy) return null;
+            return {
+                wallet: legacy,
+                scope: 'app',
+                matchId: null,
+                seatColor: null,
+                session: null,
+            };
+        }
+    }
+
     return null;
 }
 

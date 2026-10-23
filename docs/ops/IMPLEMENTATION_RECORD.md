@@ -2280,3 +2280,46 @@ so the walk threw and the test failed as an error rather than an assertion. Wort
 that fails for the wrong reason is nearly as misleading as one that cannot fail.
 
 **Verified:** 536 tests / 525 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.
+
+### Live broadcast, DMs and missions all 401: the session reader and writer disagreed (2026-10-23)
+
+Chips worked; live broadcast and DMs would not send; the leaderboard was empty; daily/weekly missions
+were empty.
+
+**The symptom was the diagnosis.** Every broken surface authenticates through `requireSession`.
+Every working one does not — chips is an on-chain read, the leaderboard is world-readable, the activity
+feed is public. That split points at auth, not at data. (`spectator_bets` is also genuinely 0 rows, so
+the empty leaderboard was correct behaviour, not a bug.)
+
+**The cause.** `/api/siwe/verify` mints sessions by inserting into **`app_sessions`** and handing the
+client that row's id. `requireSession` hashed the incoming token and looked for **`sessions.token_hash`**
+— a match that can never occur, because the writer never touches `sessions`.
+
+The read side had *retired* the `app_sessions` dual-read on the assumption the writer had migrated to
+sessions v2. It had not. `requireAppSession` still dual-read `app_sessions`, but it is only reached as
+an explicit fallback in a handful of routes — so live-chat worked if the client posted `sessionId` in
+the body, and DMs and missions, which call `requireSessionWallet` alone, never did.
+
+The function's own header documented the fallback — *"Dual-read fallback to `app_sessions` for backward
+compatibility during rollout"* — while its body said the dual-read was retired. **The implementation
+disagreed with its own documentation, and the implementation was wrong.**
+
+**Fixed** by restoring the documented fallback: after the v2 lookup misses, `requireSession` delegates
+to `requireAppSession`. Two constraints were applied deliberately:
+
+- **No scope leak.** `app_sessions` has no `scope` column, so a fallback session is treated as
+  `app`-scope only. A `match`-scoped request is refused — otherwise the legacy path would become a way
+  to reach match-scoped actions.
+- **`expectedWallet` is still honoured**, so a session cannot be replayed against another wallet.
+
+**Verified.** A functional check minted a real legacy session and confirmed `requireSession` returns the
+wallet for `app` scope and `null` for `match` scope. Deployed as `0763478e`, then verified live:
+`GET /api/missions/list` with a legacy session returns **200 with the missions** (`daily_bonus`,
+`period_id 2026-10-23`) where it previously returned 401.
+
+**Regression gate `P0-10`** asserts the invariant that actually broke — that `requireSession` reads the
+table the sign-in route writes — plus a functional test that a legacy session authenticates for `app`
+and is refused for `match`. Both fail with the fallback removed. The static test also forbids the
+`dual-read is retired` comment from returning, since that comment is what licensed the removal.
+
+**Verified:** 538 tests / 527 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.
