@@ -2323,3 +2323,51 @@ and is refused for `match`. Both fail with the fallback removed. The static test
 `dual-read is retired` comment from returning, since that comment is what licensed the removal.
 
 **Verified:** 538 tests / 527 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.
+
+### The clients never sent the session at all (2026-10-23)
+
+Still broken after the server-side dual-read fix: live broadcast and DMs would not send, missions were
+empty, and the only feedback was the 10-second cooldown ticking down with no error.
+
+**The server was now correct and the clients were still wrong.** `/api/live-chat` rejects a `0x`
+sender that presents no app session — only `guest_` ids bypass it — and three client call sites sent
+no session at all:
+
+- `ActivityFeed.tsx` — the shoutbox send (two panels, same code)
+- `ActivityFeed.tsx` — a second send path
+- `TeamUpMatchPanel.tsx` — the room announce
+
+Each posted `{ wallet, content }` with only a `Content-Type` header. Every signed-in shout 401'd,
+`if (!res.ok)` swallowed it, and the UI just counted the cooldown. **My earlier probe passed only
+because I used a `guest_` wallet, which skips the session check** — a false negative I should have
+caught, since the reporter was signed in with a real wallet.
+
+**The mirror-image bug on missions.** `MissionPanel` *does* pass the session, but as
+`?sessionId=…` in the URL, while `/api/missions/list` only read the Authorization header. So the
+session was sent and ignored, and the panel rendered an empty list with no error.
+
+**Fixed on the client side, in both cases:**
+
+- The three live-chat call sites now send `Authorization: Bearer <sessionId>` and `x-session-id`,
+  obtaining the session via `useAppSession()` (`peekAppSession()`, falling back to `ensureAppSession()`
+  so a first shout can prompt SIWE).
+- `MissionPanel` sends the session as a header instead of a query parameter.
+
+**A wrong turn, caught by an existing gate.** I first "fixed" missions by making the route read
+`?sessionId=`. The suite immediately failed on `P3: no route anywhere reads sessionId from the query
+string` — a rule enforced both in `scripts/check-routes.mjs` across all 53 routes and in the test
+suite, because a session in a URL is logged by proxies and leaks via `Referer`. That gate was right
+and my fix was wrong; I reverted it and moved the session into the header, which is the pattern the
+rest of the codebase already uses (`sessionAuthHeaders`).
+
+**New gate `P0-11`** walks every client `fetch` to an authenticated route (`/api/live-chat`,
+`/api/messages`, `/api/missions/*`) and fails if the call carries neither a session header nor a
+`sessionId`. Proven load-bearing. `P0-11b` pins the missions case specifically: header, never the
+query string.
+
+**Verified live** as `36c99d2b`: live chunk matches the local build, and
+`GET /api/missions/list` with a header-borne session returns **200 with the missions**
+(`daily_bonus`, `period_id 2026-10-23`).
+
+**Verified:** 540 tests / 529 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors ·
+check:routes clean (53 routes).

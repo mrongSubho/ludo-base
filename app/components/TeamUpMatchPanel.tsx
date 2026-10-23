@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppSession } from '@/hooks/useAppSession';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { LobbyState, LobbySlot } from '@/lib/types';
 import { canStartMatch } from '@/lib/gameLogic';
@@ -405,6 +406,7 @@ export const TeamUpMatchPanel = ({
     // (A use-before-declare here is a mount-time TDZ crash — see 5b964f1.)
     const { address } = useCurrentUser();
     const { roomSecret } = useTeamUpContext();
+    const { peekAppSession, ensureAppSession } = useAppSession();
     // Public announce only when there is no room secret (hybrid/open join).
     // Private invite lobbies must not publish joinable room codes.
     const canAnnounceRoom = !roomSecret;
@@ -452,10 +454,16 @@ export const TeamUpMatchPanel = ({
     const postAnnounce = async (content: string, open: boolean) => {
         if (!roomCodeValue || !address) return false;
         try {
+            // The room announce is a live_chat insert, so a 0x sender needs an app
+            // session exactly like a shout does. This call sent none.
+            const sid = peekAppSession() ?? (await ensureAppSession());
             const res = await fetch('/api/live-chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet: address, content, roomCode: roomCodeValue, roomOpen: open }),
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(sid ? { Authorization: `Bearer ${sid}`, 'x-session-id': sid } : {}),
+                },
+                body: JSON.stringify({ wallet: address, content, roomCode: roomCodeValue, roomOpen: open, sessionId: sid ?? undefined }),
             });
             return res.ok;
         } catch { return false; }

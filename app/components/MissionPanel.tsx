@@ -113,8 +113,14 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                 return;
             }
             setMissionsLocked(false);
+            // The session travels in a HEADER, never the query string — a URL is
+            // logged by proxies and leaks via Referer, which is why no route in
+            // this repo may read ?sessionId=. This call used to put it in the URL,
+            // where the route could not see it, so every signed-in panel 401'd and
+            // rendered an empty list with no error.
             const response = await fetch(
-                `/api/missions/list?wallet=${encodeURIComponent(address)}&sessionId=${encodeURIComponent(sessionId)}`
+                `/api/missions/list?wallet=${encodeURIComponent(address)}`,
+                { headers: { Authorization: `Bearer ${sessionId}`, 'x-session-id': sessionId } }
             );
             if (response.ok) {
                 setMissions(await response.json());

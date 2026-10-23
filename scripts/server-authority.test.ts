@@ -390,3 +390,73 @@ test('P0-10b: a legacy session authenticates for app scope and is refused for ma
     await fetch(`${url}/rest/v1/app_sessions?id=eq.${row.id}`, { method: 'DELETE', headers: H });
   }
 });
+
+// ── Client calls to authenticated routes must carry a session ──────────────
+//
+// `/api/live-chat` rejects a 0x sender that presents no app session (only guest_
+// ids bypass it). Three client call sites sent none: two live-chat POSTs and the
+// room announce. Every signed-in shout 401'd, the client swallowed the non-ok
+// response, and the UI just counted the 10s slow-mode cooldown — "sending
+// happens nothing, no error".
+//
+// `/api/missions/list` had the mirror-image bug: MissionPanel DOES pass
+// `?sessionId=`, but the route only read the Authorization header, so it 401'd
+// and rendered an empty list.
+//
+// Both directions are the same mistake: the client and the server disagreed
+// about where the session travels.
+
+const AUTHED_CLIENT_ROUTES = ['/api/live-chat', '/api/messages', '/api/missions/'];
+
+test('P0-11: client fetches to authenticated routes carry a session', () => {
+  const dirs = ['app/components', 'hooks', 'app/hooks'].filter((d) => existsSync(join(root, d)));
+  const offenders: string[] = [];
+
+  const walk = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) out.push(...walk(full));
+      else if (/\.(ts|tsx)$/.test(entry.name)) out.push(full);
+    }
+    return out;
+  };
+
+  for (const dir of dirs) {
+    for (const file of walk(join(root, dir))) {
+      const src = readFileSync(file, 'utf8');
+      // Find each fetch whose URL is one of the authenticated routes, then check
+      // the surrounding call for a session carrier.
+      const re = /fetch\(\s*[`'"]([^`'"]*\/api\/[^`'"]*)[`'"]/g;
+      for (const m of src.matchAll(re)) {
+        const url = m[1];
+        if (!AUTHED_CLIENT_ROUTES.some((r) => url.includes(r))) continue;
+        const window = src.slice(m.index, m.index + 700);
+        const hasHeader = /Authorization|x-session-id|x-session-token/.test(window);
+        const hasBodyOrParam = /sessionId/.test(window);
+        if (!hasHeader && !hasBodyOrParam) {
+          offenders.push(`${file.slice(root.length + 1)} → ${url}`);
+        }
+      }
+    }
+  }
+
+  assert.deepEqual(offenders, [],
+    `these client calls hit authenticated routes without a session:\n  ${offenders.join('\n  ')}`);
+});
+
+test('P0-11b: the missions client sends its session as a header, not a query param', () => {
+  const panel = readFileSync(join(root, 'app', 'components', 'MissionPanel.tsx'), 'utf8');
+  // The session must travel in a header. It used to be appended to the URL, where
+  // the route could not see it — every signed-in panel 401'd and rendered an empty
+  // list with no error.
+  assert.match(panel, /Authorization: `Bearer \$\{sessionId\}`/, 'must send the Bearer header');
+  assert.match(panel, /'x-session-id': sessionId/, 'must also send x-session-id');
+  // And it must NOT be in the URL — `P3` bans any route from reading ?sessionId=,
+  // because a URL is logged by proxies and leaks via Referer.
+  assert.doesNotMatch(panel, /sessionId=\$\{encodeURIComponent/, 'the session must not go in the query string');
+
+  const route = readFileSync(join(root, 'app', 'api', 'missions', 'list', 'route.ts'), 'utf8');
+  assert.doesNotMatch(route, /searchParams\.get\(\s*['"`]sessionId['"`]\s*\)/,
+    'no route may read a session from the query string');
+});

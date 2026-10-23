@@ -9,6 +9,7 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { supabase } from '@/lib/supabase';
 import { useAccount } from 'wagmi';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppSession } from '@/hooks/useAppSession';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PanelChildTabs } from './PanelTabs';
@@ -99,6 +100,7 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
     const { address } = useAccount();
     const { address: identityAddress } = useCurrentUser();
     const { guard } = useGuestWall();
+    const { peekAppSession, ensureAppSession } = useAppSession();
     const me = (address || '').toLowerCase();
 
     const [cscope, setCscope] = useState<CScope>('global');
@@ -187,10 +189,18 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
         setInputEmotes([]);
         setCooldown(10);
         try {
+            // A real (0x) wallet must present an app session — the route rejects 0x
+            // senders without one; only guest_ ids bypass it. This call used to send
+            // neither a header nor a sessionId, so every signed-in shout 401'd and the
+            // UI silently just counted the 10s cooldown.
+            const sid = peekAppSession() ?? (await ensureAppSession());
             const res = await fetch('/api/live-chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet, content: text })
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(sid ? { Authorization: `Bearer ${sid}`, 'x-session-id': sid } : {}),
+                },
+                body: JSON.stringify({ wallet, content: text, sessionId: sid ?? undefined })
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
@@ -894,6 +904,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
     const { address } = useAccount();
     const { address: identityAddress } = useCurrentUser();
     const { guard } = useGuestWall();
+    const { peekAppSession, ensureAppSession } = useAppSession();
     const me = (address || '').toLowerCase();
     const { chats, rooms, searches, activities, country } = data;
 
@@ -929,10 +940,18 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
         setInputEmotes([]);
         setCooldown(10);
         try {
+            // A real (0x) wallet must present an app session — the route rejects 0x
+            // senders without one; only guest_ ids bypass it. This call used to send
+            // neither a header nor a sessionId, so every signed-in shout 401'd and the
+            // UI silently just counted the 10s cooldown.
+            const sid = peekAppSession() ?? (await ensureAppSession());
             const res = await fetch('/api/live-chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ wallet, content: text })
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(sid ? { Authorization: `Bearer ${sid}`, 'x-session-id': sid } : {}),
+                },
+                body: JSON.stringify({ wallet, content: text, sessionId: sid ?? undefined })
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
