@@ -175,7 +175,14 @@ test('P0-7: wrangler.jsonc documents the custom-domain requirement for wallet si
   // routes template must be present and clearly marked as requiring a real domain.
   assert.match(raw, /Wallet sign-in requires a custom domain/);
   assert.match(raw, /custom_domain/);
-  assert.match(raw, /play\.YOUR-DOMAIN\.com/);
+  assert.match(raw, /play\.ludobase\.live/);
+  // The route must be live, not still a comment.
+  const cfg = JSON.parse(stripJsonc(raw));
+  const route = cfg.routes?.[0];
+  assert.equal(route?.pattern, 'play.ludobase.live');
+  assert.equal(route?.custom_domain, true);
+  // And it must NOT be the apex, which would silently take the hostname off Vercel.
+  assert.notEqual(route?.pattern, 'ludobase.live', 'moving the apex takes it off Vercel');
 });
 
 test('P0-6: Local development documentation exists', () => {

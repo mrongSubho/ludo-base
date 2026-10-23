@@ -1957,3 +1957,68 @@ string-aware helper.
 2. **A custom domain** on the Cloudflare account, then uncomment the matching `routes` line. I cannot
    add a domain to the account without knowing which one, and the OAuth token here is scoped
    `user (read)` — enough to list deployments and secrets, not to manage zones.
+
+### Deployed to a custom domain, and the last link in the chain (2026-10-23)
+
+`ludobase.live` is owned and its nameservers already point at Cloudflare
+(`amos`/`tess.ns.cloudflare.com`), but the origin was Vercel — which has no `/api/room`
+endpoint. Deployed the Worker to **`play.ludobase.live`** (a subdomain, so the Vercel
+deployment keeps working while this is verified). Moving the apex is a one-line change once it
+is confirmed.
+
+Verified live:
+
+```
+https://play.ludobase.live/                    → 200  "Ludo Base : The Onchain Arena"
+https://play.ludobase.live/api/room/<uuid>/ws  → 426  (Durable Object live)
+```
+
+The custom domain is also the wallet fix: `*.workers.dev` is a free shared subdomain that
+MetaMask and Coinbase Wallet block at the domain level.
+
+**Deploy gotcha:** `wrangler` 4.149.0 failed with `assets-upload-session → 500 (code 10013)`.
+Not the proxy, not the asset size (19 MB / 394 files) — reproducible across three attempts.
+**4.152.0 succeeded**, so the pinned version in `package.json` needs bumping.
+
+### The last link: `match_commit_action` never worked
+
+With the room reachable and seats written, `match_states` was still empty. Isolating the DB layer
+showed the actual error:
+
+```
+match_commit_action: 404  {"code":"42883",
+  "message":"operator does not exist: text = uuid"}
+```
+
+Two defects, both present since `202610180004` — which is why `match_states` had never contained a
+row, and confirms the old SA-1 finding that `seedMatch` never seeded:
+
+1. **`match_states.match_id` is `text`** (baseline), while the RPC takes `p_match_id uuid`.
+   `WHERE match_id = p_match_id` is `text = uuid`, which Postgres cannot evaluate. Note the
+   asymmetry: `match_room_events.match_id` *is* uuid (it references `matches.id`), so only the
+   `match_states` comparisons need the cast.
+2. **The S0 seed INSERT omitted NOT NULL columns.** `match_states` declares
+   `room_code text not null` and `host_address text not null` with no defaults; the insert supplied
+   only `(match_id, seq, state, updated_at)`. Both are now derived from `matches` / `match_seats`.
+
+Worse than the error itself: `commitToPostgres` catches its own failure and only *warns*, so the
+room believed it had persisted. A silent catch around a required write is how this stayed invisible.
+
+**Fixed** in `202610230005_fix_match_commit_types.sql` and applied.
+
+**End-to-end, verified against production with a throwaway match (cleaned up afterwards):**
+
+```
+join_matchmaking  → 200 matched
+match_seats       → green + yellow
+room /info probe  → 200
+match_states      → seq=0, players=2, currentPlayer=green     ← room self-seeded
+```
+
+This is the first time in the project's history that `match_states` has held a seeded row.
+
+**Verified:** 533 tests / 522 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors ·
+check:migrations 45/45 applied · check:fn-signatures clean · check:schema 45/46 · check:rls 45 ·
+check:routes 53.
+
+**Follow-up:** bump the `wrangler` devDependency to ≥4.152.0 — 4.149.0 cannot deploy this project.

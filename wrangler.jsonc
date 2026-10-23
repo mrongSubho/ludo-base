@@ -57,11 +57,14 @@
     // Wallet (Base Account) treat as high-risk and block at the domain level, so
     // connect() never runs. There is no CSP in this app; the block is the domain.
     //
-    // To enable: add the domain to this Cloudflare account, then uncomment with
-    // your real domain and redeploy. Both entries are supported; custom_domain
-    // also provisions the DNS record and certificate for you.
+    // ludobase.live is owned and its nameservers already point at Cloudflare
+    // (amos/tess.ns.cloudflare.com), but the origin was Vercel — which has no
+    // /api/room endpoint, so the room socket could never connect there.
     //
-    // { "pattern": "play.YOUR-DOMAIN.com", "custom_domain": true }
-    // { "pattern": "play.YOUR-DOMAIN.com/*", "zone_name": "YOUR-DOMAIN.com" }
+    // Served on `play.ludobase.live` rather than the apex so the existing Vercel
+    // deployment keeps working while this is verified. To move the apex, change
+    // the pattern to "ludobase.live" — the Worker then owns that hostname and
+    // Vercel stops serving it.
+    { "pattern": "play.ludobase.live", "custom_domain": true }
   ]
 }
