@@ -2022,3 +2022,46 @@ check:migrations 45/45 applied · check:fn-signatures clean · check:schema 45/4
 check:routes 53.
 
 **Follow-up:** bump the `wrangler` devDependency to ≥4.152.0 — 4.149.0 cannot deploy this project.
+
+### "Zero chips, no CDP wallets": the live build had no CDP project id (2026-10-23)
+
+Reported on `https://play.ludobase.live`: zero chips and no CDP wallets.
+
+**The app uses `NEXT_PUBLIC_CDP_PROJECT_ID` / `NEXT_PUBLIC_CDP_AUTH`** (OnchainKit's CDP config).
+Both are in `.env.local`, and a local build inlines them. The live build did not.
+
+**How this was found — and a wrong turn worth recording.** A first check grepped the deployed
+`/_next/static/chunks/1174-*.js` and reported the id absent. That was a false negative: Cloudflare
+had served a *different* chunk hash (`1174-4389cee8…`) than the one in my local `.open-next`
+(`1174-f3fc3e87…`), so the URL I was probing belonged to another build entirely. Once the correct
+live chunk was fetched, the id was still absent — but the point stands that **chunk hashes are the
+only reliable way to tell which build is live**, and probing a guessed hash proves nothing.
+
+**Root cause: the live Worker was not running my build.** `wrangler deployments list` showed the
+newest deployment at `2026-10-23T07:35:10Z` (version `96b5a276`) — a concurrent deploy made while I
+was editing `wrangler.jsonc`. My `07:51` deploy (version `c3e54a85`) was absent from the list
+afterwards. The `07:35` build had been produced without the CDP env vars inlined, so its bundle had
+no `NEXT_PUBLIC_CDP_PROJECT_ID`.
+
+Without it, OnchainKit's CDP integration cannot initialise → **no CDP wallet** → and with no wallet
+address there is nothing to read a balance against, so **zero chips** is the downstream symptom, not
+a separate bug.
+
+**Fix:** rebuilt with `npx opennextjs-cloudflare build` (the local dependency — `opennextjs-cloudflare@latest`
+has no `build` binary) and redeployed with `wrangler@4.152.0` as version `d3026efc`.
+
+Verified live:
+
+```
+live chunk      1174-9440f1e43bc3b5ce.js   (matches the local build)
+CDP project id  present in the live bundle
+/               → 200
+/api/room/…/ws  → 426  (Durable Object still live)
+```
+
+**The operational lesson:** this repo has a concurrent writer deploying to the same Worker. Two of
+today's "the fix didn't work" reports were actually *my fix had been overwritten* — first the
+`match_states` work (deployed, then a `07:35` build went live without the Supabase URL), now the CDP
+config. After any deploy, **verify the live artifact before concluding the fix failed**: compare the
+served chunk hash against the local `.open-next`, and confirm a known build-time constant is present
+in the live bundle. A green `wrangler deploy` says nothing about what is currently serving traffic.
