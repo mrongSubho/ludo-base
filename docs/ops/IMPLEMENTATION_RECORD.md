@@ -2485,3 +2485,46 @@ the ticket issuer must read the table sign-in actually writes. All three fail wi
 (proven by reverting each in turn) and pass with it restored.
 
 **Verified:** 545 tests / 534 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors.
+
+### "HOST MIGRATING / Connection Lost" over a live match (2026-10-24)
+
+The previous fix landed: the board opened and `gameState.isStarted` became true. The game screen was
+then immediately covered by **"HOST MIGRATING — ELECTING AUTHORITY — Connection Lost"**, offering to
+re-elect a host that does not exist.
+
+**Cause: the panel's guard was written entirely in P2P-lobby terms.**
+
+```js
+{!isHost && !isLobbyConnected && gameState?.isStarted && !gameState?.winner && (
+    <HostMigrationPanel … />
+)}
+```
+
+`isHost` and `isLobbyConnected` are PeerJS-lobby concepts. A quick match never opens a P2P lobby — it
+goes matchmaking → `connectRoom()`, so `isLobbyConnected` is **false by design** while the Durable
+Object is the authority. The guard was therefore true for every quick-match participant the instant the
+board opened.
+
+With the room as authority there is no host to migrate — the room *is* the authority. The panel was
+reporting a failure that had not happened, on the one screen where a false alarm is most damaging.
+
+**Fix:** the guard now also requires `!roomAuthority`, so the panel survives only as a genuine fallback —
+the room is down *and* the P2P host is gone. `roomAuthority` was already exported by `TeamUpContext`;
+`page.tsx` simply never destructured it, so the guard now reads a real binding rather than an undefined
+one (a guard on an undefined name is a silent `!undefined === true`, which is the same bug with extra
+steps).
+
+**Audited the rest of the P2P assumptions** rather than patching only the reported symptom. Three other
+`!isLobbyConnected` sites exist — `useGameEngine.ts:371` (provisional move-auth binding),
+`TeamUpContext.tsx:1237` (profile sync to peers), `TeamUpContext.tsx:1721` (`sendIntent`, the guest→host
+P2P intent path). All three are legitimately P2P-only and correctly bypassed when the room is
+authoritative: `useGameActions` routes intents through `sendRoomIntent` and marks the Edge move-auth path
+deprecated-and-unreachable under `roomAuthority`. No change needed.
+
+**Gate `P0-16`** asserts the panel's guard contains `!roomAuthority`, that `page.tsx` destructures it from
+`useTeamUp()`, and that the context still exports it. Proven load-bearing — removing `!roomAuthority`
+from the guard fails it.
+
+**Verified:** 546 tests / 535 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors ·
+check:routes clean (53 routes). Deployed as `965f73f4`; live page chunk `app/page-a1572d6f20b2f876.js`
+matches the local build and carries the guard, `/` → 200, room → 426.

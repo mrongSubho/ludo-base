@@ -278,7 +278,7 @@ export default function Page() {
   // cleans the instant a thread opens (no second source of truth).
   const { totalUnreadCount } = useGameData();
   const { notifCount } = useNotifications();
-  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot, connectRoom } = useTeamUp();
+  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot, connectRoom, roomAuthority } = useTeamUp();
 
   // NET-07: the HOST_ELECT handshake's authority layer. The panel asks this to
   // elect; the answer must be a seat that can prove it holds the current
@@ -1015,8 +1015,15 @@ export default function Page() {
               )}
 
               {/* ── Host Migration Overlay ── */}
-              {/* Only show for Guest if connection is lost after game started */}
-              {!isHost && !isLobbyConnected && gameState?.isStarted && !gameState?.winner && (
+              {/* Only show for Guest if connection is lost after game started.
+                   `isHost` / `isLobbyConnected` are P2P-lobby concepts. A quick match
+                   never opens a P2P lobby — it goes matchmaking → connectRoom(), so
+                   `isLobbyConnected` is false by design while the Durable Object is
+                   the authority. Gating on `roomAuthority` too means the panel only
+                   appears when NOTHING authoritative is connected: the room is live
+                   (no host to migrate — the room *is* the authority), or the room is
+                   down and the P2P fallback genuinely has no host. */}
+              {!isHost && !isLobbyConnected && !roomAuthority && gameState?.isStarted && !gameState?.winner && (
                 <HostMigrationPanel onQuit={() => leaveGame()} onElect={handleHostElect} />
               )}
             </>

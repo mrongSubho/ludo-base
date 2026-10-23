@@ -596,3 +596,43 @@ test('P0-15: issueMatchSession reads the table sign-in actually writes', () => {
   const route = readFileSync(join(root, 'app', 'api', 'auth', 'match', 'route.ts'), 'utf8');
   assert.match(route, /issueMatchSession\(/, 'the route must go through issueMatchSession');
 });
+
+// ── The host-migration panel must not fire when the room is the authority ───
+//
+// With the Durable Object live, a quick match goes matchmaking → connectRoom()
+// and never opens a P2P lobby, so `isLobbyConnected` is false BY DESIGN while the
+// room is authoritative. The panel's condition read:
+//
+//   !isHost && !isLobbyConnected && gameState?.isStarted && !gameState?.winner
+//
+// which is true for every quick-match participant the moment the board opens —
+// so the game screen was immediately covered by "HOST MIGRATING / ELECTING
+// AUTHORITY / Connection Lost" and offered to re-elect a host that does not
+// exist. The room IS the authority; there is nothing to migrate.
+//
+// The condition must therefore also require that nothing authoritative is
+// connected, so the panel survives only as a genuine fallback: the room is down
+// AND the P2P host is gone.
+
+test('P0-16: the host-migration panel is suppressed while the room is authoritative', () => {
+  const page = readFileSync(join(root, 'app', 'page.tsx'), 'utf8');
+
+  // The panel's guard must include !roomAuthority.
+  const guard = page.slice(page.indexOf('Host Migration Overlay'));
+  const guardBody = guard.slice(0, guard.indexOf('<HostMigrationPanel'));
+  assert.match(guardBody, /!roomAuthority/,
+    'the host-migration panel must not render while the room is the authority');
+
+  // And roomAuthority must actually be destructured from the context — a guard
+  // referencing an undefined binding would be a silent `!undefined` === true.
+  // Take the WHOLE line: slicing from `= useTeamUp()` would start after every
+  // destructured name and prove nothing.
+  const line = page.split('\n').find(l => l.includes('= useTeamUp()')) || '';
+  assert.match(line, /roomAuthority/,
+    'page.tsx must destructure roomAuthority from useTeamUp()');
+
+  // The context must still export it, or the guard is meaningless.
+  const ctx = readFileSync(join(root, 'hooks', 'TeamUpContext.tsx'), 'utf8');
+  const value = ctx.slice(ctx.lastIndexOf('roomAuthority, roomStatus, roomError, retryRoom'));
+  assert.ok(value.length > 0, 'TeamUpContext must expose roomAuthority in its value');
+});
