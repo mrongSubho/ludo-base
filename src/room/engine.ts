@@ -168,6 +168,24 @@ export function getTeammateColor(color: PlayerColor, playerCount: string): Playe
     return TEAM_PAIRINGS[color];
 }
 
+/**
+ * In 2v2, a seat that has finished all 4 tokens (all at BOARD_FINISH_INDEX = 57)
+ * stays in the turn rotation (`activeColorsForTurns`) to roll for its teammate.
+ * Returns the teammate's color when the turn holder has finished in 2v2, or
+ * `color` otherwise.
+ */
+export function resolveControllableColor(
+    positions: Record<PlayerColor, number[]>,
+    color: PlayerColor,
+    playerCount: string
+): PlayerColor {
+    if (playerCount === '2v2' && positions[color]?.every(p => p === BOARD_FINISH_INDEX)) {
+        const mate = getTeammateColor(color, '2v2');
+        if (mate) return mate;
+    }
+    return color;
+}
+
 /** Resolve a color to its team number for the requested match format. */
 export function getTeam(color: PlayerColor, playerCount: string = '4P'): number {
     if (playerCount === '2v2') return TEAM_ID[color];
@@ -1105,27 +1123,28 @@ export function resolveNetworkedMove(params: {
     const sixes = checkThreeSixesForMove(state, dice);
     if (sixes.forbidden) return { ok: false, error: sixes.reason, code: 'THREE_SIXES' };
 
-    const boosted = state.activeBoost === color;
-    const steps = effectiveMoveSteps(state, color, dice);
-    const legal = getLegalTokenIndices(state.positions, color, steps, cc);
+    const targetColor = resolveControllableColor(state.positions, color, playerCount);
+    const boosted = state.activeBoost === color || state.activeBoost === targetColor;
+    const steps = boosted ? dice + DICE_MAX : dice;
+    const legal = getLegalTokenIndices(state.positions, targetColor, steps, cc);
     if (!legal.includes(tokenIndex)) {
         return { ok: false, error: 'Illegal token for this roll (with boost)' };
     }
-    const fromPos = state.positions[color][tokenIndex];
-    const result = processMove(state, color, tokenIndex, steps, playerCount, cc, color, activeColors);
+    const fromPos = state.positions[targetColor][tokenIndex];
+    const result = processMove(state, targetColor, tokenIndex, steps, playerCount, cc, color, activeColors);
     if (!result.applied) return { ok: false, error: 'Move rejected by engine' };
 
     // ENG-05: processMove does not own the counter, so the authoritative value
     // is written here — the one place a networked move is resolved.
     let next: EngineGameState = { ...result.newState, consecutiveSixes: sixes.nextSixes };
     if (boosted) {
-        next = { ...next, activeBoost: null, boostTrail: color };
-        (next as { boostTrail?: PlayerColor | null }).boostTrail = color;
+        next = { ...next, activeBoost: null, boostTrail: targetColor };
+        (next as { boostTrail?: PlayerColor | null }).boostTrail = targetColor;
     }
     // Bonus on raw six as well as processMove's captured/six-on-steps
     const bonusRoll = result.bonusRoll || result.captured || dice === DICE_ROLL_SIX || !!next.winner;
-    const toPos = next.positions[color][tokenIndex];
-    next = applyPowerPickup(next, color, toPos, cc, now);
+    const toPos = next.positions[targetColor][tokenIndex];
+    next = applyPowerPickup(next, targetColor, toPos, cc, now);
     // PW-5: one sweep, on the authority, at the turn boundary.
     next = sweepExpiredPowers(next, now);
     next = { ...next, powerSpentThisTurn: false, lastUpdate: now };

@@ -705,3 +705,99 @@ test('P0-18: the engine adopts the room state instead of keeping a private copy'
   assert.match(engine, /isNetworked: isLobbyConnected \|\| roomAuthority/,
     'useGameTimer must treat a room-authority match as networked');
 });
+
+test('P0-19: SV-01 — useGameActions includes roomAuthority and sendRoomIntent in useCallback dependency arrays', () => {
+  const actions = readFileSync(join(root, 'hooks', 'useGameActions.ts'), 'utf8');
+  assert.match(
+    actions,
+    /\}, \[isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, audio/,
+    'moveToken must depend on roomAuthority and sendRoomIntent',
+  );
+  assert.match(
+    actions,
+    /\}, \[isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, setLocalGameState/,
+    'handleRoll must depend on roomAuthority and sendRoomIntent',
+  );
+  assert.match(
+    actions,
+    /\}, \[playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, roomAuthority, sendRoomIntent/,
+    'handleUsePower must depend on roomAuthority and sendRoomIntent',
+  );
+  assert.match(
+    actions,
+    /isLobbyConnected, roomAuthority, sendIntent, moveToken/,
+    'handleTokenClick must depend on roomAuthority',
+  );
+});
+
+test('P0-20: SV-02, SV-05A, SV-12, SV-16 — room connection status, useAIBrain guard, timer turnKey, snapshot reset, and rejection codes', () => {
+  const engine = readFileSync(join(root, 'hooks', 'useGameEngine.ts'), 'utf8');
+  const timer = readFileSync(join(root, 'hooks', 'useGameTimer.ts'), 'utf8');
+  const ctx = readFileSync(join(root, 'hooks', 'TeamUpContext.tsx'), 'utf8');
+  const roomClient = readFileSync(join(root, 'lib', 'netcode', 'roomClient.ts'), 'utf8');
+
+  assert.match(
+    engine,
+    /useAIBrain\(\{[\s\S]*?isLobbyConnected:\s*isLobbyConnected\s*\|\|\s*roomAuthority/,
+    'SV-02: useAIBrain must treat roomAuthority as networked so clients do not double-orchestrate bots',
+  );
+  assert.match(
+    timer,
+    /const turnKey = `\$\{localGameState\.currentPlayer\}\|\$\{localGameState\.gamePhase\}\|\$\{localGameState\.diceValue\}\|\$\{localGameState\.lastUpdate\}`;/,
+    'SV-05A: turnKey must include lastUpdate so bonus rolls and repeated auto-passes re-arm the 15s countdown',
+  );
+  assert.match(
+    ctx,
+    /enabled:\s*isLobbyConnected\s*\|\|\s*roomAuthority/,
+    'SV-05A: useMatchStates must be enabled when roomAuthority is true',
+  );
+  assert.match(
+    ctx,
+    /setMatchConnectionStatus\('connected'\)/,
+    'SV-05A: connectRoom must drive matchConnectionStatus to connected',
+  );
+  assert.match(
+    ctx,
+    /setMatchConnectionStatus\('offline'\)/,
+    'SV-05A/E-3: teardownRoom and disconnect must set matchConnectionStatus to offline',
+  );
+  assert.match(
+    ctx,
+    /const leaveGame = useCallback\(\(\) => \{[\s\S]*?setHasAuthoritativeSnapshot\(false\)/,
+    'SV-12: leaveGame must reset hasAuthoritativeSnapshot so the second match accepts seq=0 seed',
+  );
+  assert.match(
+    roomClient,
+    /err\.code = code;/,
+    'SV-16: RoomClient must preserve rejection code on rejected intent Error',
+  );
+  assert.match(
+    ctx,
+    /code:\s*rejected\.code\s*\|\|\s*'ROOM_INTENT_FAILED'/,
+    'SV-16: sendRoomIntent must forward server rejection code (e.g. POWER_ARMED, THREE_SIXES)',
+  );
+  assert.match(
+    ctx,
+    /if \(!roomAuthority\)\s*\{\s*setHasAuthoritativeSnapshot\(false\);\s*\}/,
+    'D-3: background useMatchStates resync must not clear hasAuthoritativeSnapshot while roomAuthority is active',
+  );
+});
+
+test('P0-21: SV-13 — matchmaking RPCs filter expired tickets and status route renews searching leases', () => {
+  const mig = readFileSync(
+    join(root, 'supabase', 'migrations', '202610240001_fix_matchmaking_expiry_and_hybrid.sql'),
+    'utf8',
+  );
+  const statusRoute = readFileSync(
+    join(root, 'app', 'api', 'matchmaking', 'status', 'route.ts'),
+    'utf8',
+  );
+
+  const expiryMatches = mig.match(/and expires_at > now\(\)/g) || [];
+  assert.equal(expiryMatches.length, 2, 'Both join_matchmaking and join_matchmaking_hybrid must filter expires_at > now()');
+  assert.match(
+    statusRoute,
+    /if \(ticket\.status === 'searching'\)[\s\S]*?expiresMs - Date\.now\(\) < 15 \* 1000[\s\S]*?expires_at:/,
+    'D-4 / SV-13: GET /api/matchmaking/status must renew expires_at only when <15s remain',
+  );
+});

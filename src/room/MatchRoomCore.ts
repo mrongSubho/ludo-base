@@ -28,7 +28,19 @@ import { hashToken } from '../../lib/sessionV2';
 // canonical state means the seed cannot disagree with the engine again.
 import { INITIAL_GAME_STATE } from '../../lib/gameLogic';
 import { CORNER_TO_POSITION, assignCornersForShape } from '../../lib/boardLayout';
-import { getNextPlayer, getLegalTokenIndices, resolveNetworkedMove, applyPower, lcg32, activeColorsForTurns, type PlayerColor, type EngineGameState } from './engine';
+import {
+  getNextPlayer,
+  getLegalTokenIndices,
+  resolveNetworkedMove,
+  resolveControllableColor,
+  effectiveMoveSteps,
+  checkThreeSixesForMove,
+  applyPower,
+  lcg32,
+  activeColorsForTurns,
+  type PlayerColor,
+  type EngineGameState,
+} from './engine';
 
 /**
  * The context surface the room logic actually uses.
@@ -75,7 +87,8 @@ export interface RoomEnv {
 export type IntentKind =
   | 'REQUEST_ROLL'
   | 'REQUEST_MOVE'
-  | 'REQUEST_POWER';
+  | 'REQUEST_POWER'
+  | 'CMD_REQUEST_TRUST';
 
 export interface RoomSocketMeta {
   authenticated: boolean;
@@ -121,6 +134,36 @@ export class MatchRoomCore {
     protected readonly env: RoomEnv,
   ) {}
 
+  private setSocketMeta(ws: WebSocket, meta: RoomSocketMeta): void {
+    this.socketMeta.set(ws, meta);
+    const hibernatable = ws as WebSocket & { serializeAttachment?: (attachment: unknown) => void };
+    if (typeof hibernatable.serializeAttachment === 'function') {
+      try {
+        hibernatable.serializeAttachment(meta);
+      } catch {
+        // Non-hibernatable socket mock
+      }
+    }
+  }
+
+  private getSocketMeta(ws: WebSocket): RoomSocketMeta | undefined {
+    const cached = this.socketMeta.get(ws);
+    if (cached) return cached;
+    const hibernatable = ws as WebSocket & { deserializeAttachment?: () => unknown };
+    if (typeof hibernatable.deserializeAttachment === 'function') {
+      try {
+        const restored = hibernatable.deserializeAttachment() as RoomSocketMeta | null | undefined;
+        if (restored && typeof restored === 'object') {
+          this.socketMeta.set(ws, restored);
+          return restored;
+        }
+      } catch {
+        // Ignore attachment deserialization failure
+      }
+    }
+    return undefined;
+  }
+
   /**
    * Initialize state from SQLite storage on first activation.
    *
@@ -135,7 +178,7 @@ export class MatchRoomCore {
    * Memoise the in-flight promise instead: the first caller runs it, everyone
    * else awaits the same one.
    */
-  private async ensureInitialized(matchId: string): Promise<void> {
+  private async ensureInitialized(matchId?: string): Promise<void> {
     if (this.initialized) return;
     if (this.initPromise) return this.initPromise;
     this.initPromise = this.doInitialize(matchId).finally(() => {
@@ -144,8 +187,15 @@ export class MatchRoomCore {
     return this.initPromise;
   }
 
-  private async doInitialize(matchId: string): Promise<void> {
-    this.matchId = matchId;
+  private async doInitialize(matchId?: string): Promise<void> {
+    if (matchId) {
+      this.matchId = matchId;
+      await this.ctx.storage.put('matchId', matchId);
+    } else if (!this.matchId) {
+      const storedMatchId = await this.ctx.storage.get<string>('matchId');
+      if (storedMatchId) this.matchId = storedMatchId;
+    }
+    const effectiveMatchId = this.matchId;
 
     const storedSeq = await this.ctx.storage.get<number>('seq');
     const storedState = await this.ctx.storage.get<GameState>('state');
@@ -158,7 +208,7 @@ export class MatchRoomCore {
     if (storedTimers) this.timerHeap = storedTimers;
 
     // S0: If state not cached in DO SQLite, restore from Postgres match_states
-    if (!this.state) {
+    if (!this.state && effectiveMatchId) {
       const supabaseUrl =
         (this.env as unknown as Record<string, string>).NEXT_PUBLIC_SUPABASE_URL ||
         process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -177,7 +227,7 @@ export class MatchRoomCore {
         );
       } else {
         try {
-          const res = await fetch(`${supabaseUrl}/rest/v1/match_states?match_id=eq.${matchId}&select=seq,state`, {
+          const res = await fetch(`${supabaseUrl}/rest/v1/match_states?match_id=eq.${effectiveMatchId}&select=seq,state`, {
             headers: {
               apikey: serviceKey,
               Authorization: `Bearer ${serviceKey}`,
@@ -199,7 +249,7 @@ export class MatchRoomCore {
     }
 
     // S3: If still no state, seed itself from matches + match_seats
-    if (!this.state) {
+    if (!this.state && effectiveMatchId) {
       const supabaseUrl =
         (this.env as unknown as Record<string, string>).NEXT_PUBLIC_SUPABASE_URL ||
         process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -216,10 +266,10 @@ export class MatchRoomCore {
       } else {
         try {
           const [matchRes, seatsRes] = await Promise.all([
-            fetch(`${supabaseUrl}/rest/v1/matches?id=eq.${matchId}&select=match_shape,game_mode`, {
+            fetch(`${supabaseUrl}/rest/v1/matches?id=eq.${effectiveMatchId}&select=match_shape,game_mode`, {
               headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
             }),
-            fetch(`${supabaseUrl}/rest/v1/match_seats?match_id=eq.${matchId}&select=color,wallet_address,seat_index&order=seat_index.asc`, {
+            fetch(`${supabaseUrl}/rest/v1/match_seats?match_id=eq.${effectiveMatchId}&select=color,wallet_address,seat_index&order=seat_index.asc`, {
               headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
             }),
           ]);
@@ -258,7 +308,7 @@ export class MatchRoomCore {
               // every field the engine expects is present with the right shape.
               const seededState: GameState = {
                 ...INITIAL_GAME_STATE,
-                matchId,
+                matchId: effectiveMatchId,
                 playerCount: matchShape,
                 currentPlayer: (seatsRows[0]?.color as PlayerColor) || 'green',
                 status: 'playing',
@@ -284,6 +334,13 @@ export class MatchRoomCore {
           console.warn('[MatchRoom] Failed to self-seed from match_seats:', err);
         }
       }
+    }
+
+    if (this.state && !this.state.winner && this.timerHeap.length === 0 && effectiveMatchId) {
+      const curColor = this.state.currentPlayer as PlayerColor;
+      const kind = this.isBotOrAutoPlaying(curColor) ? 'ai_turn' : 'turn';
+      const delay = kind === 'ai_turn' ? 1000 : 15000;
+      await this.scheduleTimer(effectiveMatchId, kind, delay);
     }
 
     this.initialized = true;
@@ -334,7 +391,7 @@ export class MatchRoomCore {
 
       this.ctx.acceptWebSocket(server);
 
-      this.socketMeta.set(server, {
+      this.setSocketMeta(server, {
         authenticated,
         wallet: initialWallet,
         role: initialRole,
@@ -377,6 +434,7 @@ export class MatchRoomCore {
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    await this.ensureInitialized();
     const text = typeof message === 'string' ? message : new TextDecoder().decode(message);
     let frame: Record<string, unknown>;
     try {
@@ -410,7 +468,7 @@ export class MatchRoomCore {
     // a reconnecting host cannot rewrite a live match, and only from an
     // authenticated seat, so a spectator cannot inject a board.
     if (t === 'seed') {
-      const meta = this.socketMeta.get(ws);
+      const meta = this.getSocketMeta(ws);
       if (!meta?.authenticated || meta.role !== 'seat') {
         ws.send(JSON.stringify({ t: 'rejected', code: 'NOT_AUTHORIZED', error: 'Only authenticated seats may seed a room' }));
         return;
@@ -436,11 +494,19 @@ export class MatchRoomCore {
         winner: this.state.winner,
       });
 
+      if (!this.state.winner && this.matchId) {
+        const curColor = this.state.currentPlayer as PlayerColor;
+        const kind = this.isBotOrAutoPlaying(curColor) ? 'ai_turn' : 'turn';
+        const delay = kind === 'ai_turn' ? 1000 : 15000;
+        await this.scheduleTimer(this.matchId, kind, delay);
+      }
+
       const seedBroadcast = JSON.stringify({
         t: 'state',
         seq: this.seq,
         state: this.state,
         source: 'room_seed',
+        deadlineAt: this.getEarliestDeadline(),
       });
       for (const sock of this.ctx.getWebSockets()) {
         try {
@@ -490,17 +556,22 @@ export class MatchRoomCore {
   }
 
   /**
-   * Handle in-band join frame carrying credential token and optional lastSeq.
+   * Handle in-band join frame carrying credential token/ticket and optional lastSeq.
    */
   private async handleJoinFrame(ws: WebSocket, frame: Record<string, unknown>): Promise<void> {
-    const token = typeof frame.token === 'string' ? frame.token : undefined;
+    const token =
+      typeof frame.token === 'string'
+        ? frame.token
+        : typeof frame.ticket === 'string'
+          ? frame.ticket
+          : undefined;
     const asRole = frame.as === 'seat' ? 'seat' : 'spectator';
     const lastSeq = typeof frame.lastSeq === 'number' ? frame.lastSeq : undefined;
 
-    let meta = this.socketMeta.get(ws);
+    let meta = this.getSocketMeta(ws);
     if (!meta) {
       meta = { authenticated: false, role: asRole, connectedAt: Date.now() };
-      this.socketMeta.set(ws, meta);
+      this.setSocketMeta(ws, meta);
     }
 
     if (!meta.authenticated && token) {
@@ -510,6 +581,7 @@ export class MatchRoomCore {
         meta.wallet = verified.wallet;
         meta.role = verified.role;
         meta.color = verified.color;
+        this.setSocketMeta(ws, meta);
       } else {
         ws.send(
           JSON.stringify({
@@ -577,7 +649,7 @@ export class MatchRoomCore {
    * without modifying them, updates local state + seq, and fans out state frames.
    */
   private async handleIntentFrame(ws: WebSocket, frame: Record<string, unknown>): Promise<void> {
-    const meta = this.socketMeta.get(ws);
+    const meta = this.getSocketMeta(ws);
     const intentId = String(frame.intentId || '');
     const kind = frame.kind as IntentKind;
     const payload = (frame.payload || {}) as Record<string, unknown>;
@@ -630,22 +702,12 @@ export class MatchRoomCore {
           red: 'TL',
         };
 
-        const legalMoves = getLegalTokenIndices(
-          this.state.positions,
-          curColor,
-          rollValue,
-          cc
+        // SV-03B: Check third consecutive six at roll time and auto-pass turn
+        const sixes = checkThreeSixesForMove(
+          this.state as unknown as EngineGameState,
+          rollValue
         );
-
-        if (legalMoves.length === 0 && rollValue !== 6) {
-          // No legal moves and not a 6: auto-advance turn. `diceValue` MUST be
-          // reset — the client's Roll button gates on `diceValue === null`
-          // (PlayerInfoRow), so handing the turn to the next player with the
-          // stale face still attached froze the match right after the dice
-          // animates: nobody could ever roll again. The explicit pass path and
-          // the AFK timeout path below both already reset it; this path is the
-          // one every opening roll takes (all tokens in yard), which is why the
-          // stall showed up immediately.
+        if (sixes.forbidden) {
           const nextPlayer = getNextPlayer(curColor, this.state.playerCount, this.getActiveColors(), cc);
           const nextState: GameState = {
             ...this.state,
@@ -653,9 +715,59 @@ export class MatchRoomCore {
             currentPlayer: nextPlayer,
             isRolling: false,
             gamePhase: 'rolling',
+            consecutiveSixes: 0,
+            activeBoost: null,
+            powerSpentThisTurn: false,
+            captureMessage: 'Three 6s! Turn forfeited.',
+            lastUpdate: Date.now(),
           };
           await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
-          await this.scheduleTimer(this.matchId, 'turn', 15000);
+          ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: nextState, seq: this.seq } }));
+          return;
+        }
+
+        const nextStrikes = { ...this.state.strikes, [curColor]: 0 };
+        const nextAfk = { ...this.state.afkStats };
+        if (nextAfk[curColor]) {
+          nextAfk[curColor] = {
+            ...nextAfk[curColor],
+            consecutiveTurns: 0,
+            isAutoPlaying: false,
+          };
+        }
+
+        // SV-03C + SV-04: Resolve controllable color (2v2 teammate assist) and effective steps (boost +6)
+        const targetColor = resolveControllableColor(this.state.positions, curColor, this.state.playerCount);
+        const steps = effectiveMoveSteps(
+          this.state as unknown as EngineGameState,
+          curColor,
+          rollValue
+        );
+
+        const legalMoves = getLegalTokenIndices(
+          this.state.positions,
+          targetColor,
+          steps,
+          cc
+        );
+
+        // SV-03A: Auto-pass whenever there are zero legal moves, even on a 6
+        if (legalMoves.length === 0) {
+          const nextPlayer = getNextPlayer(curColor, this.state.playerCount, this.getActiveColors(), cc);
+          const nextState: GameState = {
+            ...this.state,
+            diceValue: null,
+            currentPlayer: nextPlayer,
+            isRolling: false,
+            gamePhase: 'rolling',
+            consecutiveSixes: 0,
+            activeBoost: null,
+            powerSpentThisTurn: false,
+            strikes: nextStrikes,
+            afkStats: nextAfk,
+            lastUpdate: Date.now(),
+          };
+          await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
           ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: nextState, seq: this.seq } }));
           return;
         }
@@ -665,10 +777,12 @@ export class MatchRoomCore {
           diceValue: rollValue,
           isRolling: false,
           gamePhase: 'moving',
+          strikes: nextStrikes,
+          afkStats: nextAfk,
+          lastUpdate: Date.now(),
         };
 
         await this.applyNewState(nextState, this.seq + 1, 'roll_minted');
-        await this.scheduleTimer(this.matchId, 'turn', 15000);
         ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: nextState, seq: this.seq } }));
         return;
       }
@@ -752,9 +866,12 @@ export class MatchRoomCore {
             diceValue: null,
             isRolling: false,
             gamePhase: 'rolling',
+            consecutiveSixes: 0,
+            activeBoost: null,
+            powerSpentThisTurn: false,
+            lastUpdate: Date.now(),
           };
           await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
-          await this.scheduleTimer(this.matchId, 'turn', 15000);
           ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: nextState, seq: this.seq } }));
           return;
         }
@@ -789,7 +906,21 @@ export class MatchRoomCore {
           return;
         }
 
-        let nextState = resolved.state as unknown as GameState;
+        const nextStrikes = { ...this.state.strikes, [curColor]: 0 };
+        const nextAfk = { ...this.state.afkStats };
+        if (nextAfk[curColor]) {
+          nextAfk[curColor] = {
+            ...nextAfk[curColor],
+            consecutiveTurns: 0,
+            isAutoPlaying: false,
+          };
+        }
+
+        let nextState: GameState = {
+          ...(resolved.state as unknown as GameState),
+          strikes: nextStrikes,
+          afkStats: nextAfk,
+        };
 
         // A bonus roll (six, capture, or a power that ended the turn) keeps the mover
         // on turn. `processMove` has already advanced `currentPlayer`, so restore it.
@@ -805,13 +936,6 @@ export class MatchRoomCore {
 
         await this.applyNewState(nextState, this.seq + 1, 'move_committed');
         ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: nextState, seq: this.seq } }));
-
-        if (nextState.winner) {
-          this.timerHeap = [];
-          await this.ctx.storage.put('timerHeap', this.timerHeap);
-        } else {
-          await this.scheduleTimer(this.matchId, 'turn', 15000);
-        }
         return;
       }
 
@@ -936,7 +1060,33 @@ export class MatchRoomCore {
       return;
     }
 
-    // Other intents (DICE_COMMIT, DICE_REVEAL, CMD_REQUEST_TRUST)
+    if (kind === 'CMD_REQUEST_TRUST') {
+      if (this.state && meta.color) {
+        const seatColor = meta.color as PlayerColor;
+        const nextStrikes = { ...this.state.strikes, [seatColor]: 0 };
+        const nextAfk = { ...this.state.afkStats };
+        if (nextAfk[seatColor]) {
+          nextAfk[seatColor] = {
+            ...nextAfk[seatColor],
+            isAutoPlaying: false,
+            consecutiveTurns: 0,
+          };
+        }
+        const nextState: GameState = {
+          ...this.state,
+          strikes: nextStrikes,
+          afkStats: nextAfk,
+          lastUpdate: Date.now(),
+        };
+        await this.applyNewState(nextState, this.seq + 1, 'trust_restored');
+        ws.send(JSON.stringify({ t: 'intent_ack', intentId, ok: true, data: { state: nextState, seq: this.seq } }));
+        return;
+      }
+      ws.send(JSON.stringify({ t: 'intent_ack', intentId, ok: true }));
+      return;
+    }
+
+    // Other intents (DICE_COMMIT, DICE_REVEAL)
     ws.send(JSON.stringify({ t: 'intent_ack', intentId, ok: true }));
   }
 
@@ -1004,6 +1154,18 @@ export class MatchRoomCore {
       winner: newState.winner,
     });
 
+    if (newState.winner) {
+      this.timerHeap = [];
+      await this.ctx.storage.put('timerHeap', this.timerHeap);
+    } else {
+      const curColor = newState.currentPlayer as PlayerColor;
+      if (this.isBotOrAutoPlaying(curColor)) {
+        await this.scheduleTimer(this.matchId, 'ai_turn', 1000);
+      } else {
+        await this.scheduleTimer(this.matchId, 'turn', 15000);
+      }
+    }
+
     const deadlineAt = this.getEarliestDeadline();
 
     const broadcastPayload = JSON.stringify({
@@ -1019,18 +1181,6 @@ export class MatchRoomCore {
         ws.send(broadcastPayload);
       } catch {
         // Socket closed
-      }
-    }
-
-    if (newState.winner) {
-      this.timerHeap = [];
-      await this.ctx.storage.put('timerHeap', this.timerHeap);
-    } else {
-      const curColor = newState.currentPlayer as PlayerColor;
-      if (this.isBotOrAutoPlaying(curColor)) {
-        await this.scheduleTimer(this.matchId, 'ai_turn', 1000);
-      } else {
-        await this.scheduleTimer(this.matchId, 'turn', 15000);
       }
     }
   }
@@ -1065,10 +1215,39 @@ export class MatchRoomCore {
       red: 'TL',
     };
 
+    const sixes = checkThreeSixesForMove(
+      this.state as unknown as EngineGameState,
+      rollValue
+    );
+    if (sixes.forbidden) {
+      const nextPlayer = getNextPlayer(color, this.state.playerCount, this.getActiveColors(), cc);
+      const nextState: GameState = {
+        ...this.state,
+        diceValue: null,
+        currentPlayer: nextPlayer,
+        isRolling: false,
+        gamePhase: 'rolling',
+        consecutiveSixes: 0,
+        activeBoost: null,
+        powerSpentThisTurn: false,
+        captureMessage: 'Three 6s! Turn forfeited.',
+        lastUpdate: Date.now(),
+      };
+      await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
+      return;
+    }
+
+    const targetColor = resolveControllableColor(this.state.positions, color, this.state.playerCount);
+    const steps = effectiveMoveSteps(
+      this.state as unknown as EngineGameState,
+      color,
+      rollValue
+    );
+
     const legalMoves = getLegalTokenIndices(
       this.state.positions,
-      color,
-      rollValue,
+      targetColor,
+      steps,
       cc
     );
 
@@ -1080,6 +1259,10 @@ export class MatchRoomCore {
         currentPlayer: nextPlayer,
         isRolling: false,
         gamePhase: 'rolling',
+        consecutiveSixes: 0,
+        activeBoost: null,
+        powerSpentThisTurn: false,
+        lastUpdate: Date.now(),
       };
       await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
       return;
@@ -1087,12 +1270,12 @@ export class MatchRoomCore {
 
     let chosenToken = legalMoves[0];
     for (const tIdx of legalMoves) {
-      const pos = this.state.positions[color][tIdx];
-      if (pos === -1 && rollValue === 6) {
+      const pos = this.state.positions[targetColor][tIdx];
+      if (pos === -1 && steps === 6) {
         chosenToken = tIdx;
         break;
       }
-      if (pos > this.state.positions[color][chosenToken]) {
+      if (pos > this.state.positions[targetColor][chosenToken]) {
         chosenToken = tIdx;
       }
     }
@@ -1109,7 +1292,17 @@ export class MatchRoomCore {
     });
 
     if (resolved.ok && resolved.state) {
-      await this.applyNewState(resolved.state as unknown as GameState, this.seq + 1, 'move_committed');
+      let nextState = resolved.state as unknown as GameState;
+      if (resolved.bonusRoll && !nextState.winner) {
+        nextState = {
+          ...nextState,
+          currentPlayer: color,
+          diceValue: null,
+          isRolling: false,
+          gamePhase: 'rolling',
+        };
+      }
+      await this.applyNewState(nextState, this.seq + 1, 'move_committed');
     } else {
       const nextPlayer = getNextPlayer(color, this.state.playerCount, this.getActiveColors(), cc);
       const nextState: GameState = {
@@ -1118,6 +1311,10 @@ export class MatchRoomCore {
         currentPlayer: nextPlayer,
         isRolling: false,
         gamePhase: 'rolling',
+        consecutiveSixes: 0,
+        activeBoost: null,
+        powerSpentThisTurn: false,
+        lastUpdate: Date.now(),
       };
       await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
     }
@@ -1141,6 +1338,7 @@ export class MatchRoomCore {
   }
 
   async alarm(): Promise<void> {
+    await this.ensureInitialized();
     const now = Date.now();
     const expired: ScheduledTimer[] = [];
     const remaining: ScheduledTimer[] = [];
@@ -1185,8 +1383,12 @@ export class MatchRoomCore {
           diceValue: null,
           isRolling: false,
           gamePhase: 'rolling',
+          consecutiveSixes: 0,
+          activeBoost: null,
+          powerSpentThisTurn: false,
           strikes,
           afkStats: afk,
+          lastUpdate: Date.now(),
         };
         await this.applyNewState(nextState, this.seq + 1, 'turn_timeout');
       }

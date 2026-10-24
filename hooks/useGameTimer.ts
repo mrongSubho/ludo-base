@@ -47,7 +47,7 @@ export function useGameTimer({
             hasAuthoritativeSnapshot,
         })) return;
 
-        const turnKey = `${localGameState.currentPlayer}|${localGameState.gamePhase}|${localGameState.diceValue}`;
+        const turnKey = `${localGameState.currentPlayer}|${localGameState.gamePhase}|${localGameState.diceValue}|${localGameState.lastUpdate}`;
         if (!deadlineRef.current || deadlineRef.current.key !== turnKey) {
             deadlineRef.current = {
                 key: turnKey,
@@ -105,5 +105,5 @@ export function useGameTimer({
             clearInterval(interval);
             document.removeEventListener('visibilitychange', resync);
         };
-    }, [localGameState.winner, localGameState.currentPlayer, localGameState.gamePhase, localGameState.diceValue, setLocalGameState, matchConnectionStatus, isNetworked, hasAuthoritativeSnapshot]);
+    }, [localGameState.winner, localGameState.currentPlayer, localGameState.gamePhase, localGameState.diceValue, localGameState.lastUpdate, setLocalGameState, matchConnectionStatus, isNetworked, hasAuthoritativeSnapshot]);
 }

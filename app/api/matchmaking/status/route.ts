@@ -64,7 +64,7 @@ export async function GET(request: Request) {
         if (!ticketId) return NextResponse.json({ error: 'Missing or invalid ticketId/matchId' }, { status: 400 });
         const { data, error } = await db
             .from('matchmaking_queue')
-            .select('id, status, match_id, room_code, validation_token, player_id, created_at')
+            .select('id, status, match_id, room_code, validation_token, player_id, created_at, expires_at')
             .eq('id', ticketId)
             .maybeSingle();
         if (error) throw error;
@@ -85,7 +85,7 @@ export async function GET(request: Request) {
         if (!ticket || ticket.status !== 'matched') {
             const { data: candidates, error: fbError } = await db
                 .from('matchmaking_queue')
-                .select('id, status, match_id, room_code, validation_token, player_id, created_at')
+                .select('id, status, match_id, room_code, validation_token, player_id, created_at, expires_at')
                 .eq('player_id', wallet)
                 .eq('status', 'matched')
                 .order('created_at', { ascending: false })
@@ -98,6 +98,16 @@ export async function GET(request: Request) {
         }
 
         if (!ticket) return NextResponse.json({ status: 'searching' });
+        if (ticket.status === 'searching') {
+            const expiresMs = ticket.expires_at ? Date.parse(ticket.expires_at) : NaN;
+            if (!Number.isFinite(expiresMs) || expiresMs - Date.now() < 15 * 1000) {
+                await db
+                    .from('matchmaking_queue')
+                    .update({ expires_at: new Date(Date.now() + 30 * 1000).toISOString() })
+                    .eq('id', ticket.id)
+                    .eq('status', 'searching');
+            }
+        }
         if (ticket.status === 'matched' && isStaleMatch(ticket)) {
             return NextResponse.json({ status: 'searching' });
         }

@@ -329,7 +329,7 @@ export function useGameEngine({
         handleUsePower,
         colorCorner,
         playerCount,
-        isLobbyConnected,
+        isLobbyConnected: isLobbyConnected || roomAuthority,
         matchConnectionStatus
     });
 
@@ -426,8 +426,12 @@ export function useGameEngine({
     }, [isLobbyConnected, networkGameState?.isStarted, networkGameState?.matchId, roomId, moveAuth]);
 
     const cancelAfk = useCallback((color: PlayerColor) => {
+        if (roomAuthority) {
+            void sendRoomIntent('CMD_REQUEST_TRUST', { color });
+        }
         setLocalGameState((prev) => ({
             ...prev,
+            strikes: { ...prev.strikes, [color]: 0 },
             afkStats: {
                 ...prev.afkStats,
                 [color]: {
@@ -438,7 +442,7 @@ export function useGameEngine({
             },
             idleWarning: prev.idleWarning?.player === color ? null : prev.idleWarning
         }));
-    }, []);
+    }, [roomAuthority, sendRoomIntent]);
 
     const toggleAutoPlay = useCallback((color: PlayerColor, forceTrust: boolean = false) => {
         setLocalGameState((prev) => {

@@ -353,11 +353,24 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         roomClientRef.current = null;
         pendingRoomSeedRef.current = null;
         setRoomAuthority(false);
+        setMatchConnectionStatus('offline');
+        setHasAuthoritativeSnapshot(false);
+        hasAuthoritativeSnapshotRef.current = false;
     }, []);
 
     const connectRoom = useCallback((matchId: string, seedPayload?: unknown) => {
         if (!matchId || matchId === 'local') return;
-        if (roomClientRef.current) return;
+        if (roomClientRef.current) {
+            if (lastRoomMatchIdRef.current === matchId) return;
+            roomClientRef.current.disconnect();
+            roomClientRef.current = null;
+        }
+        if (lastRoomMatchIdRef.current !== matchId) {
+            serverSeqRef.current = 0;
+            setServerSeq(0);
+            setHasAuthoritativeSnapshot(false);
+            hasAuthoritativeSnapshotRef.current = false;
+        }
         lastRoomMatchIdRef.current = matchId;
         setRoomStatus('connecting');
         pendingRoomSeedRef.current = seedPayload ?? null;
@@ -385,7 +398,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
             let ticket: string | undefined;
             try {
-                const sid = appSessionId || peekAppSession();
+                let sid = appSessionId || peekAppSession();
+                if (!sid && myAddress) {
+                    sid = await ensureAppSession();
+                }
                 const headers: Record<string, string> = { 'Content-Type': 'application/json' };
                 if (sid) headers['authorization'] = `Bearer ${sid}`;
                 const res = await fetch('/api/auth/match', {
@@ -416,13 +432,16 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                         if (connected) {
                             roomAttemptsRef.current = 0;
                             setRoomStatus('connected');
+                            setMatchConnectionStatus('connected');
                         } else if (status === 'disconnected') {
                             setRoomError((prev) => (prev === 'none' ? 'unreachable' : prev));
                             // D2: a room that drops is a failure to surface, not a
                             // reason to quietly hand authority back to a P2P host.
                             setRoomStatus('failed');
-                        } else if (status === 'connecting') {
-                            setRoomStatus('connecting');
+                            setMatchConnectionStatus('offline');
+                        } else if (status === 'connecting' || status === 'resyncing') {
+                            if (status === 'connecting') setRoomStatus('connecting');
+                            setMatchConnectionStatus('reconnecting');
                         }
                         // The host seeds on connect; guests skip this — the room already
                         // holds the board and the fan-out above brings them level.
@@ -456,7 +475,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         };
 
         void doConnect();
-    }, [applyServerState, isHost, appSessionId]);
+    }, [applyServerState, isHost, appSessionId, peekAppSession, ensureAppSession, myAddress]);
 
     /**
      * D2: retry the room socket with backoff.
@@ -496,14 +515,22 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         try {
             return await client.sendIntent(kind, payload ?? {});
         } catch (err) {
-            return { ok: false, data: { code: 'ROOM_INTENT_FAILED', error: (err as Error).message } };
+            const rejected = err as Error & { code?: string; reason?: string; seq?: number };
+            return {
+                ok: false,
+                data: {
+                    code: rejected.code || 'ROOM_INTENT_FAILED',
+                    error: rejected.reason || rejected.message,
+                    seq: rejected.seq,
+                },
+            };
         }
     }, []);
 
     // P4: clients render match_states (postgres realtime + initial pull)
     useMatchStates({
         matchId: gameState.matchId,
-        enabled: isLobbyConnected,
+        enabled: isLobbyConnected || roomAuthority,
         onServerState: applyServerState,
         getSeq: () => serverSeqRef.current,
         refreshState: async (matchId) => {
@@ -534,7 +561,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 return { ok: false, code: 'TRANSPORT', error: (err as Error).message };
             }
         },
-        onStatus: setMatchConnectionStatus,
+        onStatus: (status) => {
+            if (roomAuthority && status === 'syncing') return;
+            setMatchConnectionStatus(status);
+        },
         // NET-05: a client that already holds a snapshot must not be paused by
         // a flap. Read through a ref-free state read — the effect re-runs when
         // the value flips, which is exactly when the gate should change.
@@ -543,7 +573,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     useEffect(() => {
         if (matchConnectionStatus === 'reconnecting' || matchConnectionStatus === 'syncing') {
-            setHasAuthoritativeSnapshot(false);
+            if (!roomAuthority) {
+                setHasAuthoritativeSnapshot(false);
+            }
             sendMatchEvent({ type: 'RESYNC_NEEDED' });
         }
         if (matchConnectionStatus === 'connected' && fsmRef.current.phase === 'resyncing') {
@@ -552,7 +584,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         if (matchConnectionStatus === 'ended') {
             sendMatchEvent({ type: 'FINISH' });
         }
-    }, [matchConnectionStatus, sendMatchEvent]);
+    }, [matchConnectionStatus, roomAuthority, sendMatchEvent]);
 
     const gameStateRef = useRef(gameState);
     useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
@@ -1059,8 +1091,18 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         // 🏟️ Lobby sync (guest applies host state; host ignores echoes)
         if (type === 'LOBBY_SYNC' && (data as any).lobbyState && !isHost) {
             console.log('🏟️ [Guest] Applying lobby sync');
-            setLobbyState((data as any).lobbyState);
+            const syncedLobby = (data as any).lobbyState;
+            setLobbyState(syncedLobby);
             setIsLobbyConnected(true);
+            if (syncedLobby.status === 'playing' && typeof syncedLobby.matchId === 'string' && syncedLobby.matchId) {
+                setGameState(prev => ({
+                    ...prev,
+                    isStarted: true,
+                    matchId: syncedLobby.matchId,
+                    playerCount: syncedLobby.matchType || prev.playerCount,
+                }));
+                connectRoom(syncedLobby.matchId);
+            }
             return;
         }
 
@@ -1578,6 +1620,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         setValidationToken(undefined);
         serverSeqRef.current = 0;
         setServerSeq(0);
+        setHasAuthoritativeSnapshot(false);
+        hasAuthoritativeSnapshotRef.current = false;
         // NET-08: clear all three dedup stores here and on room change, or a
         // second match in one session inherits the previous match's id space
         // and drops every action as a "duplicate". Also drops the move-session

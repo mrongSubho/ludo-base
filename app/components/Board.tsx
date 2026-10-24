@@ -4,6 +4,7 @@ import { motion, useMotionValue, animate, useTransform } from 'framer-motion';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
 import { PlayerColor, PowerType, PowerItem } from '@/lib/types';
+import { getTeammateColor } from '@/lib/gameLogic';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
     assignCornersForShape,
@@ -372,6 +373,17 @@ export default function Board({
                                 ? localGameState.positions[color].map((pos: number, idx: number) => Number(pos) === 57 ? idx : -1).filter((idx: number) => idx !== -1)
                                 : [];
                             const positions = localGameState.positions?.[color] as number[] | undefined;
+                            const actingColor = localGameState.currentPlayer as PlayerColor;
+                            const isAssistTarget =
+                                playerCount === '2v2' &&
+                                localGameState.positions[actingColor]?.every((p: number) => Number(p) === 57) &&
+                                getTeammateColor(actingColor, '2v2') === color;
+                            const isControllableHome = localGameState.currentPlayer === color || isAssistTarget;
+                            const effectiveHomeDice =
+                                localGameState.diceValue !== null && localGameState.diceValue !== undefined
+                                    ? Number(localGameState.diceValue) +
+                                      (localGameState.activeBoost === localGameState.currentPlayer || localGameState.activeBoost === color ? 6 : 0)
+                                    : null;
                             return (
                                 <HomeBlock
                                     key={color}
@@ -385,11 +397,11 @@ export default function Board({
                                     colorCorner={colorCorner}
                                     viewerColor={uiSlots.BL ?? undefined}
                                     onTokenClick={(idx) => handleTokenClick(color, idx)}
-                                    isDraggable={isActivePlayer && localGameState.currentPlayer === color && localGameState.gamePhase === 'moving' && Number(localGameState.diceValue) === 6}
+                                    isDraggable={isActivePlayer && isControllableHome && localGameState.gamePhase === 'moving' && effectiveHomeDice === 6}
                                     counterRotationDeg={counterRotationDeg}
-                                    diceValue={localGameState.diceValue}
+                                    diceValue={effectiveHomeDice}
                                     gamePhase={localGameState.gamePhase}
-                                    currentPlayer={localGameState.currentPlayer}
+                                    currentPlayer={isControllableHome ? color : localGameState.currentPlayer}
                                 />
                             );
                         })}

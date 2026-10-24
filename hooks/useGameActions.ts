@@ -340,7 +340,7 @@ export function useGameActions({
             }, 800);
         }
         return 'applied';
-    }, [isLobbyConnected, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers, applyServerState]);
+    }, [isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers, applyServerState]);
 
     /**
      * Pull the authoritative snapshot after a refused write (403 wrong turn,
@@ -415,8 +415,12 @@ export function useGameActions({
         // the same fact on every socket.
         if (roomAuthority) {
             await tumblePromise;
-            await sendRoomIntent('REQUEST_ROLL', { seatColor: color });
+            const res = await sendRoomIntent('REQUEST_ROLL', { seatColor: color });
             rollingRef.current = false;
+            if (!res.ok) {
+                setLocalGameState((prev) => ({ ...prev, isRolling: false, diceValue: null }));
+                return 'failed';
+            }
             return 'deferred';
         }
 
@@ -609,7 +613,7 @@ export function useGameActions({
             }, 1500);
         }
         return 'applied';
-    }, [isLobbyConnected, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address, moveAuth, serverSeqRef, lastRollIdRef, applyServerState, resyncFromServer]);
+    }, [isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address, moveAuth, serverSeqRef, lastRollIdRef, applyServerState, resyncFromServer]);
 
     const handleUsePower = useCallback(async (color: PlayerColor, type?: PowerType, tokenIdx?: number) => {
         const prev = stateRef.current;
@@ -802,7 +806,7 @@ export function useGameActions({
                 setLocalGameState((latest) => ({ ...latest, nukeFlash: [], lastUpdate: Date.now() }));
             }, 1400);
         }
-    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, moveAuth, serverSeqRef, address, initialPlayers, applyServerState, lastRollIdRef, resyncFromServer, sendIntent]);
+    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, roomAuthority, sendRoomIntent, moveAuth, serverSeqRef, address, initialPlayers, applyServerState, lastRollIdRef, resyncFromServer, sendIntent]);
 
     const handleTokenClick = useCallback((color: PlayerColor, tokenIndex: number) => {
         if (localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;
@@ -829,7 +833,7 @@ export function useGameActions({
         }
 
         moveToken(color, tokenIndex, localGameState.diceValue);
-    }, [localGameState.gamePhase, localGameState.diceValue, localGameState.currentPlayer, localGameState.positions, playerCount, isLobbyConnected, sendIntent, moveToken, address, initialPlayers]);
+    }, [localGameState.gamePhase, localGameState.diceValue, localGameState.currentPlayer, localGameState.positions, playerCount, isLobbyConnected, roomAuthority, sendIntent, moveToken, address, initialPlayers]);
 
     return {
         moveToken,

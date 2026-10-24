@@ -165,8 +165,11 @@ export function BoardTokens({
                     (color === myColor || canHelpTeammate);
 
                 const diceVal: number | null = localGameState.diceValue ?? null;
-                const isValidMove = isDraggable && diceVal !== null
-                    && calculateNextPosition(pos, diceVal, color as PlayerColor, colorCorner) !== pos;
+                const effectiveSteps: number | null = diceVal !== null
+                    ? diceVal + (localGameState.activeBoost === localGameState.currentPlayer || localGameState.activeBoost === color ? 6 : 0)
+                    : null;
+                const isValidMove = isDraggable && effectiveSteps !== null
+                    && calculateNextPosition(pos, effectiveSteps, color as PlayerColor, colorCorner) !== pos;
                 const shielded = (localGameState.activeShields || []).some((s: any) => s.color === color && s.tokenIdx === index);
                 const targetable = !!targetingColor && color === targetingColor && pos >= 0 && pos < 52;
                 const boosted = localGameState.boostTrail === color;

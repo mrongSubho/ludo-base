@@ -279,7 +279,7 @@ export default function Page() {
   // cleans the instant a thread opens (no second source of truth).
   const { totalUnreadCount } = useGameData();
   const { notifCount } = useNotifications();
-  const { gameState, broadcastAction, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot, connectRoom, roomAuthority } = useTeamUp();
+  const { gameState, broadcastAction, broadcastLobbyAction, updateGameState, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot, connectRoom, roomAuthority } = useTeamUp();
 
   // NET-07: the HOST_ELECT handshake's authority layer. The panel asks this to
   // elect; the answer must be a seat that can prove it holds the current
@@ -548,7 +548,49 @@ export default function Page() {
    // arena, board chrome) don't re-render on every unrelated Page render.
    const handlePlayNow = useCallback(async (isBotOverride?: boolean) => {
     const effectiveIsBotMatch = isBotOverride ?? isBotMatch;
-    const currentMatchId = gameState?.matchId;
+    let resolvedMatchId = gameState?.matchId;
+
+    if (!effectiveIsBotMatch && !resolvedMatchId && isLobbyConnected && isHost && lobbyState) {
+      try {
+        const myWallet = address?.toLowerCase();
+        const sid = peekAppSession() || (myWallet ? await ensureAppSession() : null);
+        const slotWallets = (lobbyState.slots || [])
+          .map(s => s.playerId?.trim().toLowerCase())
+          .filter((w): w is string => Boolean(w && /^0x[a-f0-9]{40}$/i.test(w)));
+        const orderedParticipants = myWallet
+          ? [myWallet, ...slotWallets.filter(w => w !== myWallet)]
+          : slotWallets.length > 0
+            ? slotWallets
+            : ['anonymous'];
+        const res = await fetch('/api/match/start', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sid ? { Authorization: `Bearer ${sid}`, 'x-session-id': sid } : {}),
+          },
+          body: JSON.stringify({
+            roomCode: lobbyState.roomCode || roomId,
+            gameMode: lobbyState.gameMode || selectedMode,
+            matchShape: lobbyState.matchType || playerCount,
+            participants: orderedParticipants,
+            walletAddress: myWallet,
+            sessionId: sid,
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && typeof data.matchId === 'string') {
+          resolvedMatchId = data.matchId;
+          updateGameState({ matchId: resolvedMatchId, isStarted: true });
+          broadcastLobbyAction('LOBBY_SYNC', {
+            lobbyState: { ...lobbyState, status: 'playing', matchId: resolvedMatchId },
+          });
+        }
+      } catch (err) {
+        console.error('❌ [Page] Custom lobby /api/match/start failed:', err);
+      }
+    }
+
+    const currentMatchId = resolvedMatchId;
     const isLocalMatch =
       effectiveIsBotMatch ||
       !currentMatchId ||
@@ -590,7 +632,7 @@ export default function Page() {
       setAppState('game');
     }
     connectRoom(currentMatchId);
-  }, [isBotMatch, gameState?.matchId, gameState?.initialBoardConfig, playerCount, address, participants, finalName, setBoardSeed, setAppState, connectRoom]);
+  }, [isBotMatch, gameState?.matchId, gameState?.initialBoardConfig, isLobbyConnected, isHost, lobbyState, roomId, selectedMode, playerCount, address, peekAppSession, ensureAppSession, updateGameState, broadcastLobbyAction, broadcastAction, participants, finalName, setBoardSeed, setAppState, connectRoom]);
 
   const handleBackToSubMenu = useCallback(async () => {
     // Host leaving a live stream should drop the Live Arena row.

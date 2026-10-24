@@ -266,9 +266,13 @@ export function useMatchmaking(props: UseMatchmakingProps) {
 
     /** MM-3: set after `startSearch` exists (the timer effect runs before it). */
     const expandRef = useRef<null | (() => void)>(null);
+    const rejoinRef = useRef<null | (() => void)>(null);
     const extendSearch = useCallback((seconds: number = 20) => {
         console.log(`📡 [Matchmaking] Extending search by ${seconds}s...`);
         setMaxSearchTime(prev => Math.max(prev, searchTime + seconds));
+        if (statusRef.current === 'timeout') {
+            rejoinRef.current?.();
+        }
     }, [searchTime]);
 
     const cancelSearch = useCallback(async (allForPlayer: boolean = false, skipStateReset: boolean = false) => {
@@ -558,10 +562,17 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             console.log('📡 [Matchmaking] Expanding wager band to', band);
             void startSearch(band.min, band.max);
         };
-        return () => { expandRef.current = null; };
+        rejoinRef.current = () => {
+            lastSearchRef.current = '';
+            void startSearch();
+        };
+        return () => {
+            expandRef.current = null;
+            rejoinRef.current = null;
+        };
     }, [wager, startSearch]);
 
-    const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string, wagerMin?: number, wagerMax?: number) => {
+    const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string, wagerMin?: number, wagerMax?: number, skipPurge: boolean = false) => {
         if (isStartingRef.current) {
             console.log('📡 [Matchmaking] Hybrid search already starting, ignoring duplicate call.');
             return;
@@ -570,7 +581,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         const _normalizedPlayerId = playerId.toLowerCase();
         const criteria = `hybrid-${roomCode}-${slotsNeeded}-${lobbyMatchType}-${wager}-${wagerMin}-${wagerMax}`;
         
-        if (statusRef.current === 'searching' && lastSearchRef.current === criteria) {
+        if (!skipPurge && statusRef.current === 'searching' && lastSearchRef.current === criteria) {
             console.log('📡 [Matchmaking] Already in hybrid search with same criteria. Ignoring call.');
             return;
         }
@@ -581,11 +592,13 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         setStatus('searching');
         lastSearchRef.current = criteria;
 
-        if (pollingRef.current) clearInterval(pollingRef.current);
+        if (!skipPurge && pollingRef.current) clearInterval(pollingRef.current);
         
         try {
-            // Purge stale tickets (Supabase side) - BLOCKING to avoid race with join
-            await cancelSearch(true, true);
+            if (!skipPurge) {
+                // Purge stale tickets on initial start only — never on 5s heartbeat ticks
+                await cancelSearch(true, true);
+            }
             const sessionId = await ensureAppSession();
             if (!sessionId) throw new Error('Wallet session required for matchmaking');
             const response = await fetch('/api/matchmaking/join', {
@@ -620,10 +633,12 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                 setTicketId(data.ticket_id);
                 checkTicketStatus(data.ticket_id);
                 
-                if (pollingRef.current) clearInterval(pollingRef.current);
-                pollingRef.current = setInterval(() => {
-                    startHybridSearch(roomCode, slotsNeeded, lobbyMatchType, wagerMin, wagerMax);
-                }, 5000);
+                if (!skipPurge) {
+                    if (pollingRef.current) clearInterval(pollingRef.current);
+                    pollingRef.current = setInterval(() => {
+                        void startHybridSearch(roomCode, slotsNeeded, lobbyMatchType, wagerMin, wagerMax, true);
+                    }, 5000);
+                }
             }
         } catch (err) {
             console.error('❌ [Matchmaking] Hybrid search error:', err);
@@ -631,7 +646,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         } finally {
             isStartingRef.current = false;
         }
-    }, [playerId, gameMode, wager, cancelSearch, checkTicketStatus, fetchNearbyPools, dispatchMatch]);
+    }, [playerId, gameMode, wager, cancelSearch, checkTicketStatus, fetchNearbyPools, dispatchMatch, ensureAppSession]);
 
     // --- Subscription Effects ---
 
@@ -696,8 +711,8 @@ export function useMatchmaking(props: UseMatchmakingProps) {
 
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (document.hidden && (status === 'searching' || status === 'expanding')) {
-                cancelSearch();
+            if (!document.hidden && (status === 'searching' || status === 'expanding') && ticketIdRef.current) {
+                void checkTicketStatus(ticketIdRef.current);
             }
         };
 
@@ -714,7 +729,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
-    }, [cancelSearch, status]);
+    }, [cancelSearch, checkTicketStatus, status]);
 
     // --- Mounting Cleanup ---
 

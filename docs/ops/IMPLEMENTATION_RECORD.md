@@ -2651,3 +2651,70 @@ Following the server-owned lobby rollout, live match formation surfaced two issu
 - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
 - `npm run build`: production webpack build succeeded cleanly.
 - Pushed to `origin/main` as commit `1c4ed03`.
+
+---
+
+## STALL-02 — Full-Spectrum Matchmaking, Durable Object Hibernation, Turn Transition & Clock Remediation (2026-10-24)
+
+Following the initial server authority rollout, comprehensive diagnostic auditing and production testing surfaced multi-tier stall and freeze vectors across matchmaking, DO hibernation, timer pipelines, and 2v2 gameplay:
+
+### 1. Root Causes Across the Stack
+
+1. **Durable Object WebSocket Hibernation Eviction (`SV-14`)**:
+   - `MatchRoomCore` relied on an in-memory `socketMeta = new Map<WebSocket, ClientMeta>()`. Under Cloudflare WebSocket Hibernation, isolate eviction kept sockets open while dropping memory. Re-awakened messages were rejected with `NOT_AUTHORIZED`.
+   - Furthermore, the re-authentication path was blocked because `handleJoinFrame` only checked `frame.token` while `RoomClient` sent `frame.ticket`.
+   - `this.timerHeap` was never rehydrated from storage upon waking, permanently breaking turn timeouts on evicted isolates.
+2. **Timer Pipeline Flapping & AI Dual-Orchestration (`SV-02`, `SV-05A`, `SV-05B`, `D-3`)**:
+   - `useAIBrain` gated only on `isLobbyConnected`, ignoring `roomAuthority`, leading client bots to double-orchestrate in room matches.
+   - `useGameTimer` keyed on `(currentPlayer, gamePhase, diceValue)`. When a player rolled a bonus six or auto-passed without changing phase, `turnKey` did not change, freezing the countdown.
+   - `REQUEST_ROLL` scheduled redundant post-apply 15s turn timers that overwrote the 1000ms `ai_turn` timer for bot turns.
+   - In `TeamUpContext`, `useMatchStates`' 6s background poll invoked `setMatchConnectionStatus('syncing')`, tearing down and rebuilding `useGameTimer` and clearing `hasAuthoritativeSnapshot(false)`, causing live matches under `roomAuthority` to flap.
+3. **Turn Transitions, Auto-Pass, 2v2 Assist & Strike Accounting (`SV-01`, `SV-03A/B/C`, `SV-04`, `SV-06`, `SV-15`, `D-1`, `D-2`)**:
+   - Rolling a 6 when all tokens are blocked/in-yard did not auto-pass because the engine previously checked `dice === 6` before `legalMoves.length === 0`.
+   - 3rd consecutive six did not auto-pass immediately at roll time.
+   - Finished 2v2 seats rolling for teammates could not select legal teammate tokens on the client board, and power pickups on teammate assist incorrectly credited the finished seat (`D-1`).
+   - `useGameActions` hooks captured stale `roomAuthority` / `sendRoomIntent` closures.
+   - Failed roll intents left `isRolling: true`, locking the dice button.
+   - Strikes were never cleared on valid active human rolls, permanently converting seats to auto-play after 3 timeouts.
+4. **Matchmaking Ghost Matching & Ticket Expiry (`SV-11`, `SV-13`, `D-4`)**:
+   - Both `join_matchmaking` and `join_matchmaking_hybrid` RPCs lacked `and expires_at > now()`, matching ghosts left behind up to 60+ minutes prior.
+   - Searching tickets lacked an active lease renewal mechanism, and `GET /api/matchmaking/status` unconditionally updated `expires_at` on every 1.5s poll, risking rate limit exhaustion (`D-4`).
+   - Hybrid matchmaking ignored requested match shape (`1v1`, `2v2`, `4P`), and mobile `visibilitychange` prematurely cancelled searches.
+5. **Rejection Code Loss in Transport (`SV-16`)**:
+   - `RoomClient` dropped server error codes on `t: 'rejected'`, breaking UI handling for `POWER_ARMED` and `THREE_SIXES`.
+
+### 2. Implemented Fixes
+
+1. **Durable Object Hibernation & Session Preservation (`SV-14`)** — [`src/room/MatchRoomCore.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/src/room/MatchRoomCore.ts):
+   - Implemented `setSocketMeta` and `getSocketMeta` backed by `ws.serializeAttachment()` / `ws.deserializeAttachment()`.
+   - Persisted `matchId` and `timerHeap` to `ctx.storage`, calling bare `await this.ensureInitialized()` in `webSocketMessage` and `alarm()`.
+   - Updated `handleJoinFrame` to accept both `frame.token` and `frame.ticket`.
+   - Scheduled the initial turn/bot timer in `doInitialize` and `'seed'`.
+2. **Timer Pipeline & Resync Hardening (`SV-02`, `SV-05A`, `SV-05B`, `D-3`)** — [`hooks/useGameEngine.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useGameEngine.ts), [`hooks/useGameTimer.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useGameTimer.ts), [`hooks/TeamUpContext.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/TeamUpContext.tsx), [`src/room/MatchRoomCore.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/src/room/MatchRoomCore.ts):
+   - Passed `isLobbyConnected: isLobbyConnected || roomAuthority` to `useAIBrain`.
+   - Appended `localGameState.lastUpdate` to `turnKey` in `useGameTimer`.
+   - Scheduled turn/bot timers in `applyNewState` before computing `getEarliestDeadline()` and eliminated redundant overwrites in `REQUEST_ROLL` and `REQUEST_MOVE`.
+   - Guarded `useMatchStates`' `onStatus` against setting `'syncing'` under `roomAuthority`, and gated `setHasAuthoritativeSnapshot(false)` on `!roomAuthority`.
+3. **Turn Transitions, 2v2 Assist & Strike Management (`SV-01`, `SV-03A/B/C`, `SV-04`, `SV-06`, `SV-15`, `D-1`, `D-2`)** — [`lib/engine/core.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/engine/core.ts), [`src/room/MatchRoomCore.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/src/room/MatchRoomCore.ts), [`hooks/useGameActions.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useGameActions.ts), [`app/components/BoardTokens.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/BoardTokens.tsx):
+   - Added `resolveControllableColor` to allow finished 2v2 seats to roll and move teammate tokens.
+   - Updated `applyPowerPickup` to credit `targetColor` during teammate assist (`D-1`).
+   - `REQUEST_ROLL` auto-passes on `legalMoves.length === 0` (even on a 6) with `diceValue: null`.
+   - 3rd consecutive six forfeits immediately and preserves existing strikes (`D-2`).
+   - Reset `strikes[curColor] = 0` on active human rolls/moves, and added `CMD_REQUEST_TRUST` handling.
+   - Added `roomAuthority` and `sendRoomIntent` to `useGameActions` dependencies and cleared `isRolling` on failed rolls.
+4. **Matchmaking Leases, Hybrid Shapes & Lobby Bootstrap (`SV-09`–`SV-13`, `D-4`)** — [`supabase/migrations/202610240001_fix_matchmaking_expiry_and_hybrid.sql`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/supabase/migrations/202610240001_fix_matchmaking_expiry_and_hybrid.sql), [`app/api/matchmaking/status/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/matchmaking/status/route.ts), [`hooks/useMatchmaking.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useMatchmaking.ts), [`app/page.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/page.tsx):
+   - Created migration `202610240001_fix_matchmaking_expiry_and_hybrid.sql` adding `and expires_at > now()`, 30s lease TTL, and shape filtering.
+   - Throttled lease renewal in `GET /api/matchmaking/status` to only execute when `< 15s` remain (`D-4`).
+   - Custom/Invite lobbies call `POST /api/match/start` on launch and route both host and guests to `connectRoom(matchId)`.
+   - Mobile `visibilitychange` checks ticket status instead of cancelling search.
+5. **Rejection Code Preservation (`SV-16`)** — [`lib/netcode/roomClient.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/netcode/roomClient.ts), [`hooks/TeamUpContext.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/TeamUpContext.tsx):
+   - Attached `code`, `reason`, and `seq` to rejected intent Error instances.
+
+### 3. Verification Evidence
+
+- `npm test`: 558 tests / 547 passed, 0 failed, 11 skipped (including `S3-3`, `S3-4`, `P0-19`, `P0-20`, `P0-21`).
+- `npm run check:engine`: passed (`lib/engine/core.ts` and `src/room/engine.ts` byte-identical).
+- `npm run check:schema && npm run check:rls && npm run check:fn-signatures`: clean across 46 migrations.
+- `npm run check:no-p2p && npm run check:routes && npm run check:motion && npm run check:img`: clean.
+- `npx tsc -p tsconfig.json --noEmit && npx tsc -p tsconfig.worker.json --noEmit`: 0 errors.
+- `npx eslint`: clean across all modified files.

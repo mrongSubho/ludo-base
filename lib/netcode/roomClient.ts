@@ -282,7 +282,15 @@ export class RoomClient {
         if (pending) {
           clearTimeout(pending.timer);
           this.pendingIntents.delete(intentId);
-          pending.reject(new Error(`[${code}] ${error}`));
+          const err = new Error(`[${code}] ${error}`) as Error & {
+            code?: string;
+            reason?: string;
+            seq?: number;
+          };
+          err.code = code;
+          err.reason = error;
+          err.seq = seq;
+          pending.reject(err);
         }
       }
 
