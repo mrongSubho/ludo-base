@@ -80,8 +80,12 @@ export const useDataBoot = (address: string | undefined) => {
                 // the caller's own wallet. A 401 is not data — resolve to empty
                 // lists so a missing session degrades the panel instead of
                 // poisoning it.
-                fetch(`/api/friends?wallet=${encodeURIComponent(lowerAddr)}`
-                    + (sessionId ? `&walletAddress=${encodeURIComponent(lowerAddr)}&sessionId=${encodeURIComponent(sessionId)}` : ''))
+                fetch(`/api/friends?wallet=${encodeURIComponent(lowerAddr)}&walletAddress=${encodeURIComponent(lowerAddr)}`, {
+                    headers: sessionId ? {
+                        Authorization: `Bearer ${sessionId}`,
+                        'x-session-id': sessionId,
+                    } : undefined,
+                })
                     .then(async res => (res.ok ? res.json() : { onchainFriends: [], gameFriends: [], acceptedFriends: [] })),
                 privateData
             ]);

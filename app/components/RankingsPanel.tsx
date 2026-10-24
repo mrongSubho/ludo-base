@@ -77,8 +77,13 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                 // SEC-08: session-gated, and only for the caller's own wallet.
                 const sid = peekAppSession();
                 const res = await fetch(
-                    `/api/friends?wallet=${encodeURIComponent(address)}`
-                    + (sid ? `&walletAddress=${encodeURIComponent(address)}&sessionId=${encodeURIComponent(sid)}` : ''),
+                    `/api/friends?wallet=${encodeURIComponent(address)}&walletAddress=${encodeURIComponent(address)}`,
+                    sid ? {
+                        headers: {
+                            Authorization: `Bearer ${sid}`,
+                            'x-session-id': sid,
+                        },
+                    } : undefined,
                 );
                 if (!res.ok) throw new Error('friends fetch failed');
                 const data = await res.json();

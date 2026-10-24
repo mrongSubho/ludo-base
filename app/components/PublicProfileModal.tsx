@@ -125,9 +125,13 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 // SEC-08: session-gated (see RankingsPanel for the same shape).
                 const friendsSession = peekAppSession();
                 const response = await fetch(
-                    `/api/friends?wallet=${encodeURIComponent(currentUserAddress)}`
-                    + `&walletAddress=${encodeURIComponent(currentUserAddress)}`
-                    + (friendsSession ? `&sessionId=${encodeURIComponent(friendsSession)}` : ''),
+                    `/api/friends?wallet=${encodeURIComponent(currentUserAddress)}&walletAddress=${encodeURIComponent(currentUserAddress)}`,
+                    friendsSession ? {
+                        headers: {
+                            Authorization: `Bearer ${friendsSession}`,
+                            'x-session-id': friendsSession,
+                        },
+                    } : undefined,
                 );
                 if (response.ok) {
                     const data = await response.json();
@@ -144,7 +148,12 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 // 3. Fetch pending friend request state
                 const sessionId = await ensureAppSession();
                 if (sessionId) {
-                    const friendshipResponse = await fetch(`/api/friendships?walletAddress=${encodeURIComponent(currentUserAddress)}&sessionId=${encodeURIComponent(sessionId)}`);
+                    const friendshipResponse = await fetch(`/api/friendships?walletAddress=${encodeURIComponent(currentUserAddress)}`, {
+                        headers: {
+                            Authorization: `Bearer ${sessionId}`,
+                            'x-session-id': sessionId,
+                        },
+                    });
                     const friendshipData = friendshipResponse.ok ? await friendshipResponse.json() : { incoming: [], outgoing: [] };
                     const pending = [...(friendshipData.incoming || []), ...(friendshipData.outgoing || [])]
                         .some((row: any) => [row.user_address, row.friend_address].map((value: string) => value.toLowerCase()).includes(userAddress.toLowerCase()));

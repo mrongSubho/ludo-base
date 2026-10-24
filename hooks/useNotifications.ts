@@ -95,8 +95,12 @@ export function useNotifications() {
         // Poll only — never open the wallet from a timer.
         const sessionId = peekAppSession();
         if (!sessionId) return;
-        const requestsPromise = fetch(`/api/friendships?walletAddress=${encodeURIComponent(me)}&sessionId=${encodeURIComponent(sessionId)}`);
-        const pokesPromise = fetch(`/api/social/poke?wallet=${encodeURIComponent(me)}&sessionId=${encodeURIComponent(sessionId)}`);
+        const headers = {
+            Authorization: `Bearer ${sessionId}`,
+            'x-session-id': sessionId,
+        };
+        const requestsPromise = fetch(`/api/friendships?walletAddress=${encodeURIComponent(me)}`, { headers });
+        const pokesPromise = fetch(`/api/social/poke?wallet=${encodeURIComponent(me)}`, { headers });
         let pokeResponse: Response;
         try {
             const [requestResponse, poke] = await Promise.all([requestsPromise, pokesPromise]);

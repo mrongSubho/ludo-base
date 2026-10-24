@@ -246,7 +246,12 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
             // Session-gated: pokes rows are server-only under default-deny.
             const sessionId = await ensureAppSession();
             if (!sessionId) return;
-            const res = await fetch(`/api/social/poke?wallet=${encodeURIComponent(connectedAddress)}&sessionId=${encodeURIComponent(sessionId)}`);
+            const res = await fetch(`/api/social/poke?wallet=${encodeURIComponent(connectedAddress)}`, {
+                headers: {
+                    Authorization: `Bearer ${sessionId}`,
+                    'x-session-id': sessionId,
+                },
+            });
             if (res.ok) {
                 const data = await res.json();
                 setIncomingPokes(data);
@@ -262,7 +267,12 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
             const currentAddrLower = connectedAddress.toLowerCase();
             const sessionId = await ensureAppSession();
             if (!sessionId) return;
-            const response = await fetch(`/api/friendships?walletAddress=${encodeURIComponent(currentAddrLower)}&sessionId=${encodeURIComponent(sessionId)}`);
+            const response = await fetch(`/api/friendships?walletAddress=${encodeURIComponent(currentAddrLower)}`, {
+                headers: {
+                    Authorization: `Bearer ${sessionId}`,
+                    'x-session-id': sessionId,
+                },
+            });
             if (!response.ok) throw new Error(`Friendships API failed: ${response.status}`);
             const friendshipData = await response.json();
             const data = friendshipData.accepted || [];
@@ -466,6 +476,8 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
             const error = !response || !response.ok;
             if (!error) {
                 setJustSent(prev => prev.includes(target) ? prev : [...prev, target]);
+                toast('Friend request sent!', 'success');
+                fetchFriends();
             } else {
                 toast('Failed to send request', 'error');
             }
