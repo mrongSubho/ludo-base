@@ -193,9 +193,11 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
     const [activeRequestTab, setActiveRequestTab] = useState<RequestTab>('incoming');
     const [searchQuery, setSearchQuery] = useState('');
     const { friends: globalFriends } = useGameData();
+    const [directoryFriends, setDirectoryFriends] = useState<any[]>([]);
 
-    // Use Context for game friends
-    const gameFriends = globalFriends.gameFriends.map((f: any) => ({
+    // Use directory friends with fallback to Context game friends
+    const sourceGlobal = directoryFriends.length > 0 ? directoryFriends : globalFriends.gameFriends;
+    const gameFriends = sourceGlobal.map((f: any) => ({
         ...f,
         displayName: (f.username && !f.username.startsWith('0x')) ? f.username : "User " + f.wallet_address.slice(-4).toUpperCase(),
         status: f.status || 'Offline'
@@ -358,6 +360,24 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                 setPendingOutgoing([]);
             }
 
+            // Also refresh game friends directory
+            try {
+                const friendsRes = await fetch(`/api/friends?wallet=${encodeURIComponent(currentAddrLower)}&walletAddress=${encodeURIComponent(currentAddrLower)}`, {
+                    headers: {
+                        Authorization: `Bearer ${sessionId}`,
+                        'x-session-id': sessionId,
+                    },
+                });
+                if (friendsRes.ok) {
+                    const fData = await friendsRes.json();
+                    if (Array.isArray(fData.gameFriends) && fData.gameFriends.length > 0) {
+                        setDirectoryFriends(fData.gameFriends);
+                    }
+                }
+            } catch (dErr) {
+                console.warn('Directory refresh error:', dErr);
+            }
+
             await fetchPokes();
 
         } catch (err) {
@@ -366,6 +386,17 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
     }, [connectedAddress, userFid, fetchPokes]);
 
     useEffect(() => {
+        // Initial immediate load of directory players even if wallet/session is connecting
+        const initialAddr = connectedAddress || '0x0000000000000000000000000000000000000001';
+        fetch(`/api/friends?wallet=${encodeURIComponent(initialAddr)}&walletAddress=${encodeURIComponent(initialAddr)}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+                if (Array.isArray(data?.gameFriends) && data.gameFriends.length > 0) {
+                    setDirectoryFriends(data.gameFriends);
+                }
+            })
+            .catch(() => {});
+
         fetchFriends();
         const friendshipRefresh = window.setInterval(fetchFriends, 15000);
 

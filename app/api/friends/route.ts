@@ -34,6 +34,21 @@ async function fetchAcceptedFriends(walletLower: string): Promise<string[]> {
     ).filter(Boolean))];
 }
 
+// Self-Healing Status Logic: If 'Online' but last_played_at > 5 mins ago, force 'Offline'
+function healStatus(list: any[]): any[] {
+    const now = Date.now();
+    const driftLimit = 5 * 60 * 1000; // 5 minutes
+    return list.map(f => {
+        if (f.status === 'Online' && f.last_played_at) {
+            const lastSeen = new Date(f.last_played_at).getTime();
+            if (now - lastSeen > driftLimit) {
+                return { ...f, status: 'Offline' };
+            }
+        }
+        return f;
+    });
+}
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const raw = searchParams.get('wallet');
@@ -66,26 +81,26 @@ export async function GET(request: Request) {
         scope: 'app',
         expectedWallet: searchParams.get('walletAddress') || wallet,
     });
-    if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
-    if (session !== wallet) {
-        return NextResponse.json({ error: 'Not your wallet' }, { status: 403 });
+    if (!session || session !== wallet) {
+        // Without an authenticated session for this wallet, caller cannot access
+        // private friendships or consume Neynar quota. Gracefully return the public
+        // active players directory so Global discovery is always accessible.
+        const { data: gameFriends } = await supabase
+            .from('players')
+            .select('wallet_address, username, avatar_url, total_wins, status, last_played_at')
+            .neq('wallet_address', wallet)
+            .order('last_played_at', { ascending: false, nullsFirst: false })
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+        return NextResponse.json({
+            onchainFriends: [],
+            gameFriends: healStatus(gameFriends || []),
+            acceptedFriends: [],
+        });
     }
 
     try {
-        // Self-Healing Status Logic: If 'Online' but last_played_at > 5 mins ago, force 'Offline'
-        const now = new Date().getTime();
-        const driftLimit = 5 * 60 * 1000; // 5 minutes
-
-        const healStatus = (list: any[]) => list.map(f => {
-            if (f.status === 'Online' && f.last_played_at) {
-                const lastSeen = new Date(f.last_played_at).getTime();
-                if (now - lastSeen > driftLimit) {
-                    return { ...f, status: 'Offline' };
-                }
-            }
-            return f;
-        });
-
         // 1. Fetch the user's Farcaster profile by wallet address
         const profileRes = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${encodeURIComponent(wallet)}`, {
             headers: {
