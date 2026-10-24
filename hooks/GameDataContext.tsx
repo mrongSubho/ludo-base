@@ -6,6 +6,7 @@ import { useAccount } from 'wagmi';
 import { supabase } from '@/lib/supabase';
 import { Peer, DataConnection } from 'peerjs';
 import { decryptAnyMessage, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';
+import { clearOutboxForPeer } from '@/lib/messageOutbox';
 import type { Json } from '@/types/database.types';
 
 // --- TYPES ---
@@ -71,7 +72,7 @@ interface GameDataContextType {
     // Cached Data
     myProfile: UserProfile | null;
     leaderboard: LeaderboardEntry[];
-    friends: { onchainFriends: Friend[], gameFriends: Friend[] };
+    friends: { onchainFriends: Friend[], gameFriends: Friend[], acceptedFriends: string[] };
     
     // Chat Data
     messages: MessageData[];
@@ -385,7 +386,16 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
                 return 'Just now';
             };
 
-            const transformed = await Promise.all(rawConversations.map(async (c) => {
+            const acceptedSet = new Set((friends?.acceptedFriends || []).map(f => f.toLowerCase()));
+
+            // Only show conversations for currently accepted friends
+            const validRawConversations = rawConversations.filter(c => {
+                const isA = c.user_a.toLowerCase() === lowerAddr;
+                const otherId = isA ? c.user_b.toLowerCase() : c.user_a.toLowerCase();
+                return acceptedSet.has(otherId);
+            });
+
+            const transformed = await Promise.all(validRawConversations.map(async (c) => {
                 const isA = c.user_a.toLowerCase() === lowerAddr;
                 const otherId = isA ? c.user_b.toLowerCase() : c.user_a.toLowerCase();
                 rawPeerIds.add(otherId);
@@ -427,15 +437,23 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
             }));
 
             // Synthesize conversations for peers with local/outbox messages who aren't in rawConversations
+            // ONLY for peers who are currently accepted friends
             const extraPeers = new Map<string, MessageData>();
             for (const m of messages) {
                 const sender = m.sender_id.toLowerCase();
                 const receiver = m.receiver_id.toLowerCase();
                 const otherId = sender === lowerAddr ? receiver : sender;
-                if (otherId && otherId !== lowerAddr && !rawPeerIds.has(otherId)) {
-                    const existing = extraPeers.get(otherId);
-                    if (!existing || new Date(m.created_at).getTime() > new Date(existing.created_at).getTime()) {
-                        extraPeers.set(otherId, m);
+                if (otherId && otherId !== lowerAddr) {
+                    if (!acceptedSet.has(otherId)) {
+                        // Peer is no longer a friend: purge any stale local outbox message
+                        clearOutboxForPeer(lowerAddr, otherId);
+                        continue;
+                    }
+                    if (!rawPeerIds.has(otherId)) {
+                        const existing = extraPeers.get(otherId);
+                        if (!existing || new Date(m.created_at).getTime() > new Date(existing.created_at).getTime()) {
+                            extraPeers.set(otherId, m);
+                        }
                     }
                 }
             }
@@ -460,7 +478,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
 
             // Badge counts PEOPLE (unread threads), not messages — one friend
             // pinging six times still shows 1.
-            const total = rawConversations.filter((c) => {
+            const total = validRawConversations.filter((c) => {
                 const isA = c.user_a.toLowerCase() === lowerAddr;
                 return (isA ? c.unread_count_a : c.unread_count_b) > 0;
             }).length;
@@ -468,7 +486,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         };
 
         transformConvos();
-    }, [rawConversations, address, profilesMap, decryptStoredContent, messages]);
+    }, [rawConversations, address, profilesMap, decryptStoredContent, messages, friends.acceptedFriends]);
 
     // Session boundary: signing out (or switching wallets) wipes the
     // previous identity's chats, threads, and badges instantly. Boot

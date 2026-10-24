@@ -383,7 +383,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
         } catch (err) {
             console.error('Error fetching friends:', err);
         }
-    }, [connectedAddress, userFid, fetchPokes]);
+    }, [connectedAddress, userFid, fetchPokes, sessionId, ensureAppSession]);
 
     useEffect(() => {
         // Initial immediate load of directory players even if wallet/session is connecting
@@ -440,7 +440,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
             supabase.removeChannel(pokeChannel);
             window.clearInterval(friendshipRefresh);
         };
-    }, [connectedAddress, userFid, fetchFriends, fetchPokes]);
+    }, [connectedAddress, userFid, fetchFriends, fetchPokes, sessionId]);
 
     const handleAcceptRequest = async (id: string) => {
         try {

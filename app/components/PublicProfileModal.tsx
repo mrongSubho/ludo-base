@@ -12,6 +12,7 @@ import { FormChart } from './FormChart';
 import { ModeBreakdown, winGame, lastNForm } from './ModeBreakdown';
 import { ChatIcon } from './icons';
 import { useAppSession } from '@/hooks/useAppSession';
+import { clearOutboxForPeer } from '@/lib/messageOutbox';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same vocabulary as the synced sandwich panels, applied to this centered
@@ -120,46 +121,52 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 setIsBlocked(false);
             }
 
-            // 2. Fetch current user's friends list to validate DM capability (SLOWER)
+            // 2. Fetch current user's friends list and friendships to validate DM capability
             try {
-                // SEC-08: session-gated (see RankingsPanel for the same shape).
-                const friendsSession = peekAppSession();
-                const response = await fetch(
-                    `/api/friends?wallet=${encodeURIComponent(currentUserAddress)}&walletAddress=${encodeURIComponent(currentUserAddress)}`,
-                    friendsSession ? {
-                        headers: {
-                            Authorization: `Bearer ${friendsSession}`,
-                            'x-session-id': friendsSession,
-                        },
-                    } : undefined,
-                );
-                if (response.ok) {
-                    const data = await response.json();
+                const sessionId = await ensureAppSession().catch(() => null);
 
-                    // Check if targeted user exists in Onchain follows or accepted game friendships.
-                    // NOTE: gameFriends from the API is just recent active players (a directory),
-                    // NOT friendship evidence — never use it here.
-                    const isFollowing = data.onchainFriends?.some((f: any) => (f.address?.toLowerCase() === userAddress.toLowerCase() || f.wallet_address?.toLowerCase() === userAddress.toLowerCase())) || false;
-                    const isAccepted = (data.acceptedFriends || [])?.some((a: any) => (typeof a === 'string' ? a : a.wallet_address || a.address || '').toLowerCase() === userAddress.toLowerCase()) || false;
-
-                    setIsFriend(isFollowing || isAccepted);
-                }
-
-                // 3. Fetch pending friend request state
-                const sessionId = await ensureAppSession();
-                if (sessionId) {
-                    const friendshipResponse = await fetch(`/api/friendships?walletAddress=${encodeURIComponent(currentUserAddress)}`, {
+                const [friendsRes, friendshipsRes] = await Promise.all([
+                    fetch(
+                        `/api/friends?wallet=${encodeURIComponent(currentUserAddress)}&walletAddress=${encodeURIComponent(currentUserAddress)}`,
+                        sessionId ? {
+                            headers: {
+                                Authorization: `Bearer ${sessionId}`,
+                                'x-session-id': sessionId,
+                            },
+                        } : undefined,
+                    ).then(r => r.ok ? r.json() : null).catch(() => null),
+                    sessionId ? fetch(`/api/friendships?walletAddress=${encodeURIComponent(currentUserAddress)}`, {
                         headers: {
                             Authorization: `Bearer ${sessionId}`,
                             'x-session-id': sessionId,
                         },
-                    });
-                    const friendshipData = friendshipResponse.ok ? await friendshipResponse.json() : { incoming: [], outgoing: [] };
-                    const pending = [...(friendshipData.incoming || []), ...(friendshipData.outgoing || [])]
-                        .some((row: any) => [row.user_address, row.friend_address].map((value: string) => value.toLowerCase()).includes(userAddress.toLowerCase()));
-                    setIsPending(pending);
-                } else {
+                    }).then(r => r.ok ? r.json() : null).catch(() => null) : null,
+                ]);
+
+                const data = friendsRes || {};
+                const friendshipData = friendshipsRes || { accepted: [], incoming: [], outgoing: [] };
+
+                const isFollowing = data.onchainFriends?.some((f: any) =>
+                    (f.address?.toLowerCase() === userAddress.toLowerCase() || f.wallet_address?.toLowerCase() === userAddress.toLowerCase())
+                ) || false;
+
+                const isAcceptedInFriends = (data.acceptedFriends || [])?.some((a: any) =>
+                    (typeof a === 'string' ? a : a.wallet_address || a.address || '').toLowerCase() === userAddress.toLowerCase()
+                ) || false;
+
+                const isAcceptedInFriendships = (friendshipData.accepted || []).some((row: any) =>
+                    [row.user_address, row.friend_address].map((v: string) => String(v).toLowerCase()).includes(userAddress.toLowerCase())
+                );
+
+                const effectiveFriend = isFollowing || isAcceptedInFriends || isAcceptedInFriendships;
+                setIsFriend(effectiveFriend);
+
+                if (effectiveFriend) {
                     setIsPending(false);
+                } else {
+                    const pending = [...(friendshipData.incoming || []), ...(friendshipData.outgoing || [])]
+                        .some((row: any) => [row.user_address, row.friend_address].map((v: string) => String(v).toLowerCase()).includes(userAddress.toLowerCase()));
+                    setIsPending(pending);
                 }
 
             } catch (err) {
@@ -171,7 +178,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
         fetchProfileData();
 
-    }, [isOpen, userAddress, currentUserAddress]);
+    }, [isOpen, userAddress, currentUserAddress, ensureAppSession]);
 
     // Target match history (separate effect so profile paint isn't blocked)
     useEffect(() => {
@@ -334,6 +341,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                 const response = sessionId && await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'remove', target: userAddress }) });
                 const error = !response || !response.ok;
                 if (!error) {
+                    clearOutboxForPeer(currentUserAddress, userAddress);
                     setIsFriend(false);
                     setActionSuccess("Friend Removed");
                     setTimeout(() => setActionSuccess(null), 2500);

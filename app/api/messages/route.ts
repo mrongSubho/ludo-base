@@ -12,7 +12,7 @@ export async function GET(request: Request) {
         if (!wallet) return NextResponse.json(sendError('auth', 'invalid or missing app session'), { status: 401 });
 
         const db = serviceDb();
-        const [conversations, messages] = await Promise.all([
+        const [conversations, messages, asUserFriends, asFriendFriends] = await Promise.all([
             db.from('conversations')
                 .select('id, user_a, user_b, last_message_at, last_message_content, unread_count_a, unread_count_b')
                 .or(`user_a.eq.${wallet},user_b.eq.${wallet}`)
@@ -22,10 +22,36 @@ export async function GET(request: Request) {
                 .or(`sender_id.eq.${wallet},receiver_id.eq.${wallet}`)
                 .order('created_at', { ascending: false })
                 .limit(30),
+            db.from('friendships')
+                .select('friend_address')
+                .eq('user_address', wallet)
+                .eq('status', 'accepted'),
+            db.from('friendships')
+                .select('user_address')
+                .eq('friend_address', wallet)
+                .eq('status', 'accepted'),
         ]);
         if (conversations.error) return NextResponse.json(sendError('db_read', conversations.error.message), { status: 500 });
         if (messages.error) return NextResponse.json(sendError('db_read', messages.error.message), { status: 500 });
-        return NextResponse.json({ conversations: conversations.data || [], messages: messages.data || [] });
+
+        const acceptedFriendsSet = new Set([
+            ...(asUserFriends.data || []).map((r) => String(r.friend_address).toLowerCase()),
+            ...(asFriendFriends.data || []).map((r) => String(r.user_address).toLowerCase()),
+        ]);
+
+        const filteredConvos = (conversations.data || []).filter((c) => {
+            const isA = String(c.user_a).toLowerCase() === wallet;
+            const peer = isA ? String(c.user_b).toLowerCase() : String(c.user_a).toLowerCase();
+            return acceptedFriendsSet.has(peer);
+        });
+
+        const filteredMessages = (messages.data || []).filter((m) => {
+            const isSender = String(m.sender_id).toLowerCase() === wallet;
+            const peer = isSender ? String(m.receiver_id).toLowerCase() : String(m.sender_id).toLowerCase();
+            return acceptedFriendsSet.has(peer);
+        });
+
+        return NextResponse.json({ conversations: filteredConvos, messages: filteredMessages });
     } catch (error) {
         const { code, detail } = classifyWriteError(error);
         console.error('[messages] unhandled:', detail);
@@ -66,6 +92,18 @@ export async function POST(request: Request) {
             // `messages.content` DB CHECK — one constant, not two numbers.
             if (!/^0x[a-f0-9]{40}$/.test(receiver) || !content || String(content).length > MAX_DM_CONTENT_LEN)
                 return NextResponse.json({ error: 'Invalid message' }, { status: 400 });
+            // Direct messages are strictly friend-gated
+            const [asUserRel, asFriendRel] = await Promise.all([
+                db.from('friendships').select('id').eq('status', 'accepted').eq('user_address', wallet).eq('friend_address', receiver).maybeSingle(),
+                db.from('friendships').select('id').eq('status', 'accepted').eq('user_address', receiver).eq('friend_address', wallet).maybeSingle(),
+            ]);
+            if (!asUserRel.data && !asFriendRel.data) {
+                return NextResponse.json(
+                    sendError('friend_gated', 'Direct messages are friend-gated. Add friend first.'),
+                    { status: 403 }
+                );
+            }
+
             // messages.sender_id / receiver_id reference players(wallet_address).
             // A fresh social-login smart account has no players row, so the insert
             // fails with a foreign-key violation — which is what took DMs down.

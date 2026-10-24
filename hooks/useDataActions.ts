@@ -29,6 +29,7 @@ interface ActionProps {
 async function publishMyEcdhPubkey(
     walletAddress: string,
     signMessageAsync: (args: { account: `0x${string}`; message: string }) => Promise<`0x${string}`>,
+    isIngame = false,
 ): Promise<void> {
     let cleanupModal: (() => void) | undefined;
     try {
@@ -38,11 +39,13 @@ async function publishMyEcdhPubkey(
         const message = buildEcdhMessage(walletAddress, await ecdhKeyFingerprint(jwk), issuedAt);
         // Explicit account (matches the SIWE call): without it some
         // connectors resolve the active account ambiguously and reprompt.
-        cleanupModal = showAuthPrompt({
-            context: 'messaging',
-            title: 'ENCRYPTION SETUP REQUIRED',
-            statusText: 'Please approve the one-time encryption registration in your wallet to enable end-to-end encrypted messaging.',
-        });
+        if (!isIngame) {
+            cleanupModal = showAuthPrompt({
+                context: 'messaging',
+                title: 'ENCRYPTION SETUP REQUIRED',
+                statusText: 'Please approve the one-time encryption registration in your wallet to enable end-to-end encrypted messaging.',
+            });
+        }
         const signature = await signMessageAsync({ account: walletAddress as `0x${string}`, message });
         const res = await fetch('/api/profile/ecdh', {
             method: 'POST',
@@ -202,7 +205,7 @@ export const useDataActions = ({
                 const serverJwk = await fetchPeerEcdhPubkey(lowerAddr, dmSession, lowerAddr);
                 const isMatch = serverJwk && serverJwk.x === localJwk.x && serverJwk.y === localJwk.y && serverJwk.crv === localJwk.crv;
                 if (!isMatch) {
-                    await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
+                    await publishMyEcdhPubkey(lowerAddr, signMessageAsync, player.mode === 'ingame');
                 } else {
                     try {
                         localStorage.setItem(`ludo-ecdh-published-${lowerAddr}`, '1');
@@ -288,10 +291,17 @@ export const useDataActions = ({
 
                 // Nudge recipient's inbox topic so their client refetches immediately
                 try {
-                    void supabase.channel(`dm-inbox-${targetId.toLowerCase()}`).send({
-                        type: 'broadcast',
-                        event: 'message',
-                        payload: { from: lowerAddr, at: Date.now() },
+                    const ch = supabase.channel(`dm-inbox-${targetId.toLowerCase()}`);
+                    ch.subscribe((status) => {
+                        if (status === 'SUBSCRIBED') {
+                            ch.send({
+                                type: 'broadcast',
+                                event: 'message',
+                                payload: { from: lowerAddr, at: Date.now() },
+                            }).finally(() => {
+                                setTimeout(() => supabase.removeChannel(ch), 1000);
+                            });
+                        }
                     });
                 } catch { /* best-effort */ }
             }
@@ -305,7 +315,7 @@ export const useDataActions = ({
                 : SEND_ERROR_MESSAGE.network;
             failMessage(reason);
         }
-    }, [address, peer, connections, profilesMap, setMessages, setupConnectionListeners, ensureAppSession, signMessageAsync]);
+    }, [address, peer, connections, profilesMap, setMessages, setupConnectionListeners, ensureAppSession, signMessageAsync, player.mode]);
 
     const markChatAsRead = useCallback(async (senderId: string) => {
         if (!address) return;
@@ -380,7 +390,7 @@ export const useDataActions = ({
             // In-game wallets have autoSign; explicit force (e.g. Activate Session) also publishes
             if (force || player.mode === 'ingame') {
                 if (!ecdhAlreadyPublished(lowerAddr)) {
-                    await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
+                    await publishMyEcdhPubkey(lowerAddr, signMessageAsync, player.mode === 'ingame');
                 }
             }
         } catch (err) {

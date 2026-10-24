@@ -20,6 +20,8 @@ export type SendErrorCode =
     | 'network'
     /** Session missing, expired or revoked — the user must reconnect. */
     | 'auth'
+    /** Direct messages are friend-gated. Add friend first. */
+    | 'friend_gated'
     /** Input rejected before any write. Client-fixable. */
     | 'validation'
     /** Slow mode / cooldown. Client-fixable by waiting. */
@@ -37,6 +39,7 @@ export type SendErrorCode =
 export const SEND_ERROR_STATUS: Record<SendErrorCode, number> = {
     network: 0,
     auth: 401,
+    friend_gated: 403,
     validation: 400,
     rate_limited: 429,
     db_write: 500,
@@ -53,6 +56,7 @@ export const SEND_ERROR_STATUS: Record<SendErrorCode, number> = {
 export const SEND_ERROR_MESSAGE: Record<SendErrorCode, string> = {
     network: "Can't reach the game server. Check your connection and try again.",
     auth: 'Session disconnected',
+    friend_gated: 'Direct messages are friend-gated. Add this player as a friend first.',
     validation: 'That message was rejected — check what you typed.',
     rate_limited: 'Slow mode — wait a moment before your next message.',
     db_write:
@@ -104,7 +108,8 @@ export function classifyWriteError(err: unknown): { code: SendErrorCode; detail?
 /** Map an HTTP status back to a code, for the client side of a non-ok response. */
 export function codeFromStatus(status: number, body?: { code?: SendErrorCode }): SendErrorCode {
     if (body?.code) return body.code;
-    if (status === 401 || status === 403) return 'auth';
+    if (status === 403) return 'friend_gated';
+    if (status === 401) return 'auth';
     if (status === 429) return 'rate_limited';
     if (status === 400 || status === 404 || status === 409) return 'validation';
     if (status === 0) return 'network';

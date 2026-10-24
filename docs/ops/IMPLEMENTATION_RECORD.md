@@ -2781,3 +2781,26 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - Sender broadcasts delivery notifications to `dm-inbox-${targetId}` upon successful insertion.
    - `GameDataContext` maintains an active subscription to `dm-inbox-${lowerAddr}` across the entire app lifecycle, triggering `refreshMessages()` upon receipt so messages, conversation previews, and unread counts update in real time without requiring the user to have that specific thread pre-opened.
    - In-game wallets (`mode === 'ingame'`) automatically register ECDH keys in the background on initial session grant via silent passkey signing.
+
+### 6. Friend-Gated DMs, History Cascade on Removal & Outbox Purge (2026-10-25)
+1. **Direct Message Friend-Gating & Error Taxonomy** — [`app/api/messages/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/messages/route.ts), [`lib/sendErrors.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/sendErrors.ts):
+   - Added strict friendship validation in `POST /api/messages` (`action === 'send'`): checks `friendships` in both directions for `status === 'accepted'`. Non-friends receive HTTP 403 with `sendError('friend_gated', 'Direct messages are friend-gated. Add this player as a friend first.')`.
+   - In `GET /api/messages`, conversation and message feeds are strictly filtered to counterparts present in the caller's active accepted friendships, preventing non-friends or deleted friends from accessing or retaining chat history.
+2. **Complete History Wipe Cascade on Friend Removal** — [`app/api/friendships/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/friendships/route.ts), [`lib/messageOutbox.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/messageOutbox.ts):
+   - In `POST /api/friendships` (`action === 'remove'`), removing a friend immediately cascades:
+     - Deletes the row in `conversations` between both users.
+     - Deletes all rows in `messages` where either party was sender or receiver.
+     - Broadcasts a realtime notification to `dm-inbox-${userA}` and `dm-inbox-${userB}` so both clients re-sync immediately.
+   - Added `clearOutboxForPeer(walletAddress, peerId)` in `lib/messageOutbox.ts`. Invoked upon unfriend actions in [`PublicProfileModal.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/PublicProfileModal.tsx) and [`FriendsPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/FriendsPanel.tsx) to purge local failed/pending bubbles.
+3. **Ghost Conversation Synthesis Elimination** — [`hooks/GameDataContext.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/GameDataContext.tsx), [`hooks/useDataBoot.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useDataBoot.ts):
+   - Exposed `acceptedFriends: string[]` in `useDataBoot` and `GameDataContext`.
+   - In `transformConvos`, conversation list synthesis from local outbox messages (`extraPeers`) is strictly scoped to accepted friends. Any stale outbox messages for non-friends are automatically cleared via `clearOutboxForPeer`.
+4. **SIWE Domain Port Normalization** — [`app/api/siwe/verify/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/siwe/verify/route.ts):
+   - `allowedDomains(host)` now strips port suffixes (e.g. `:3000`), allowing `window.location.hostname` (`localhost`) to match the request `Host` header (`localhost:3000`), eliminating 401 `Domain not allowed` errors during local/tunnel testing.
+5. **Modal Elimination for In-Game Passkey Signing** — [`hooks/useDataActions.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useDataActions.ts):
+   - In `publishMyEcdhPubkey`, `showAuthPrompt` is bypassed when `player.mode === 'ingame'`, preventing the 1-second `SignWaitModal` flash during silent passkey auto-signing.
+6. **Reliable Broadcast Delivery Subscription** — [`hooks/useDataActions.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useDataActions.ts):
+   - `sendMessage` now awaits the `'SUBSCRIBED'` status on `dm-inbox-${targetId}` before transmitting the delivery broadcast, preventing silent drops and ensuring recipient clients update instantly.
+7. **Friend Request Reconciliation & Pending State Masking Fix** — [`app/api/friendships/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/friendships/route.ts), [`app/components/PublicProfileModal.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/PublicProfileModal.tsx):
+   - Auto-accepts inverse pending requests and cleans up duplicate pending rows when a friendship is already accepted.
+   - In `PublicProfileModal.tsx`, prioritizes active accepted friendships over stale pending rows, ensuring "DIRECT MESSAGE" is consistently rendered for friends.

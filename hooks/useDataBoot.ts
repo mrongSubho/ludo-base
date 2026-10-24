@@ -31,7 +31,7 @@ export const useDataBoot = (address: string | undefined) => {
     const [isBootComplete, setIsBootComplete] = useState(false);
     const [myProfile, setMyProfile] = useState<UserProfile | null>(null);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-    const [friends, setFriends] = useState<{ onchainFriends: Friend[], gameFriends: Friend[] }>({ onchainFriends: [], gameFriends: [] });
+    const [friends, setFriends] = useState<{ onchainFriends: Friend[], gameFriends: Friend[], acceptedFriends: string[] }>({ onchainFriends: [], gameFriends: [], acceptedFriends: [] });
     const [messages, setMessages] = useState<MessageData[]>([]);
     const [rawConversations, setRawConversations] = useState<any[]>([]);
     const [profilesMap, setProfilesMap] = useState<Record<string, UserProfile>>({});
@@ -148,7 +148,8 @@ export const useDataBoot = (address: string | undefined) => {
             if (friendsRes) {
                 setFriends({
                     onchainFriends: friendsRes.onchainFriends || [],
-                    gameFriends: friendsRes.gameFriends || []
+                    gameFriends: friendsRes.gameFriends || [],
+                    acceptedFriends: (friendsRes.acceptedFriends || []).map((a: string) => String(a).toLowerCase()),
                 });
                 const fMap: Record<string, UserProfile> = {};
                 (friendsRes.gameFriends || []).forEach((f: any) => fMap[f.wallet_address] = f);
@@ -188,7 +189,14 @@ export const useDataBoot = (address: string | undefined) => {
                 const visible = decryptedMessages.reverse().filter(m => isVisibleToMe(m, lowerAddr));
                 const outbox = loadOutbox(lowerAddr);
                 const serverIds = new Set(visible.map(m => m.id));
-                const pending = outbox.filter(m => !serverIds.has(m.id));
+                const acceptedSet = new Set((friendsRes?.acceptedFriends || []).map((a: string) => String(a).toLowerCase()));
+                // Only retain pending outbox messages if the counterpart is currently an accepted friend
+                const pending = outbox.filter(m => {
+                    if (serverIds.has(m.id)) return false;
+                    const isSender = m.sender_id.toLowerCase() === lowerAddr;
+                    const peer = isSender ? m.receiver_id.toLowerCase() : m.sender_id.toLowerCase();
+                    return acceptedSet.has(peer);
+                });
                 setMessages([...visible, ...pending]);
             }
 

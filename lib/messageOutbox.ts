@@ -64,3 +64,21 @@ export function removeOutboxMessage(walletAddress: string, msgId: string): void 
         /* best-effort */
     }
 }
+
+export function clearOutboxForPeer(walletAddress: string, peerId: string): void {
+    if (typeof window === 'undefined' || !walletAddress || !peerId) return;
+    try {
+        const peerLower = peerId.toLowerCase();
+        const current = loadOutbox(walletAddress);
+        const filtered = current.filter((m) =>
+            m.receiver_id?.toLowerCase() !== peerLower && m.sender_id?.toLowerCase() !== peerLower
+        );
+        if (filtered.length === 0) {
+            localStorage.removeItem(getOutboxKey(walletAddress));
+        } else {
+            localStorage.setItem(getOutboxKey(walletAddress), JSON.stringify(filtered));
+        }
+    } catch {
+        /* best-effort */
+    }
+}

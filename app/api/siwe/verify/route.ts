@@ -27,10 +27,19 @@ function supabase(): SupabaseClient {
  */
 function allowedDomains(host: string): Set<string> {
     const set = new Set<string>();
-    if (host) set.add(host.toLowerCase());
+    if (host) {
+        const lower = host.toLowerCase();
+        set.add(lower);
+        const hostWithoutPort = lower.replace(/:\d+$/, '');
+        set.add(hostWithoutPort);
+    }
     for (const d of (process.env.SIWE_ALLOWED_DOMAINS || '').split(',')) {
         const t = d.trim().toLowerCase();
-        if (t) set.add(t);
+        if (t) {
+            set.add(t);
+            const dWithoutPort = t.replace(/:\d+$/, '');
+            set.add(dWithoutPort);
+        }
     }
     return set;
 }
