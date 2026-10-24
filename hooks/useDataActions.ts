@@ -10,6 +10,7 @@ import { buildEcdhMessage, ecdhKeyFingerprint } from '@/lib/matchProof';
 import { useAppSession } from './useAppSession';
 import { showAuthPrompt } from '@/hooks/useAuthPrompt';
 import { SEND_ERROR_MESSAGE } from '@/lib/sendErrors';
+import { saveOutboxMessage, removeOutboxMessage } from '@/lib/messageOutbox';
 
 interface ActionProps {
     address: string | undefined;
@@ -167,15 +168,20 @@ export const useDataActions = ({
         };
 
         setMessages(prev => [...prev, optimisticMsg]);
+        saveOutboxMessage(lowerAddr, optimisticMsg);
+
+        const failMessage = (errorMsg: string) => {
+            const failedItem: MessageData = { ...optimisticMsg, send_status: 'failed', send_error: errorMsg, content };
+            setMessages(prev => prev.map(m => m.id === tempId ? failedItem : m));
+            saveOutboxMessage(lowerAddr, failedItem);
+        };
 
         try {
             // Explicit user gesture: force=true bypasses any passive cooldown/backoff
             // and ensures the SignWaitModal is displayed if session needs signing.
             const dmSession = await ensureAppSession({ context: 'messaging', force: true });
             if (!dmSession) {
-                setMessages(prev => prev.map(m => m.id === tempId
-                    ? { ...m, send_status: 'failed', send_error: SEND_ERROR_MESSAGE.auth, content }
-                    : m));
+                failMessage(SEND_ERROR_MESSAGE.auth);
                 return;
             }
 
@@ -206,9 +212,7 @@ export const useDataActions = ({
             if (!peerJwk) {
                 // Fail closed (no plaintext). Message stays retryable with clear reason.
                 const peerReason = "Recipient hasn't registered encryption keys yet. Ask them to open messages.";
-                setMessages(prev => prev.map(m => m.id === tempId
-                    ? { ...m, send_status: 'failed', send_error: peerReason, content: content }
-                    : m));
+                failMessage(peerReason);
                 console.warn('Recipient has no ECDH pubkey yet — cannot seal DM', targetId);
                 return;
             }
@@ -258,8 +262,9 @@ export const useDataActions = ({
                 : new Error(failure?.detail || failure?.error || (response.status === 401 ? SEND_ERROR_MESSAGE.auth : SEND_ERROR_MESSAGE.db_write));
 
             if (error && !p2pSent) {
-                setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed', send_error: error?.message } : m));
+                failMessage(error?.message || SEND_ERROR_MESSAGE.server);
             } else {
+                removeOutboxMessage(lowerAddr, tempId);
                 setMessages(prev => prev.map(m => {
                     if (m.id === tempId) {
                         const merged = { ...(data || optimisticMsg) };
@@ -282,7 +287,7 @@ export const useDataActions = ({
             const reason = err instanceof Error && err.message
                 ? err.message
                 : SEND_ERROR_MESSAGE.network;
-            setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed', send_error: reason } : m));
+            failMessage(reason);
         }
     }, [address, peer, connections, profilesMap, setMessages, setupConnectionListeners, ensureAppSession, signMessageAsync]);
 
@@ -321,6 +326,8 @@ export const useDataActions = ({
 
     const deleteMessageLocal = useCallback(async (msg: MessageData) => {
         if (!address) return;
+        const lowerAddr = address.toLowerCase();
+        removeOutboxMessage(lowerAddr, msg.id);
         setMessages(prev => prev.filter(m => m.id !== msg.id));
         const sessionId = await ensureAppSession();
         if (!sessionId) return;
@@ -330,11 +337,39 @@ export const useDataActions = ({
         });
     }, [address, setMessages, ensureAppSession]);
 
-    /** Never signs. DM open / boot use this only to warm caches if needed.
-     * Actual ECDH publish happens on first Send (user gesture). */
-    const ensureEcdhPublished = useCallback(async () => {
-        /* no-op: open-panel must not popup. See sendMessage(). */
-    }, []);
+    /** Ensure this device's public key is registered on the server.
+     * Checks if server already has the key; auto-publishes for in-game wallets
+     * or on explicit action (force = true). */
+    const ensureEcdhPublished = useCallback(async (force = false) => {
+        if (!address) return;
+        const lowerAddr = address.toLowerCase();
+        const sid = peekAppSession();
+        if (!sid) return;
+
+        try {
+            await getOrCreateIdentityKey(lowerAddr);
+            const localJwk = await exportPublicKeyJwk(lowerAddr);
+
+            if (!ecdhAlreadyPublished(lowerAddr)) {
+                const serverJwk = await fetchPeerEcdhPubkey(lowerAddr, sid, lowerAddr);
+                if (serverJwk && JSON.stringify(serverJwk) === JSON.stringify(localJwk)) {
+                    try {
+                        localStorage.setItem(`ludo-ecdh-published-${lowerAddr}`, '1');
+                    } catch { /* best-effort */ }
+                    return;
+                }
+            }
+
+            // In-game wallets have autoSign; explicit force (e.g. Activate Session) also publishes
+            if (force || player.mode === 'ingame') {
+                if (!ecdhAlreadyPublished(lowerAddr)) {
+                    await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
+                }
+            }
+        } catch (err) {
+            console.warn('[ecdh] ensureEcdhPublished failed', err);
+        }
+    }, [address, peekAppSession, player.mode, signMessageAsync]);
 
     return {
         updateMyProfileOptimistic,

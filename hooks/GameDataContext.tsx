@@ -86,7 +86,7 @@ interface GameDataContextType {
     refreshMessages: () => Promise<void>;
     markChatAsRead: (senderId: string) => Promise<void>;
     deleteMessageLocal: (msg: MessageData) => Promise<void>;
-    ensureEcdhPublished: () => Promise<void>;
+    ensureEcdhPublished: (force?: boolean) => Promise<void>;
 
     // Session Inbox (ephemeral, per device + wallet)
     /** ids read this session — visible until you leave, vanished after */
@@ -345,38 +345,92 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         const lowerAddr = address.toLowerCase();
 
         const transformConvos = async () => {
-            const transformed = await Promise.all(rawConversations.map(async (c) => {
-                const isA = c.user_a.toLowerCase() === lowerAddr;
-                const otherId = isA ? c.user_b : c.user_a;
-                const profile = profilesMap[otherId.toLowerCase()];
-                const unreadCount = isA ? c.unread_count_a : c.unread_count_b;
+            const rawPeerIds = new Set<string>();
 
-                const date = new Date(c.last_message_at);
+            const formatTime = (date: Date) => {
                 const now = new Date();
                 const diffMs = now.getTime() - date.getTime();
                 const diffMins = Math.floor(diffMs / 60000);
                 const diffHrs = Math.floor(diffMins / 60);
                 const diffDays = Math.floor(diffHrs / 24);
 
-                let timeStr = 'Just now';
-                if (diffDays > 0) timeStr = `${diffDays}d ago`;
-                else if (diffHrs > 0) timeStr = `${diffHrs}h ago`;
-                else if (diffMins > 0) timeStr = `${diffMins}m ago`;
+                if (diffDays > 0) return `${diffDays}d ago`;
+                if (diffHrs > 0) return `${diffHrs}h ago`;
+                if (diffMins > 0) return `${diffMins}m ago`;
+                return 'Just now';
+            };
+
+            const transformed = await Promise.all(rawConversations.map(async (c) => {
+                const isA = c.user_a.toLowerCase() === lowerAddr;
+                const otherId = isA ? c.user_b.toLowerCase() : c.user_a.toLowerCase();
+                rawPeerIds.add(otherId);
+                const profile = profilesMap[otherId];
+                const unreadCount = isA ? c.unread_count_a : c.unread_count_b;
+
+                const date = new Date(c.last_message_at);
+                let timeStr = formatTime(date);
 
                 const decryptedLastMsg = await decryptStoredContent(c.last_message_content, otherId);
+
+                // If local messages have a newer message (e.g. outbox/failed send), show it as lastMessage
+                const threadMsgs = messages.filter(m =>
+                    (m.sender_id.toLowerCase() === lowerAddr && m.receiver_id.toLowerCase() === otherId) ||
+                    (m.receiver_id.toLowerCase() === lowerAddr && m.sender_id.toLowerCase() === otherId)
+                );
+                let latestMsg = decryptedLastMsg;
+                let latestTimestamp = date.getTime();
+                if (threadMsgs.length > 0) {
+                    const lastLocal = threadMsgs[threadMsgs.length - 1];
+                    const localTime = new Date(lastLocal.created_at).getTime();
+                    if (localTime >= latestTimestamp) {
+                        latestMsg = lastLocal.content;
+                        latestTimestamp = localTime;
+                        timeStr = formatTime(new Date(lastLocal.created_at));
+                    }
+                }
 
                 return {
                     id: otherId,
                     name: (profile?.username && !profile.username.startsWith('0x')) ? profile.username : `User ${otherId.slice(-4).toUpperCase()}`,
                     avatar: profile?.avatar_url || '1',
-                    lastMessage: decryptedLastMsg,
+                    lastMessage: latestMsg,
                     time: timeStr,
                     unread: unreadCount > 0,
                     status: (profile?.status || 'Offline') as 'Online' | 'Offline' | 'In Match',
-                    timestamp: date.getTime()
+                    timestamp: latestTimestamp
                 };
             }));
 
+            // Synthesize conversations for peers with local/outbox messages who aren't in rawConversations
+            const extraPeers = new Map<string, MessageData>();
+            for (const m of messages) {
+                const sender = m.sender_id.toLowerCase();
+                const receiver = m.receiver_id.toLowerCase();
+                const otherId = sender === lowerAddr ? receiver : sender;
+                if (otherId && otherId !== lowerAddr && !rawPeerIds.has(otherId)) {
+                    const existing = extraPeers.get(otherId);
+                    if (!existing || new Date(m.created_at).getTime() > new Date(existing.created_at).getTime()) {
+                        extraPeers.set(otherId, m);
+                    }
+                }
+            }
+
+            for (const [peerId, lastM] of extraPeers.entries()) {
+                const profile = profilesMap[peerId];
+                const date = new Date(lastM.created_at);
+                transformed.push({
+                    id: peerId,
+                    name: (profile?.username && !profile.username.startsWith('0x')) ? profile.username : `User ${peerId.slice(-4).toUpperCase()}`,
+                    avatar: profile?.avatar_url || '1',
+                    lastMessage: lastM.content,
+                    time: formatTime(date),
+                    unread: false,
+                    status: (profile?.status || 'Offline') as 'Online' | 'Offline' | 'In Match',
+                    timestamp: date.getTime()
+                });
+            }
+
+            transformed.sort((a, b) => b.timestamp - a.timestamp);
             setConversations(transformed);
 
             // Badge counts PEOPLE (unread threads), not messages — one friend
@@ -389,7 +443,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         };
 
         transformConvos();
-    }, [rawConversations, address, profilesMap, decryptStoredContent]);
+    }, [rawConversations, address, profilesMap, decryptStoredContent, messages]);
 
     // Session boundary: signing out (or switching wallets) wipes the
     // previous identity's chats, threads, and badges instantly. Boot

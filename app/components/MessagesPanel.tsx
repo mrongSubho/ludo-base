@@ -112,8 +112,15 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     const { guard } = useGuestWall();
     const toast = useToast();
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
-    const { messages, conversations, sendMessage, markChatAsRead, markThreadSeen, isP2PActive, deleteMessageLocal, refreshMessages, } = useGameData();
+    const { messages, conversations, sendMessage, markChatAsRead, markThreadSeen, isP2PActive, deleteMessageLocal, refreshMessages, ensureEcdhPublished } = useGameData();
     const markAsRead = markChatAsRead;
+
+    // Auto-verify and publish ECDH keys if an app session is active
+    useEffect(() => {
+        if (address && appSessionId) {
+            void ensureEcdhPublished();
+        }
+    }, [address, appSessionId, ensureEcdhPublished]);
     const [inputValue, setInputValue] = useState('');
     const [inputEmotes, setInputEmotes] = useState<ChatDraftEmote[]>([]);
     const [emojiOpen, setEmojiOpen] = useState(false);
@@ -731,6 +738,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                     onClick={async () => {
                                                         const sid = await ensureAppSession({ context: 'messaging', force: true });
                                                         if (sid) {
+                                                            void ensureEcdhPublished(true);
                                                             refreshMessages();
                                                         }
                                                     }}

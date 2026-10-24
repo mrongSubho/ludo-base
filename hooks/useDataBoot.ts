@@ -6,6 +6,7 @@ import { getProgression } from '@/lib/progression';
 import { UserProfile, LeaderboardEntry, Friend, MessageData } from './GameDataContext';
 import { supabase } from '@/lib/supabase';
 import { useAppSession } from './useAppSession';
+import { loadOutbox } from '@/lib/messageOutbox';
 
 /**
  * REA-03: cheap structural compare for the identity fields the realtime
@@ -185,7 +186,10 @@ export const useDataBoot = (address: string | undefined) => {
                     return true;
                 };
                 const visible = decryptedMessages.reverse().filter(m => isVisibleToMe(m, lowerAddr));
-                setMessages(visible);
+                const outbox = loadOutbox(lowerAddr);
+                const serverIds = new Set(visible.map(m => m.id));
+                const pending = outbox.filter(m => !serverIds.has(m.id));
+                setMessages([...visible, ...pending]);
             }
 
             console.log("✅ [GameData] Boot Sequence Complete");
@@ -213,6 +217,11 @@ export const useDataBoot = (address: string | undefined) => {
 
             const cachedLeaders = localStorage.getItem(`cache_leaderboard`);
             if (cachedLeaders) setLeaderboard(JSON.parse(cachedLeaders));
+
+            const initialOutbox = loadOutbox(lowerAddr);
+            if (initialOutbox.length > 0) {
+                setMessages(initialOutbox);
+            }
         } catch (e) {
             console.error("Local Cache Hydration Failed", e);
         }
@@ -247,7 +256,10 @@ export const useDataBoot = (address: string | undefined) => {
                 if (msg.receiver_id.toLowerCase() === lowerAddr && msg.deleted_by_receiver) return false;
                 return true;
             });
-            setMessages(visible);
+            const outbox = loadOutbox(lowerAddr);
+            const serverIds = new Set(visible.map(m => m.id));
+            const pending = outbox.filter(m => !serverIds.has(m.id));
+            setMessages([...visible, ...pending]);
         } catch (err) {
             console.warn('[GameData] message refresh failed:', err);
         }

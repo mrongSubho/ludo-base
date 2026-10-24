@@ -2750,3 +2750,14 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
 - `npx tsc -p tsconfig.json --noEmit && npx tsc -p tsconfig.worker.json --noEmit`: 0 errors.
 - `npm run check:engine && npm run check:schema && npm run check:rls && npm run check:fn-signatures && npm run check:routes`: all clean.
 - `npx eslint`: 0 errors across all modified files.
+
+### 4. Direct Messaging E2EE Key Registration & Outbox Persistence (2026-10-25)
+1. **ECDH Key Auto-Publishing (`ensureEcdhPublished`)** — [`hooks/useDataActions.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useDataActions.ts), [`app/components/MessagesPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MessagesPanel.tsx):
+   - Resolved the recipient key catch-22: previously, public keys were only published inside `sendMessage()`, leaving players who had never sent a DM unreachable by others.
+   - `ensureEcdhPublished` in `useDataActions.ts` now verifies local JWK against `players.ecdh_pubkey` on the server. If missing, it auto-publishes for CDP in-game wallets (via `autoSign`) or on explicit session activation.
+   - Wired `ensureEcdhPublished` into `MessagesPanel.tsx` on panel mount and session activation.
+2. **Persistent Message Outbox & Conversation Synthesis** — [`lib/messageOutbox.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/messageOutbox.ts), [`hooks/useDataBoot.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useDataBoot.ts), [`hooks/GameDataContext.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/GameDataContext.tsx):
+   - Created `lib/messageOutbox.ts`: pending/failed messages are persisted in `localStorage` under `ludo-outbox-messages-${address}`.
+   - In `hooks/useDataBoot.ts`, `messages` state merges local outbox messages with server messages during initial hydration and refresh, so failed messages remain in the chat thread with retry capability across page reloads and tab navigation.
+   - In `hooks/GameDataContext.tsx`, `transformConvos` synthesizes conversations for peers with local/outbox messages who aren't yet in `rawConversations`, and updates existing conversations with the latest local/outbox message content.
+   - Deleting a message via `deleteMessageLocal` purges it from the outbox; successful sends clear the outbox entry automatically.
