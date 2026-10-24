@@ -424,8 +424,25 @@ export function useMatchmaking(props: UseMatchmakingProps) {
             })
         });
         if (!response.ok) {
+            const errJson = await response.json().catch(() => null);
+            if (errJson?.error) {
+                throw new Error(errJson.error);
+            }
+            if (response.status === 503 || response.status === 502 || response.status === 504) {
+                throw new Error('Matchmaking service is temporarily unreachable. Please retry in a moment.');
+            }
+            if (response.status === 429) {
+                throw new Error('Too many matchmaking requests. Please wait a moment before trying again.');
+            }
+            if (response.status === 401) {
+                throw new Error('Sign-in required for matchmaking. Please sign in and try again.');
+            }
             const errText = await response.text().catch(() => '');
-            throw new Error(`Join request failed (${response.status}): ${errText.slice(0, 120)}`);
+            const sanitized = errText.replace(/<[^>]*>?/gm, '').trim();
+            const message = sanitized && !sanitized.toLowerCase().includes('doctype')
+                ? sanitized.slice(0, 100)
+                : 'Service temporarily unavailable.';
+            throw new Error(`Matchmaking failed (${response.status}): ${message}`);
         }
         const data = await response.json();
         console.log('📡 [Matchmaking] Join response:', data);

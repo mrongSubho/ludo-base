@@ -8,6 +8,8 @@ import { encryptForPeer, exportPublicKeyJwk, getOrCreateIdentityKey, takeIdentit
 import { DataConnection, Peer } from 'peerjs';
 import { buildEcdhMessage, ecdhKeyFingerprint } from '@/lib/matchProof';
 import { useAppSession } from './useAppSession';
+import { showAuthPrompt } from '@/hooks/useAuthPrompt';
+import { SEND_ERROR_MESSAGE } from '@/lib/sendErrors';
 
 interface ActionProps {
     address: string | undefined;
@@ -26,6 +28,7 @@ async function publishMyEcdhPubkey(
     walletAddress: string,
     signMessageAsync: (args: { account: `0x${string}`; message: string }) => Promise<`0x${string}`>,
 ): Promise<void> {
+    let cleanupModal: (() => void) | undefined;
     try {
         await getOrCreateIdentityKey(walletAddress);
         const jwk = await exportPublicKeyJwk(walletAddress);
@@ -33,6 +36,11 @@ async function publishMyEcdhPubkey(
         const message = buildEcdhMessage(walletAddress, await ecdhKeyFingerprint(jwk), issuedAt);
         // Explicit account (matches the SIWE call): without it some
         // connectors resolve the active account ambiguously and reprompt.
+        cleanupModal = showAuthPrompt({
+            context: 'messaging',
+            title: 'ENCRYPTION SETUP REQUIRED',
+            statusText: 'Please approve the one-time encryption registration in your wallet to enable end-to-end encrypted messaging.',
+        });
         const signature = await signMessageAsync({ account: walletAddress as `0x${string}`, message });
         const res = await fetch('/api/profile/ecdh', {
             method: 'POST',
@@ -46,6 +54,8 @@ async function publishMyEcdhPubkey(
         }
     } catch (err) {
         console.warn('Failed to publish ECDH pubkey', err);
+    } finally {
+        cleanupModal?.();
     }
 }
 
@@ -63,7 +73,13 @@ async function fetchPeerEcdhPubkey(peerId: string, sessionId: string | null, myA
     if (!sessionId) return null;
     try {
         const res = await fetch(
-            `/api/profile/ecdh?wallet=${encodeURIComponent(peerId.toLowerCase())}&walletAddress=${encodeURIComponent(myAddress.toLowerCase())}&sessionId=${encodeURIComponent(sessionId)}`
+            `/api/profile/ecdh?wallet=${encodeURIComponent(peerId.toLowerCase())}&walletAddress=${encodeURIComponent(myAddress.toLowerCase())}`,
+            {
+                headers: {
+                    'x-session-id': sessionId,
+                    Authorization: `Bearer ${sessionId}`,
+                },
+            }
         );
         if (!res.ok) return null;
         const data = await res.json();
@@ -153,30 +169,34 @@ export const useDataActions = ({
         setMessages(prev => [...prev, optimisticMsg]);
 
         try {
-            // Session FIRST (at most one shared SIWE popup per intent), then
-            // publish our ECDH key ONLY if the server lacks it. A doomed
-            // sign (no session, or key already published) is skipped entirely
-            // — no popup — and the send fails closed below as before.
-            const dmSession = await ensureAppSession({ context: 'messaging' });
-            if (dmSession) {
-                await getOrCreateIdentityKey(lowerAddr);
-                // CRY-06: a regenerated identity no longer matches the
-                // published key, so every future DM would be undecryptable.
-                // Consume the flag loudly; the server-key mismatch compare
-                // below republishes on this same Send, and a failed publish
-                // fails the send with `send_status: 'failed'` UI state
-                // instead of swallowing the rotation.
-                if (takeIdentityRegenerated().includes(lowerAddr)) {
-                    console.warn('[ecdh] identity regenerated — republishing before send; pre-rotation DMs may be unreadable');
-                }
-                if (!ecdhAlreadyPublished(lowerAddr)) {
-                    const localJwk = await exportPublicKeyJwk(lowerAddr);
-                    const serverJwk = await fetchPeerEcdhPubkey(lowerAddr, dmSession, lowerAddr);
-                    if (!serverJwk || JSON.stringify(serverJwk) !== JSON.stringify(localJwk)) {
-                        await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
-                    }
+            // Explicit user gesture: force=true bypasses any passive cooldown/backoff
+            // and ensures the SignWaitModal is displayed if session needs signing.
+            const dmSession = await ensureAppSession({ context: 'messaging', force: true });
+            if (!dmSession) {
+                setMessages(prev => prev.map(m => m.id === tempId
+                    ? { ...m, send_status: 'failed', send_error: SEND_ERROR_MESSAGE.auth, content }
+                    : m));
+                return;
+            }
+
+            await getOrCreateIdentityKey(lowerAddr);
+            // CRY-06: a regenerated identity no longer matches the
+            // published key, so every future DM would be undecryptable.
+            // Consume the flag loudly; the server-key mismatch compare
+            // below republishes on this same Send, and a failed publish
+            // fails the send with `send_status: 'failed'` UI state
+            // instead of swallowing the rotation.
+            if (takeIdentityRegenerated().includes(lowerAddr)) {
+                console.warn('[ecdh] identity regenerated — republishing before send; pre-rotation DMs may be unreadable');
+            }
+            if (!ecdhAlreadyPublished(lowerAddr)) {
+                const localJwk = await exportPublicKeyJwk(lowerAddr);
+                const serverJwk = await fetchPeerEcdhPubkey(lowerAddr, dmSession, lowerAddr);
+                if (!serverJwk || JSON.stringify(serverJwk) !== JSON.stringify(localJwk)) {
+                    await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
                 }
             }
+
             let peerJwk = await fetchPeerEcdhPubkey(targetId, dmSession, lowerAddr);
             if (!peerJwk) {
                 // One short poll — recipient may be mid-boot publishing their key.
@@ -184,9 +204,10 @@ export const useDataActions = ({
                 peerJwk = await fetchPeerEcdhPubkey(targetId, dmSession, lowerAddr);
             }
             if (!peerJwk) {
-                // Fail closed (no plaintext). Message stays retryable.
+                // Fail closed (no plaintext). Message stays retryable with clear reason.
+                const peerReason = "Recipient hasn't registered encryption keys yet. Ask them to sign in or open messages.";
                 setMessages(prev => prev.map(m => m.id === tempId
-                    ? { ...m, send_status: 'failed', content: content }
+                    ? { ...m, send_status: 'failed', send_error: peerReason, content: content }
                     : m));
                 console.warn('Recipient has no ECDH pubkey yet — cannot seal DM', targetId);
                 return;
@@ -215,12 +236,15 @@ export const useDataActions = ({
                 p2pSent = true;
             }
 
-            // Supabase Relay
-            const sessionId = await ensureAppSession({ context: 'messaging' });
-            if (!sessionId) throw new Error('Sign-in required to send messages');
+            // Supabase Relay (carry session header per P0-11)
             const response = await fetch('/api/messages', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ walletAddress: lowerAddr, sessionId, action: 'send', receiverId: targetId, content: JSON.stringify(encrypted) })
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-session-id': dmSession,
+                    Authorization: `Bearer ${dmSession}`,
+                },
+                body: JSON.stringify({ walletAddress: lowerAddr, sessionId: dmSession, action: 'send', receiverId: targetId, content: JSON.stringify(encrypted) })
             });
             const data = response.ok ? await response.json() : null;
             // The server now always sends { error, code, detail }. Keep the
@@ -231,7 +255,7 @@ export const useDataActions = ({
                 : await response.json().catch(() => null);
             const error = response.ok
                 ? null
-                : new Error(failure?.error || "Couldn't send that message.");
+                : new Error(failure?.detail || failure?.error || (response.status === 401 ? SEND_ERROR_MESSAGE.auth : SEND_ERROR_MESSAGE.db_write));
 
             if (error && !p2pSent) {
                 setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed', send_error: error?.message } : m));
@@ -257,7 +281,7 @@ export const useDataActions = ({
             // not a server rejection, so say so rather than showing a generic one.
             const reason = err instanceof Error && err.message
                 ? err.message
-                : "Can't reach the game server. Check your connection and try again.";
+                : SEND_ERROR_MESSAGE.network;
             setMessages(prev => prev.map(m => m.id === tempId ? { ...m, send_status: 'failed', send_error: reason } : m));
         }
     }, [address, peer, connections, profilesMap, setMessages, setupConnectionListeners, ensureAppSession, signMessageAsync]);

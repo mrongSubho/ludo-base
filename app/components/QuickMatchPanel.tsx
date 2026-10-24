@@ -729,7 +729,9 @@ export const QuickMatchPanel = ({
                                     </h3>
                                     <p className="text-sm text-white/40 font-medium mb-4 max-w-[240px]">
                                         {status === 'error' && matchError
-                                            ? matchError
+                                            ? (/<[^>]*>|doctype/i.test(matchError) || matchError.includes('503') || matchError.includes('502')
+                                                ? 'Matchmaking service is temporarily unreachable. Please retry in a moment.'
+                                                : matchError)
                                             : "No players found matching your criteria. It's a bit lonely out here!"}
                                     </p>
 
