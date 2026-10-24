@@ -2592,3 +2592,62 @@ clients, roll committed); A4 partially done (roll minting, move resolution via
 `resolveNetworkedMove`, and power application run in-process in the DO — the
 `match_commit_action` relocation and AI/clock work remain). PENDING_TASKS.md is
 updated accordingly.
+
+## SEAT-01 & STALL-01 — Diagonal seating alignment and networked match stall resolution (2026-10-24)
+
+Following the server-owned lobby rollout, live match formation surfaced two issues:
+1. **Seating geometry disagreement**: 1v1 opponents and 2v2 teammates were rendered on the same row (`['BL', 'BR']` or `['TL', 'TR']`) instead of sitting diagonally opposite.
+2. **Match stalled immediately after a dice move**: Turns froze on the first token move or roll, and neither player could roll or progress.
+
+### Root causes
+
+1. **`assignCornersForShape` same-row drift**:
+   - `assignCornersForShape('1v1')` and `assignCornersForShape('2v2')` in `lib/boardLayout.ts` were previously hard-coded to seat players on the same horizontal row.
+   - Owner's explicit specification:
+     - **1v1**: Opponents *always* sit diagonally opposite (`BL ↔ TR` or `BR ↔ TL`).
+     - **2v2**: Teammates *always* sit diagonally opposite (`Green+Blue` on one diagonal axis, `Red+Yellow` on the other diagonal axis).
+     - **4P**: Completely random shuffle.
+   - In addition, `shufflePlayers` (`lib/boardLayout.ts`) filtered active colors by the diagonal axis `axis.includes(corner)`. Because 1v1 assigned the guest to `BR` (same row as `BL`), `shufflePlayers` discarded Yellow from the local roster entirely.
+
+2. **Premature transition and unseeded Board mounting (`app/page.tsx`)**:
+   - In `handlePlayNow` ARM 2 (networked match), `setAppState('game')` was called synchronously alongside `connectRoom(currentMatchId)`.
+   - At the instant of mounting, the MatchRoom DO WebSocket had not yet delivered `gameState.initialBoardConfig`.
+   - Furthermore, `setBoardSeed` in the `isActuallyStarted` recovery effect was gated on `if (!isHost)`, meaning the host *never* populated `boardSeed` from the room snapshot.
+   - Consequently, `<Board />` mounted with `initialPlayers` and `initialColorCorner` undefined, falling back to local `shufflePlayers` and local `assignCornersForShape`. Because `shufflePlayers` dropped Yellow, Yellow was missing from the host's `players` list. When the server room advanced `currentPlayer` to Yellow, the host could not find Yellow in `players`, so Yellow's card and dice controls were never rendered.
+
+3. **Stale `diceValue` on server bot turns (`src/room/MatchRoomCore.ts`)**:
+   - In `executeServerBotTurn`, when a bot had no legal moves or move execution completed, `nextState` was constructed with `diceValue: rollValue` instead of `diceValue: null`.
+   - The client's roll button gates on `diceValue === null` (`PlayerInfoRow.tsx:133`). Passing a non-null `diceValue` to the next player locked the dice button permanently.
+
+4. **Missing activeColors in room turn cycle**:
+   - In `MatchRoomCore.ts`, `getNextPlayer` and `resolveNetworkedMove` were called without `activeColorsForTurns(this.state)` and `colorCorner`, causing 1v1 and 2v2 turn cycles to fall back to unseated canonical color walks.
+
+### Fixes
+
+1. **Canonical diagonal seating (`lib/boardLayout.ts`)**:
+   - `assignCornersForShape('1v1')` delegates to `assignCornersFFA('1v1')` (guaranteed diagonal opposition: `BL ↔ TR` or `BR ↔ TL`).
+   - `assignCornersForShape('2v2')` delegates to `assignCorners2v2()` (teammates on diagonal axes).
+   - `assignCornersForShape('4P')` delegates to `assignCornersFFA('4P')` (full Fisher-Yates shuffle).
+   - The user's visual perspective invariant remains strictly preserved: `useBoardLayout` maps the local player's server corner to `uiSlots['BL']` and rotates the board by `(3 - serverCornerIndex) * 90°`, so every human player always sees their home at Bottom-Left (`BL`) and their 1v1 opponent or 2v2 teammate at Top-Right (`TR`).
+
+2. **Synchronized Board mounting (`app/page.tsx`)**:
+   - Removed premature `setAppState('game')` from `handlePlayNow` ARM 2.
+   - In the `isActuallyStarted` sync effect, both host and guest wait for canonical `initialBoardConfig` (roster + `colorCorner`) from the MatchRoom DO before setting `boardSeed` and navigating to `'game'`.
+   - `Board` always receives the authoritative `initialPlayers` and `initialColorCorner`, preventing any divergent local table fallback.
+
+3. **MatchRoomCore turn and dice resolution (`src/room/MatchRoomCore.ts`)**:
+   - Added `getActiveColors()` helper (`activeColorsForTurns(this.state as unknown as EngineGameState)`).
+   - Passed `this.getActiveColors()` and `cc` to all `getNextPlayer` calls and `resolveNetworkedMove`.
+   - Reset `diceValue: null` on all turn pass branches in `executeServerBotTurn`.
+
+4. **Updated regression gates**:
+   - `scripts/engine.test.ts`: updated seating tests to assert diagonal opposition for 1v1 (`BL ↔ TR` or `BR ↔ TL`) and diagonal teammates for 2v2.
+   - `scripts/server-authority.test.ts`: updated P0-17 assertion to verify diagonal opposition for 1v1.
+   - `scripts/matchmaking-shape.test.ts`: verified MM-15 roster gating remains intact.
+
+### Verification
+- `npm test`: 553 tests / 542 passed, 0 failed, 11 skipped.
+- `npm run check:engine`: passed (room engine in sync with `lib/engine/core.ts`).
+- `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+- `npm run build`: production webpack build succeeded cleanly.
+- Pushed to `origin/main` as commit `1c4ed03`.
