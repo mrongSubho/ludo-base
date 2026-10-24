@@ -9,6 +9,7 @@ import GameLobby from './components/GameLobby';
 import { PanelErrorBoundary } from './components/PanelErrorBoundary';
 const AudioDriver = dynamic(() => import('./components/AudioToggle'));
 import NoticeStrip from './components/NoticeStrip';
+import { SessionAuthBanner } from './components/SessionAuthBanner';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
 import { BurnPanel } from './components/BurnPanel';
 import { FooterNavPanel } from './components/FooterNavPanel';
@@ -695,6 +696,7 @@ export default function Page() {
               {/* flex:1 + min-height:0 — never h-full: header + 100% main overflows the shell */}
               <main className="dash-main pb-safe-footer px-safe">
                 <NoticeStrip className="mb-2" />
+                <SessionAuthBanner className="mb-2" />
 
                 <GameLobby
                   gameMode={selectedMode as any}

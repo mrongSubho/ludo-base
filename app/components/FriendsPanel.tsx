@@ -182,8 +182,8 @@ const IconBtn = ({ onClick, title, label, tone, children, disabled = false }: {
 
 
 export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate }: FriendsPanelProps) {
-    const { ensureAppSession } = useAppSession();
-    const { profile, address: connectedAddress } = useCurrentUser();
+    const { ensureAppSession, sessionId } = useAppSession();
+    const { profile, address: connectedAddress, isGuest } = useCurrentUser();
     // Guests can browse the directory, but social writes hit the wall.
     const { guard } = useGuestWall();
     const toast = useToast();
@@ -855,6 +855,25 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                             </Chip>
                                         </div>
                                     </div>
+                                    {!sessionId && !isGuest && connectedAddress && (
+                                        <div className="my-2 p-3 rounded-2xl bg-cyan-950/40 border border-cyan-400/25 flex items-center justify-between gap-3">
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-white font-bold text-ludo-sm truncate">Session Inactive</span>
+                                                <span className="text-white/50 text-ludo-xs truncate">Sign in to sync your accepted friends</span>
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                variant="primary"
+                                                onClick={async () => {
+                                                    await ensureAppSession({ context: 'social' });
+                                                    fetchFriends();
+                                                }}
+                                                className="uppercase tracking-widest text-xs shrink-0"
+                                            >
+                                                Sign In
+                                            </Button>
+                                        </div>
+                                    )}
                                     {renderFriendList(visibleSocial)}
                                 </div>
                             )}
@@ -883,6 +902,25 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                             ]}
                                         />
                                     </div>
+                                    {!sessionId && !isGuest && connectedAddress && (
+                                        <div className="my-2 p-3 rounded-2xl bg-cyan-950/40 border border-cyan-400/25 flex items-center justify-between gap-3">
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-white font-bold text-ludo-sm truncate">Session Inactive</span>
+                                                <span className="text-white/50 text-ludo-xs truncate">Sign in to view and accept requests</span>
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                variant="primary"
+                                                onClick={async () => {
+                                                    await ensureAppSession({ context: 'social' });
+                                                    fetchFriends();
+                                                }}
+                                                className="uppercase tracking-widest text-xs shrink-0"
+                                            >
+                                                Sign In
+                                            </Button>
+                                        </div>
+                                    )}
                                     {activeRequestTab === 'incoming'
                                         ? renderRequestList(visibleIncoming, true)
                                         : renderRequestList(visibleOutgoing, false)

@@ -79,7 +79,14 @@ export function useAppSession() {
     const address = player.address ?? accountAddress;
     const walletChainId = useChainId();
     const signMessageAsync = player.signMessageAsync;
-    const [ready, setReady] = useState(false);
+    const [ready, setReady] = useState(() => {
+        if (typeof window !== 'undefined' && address) {
+            const cached = readStored(address);
+            if (cached) guard.setCached(address, cached);
+            return true;
+        }
+        return false;
+    });
 
     // Re-render this instance whenever the shared guard state changes.
     useSyncExternalStore(
@@ -180,6 +187,11 @@ export function useAppSession() {
             }, opts);
 
             if (cancelled) return null;
+            if (result.sessionId && typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('ludo-session-granted', {
+                    detail: { sessionId: result.sessionId, address }
+                }));
+            }
             return result.sessionId;
         } finally {
             cleanupModal?.();

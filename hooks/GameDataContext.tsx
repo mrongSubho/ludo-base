@@ -107,9 +107,11 @@ import { useDataBoot } from './useDataBoot';
 import { useDataSync } from './useDataSync';
 import { usePeerChat } from './usePeerChat';
 import { useDataActions } from './useDataActions';
+import { useAppSession } from './useAppSession';
 
 export const GameDataProvider = ({ children }: { children: ReactNode }) => {
     const { address } = useAccount();
+    const { ready: isAppSessionReady, sessionId } = useAppSession();
     
     // 1. Data Boot / Hydration Hook
     const {
@@ -274,10 +276,19 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [address]);
 
-    // Initial Core Payload (Boot Sequence)
+    // Initial Core Payload (Boot Sequence: wait until session hydration is ready)
     useEffect(() => {
-        if (address) bootSequence(decryptStoredContent);
-    }, [address, bootSequence, decryptStoredContent]);
+        if (address && isAppSessionReady) {
+            bootSequence(decryptStoredContent);
+        }
+    }, [address, isAppSessionReady, bootSequence, decryptStoredContent]);
+
+    // Re-boot payload whenever a new session is granted or restored
+    useEffect(() => {
+        if (address && sessionId) {
+            bootSequence(decryptStoredContent);
+        }
+    }, [address, sessionId, bootSequence, decryptStoredContent]);
 
     /**
      * Pull the message section again without re-booting the whole payload.
