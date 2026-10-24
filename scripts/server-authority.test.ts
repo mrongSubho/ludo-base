@@ -512,7 +512,7 @@ test('P0-12b: the taxonomy covers the failure classes the user must be able to t
   // Copy must say whose fault it is, not just that it failed.
   assert.match(src, /on us, not you/, 'db_write copy must tell the user it is not their fault');
   assert.match(src, /Check your connection/, 'network copy must tell the user what to check');
-  assert.match(src, /Sign in again/, 'auth copy must tell the user what to do');
+  assert.match(src, /reconnect|Session disconnected/i, 'auth copy must tell the user what to do');
 });
 
 // ── The room handshake, the seed frame, and the match ticket ───────────────

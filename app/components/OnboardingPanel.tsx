@@ -233,10 +233,29 @@ export const OnboardingPanel = () => {
     if (isGuest || locked) {
         return (
             <div className="flex flex-col items-center justify-center text-center py-12 px-6">
-                <h3 className="text-white font-black text-sm mb-1 uppercase tracking-wider">Sign in for onboarding</h3>
-                <p className="text-white/40 text-xs max-w-[220px]">
-                    Connect a wallet to track onboarding rewards and referrals.
+                <h3 className="text-white font-black text-sm mb-1 uppercase tracking-wider">
+                    {isGuest ? 'Connect wallet for onboarding' : 'Session Inactive'}
+                </h3>
+                <p className="text-white/40 text-xs max-w-[240px] mb-4">
+                    {isGuest
+                        ? 'Connect a wallet to track onboarding rewards and referrals.'
+                        : 'Activate your session to track onboarding rewards and referrals.'}
                 </p>
+                {!isGuest && (
+                    <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={async () => {
+                            const sid = await ensureAppSession({ context: 'missions', force: true });
+                            if (sid) {
+                                void load();
+                            }
+                        }}
+                        className="uppercase tracking-widest text-xs px-5 py-2 font-black"
+                    >
+                        Activate Session
+                    </Button>
+                )}
             </div>
         );
     }

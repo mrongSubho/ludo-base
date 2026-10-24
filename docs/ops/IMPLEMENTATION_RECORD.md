@@ -2718,3 +2718,35 @@ Following the initial server authority rollout, comprehensive diagnostic auditin
 - `npm run check:no-p2p && npm run check:routes && npm run check:motion && npm run check:img`: clean.
 - `npx tsc -p tsconfig.json --noEmit && npx tsc -p tsconfig.worker.json --noEmit`: 0 errors.
 - `npx eslint`: clean across all modified files.
+
+---
+
+## Part V: Boot-Gated Authentication & Universal Session Recovery (2026-10-24)
+
+### 1. Problem Statement & Architecture Alignment
+In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys / initial wallet connection). There is no mid-game login form, username/password modal, or standalone "Sign In" screen. However, several sub-systems and error handlers previously presented users with dead-end copy (e.g. *"Your session expired. Sign in again to keep chatting"* or *"Sign in to load messages"*) without providing any mechanism or interactive button to re-authenticate or restore their session. Furthermore:
+1. `GameDataContext.tsx` derived player address via Wagmi's `useAccount().address`, which returns `undefined` for CDP in-game smart accounts. This broke DM sending and encryption registration for in-game wallets while the live broadcast chat (which read `useCurrentUser()`) functioned normally.
+2. In `MessagesPanel.tsx`, `retrySend` checked `if (cooldownTime > 0) return;`. Since a failed send initiated a 10s typing cooldown, tapping `"· tap to retry"` was silently dropped.
+3. Sub-panels (`MessagesPanel`, `MissionPanel`, `OnboardingPanel`) displayed static text empty states advising the user to "sign in, then reopen this tab" without providing an action to authenticate.
+
+### 2. Implemented Changes
+1. **CDP In-Game Address Resolution in `GameDataContext`** — [`hooks/GameDataContext.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/GameDataContext.tsx):
+   - Switched from `useAccount().address` to `useCurrentUser().address`, ensuring both CDP smart accounts and external wallets provide their address to `useDataBoot` and `useDataActions`.
+2. **Boot-Level SIWE Session Auto-Bootstrap** — [`app/page.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/page.tsx):
+   - Added an automatic session check for CDP in-game wallets (`walletMode === 'ingame'`). If the user passed boot authentication but lacks a cached SIWE session (`!peekAppSession()`), the session is silently bootstrapped on mount via `autoSign`, preventing unauthenticated states in downstream features.
+3. **Interactive 1-Tap Activation Cards in Panels** — [`app/components/MessagesPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MessagesPanel.tsx), [`app/components/MissionPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MissionPanel.tsx), [`app/components/OnboardingPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/OnboardingPanel.tsx):
+   - Replaced dead-end static empty states with interactive `Session Inactive` cards containing a prominent `[ Activate Session ]` button that calls `ensureAppSession({ force: true })` and refreshes the panel data upon confirmation.
+4. **Cooldown Bypass on Retry** — [`app/components/MessagesPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MessagesPanel.tsx):
+   - `retrySend` clears `cooldownTime` on an intentional retry click so that user retries on failed message bubbles are never swallowed.
+5. **Harmonized Actionable Error Copy** — [`lib/sendErrors.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/sendErrors.ts), [`hooks/useDataActions.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useDataActions.ts), [`hooks/useMatchmaking.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useMatchmaking.ts), [`app/components/SessionAuthBanner.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/SessionAuthBanner.tsx), [`app/components/FriendsPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/FriendsPanel.tsx):
+   - Updated `SEND_ERROR_MESSAGE.auth` to `'Session disconnected'`, displaying as `Session disconnected · tap to retry` on failed message bubbles.
+   - Updated peer encryption error copy from `"Ask them to sign in or open messages"` to `"Ask them to open messages"`.
+   - Updated matchmaking 401 error copy from `"Sign-in required for matchmaking. Please sign in and try again."` to `"Session inactive for matchmaking. Please activate session and try again."`.
+   - Updated banner buttons from `"Sign In"` to `"Activate"`.
+   - Updated test assertion in `scripts/server-authority.test.ts:515` to match `/reconnect|Session disconnected/i`.
+
+### 3. Verification
+- `npm test`: 558 tests / 547 passed, 0 failed, 11 skipped.
+- `npx tsc -p tsconfig.json --noEmit && npx tsc -p tsconfig.worker.json --noEmit`: 0 errors.
+- `npm run check:engine && npm run check:schema && npm run check:rls && npm run check:fn-signatures && npm run check:routes`: all clean.
+- `npx eslint`: 0 errors across all modified files.

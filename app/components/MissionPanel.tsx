@@ -334,17 +334,29 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                         <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
                                                     </div>
                                                 ) : missionsLocked ? (
-                                                    <div className="flex flex-col items-center justify-center text-center py-16 px-6">
-                                                        <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
+                                                    <div className="flex flex-col items-center justify-center text-center py-12 px-6">
+                                                        <div className="w-16 h-16 rounded-3xl bg-cyan-500/10 border border-cyan-400/20 flex items-center justify-center mb-4 text-cyan-400 shadow-[0_0_16px_rgba(34,211,238,0.2)]">
                                                             <LuShieldCheck className="w-7 h-7" />
                                                         </div>
                                                         <h3 className="text-white font-black text-sm mb-1">
-                                                            Sign in to track missions
+                                                            Session Inactive
                                                         </h3>
-                                                        <p className="text-white/40 text-xs max-w-[220px]">
-                                                            Missions need an active session — sign in, then reopen this
-                                                            tab.
+                                                        <p className="text-white/50 text-xs max-w-[240px] mb-4">
+                                                            Missions require an active session to track objectives and verify claim vouchers.
                                                         </p>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="primary"
+                                                            onClick={async () => {
+                                                                const sid = await ensureAppSession({ context: 'missions', force: true });
+                                                                if (sid) {
+                                                                    void fetchMissions();
+                                                                }
+                                                            }}
+                                                            className="uppercase tracking-widest text-xs px-5 py-2 font-black"
+                                                        >
+                                                            Activate Session
+                                                        </Button>
                                                     </div>
                                                 ) : visibleMissions.length === 0 ? (
                                                     <div className="flex flex-col items-center justify-center text-center py-16 px-6">

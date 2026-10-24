@@ -22,7 +22,7 @@ export function SessionAuthBanner({ className = '' }: { className?: string }) {
         try {
             const sid = await ensureAppSession({ context: 'social' });
             if (sid) {
-                toast('Signed in successfully!', 'success');
+                toast('Session connected successfully!', 'success');
             }
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Authentication cancelled';
@@ -50,7 +50,7 @@ export function SessionAuthBanner({ className = '' }: { className?: string }) {
                         App Session Inactive
                     </span>
                     <span className="text-white/50 text-ludo-xs truncate">
-                        Sign in to sync friends, DMs, and match history
+                        Activate session to sync friends, DMs, and match history
                     </span>
                 </div>
             </div>
@@ -62,7 +62,7 @@ export function SessionAuthBanner({ className = '' }: { className?: string }) {
                 loading={signing}
                 className="shrink-0 uppercase tracking-widest text-xs px-3.5"
             >
-                Sign In
+                Activate
             </Button>
         </div>
     );

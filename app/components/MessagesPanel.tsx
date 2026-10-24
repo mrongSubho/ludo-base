@@ -18,6 +18,7 @@ import { encodeChatDraft, insertDraftEmote, retainChatDraftEmotes, type ChatDraf
 import { useToast } from './Toast';
 import { ThinkingOrb } from './ThinkingOrb';
 import { useConversationLive } from '@/hooks/useConversationLive';
+import Button from './Button';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the other synced panels: this panel always renders on the shared
@@ -103,7 +104,7 @@ const Avatar = ({ url, name, box = 'w-11 h-11', dot }: {
 
 export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }: MessagesPanelProps) {
     const { address, profile: myProfile, isGuest } = useCurrentUser();
-    const { sessionId: appSessionId, ready: sessionReady } = useAppSession();
+    const { sessionId: appSessionId, ready: sessionReady, ensureAppSession } = useAppSession();
     // Wallet connected but no SIWE session: the inbox is session-gated
     // server-side, so show a sign-in prompt instead of an empty list.
     const inboxLocked = !!address && sessionReady && !appSessionId;
@@ -381,13 +382,10 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     // Tap a failed bubble to retry: drop the dead local copy and send fresh.
     const retrySend = async (msg: (typeof messages)[number]) => {
         if (!guard('dm')) return;
-        if (cooldownTime > 0 || !selectedChatId) return;
+        if (!selectedChatId) return;
         await deleteMessageLocal(msg);
-        const newCooldown = 10;
-        setCooldownTime(newCooldown);
-        if (address) {
-            localStorage.setItem(`chat_cooldown_end_${address.toLowerCase()}`, (Date.now() + newCooldown * 1000).toString());
-        }
+        // Clear active cooldown so deliberate retry is not blocked
+        setCooldownTime(0);
         await sendMessage(msg.receiver_id, msg.content);
     };
 
@@ -714,10 +712,33 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                             {visibleChats.length} chat{visibleChats.length === 1 ? '' : 's'}
                                         </SectionLabel>
                                         {inboxLocked ? (
-                                            <EmptyState
-                                                title="Sign in to load messages"
-                                                body="Your inbox needs an active session — sign in, then reopen."
-                                            />
+                                            <div className="my-4 p-5 rounded-3xl bg-cyan-950/40 border border-cyan-400/30 flex flex-col items-center text-center gap-3 shadow-[0_0_24px_rgba(0,229,255,0.08)]">
+                                                <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-[0_0_16px_rgba(34,211,238,0.25)]">
+                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                                    </svg>
+                                                </div>
+                                                <div className="flex flex-col gap-1 max-w-xs">
+                                                    <span className="text-white font-bold text-ludo-base">Session Inactive</span>
+                                                    <span className="text-white/60 text-ludo-xs leading-relaxed">
+                                                        Activate session to view conversations and send encrypted messages.
+                                                    </span>
+                                                </div>
+                                                <Button
+                                                    size="md"
+                                                    variant="primary"
+                                                    onClick={async () => {
+                                                        const sid = await ensureAppSession({ context: 'messaging', force: true });
+                                                        if (sid) {
+                                                            refreshMessages();
+                                                        }
+                                                    }}
+                                                    className="uppercase tracking-widest text-xs px-6 py-2.5 font-black mt-1"
+                                                >
+                                                    Activate Session
+                                                </Button>
+                                            </div>
                                         ) : visibleChats.length === 0 ? (
                                             <EmptyState
                                                 title={q ? 'No chats match' : isGuest ? 'Connect wallet to message' : 'No messages yet'}

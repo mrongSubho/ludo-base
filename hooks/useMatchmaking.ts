@@ -435,7 +435,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                 throw new Error('Too many matchmaking requests. Please wait a moment before trying again.');
             }
             if (response.status === 401) {
-                throw new Error('Sign-in required for matchmaking. Please sign in and try again.');
+                throw new Error('Session inactive for matchmaking. Please activate session and try again.');
             }
             const errText = await response.text().catch(() => '');
             const sanitized = errText.replace(/<[^>]*>?/gm, '').trim();

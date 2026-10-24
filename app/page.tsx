@@ -46,6 +46,7 @@ const PublicProfileModal = dynamic(() => import('./components/PublicProfileModal
 const SpectatorHUD = dynamic(() => import('./components/SpectatorHUD').then(m => m.SpectatorHUD));
 const HostMigrationPanel = dynamic(() => import('./components/HostMigrationPanel').then(m => m.HostMigrationPanel));
 import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
+import { useWalletMode } from '@/hooks/useWalletMode';
 import { ThinkingOrb } from './components/ThinkingOrb';
 import { useTeamUp } from '@/hooks/useTeamUp';
 import PresenceManager from './components/PresenceManager';
@@ -274,6 +275,14 @@ export default function Page() {
   // Needed to prove the canonical host to /api/match/start (SEC-06). Best-effort:
   // offline/bot games still post the anonymous marker and are simply not settleable.
   const { ensureAppSession, peekAppSession } = useAppSession();
+  const walletMode = useWalletMode();
+
+  // Auto-bootstrap SIWE session on boot for CDP in-game wallets with autoSign
+  useEffect(() => {
+    if (address && !isGuest && walletMode === 'ingame' && !peekAppSession()) {
+      void ensureAppSession({ context: 'general' }).catch(() => null);
+    }
+  }, [address, isGuest, walletMode, peekAppSession, ensureAppSession]);
   const { signMessageAsync } = useSignMessage();
   // DM unread badge reads the same GameData store the panel writes, so it
   // cleans the instant a thread opens (no second source of truth).

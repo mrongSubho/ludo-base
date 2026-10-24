@@ -859,7 +859,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                         <div className="my-2 p-3 rounded-2xl bg-cyan-950/40 border border-cyan-400/25 flex items-center justify-between gap-3">
                                             <div className="flex flex-col min-w-0">
                                                 <span className="text-white font-bold text-ludo-sm truncate">Session Inactive</span>
-                                                <span className="text-white/50 text-ludo-xs truncate">Sign in to sync your accepted friends</span>
+                                                <span className="text-white/50 text-ludo-xs truncate">Activate session to sync your accepted friends</span>
                                             </div>
                                             <Button
                                                 size="sm"
@@ -870,7 +870,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                                 }}
                                                 className="uppercase tracking-widest text-xs shrink-0"
                                             >
-                                                Sign In
+                                                Activate
                                             </Button>
                                         </div>
                                     )}
@@ -906,7 +906,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                         <div className="my-2 p-3 rounded-2xl bg-cyan-950/40 border border-cyan-400/25 flex items-center justify-between gap-3">
                                             <div className="flex flex-col min-w-0">
                                                 <span className="text-white font-bold text-ludo-sm truncate">Session Inactive</span>
-                                                <span className="text-white/50 text-ludo-xs truncate">Sign in to view and accept requests</span>
+                                                <span className="text-white/50 text-ludo-xs truncate">Activate session to view and accept requests</span>
                                             </div>
                                             <Button
                                                 size="sm"
@@ -917,7 +917,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                                 }}
                                                 className="uppercase tracking-widest text-xs shrink-0"
                                             >
-                                                Sign In
+                                                Activate
                                             </Button>
                                         </div>
                                     )}

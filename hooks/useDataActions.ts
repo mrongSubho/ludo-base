@@ -205,7 +205,7 @@ export const useDataActions = ({
             }
             if (!peerJwk) {
                 // Fail closed (no plaintext). Message stays retryable with clear reason.
-                const peerReason = "Recipient hasn't registered encryption keys yet. Ask them to sign in or open messages.";
+                const peerReason = "Recipient hasn't registered encryption keys yet. Ask them to open messages.";
                 setMessages(prev => prev.map(m => m.id === tempId
                     ? { ...m, send_status: 'failed', send_error: peerReason, content: content }
                     : m));

@@ -103,6 +103,7 @@ const GameDataContext = createContext<GameDataContextType | undefined>(undefined
 import { getProgression } from '@/lib/progression';
 
 // --- HOOKS ---
+import { useCurrentUser } from './useCurrentUser';
 import { useDataBoot } from './useDataBoot';
 import { useDataSync } from './useDataSync';
 import { usePeerChat } from './usePeerChat';
@@ -110,7 +111,7 @@ import { useDataActions } from './useDataActions';
 import { useAppSession } from './useAppSession';
 
 export const GameDataProvider = ({ children }: { children: ReactNode }) => {
-    const { address } = useAccount();
+    const { address } = useCurrentUser();
     const { ready: isAppSessionReady, sessionId } = useAppSession();
     
     // 1. Data Boot / Hydration Hook

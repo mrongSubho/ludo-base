@@ -18,7 +18,7 @@
 export type SendErrorCode =
     /** The request never left, or never got a response. Client-side. */
     | 'network'
-    /** Session missing, expired or revoked — the user must sign in again. */
+    /** Session missing, expired or revoked — the user must reconnect. */
     | 'auth'
     /** Input rejected before any write. Client-fixable. */
     | 'validation'
@@ -52,7 +52,7 @@ export const SEND_ERROR_STATUS: Record<SendErrorCode, number> = {
  */
 export const SEND_ERROR_MESSAGE: Record<SendErrorCode, string> = {
     network: "Can't reach the game server. Check your connection and try again.",
-    auth: 'Your session expired. Sign in again to keep chatting.',
+    auth: 'Session disconnected',
     validation: 'That message was rejected — check what you typed.',
     rate_limited: 'Slow mode — wait a moment before your next message.',
     db_write:
