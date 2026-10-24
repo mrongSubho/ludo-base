@@ -166,3 +166,29 @@ export function ruleAppliesTo(rule: LimitRule, method: string): boolean {
     if (!rule.methods || rule.methods.length === 0) return true;
     return rule.methods.includes(method.toUpperCase());
 }
+
+/**
+ * A2 (plan §5-P1): the native Cloudflare Rate Limiting binding per mutation
+ * tier. The bindings live in `wrangler.jsonc` (`ratelimits`, simple mode —
+ * fixed limit/period per binding, periods only 10s or 60s), so a rule's
+ * `windowMs` must be one of those and its limit must have a binding here to
+ * get the distributed check. All current windows are 60s.
+ *
+ * Reads stay in-process by design: a globally-counted read limit would
+ * throttle the dashboard heartbeat at every edge colo hitting one counter.
+ * `scripts/rate-limit.test.ts` pins this map against `RATE_LIMITS` so a new
+ * mutation limit cannot silently skip the distributed layer.
+ */
+export const NATIVE_BINDING_FOR_LIMIT: Record<number, string> = {
+    10: 'RL_MUT10',
+    20: 'RL_MUT20',
+    30: 'RL_MUT30',
+    40: 'RL_MUT40',
+    60: 'RL_MUT60',
+    120: 'RL_MUT120',
+};
+
+/** Native binding name for a rule, or null when the rule stays in-process. */
+export function nativeBindingFor(rule: LimitRule): string | null {
+    return NATIVE_BINDING_FOR_LIMIT[rule.limit] ?? null;
+}

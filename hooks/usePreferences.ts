@@ -1,8 +1,7 @@
 'use client';
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { getPreferenceCookie, setPreferenceCookie, PreferenceKey } from '@/lib/preferencesUtils';
-import { isGuestActive } from '@/lib/guest';
 
 export interface Preferences {
     theme: string;
@@ -18,7 +17,7 @@ const DEFAULTS: Preferences = {
     sfx: true,
     music: true,
     haptics: true,
-    tokenStyle: 'pawn',
+    tokenStyle: 'orb',
     diceStyle: 'classic',
 };
 
@@ -72,7 +71,7 @@ function snapshot(): Preferences {
         getVal('ludo-sfx', 'on'),
         getVal('ludo-music', 'on'),
         getVal('ludo-haptic', 'on'),
-        getVal('token-style', 'pawn'),
+        getVal('token-style', 'orb'),
         getVal('dice-style', 'classic'),
     ].join('|');
     if (cachedSnapshot && cachedRaw === raw) return cachedSnapshot;
@@ -85,16 +84,12 @@ function snapshot(): Preferences {
     const sfx = (raw.split('|')[1] ?? 'on') === 'on';
     const music = (raw.split('|')[2] ?? 'on') === 'on';
     const haptics = (raw.split('|')[3] ?? 'on') === 'on';
-    // Guests default to orb tokens (their flagship trial look) unless they
-    // already picked a style — wallet users keep the pawn default.
-    const tokenFallback = (() => {
-        try {
-            return isGuestActive() ? 'orb' : 'pawn';
-        } catch {
-            return 'pawn';
-        }
-    })();
-    const tokenStyle = (raw.split('|')[4] ?? tokenFallback) === 'orb' ? 'orb' : 'pawn';
+    // Orb is the default token style for everyone. `raw` is always six joined
+    // values, so `split('|')[4]` is never undefined — the previous `??
+    // tokenFallback` was dead code and the guest/wallet branch above it never
+    // ran, which is why "selected the default as orb" still rendered pawns.
+    // An explicit 'pawn' cookie still wins; only the default moved.
+    const tokenStyle = (raw.split('|')[4] ?? 'orb') === 'pawn' ? 'pawn' : 'orb';
     const diceRaw = raw.split('|')[5] ?? 'classic';
     const diceStyle = diceRaw === 'midnight' || diceRaw === 'gold' ? diceRaw : 'classic';
 
@@ -121,6 +116,17 @@ function applyBodyClasses(p: Preferences): void {
  */
 export function usePreferences() {
     const preferences = useSyncExternalStore(subscribe, snapshot, () => DEFAULTS);
+
+    // The body classes must exist on FIRST PAINT, not only after the user
+    // toggles a preference: `applyBodyClasses` used to run solely inside
+    // `updatePreference`, so a fresh visitor (or one whose cookie was written
+    // before hydration) never got `token-style-orb` on <body> and board.css
+    // kept rendering the chess pawns despite orb being the default. SSR sets
+    // the class from the cookie (app/layout.tsx); this effect re-asserts it
+    // after hydration and on every change. Idempotent classList writes.
+    useEffect(() => {
+        applyBodyClasses(preferences);
+    }, [preferences]);
 
     const updatePreference = useCallback((key: PreferenceKey, value: string) => {
         try {

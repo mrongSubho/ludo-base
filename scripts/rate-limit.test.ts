@@ -18,7 +18,7 @@ import {
     rateLimitHeaders,
     resetRateLimits,
 } from '../lib/rateLimit';
-import { NEVER_LIMIT, RATE_LIMITS, SESSION_GATED, ruleAppliesTo, ruleFor } from '../lib/rateLimitRoutes';
+import { NEVER_LIMIT, RATE_LIMITS, SESSION_GATED, ruleAppliesTo, ruleFor, NATIVE_BINDING_FOR_LIMIT, nativeBindingFor } from '../lib/rateLimitRoutes';
 
 const root = join(import.meta.dirname ?? __dirname, '..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
@@ -213,7 +213,7 @@ test('unlisted and malformed paths are unlimited rather than blocked', () => {
 
 test('middleware.ts exists and matches /api broadly', () => {
     const src = read('middleware.ts');
-    assert.match(src, /export function middleware/);
+    assert.match(src, /export async function middleware/, 'A2: the native layer is async');
     assert.match(src, /pathname\.startsWith\('\/api\/'\)/);
     assert.match(src, /429/);
     assert.match(src, /Retry-After/);
@@ -286,4 +286,83 @@ test('routes that throttle in-handler use the shared limiter', () => {
         const src = read(f);
         assert.match(src, /from '@\/lib\/rateLimit'/, `${f} must use the shared limiter`);
     }
+});
+
+// ── A2: the native Cloudflare Rate Limiting layer (plan §5-P1) ──────────────
+
+test('every distinct mutation limit has a native binding tier', () => {
+    for (const [route, rule] of Object.entries(RATE_LIMITS)) {
+        // Simple-mode bindings only support 10s or 60s periods; all current
+        // windows are 60s. A new window must add a binding + a tier here.
+        assert.ok(
+            rule.windowMs === 10_000 || rule.windowMs === 60_000,
+            `${route}: windowMs ${rule.windowMs} is not expressible in simple mode`,
+        );
+        if (rule.methods && rule.methods.length === 1 && rule.methods[0] === 'GET') {
+            continue; // reads stay in-process by design (§5-P1)
+        }
+        assert.ok(
+            nativeBindingFor(rule) !== null,
+            `${route} (limit ${rule.limit}) is a mutation but has no native binding tier`,
+        );
+    }
+});
+
+test('every mapped binding exists in wrangler.jsonc with the matching limit', () => {
+    const wrangler = read('wrangler.jsonc');
+    for (const [limitStr, name] of Object.entries(NATIVE_BINDING_FOR_LIMIT)) {
+        const limit = Number(limitStr);
+        // The binding block: name, namespace, then simple { limit, period }.
+        const block = wrangler.match(new RegExp(`\\{[^{}]*"${name}"[\\s\\S]{0,200}?\\}`));
+        assert.ok(block, `${name} must be declared in wrangler.jsonc ratelimits`);
+        assert.match(block[0], /"ratelimits"|"name"/);
+        const limits = [...wrangler.matchAll(new RegExp(`"${name}"[^}]*"limit":\\s*(\\d+)`, 'gs'))].map((m) => Number(m[1]));
+        assert.ok(
+            limits.includes(limit),
+            `${name} must declare simple.limit ${limit} in wrangler.jsonc`,
+        );
+        assert.match(
+            wrangler,
+            new RegExp(`"${name}"[^}]*"period":\\s*(10|60)`, 's'),
+            `${name} must declare a simple-mode period`,
+        );
+    }
+});
+
+test('the native wrapper fails open and counts correctly', async () => {
+    const { checkNativeRateLimit } = await import('../lib/rateLimitNative');
+    let calls = 0;
+    const counting = { limit: async () => { calls++; return { success: true }; } };
+    assert.deepEqual(await checkNativeRateLimit(counting, 'k'), { ok: true, usedNative: true });
+    assert.equal(calls, 1, 'a live binding must be consulted');
+
+    const refusing = { limit: async () => ({ success: false }) };
+    assert.equal((await checkNativeRateLimit(refusing, 'k')).ok, false, 'a native refusal must be respected');
+
+    const throwing = { limit: async () => { throw new Error('edge down'); } };
+    assert.deepEqual(
+        await checkNativeRateLimit(throwing, 'k'),
+        { ok: true, usedNative: false, reason: 'error' },
+        'an edge error must degrade to the in-process floor, not fail the request',
+    );
+
+    for (const absent of [null, undefined]) {
+        assert.deepEqual(
+            await checkNativeRateLimit(absent as never, 'k'),
+            { ok: true, usedNative: false, reason: 'no-binding' },
+            'no binding (local dev / non-CF) must degrade, never 500',
+        );
+    }
+});
+
+test('middleware consults the native layer before letting a mutation pass', () => {
+    const src = code('middleware.ts');
+    assert.match(src, /checkNativeRateLimit\(/, 'middleware must call the native wrapper');
+    assert.match(src, /nativeBindingFor\(rule\)/, 'middleware must resolve the rule tier binding');
+    // The native check must sit on the allowed path (after the in-process pass),
+    // not on the rejection path.
+    assert.ok(
+        src.indexOf('if (verdict.ok)') < src.indexOf('checkNativeRateLimit('),
+        'the native check belongs to the allowed path',
+    );
 });

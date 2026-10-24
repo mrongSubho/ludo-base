@@ -54,17 +54,25 @@ export default async function RootLayout({
 }) {
   const cookieStore = await cookies();
   const theme = cookieStore.get('ludo-theme')?.value;
+  const tokenStyle = cookieStore.get('token-style')?.value;
 
   // Two themes: Retro-Futurism (default, dark) and Daybreak (soft-UI light).
   // Legacy 'dark'/'ui' cookies migrate to Retro-Futurism; legacy 'porcelain'
   // cookies migrate to Daybreak.
   let themeClass = 'theme-retro-futurism'; // Default
   if (theme === 'light' || theme === 'porcelain') themeClass = 'theme-daybreak';
+
+  // Orb is the DEFAULT token style: the class must be on <body> at first
+  // paint, or `board.css`'s `body.token-style-orb .ludo-token svg` never hides
+  // the chess pawns and every fresh visitor saw them despite orb being the
+  // default. Only an explicit 'pawn' cookie suppresses it. The client
+  // re-asserts this in usePreferences' mount effect.
+  const tokenClass = tokenStyle === 'pawn' ? '' : ' token-style-orb';
     return (
         <html lang="en" className={fontVariables}>
             <head>
             </head>
-            <body className={themeClass} suppressHydrationWarning>
+            <body className={`${themeClass}${tokenClass}`} suppressHydrationWarning>
                 <Providers>{children}</Providers>
             </body>
         </html>

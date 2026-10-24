@@ -14,7 +14,7 @@
  * See docs/planning/SERVER_AUTHORITY_MIGRATION_PLAN.md §4.4, §4.7, §5-P3
  */
 
-import type { GameState, BoardPlayer, ColorCorner } from '../../lib/types';
+import type { GameState, BoardPlayer } from '../../lib/types';
 import { hashToken } from '../../lib/sessionV2';
 // Canonical initial state + the corner→position map. Both are pure (no DOM, no
 // React), so they are safe in the Worker bundle — verified before importing:
@@ -27,8 +27,8 @@ import { hashToken } from '../../lib/sessionV2';
 // with `id/score/corner/rank/tokens`, none of which exist. Starting from the
 // canonical state means the seed cannot disagree with the engine again.
 import { INITIAL_GAME_STATE } from '../../lib/gameLogic';
-import { CORNER_TO_POSITION } from '../../lib/boardLayout';
-import { getNextPlayer, getLegalTokenIndices, resolveNetworkedMove, applyPower, lcg32, type PlayerColor } from './engine';
+import { CORNER_TO_POSITION, assignCornersForShape } from '../../lib/boardLayout';
+import { getNextPlayer, getLegalTokenIndices, resolveNetworkedMove, applyPower, lcg32, activeColorsForTurns, type PlayerColor, type EngineGameState } from './engine';
 
 /**
  * The context surface the room logic actually uses.
@@ -113,6 +113,8 @@ export class MatchRoomCore {
   private actionQueue: Promise<void> = Promise.resolve();
   private socketMeta: Map<WebSocket, RoomSocketMeta> = new Map();
   private initialized: boolean = false;
+  /** In-flight `ensureInitialized`, so concurrent callers share one run. */
+  private initPromise: Promise<void> | null = null;
 
   constructor(
     protected readonly ctx: RoomCtx,
@@ -121,9 +123,28 @@ export class MatchRoomCore {
 
   /**
    * Initialize state from SQLite storage on first activation.
+   *
+   * `this.initialized` is only set at the END of the async body, so two
+   * concurrent callers both passed the guard and both ran the seeding path.
+   * That is exactly what happens on a fresh match: the preflight
+   * `GET /api/room/:id/ws` and the WebSocket upgrade arrive together, so the
+   * room self-seeded TWICE — with two different `assignCornersForShape` draws,
+   * because the seating rule is random. A live board's corners changed
+   * mid-match, and the second seed landed at seq 1 as another `server_seeded`.
+   *
+   * Memoise the in-flight promise instead: the first caller runs it, everyone
+   * else awaits the same one.
    */
   private async ensureInitialized(matchId: string): Promise<void> {
     if (this.initialized) return;
+    if (this.initPromise) return this.initPromise;
+    this.initPromise = this.doInitialize(matchId).finally(() => {
+      this.initPromise = null;
+    });
+    return this.initPromise;
+  }
+
+  private async doInitialize(matchId: string): Promise<void> {
     this.matchId = matchId;
 
     const storedSeq = await this.ctx.storage.get<number>('seq');
@@ -209,12 +230,12 @@ export class MatchRoomCore {
 
             if (matchRows.length > 0 && seatsRows.length > 0) {
               const matchShape = (matchRows[0].match_shape || '4P') as '1v1' | '2v2' | '4P';
-              const defaultCorners: ColorCorner = {
-                green: 'BL',
-                yellow: 'BR',
-                blue: 'TR',
-                red: 'TL',
-              };
+              // Seating comes from the shared rule, never a local map. This used
+              // to hard-code `green:'BL', yellow:'BR'`, which seats a 1v1 pair on
+              // ADJACENT corners — the opposite of the engine's documented "one
+              // diagonal" — and ignored `match_shape` entirely, so 2v2 and 4P got
+              // the same fixed layout.
+              const defaultCorners = assignCornersForShape(matchShape);
 
               // `BoardPlayer` is { name, level, avatar, color, position, isAi?,
               // walletAddress? } — see lib/types.ts. The previous version invented
@@ -617,17 +638,25 @@ export class MatchRoomCore {
         );
 
         if (legalMoves.length === 0 && rollValue !== 6) {
-          // No legal moves and not a 6: auto-advance turn
-          const nextPlayer = getNextPlayer(curColor, this.state.playerCount);
+          // No legal moves and not a 6: auto-advance turn. `diceValue` MUST be
+          // reset — the client's Roll button gates on `diceValue === null`
+          // (PlayerInfoRow), so handing the turn to the next player with the
+          // stale face still attached froze the match right after the dice
+          // animates: nobody could ever roll again. The explicit pass path and
+          // the AFK timeout path below both already reset it; this path is the
+          // one every opening roll takes (all tokens in yard), which is why the
+          // stall showed up immediately.
+          const nextPlayer = getNextPlayer(curColor, this.state.playerCount, this.getActiveColors(), cc);
           const nextState: GameState = {
             ...this.state,
-            diceValue: rollValue,
+            diceValue: null,
             currentPlayer: nextPlayer,
             isRolling: false,
             gamePhase: 'rolling',
           };
           await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
           await this.scheduleTimer(this.matchId, 'turn', 15000);
+          ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: nextState, seq: this.seq } }));
           return;
         }
 
@@ -640,6 +669,7 @@ export class MatchRoomCore {
 
         await this.applyNewState(nextState, this.seq + 1, 'roll_minted');
         await this.scheduleTimer(this.matchId, 'turn', 15000);
+        ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: nextState, seq: this.seq } }));
         return;
       }
 
@@ -707,8 +737,15 @@ export class MatchRoomCore {
           return;
         }
 
+        const cc = this.state.initialBoardConfig?.colorCorner || {
+          green: 'BL',
+          yellow: 'BR',
+          blue: 'TR',
+          red: 'TL',
+        };
+
         if (payload.action === 'pass') {
-          const nextPlayer = getNextPlayer(curColor, this.state.playerCount);
+          const nextPlayer = getNextPlayer(curColor, this.state.playerCount, this.getActiveColors(), cc);
           const nextState: GameState = {
             ...this.state,
             currentPlayer: nextPlayer,
@@ -718,15 +755,10 @@ export class MatchRoomCore {
           };
           await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
           await this.scheduleTimer(this.matchId, 'turn', 15000);
+          ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: nextState, seq: this.seq } }));
           return;
         }
 
-        const cc = this.state.initialBoardConfig?.colorCorner || {
-          green: 'BL',
-          yellow: 'BR',
-          blue: 'TR',
-          red: 'TL',
-        };
         const tokenIndex = typeof payload.tokenIndex === 'number' ? payload.tokenIndex : 0;
         const diceVal = typeof this.state.diceValue === 'number' ? this.state.diceValue : 0;
 
@@ -741,6 +773,7 @@ export class MatchRoomCore {
           dice: diceVal,
           cc,
           playerCount: this.state.playerCount,
+          activeColors: this.getActiveColors(),
           now: Date.now(),
         });
 
@@ -771,6 +804,7 @@ export class MatchRoomCore {
         }
 
         await this.applyNewState(nextState, this.seq + 1, 'move_committed');
+        ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: nextState, seq: this.seq } }));
 
         if (nextState.winner) {
           this.timerHeap = [];
@@ -882,6 +916,7 @@ export class MatchRoomCore {
         }
 
         await this.applyNewState(result.state as unknown as GameState, this.seq + 1, 'power_committed');
+        ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: result.state, seq: this.seq } }));
 
         if ((result.state as unknown as GameState).winner) {
           this.timerHeap = [];
@@ -1000,6 +1035,10 @@ export class MatchRoomCore {
     }
   }
 
+  private getActiveColors(): PlayerColor[] {
+    return this.state ? activeColorsForTurns(this.state as unknown as EngineGameState) : [];
+  }
+
   private isBotOrAutoPlaying(color: PlayerColor): boolean {
     if (!this.state) return false;
     const player = this.state.initialBoardConfig?.players?.find(p => p.color === color);
@@ -1034,10 +1073,10 @@ export class MatchRoomCore {
     );
 
     if (legalMoves.length === 0) {
-      const nextPlayer = getNextPlayer(color, this.state.playerCount);
+      const nextPlayer = getNextPlayer(color, this.state.playerCount, this.getActiveColors(), cc);
       const nextState: GameState = {
         ...this.state,
-        diceValue: rollValue,
+        diceValue: null,
         currentPlayer: nextPlayer,
         isRolling: false,
         gamePhase: 'rolling',
@@ -1065,16 +1104,17 @@ export class MatchRoomCore {
       dice: rollValue,
       cc,
       playerCount: this.state.playerCount,
+      activeColors: this.getActiveColors(),
       now: Date.now(),
     });
 
     if (resolved.ok && resolved.state) {
       await this.applyNewState(resolved.state as unknown as GameState, this.seq + 1, 'move_committed');
     } else {
-      const nextPlayer = getNextPlayer(color, this.state.playerCount);
+      const nextPlayer = getNextPlayer(color, this.state.playerCount, this.getActiveColors(), cc);
       const nextState: GameState = {
         ...this.state,
-        diceValue: rollValue,
+        diceValue: null,
         currentPlayer: nextPlayer,
         isRolling: false,
         gamePhase: 'rolling',
@@ -1137,7 +1177,8 @@ export class MatchRoomCore {
             isAutoPlaying: strikes[cur] >= 3 ? true : afk[cur].isAutoPlaying,
           };
         }
-        const nextPlayer = getNextPlayer(cur, this.state.playerCount);
+        const cc = this.state.initialBoardConfig?.colorCorner;
+        const nextPlayer = getNextPlayer(cur, this.state.playerCount, this.getActiveColors(), cc);
         const nextState: GameState = {
           ...this.state,
           currentPlayer: nextPlayer,

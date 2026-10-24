@@ -1,24 +1,55 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { checkRateLimit, clientIp, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
-import { NEVER_LIMIT, ruleAppliesTo, ruleFor } from '@/lib/rateLimitRoutes';
+import { checkNativeRateLimit } from '@/lib/rateLimitNative';
+import type { NativeRateLimitBinding } from '@/lib/rateLimitNative';
+import { NEVER_LIMIT, ruleAppliesTo, ruleFor, nativeBindingFor } from '@/lib/rateLimitRoutes';
 
 /**
- * Edge rate limiting (Phase 3 / SEC-34).
+ * Edge rate limiting (Phase 3 / SEC-34; distributed layer = A2, plan §5-P1).
  *
  * Applies the table in `lib/rateLimitRoutes.ts` to unauthenticated `/api`
- * traffic. Two deliberate properties:
+ * traffic. Three deliberate properties:
  *
  *  - **Conservative.** Only listed paths are limited. An unlisted route is
  *    unlimited, so adding a new endpoint cannot accidentally break it.
  *  - **Never breaks the game.** `match/state`, `match/stream` and `profile` are
  *    explicitly exempt: they are on the client's heartbeat and reconnect path.
+ *  - **Two layers, in order.** The in-process Map (`lib/rateLimit.ts`) filters
+ *    cheaply first; when it passes, the native Cloudflare Rate Limiting
+ *    binding for the rule's tier (A2) applies the *distributed* mutation cap —
+ *    the in-process counters were per-isolate, so the effective budget used to
+ *    be `limit x instances`. The native layer fails open to the in-process
+ *    floor on any error; see `lib/rateLimitNative.ts`.
  *
- * This runs in the Edge runtime, so the counters are per-isolate and per-region.
- * That bounds casual abuse and accidental loops; it is not a defence against a
- * determined caller. See `lib/rateLimit.ts`.
+ * The in-process counters are per-isolate and per-region. They bound casual
+ * abuse and accidental loops; the native bindings are what bound a determined
+ * caller. **Native accuracy is documented as approximate and per-location:**
+ * counts sync in the background, so a rapid burst can exceed the configured
+ * limit before counts converge (verified live 2026-10-24 — the binding
+ * engaged on every request; a 30+ burst tripped the in-process layer first).
+ * A strict global limit would need a Durable Object counter (plan §5-P1's
+ * explicitly deferred fallback; `RateLimitDO` is built and bound for that).
+ * See `lib/rateLimit.ts` for the honest ceiling of each layer.
  */
-export function middleware(request: NextRequest) {
+
+/**
+ * Resolve the rule's native binding out of the Cloudflare env, or null when
+ * unavailable (local dev, non-CF runtime, context error). `getCloudflareContext`
+ * only resolves inside the OpenNext worker; everywhere else this returns null
+ * and the in-process limiter stays the single active layer.
+ */
+async function nativeBindingOrNull(name: string): Promise<NativeRateLimitBinding | null> {
+    try {
+        const { getCloudflareContext } = await import('@opennextjs/cloudflare');
+        const env = (await getCloudflareContext({ async: true })).env as unknown as Record<string, unknown>;
+        return (env?.[name] as NativeRateLimitBinding) ?? null;
+    } catch {
+        return null;
+    }
+}
+
+export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
     if (!pathname.startsWith('/api/')) return NextResponse.next();
 
@@ -35,6 +66,39 @@ export function middleware(request: NextRequest) {
     const verdict = checkRateLimit(key, rule.limit, rule.windowMs);
 
     if (verdict.ok) {
+        // A2: the in-process budget is not spent yet — apply the distributed
+        // native cap before letting the request through. Runs only when a
+        // binding exists for this tier; otherwise this is exactly the old
+        // behaviour (headers-only response, see the body-preservation note
+        // below for why we never rewrite the request).
+        const bindingName = nativeBindingFor(rule);
+        if (bindingName) {
+            const native = await checkNativeRateLimit(
+                await nativeBindingOrNull(bindingName),
+                key,
+            );
+            if (!native.ok) {
+                const retryAfterSec = Math.max(1, Math.ceil(rule.windowMs / 1000));
+                return NextResponse.json(
+                    {
+                        error: 'Too many requests',
+                        code: 'RATE_LIMITED',
+                        retryAfter: retryAfterSec,
+                    },
+                    {
+                        status: 429,
+                        headers: {
+                            'X-RateLimit-Limit': String(rule.limit),
+                            'X-RateLimit-Remaining': '0',
+                            'X-RateLimit-Reset': String(Math.max(0, Math.ceil(rule.windowMs / 1000))),
+                            'Retry-After': String(retryAfterSec),
+                            'X-RateLimit-Layer': 'native',
+                        },
+                    },
+                );
+            }
+        }
+
         // Response headers ONLY — never override the request.
         //
         // An earlier version did `NextResponse.next({ request: { headers } })`

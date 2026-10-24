@@ -2528,3 +2528,67 @@ from the guard fails it.
 **Verified:** 546 tests / 535 pass / 0 fail · tsc app + worker 0 errors · eslint 0 errors ·
 check:routes clean (53 routes). Deployed as `965f73f4`; live page chunk `app/page-a1572d6f20b2f876.js`
 matches the local build and carries the guard, `/` → 200, room → 426.
+
+## A2 — Distributed mutation rate limiting via native Cloudflare bindings (2026-10-24)
+
+Track A's A2 milestone (server-authority plan §5-P1) is closed: the mutation
+routes are now throttled by native Cloudflare Rate Limiting bindings, the
+distributed layer the plan put ahead of any DO counter.
+
+**Config.** `wrangler.jsonc` gained a `ratelimits` block with six simple-mode
+bindings (`RL_MUT10` … `RL_MUT120`, periods 60s, namespace ids 1001–1006) — one
+per distinct mutation limit in `lib/rateLimitRoutes.ts`. Simple mode fixes the
+limit per binding, hence one binding per tier; `NATIVE_BINDING_FOR_LIMIT` (same
+file) maps a rule's limit to its binding name, and `nativeBindingFor()` is the
+lookup `middleware.ts` uses. Reads stay in-process by design: a globally-counted
+read limit would throttle the dashboard heartbeat at every edge colo through one
+counter. `src/cloudflare-env.d.ts` was regenerated with `wrangler types` so the
+six bindings are typed.
+
+**Consumption.** `middleware.ts` is now `async`. The order is deliberate:
+the in-process Map filters cheaply first (its per-isolate budget), and only a
+request that passes it reaches the native `limit()` call — so the native layer
+is consulted exactly once per accepted request, and a saturated isolate rejects
+without spending a native round-trip. A native refusal answers 429 with
+`X-RateLimit-Layer: native` plus `Retry-After` = the rule's window.
+
+**Degradation.** `lib/rateLimitNative.ts` wraps the binding and fails open:
+no binding (local dev, non-Cloudflare runtime), context unavailability, or a
+`limit()` throw all degrade to the in-process floor rather than failing the
+request. The context is resolved through `getCloudflareContext({async:true})`
+inside the OpenNext worker, where the AsyncLocalStorage-backed global is set
+for middleware execution too (verified live — see below).
+
+**Accuracy, verified live and documented.** The binding is approximate and
+per-location by Cloudflare's own spec: counts sync in the background, so a
+rapid burst can exceed the configured limit before counts converge. A
+temporary `X-RateLimit-Native` diagnostic header proved the binding engaged on
+every mutation in production (`engaged` on all requests, version `9cfbf4ea`),
+while a 30+ request burst tripped the in-process layer first and never showed a
+native 429 — the documented approximation, not a wiring defect. The diagnostic
+header was removed after the proof. Consequence, stated honestly: the effective
+mutation budget moves from `limit × isolates` to ≈`limit × locations`, which is
+what §5-P1 specifies; a strict global limit would need the Durable Object
+counter (`RateLimitDO` is built and bound for exactly that fallback).
+
+**Acceptance.** A burst against `/api/siwe/verify` (10/60s) returns 429 at the
+configured rate once an isolate's window fills — the same rate the native tier
+enforces per location. `scripts/rate-limit.test.ts` gained four pins: every
+non-GET rule must have a native tier (and a simple-mode-expressible window);
+every mapped binding must exist in `wrangler.jsonc` with the matching limit and
+period; the wrapper must fail open on error/absence and respect refusals; and
+the middleware must consult the native layer on the allowed path.
+
+**Verified:** 553 tests / 542 pass / 0 fail · tsc app + worker 0 errors ·
+deployed as `70d1166d`; live `/api/siwe/verify` answers with the rate-limit
+headers and the worker serves mutations normally.
+
+**Track A status correction.** The backlog's Track A block still read "not
+started" with evidence dated 2026-10-15; that predates the DO landing. As of
+2026-10-24: A1 done (`src/worker.ts`, DO bindings, `new_sqlite_classes`
+migration, live deployment); A3 done for the room path (transport, `seq`,
+fan-out, ticket auth at `/api/room/:id/ws` — verified end-to-end with two
+clients, roll committed); A4 partially done (roll minting, move resolution via
+`resolveNetworkedMove`, and power application run in-process in the DO — the
+`match_commit_action` relocation and AI/clock work remain). PENDING_TASKS.md is
+updated accordingly.

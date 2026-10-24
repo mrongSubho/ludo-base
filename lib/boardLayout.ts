@@ -174,6 +174,21 @@ export function shuffleColorCorner(): ColorCorner {
     return assignCornersFFA();
 }
 
+/**
+ * The one seating rule for every match shape.
+ *
+ * Rules (owner's spec, updated 2026-10-24):
+ *   1v1 — opponents sit DIAGONALLY OPPOSITE (BL↔TR or BR↔TL).
+ *   2v2 — teammates sit DIAGONALLY OPPOSITE (Green+Blue on one diagonal axis,
+ *         Red+Yellow on the other diagonal axis).
+ *   4P  — full shuffle, totally random.
+ */
+export function assignCornersForShape(matchShape: '1v1' | '2v2' | '4P'): ColorCorner {
+    if (matchShape === '2v2') return assignCorners2v2();
+    if (matchShape === '1v1') return assignCornersFFA('1v1');
+    return assignCornersFFA('4P');
+}
+
 export function getBoardCoordinate(pos: number, color: PlayerColor, cc: ColorCorner): Point | null {
     if (pos < 0) return null; // Base or invalid
     if (pos < 52) {

@@ -12,6 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { assignCornersForShape } from '../lib/boardLayout';
 import {
   isAuthV2Enabled,
   isRoomV2Enabled,
@@ -635,4 +636,72 @@ test('P0-16: the host-migration panel is suppressed while the room is authoritat
   const ctx = readFileSync(join(root, 'hooks', 'TeamUpContext.tsx'), 'utf8');
   const value = ctx.slice(ctx.lastIndexOf('roomAuthority, roomStatus, roomError, retryRoom'));
   assert.ok(value.length > 0, 'TeamUpContext must expose roomAuthority in its value');
+});
+
+// ── Seating and the engine's view of the room ───────────────────────────────
+//
+// The Durable Object's self-seed hand-rolled its own corner map
+// (`green:'BL', yellow:'BR'`), which seats a 1v1 pair on ADJACENT corners — the
+// opposite of what the engine documents ("A 1v1 match seats two colours on one
+// diagonal") — and ignored `match_shape`, so 2v2 and 4P got the same fixed
+// layout. Two copies of the seating rule is how the room and the board
+// disagreed about where a player sits.
+
+test('P0-17: the room seats players through the shared rule, never a local map', () => {
+  const core = readFileSync(join(root, 'src', 'room', 'MatchRoomCore.ts'), 'utf8');
+  assert.match(core, /assignCornersForShape\(matchShape\)/,
+    'the room self-seed must use the shared seating rule');
+  // The hand-rolled map must not come back.
+  assert.doesNotMatch(core, /const defaultCorners: ColorCorner = \{/,
+    'MatchRoomCore must not hand-roll its own corner map');
+
+  // And every client path must use the same rule, or the board and the room
+  // disagree about seating again.
+  for (const rel of ['app/page.tsx', 'app/components/Board.tsx']) {
+    const src = readFileSync(join(root, rel), 'utf8');
+    assert.match(src, /assignCornersForShape\(/, `${rel} must use the shared seating rule`);
+    assert.doesNotMatch(src, /assignCorners2v2\(\)\s*\?/, `${rel} must not fork its own shape branch`);
+  }
+
+  // The rule itself must honour the owner's spec (updated 2026-10-24):
+  // 1v1 handled explicitly with diagonal opposition.
+  const layout = readFileSync(join(root, 'lib', 'boardLayout.ts'), 'utf8');
+  const fn = layout.slice(layout.indexOf('export function assignCornersForShape'));
+  const body = fn.slice(0, fn.indexOf('\n}'));
+  assert.match(body, /'2v2'/, '2v2 must be handled explicitly');
+  assert.match(body, /'1v1'/, '1v1 must be handled explicitly');
+  assert.match(body, /assignCornersFFA\('4P'\)/, '4P must delegate to the FFA shuffle');
+  const isDiagonal = (c1: string, c2: string) =>
+    (c1 === 'BL' && c2 === 'TR') || (c1 === 'TR' && c2 === 'BL') ||
+    (c1 === 'BR' && c2 === 'TL') || (c1 === 'TL' && c2 === 'BR');
+  for (let i = 0; i < 20; i++) {
+    const cc = assignCornersForShape('1v1');
+    assert.ok(isDiagonal(cc.green as string, cc.yellow as string),
+      '1v1 seats must be diagonally opposite');
+    assert.notEqual(cc.green, cc.yellow, 'opponents must not share a corner');
+  }
+});
+
+// The engine kept the only copy of the board. The room's fan-out was merged into
+// the CONTEXT's gameState, so QuickMatchPanel opened the board while `Board`
+// rendered this hook's INITIAL_GAME_STATE forever — every token at home,
+// "ROLL TO START", and a roll resolved against a board the server had never
+// seen. That is the "stalls just after a dice move" report.
+
+test('P0-18: the engine adopts the room state instead of keeping a private copy', () => {
+  const engine = readFileSync(join(root, 'hooks', 'useGameEngine.ts'), 'utf8');
+
+  // There must be a sync from the authoritative state into localGameState.
+  assert.match(engine, /setLocalGameState\(prev => \(\{[\s\S]*?\.\.\.networkGameState/,
+    'useGameEngine must adopt the room state into localGameState');
+
+  // It must be gated on the room actually being the authority, so an offline
+  // match is never overwritten by a stale context value.
+  const sync = engine.slice(engine.indexOf('if (!roomAuthority || !networkGameState) return;'));
+  assert.ok(sync.length > 0, 'the sync must be gated on roomAuthority');
+
+  // And the turn timer must not run in offline mode under server authority —
+  // it would drive the local clock on a board the server never moved.
+  assert.match(engine, /isNetworked: isLobbyConnected \|\| roomAuthority/,
+    'useGameTimer must treat a room-authority match as networked');
 });

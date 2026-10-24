@@ -6,7 +6,7 @@ import PlayerProfileSheet from './PlayerProfileSheet';
 import { PlayerColor, PowerType, PowerItem } from '@/lib/types';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
-    assignCorners2v2, assignCornersFFA,
+    assignCornersForShape,
     buildPathCellsDynamic,
     shufflePlayers, ColorCorner, CORNER_SLOTS
 } from '@/lib/boardLayout';
@@ -146,7 +146,7 @@ export default function Board({
                 colorCorner: initialColorCorner
             };
         }
-        const cc = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
+        const cc = assignCornersForShape(playerCount as '1v1' | '2v2' | '4P');
         // MM-15: `shufflePlayers` is the OFFLINE seeding path — it invents a
         // random table. Reaching it in a networked match means the roster never
         // arrived, and the old code silently rendered that invented table: one

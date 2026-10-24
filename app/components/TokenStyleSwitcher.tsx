@@ -6,7 +6,7 @@ type TokenStyle = 'pawn' | 'orb';
 
 export default function TokenStyleSwitcher() {
     const { preferences, updatePreference } = usePreferences();
-    const active = (preferences.tokenStyle as TokenStyle) || 'pawn';
+    const active = (preferences.tokenStyle as TokenStyle) || 'orb';
 
     const pick = (style: TokenStyle) => {
         if (style === active) return;

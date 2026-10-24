@@ -48,7 +48,7 @@ import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
 import { ThinkingOrb } from './components/ThinkingOrb';
 import { useTeamUp } from '@/hooks/useTeamUp';
 import PresenceManager from './components/PresenceManager';
-import { assignCornersFFA, assignCorners2v2, shufflePlayers, CORNER_TO_POSITION } from '@/lib/boardLayout';
+import { assignCornersForShape, shufflePlayers, CORNER_TO_POSITION } from '@/lib/boardLayout';
 import { Player } from '@/hooks/useGameEngine';
 import { calculateLevel, getProgression } from '@/lib/progression';
 import { GuestWallProvider } from '@/hooks/GuestWallContext';
@@ -501,15 +501,6 @@ export default function Page() {
       console.log('🏁 TRANSITIONING TO GAME! (isStarted:', gameState?.isStarted, 'lobbyStatus:', lobbyState?.status, ')');
 
       // MM-15: a guest must never reach the board without the host's roster.
-      //
-      // This effect is the "missed START_GAME" recovery path, and it used to
-      // navigate unconditionally. That bypassed `handlePlayNow` entirely — so a
-      // guest's `boardSeed` stayed null and `Board` mounted with
-      // `initialPlayers` undefined, at which point it fell back to
-      // `shufflePlayers(...)` and invented a random table with bots. Reported
-      // live as device B showing "a random bot player" in an otherwise correct
-      // match. The `lobbyState.status === 'playing'` half of the condition is
-      // the usual trigger: LOBBY_SYNC arrives before START_GAME.
       if (!isHost) {
         const roster = gameState?.initialBoardConfig?.players;
         if (!Array.isArray(roster) || roster.length === 0) {
@@ -521,6 +512,12 @@ export default function Page() {
           colorCorner: gameState?.initialBoardConfig?.colorCorner,
           isBotMatch: false,
         });
+      } else {
+        const roster = gameState?.initialBoardConfig?.players;
+        const cc = gameState?.initialBoardConfig?.colorCorner;
+        if (Array.isArray(roster) && roster.length > 0 && cc) {
+          setBoardSeed({ players: roster, colorCorner: cc, isBotMatch: false });
+        }
       }
 
       // 🔧 SYNC FIX: If we are joining a game as a Guest, reset local isBotMatch
@@ -560,7 +557,7 @@ export default function Page() {
     if (isLocalMatch) {
       // ── ARM 1: OFFLINE / BOT / LOCAL MATCH ──
       const effectiveMatchType = playerCount;
-      const cc = effectiveMatchType === '2v2' ? assignCorners2v2() : assignCornersFFA(effectiveMatchType);
+      const cc = assignCornersForShape(effectiveMatchType);
       let players = shufflePlayers(playerCount, effectiveIsBotMatch, cc) as Player[];
 
       const myAddr = address?.toLowerCase();
@@ -585,9 +582,14 @@ export default function Page() {
     }
 
     // ── ARM 2: NETWORKED MATCH (Server room DO is sole authority) ──
+    const roster = gameState?.initialBoardConfig?.players;
+    const cc = gameState?.initialBoardConfig?.colorCorner;
+    if (Array.isArray(roster) && roster.length > 0 && cc) {
+      setBoardSeed({ players: roster, colorCorner: cc, isBotMatch: false });
+      setAppState('game');
+    }
     connectRoom(currentMatchId);
-    setAppState('game');
-  }, [isBotMatch, gameState?.matchId, playerCount, address, participants, finalName, setBoardSeed, setAppState, connectRoom]);
+  }, [isBotMatch, gameState?.matchId, gameState?.initialBoardConfig, playerCount, address, participants, finalName, setBoardSeed, setAppState, connectRoom]);
 
   const handleBackToSubMenu = useCallback(async () => {
     // Host leaving a live stream should drop the Live Arena row.

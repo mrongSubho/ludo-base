@@ -43,6 +43,28 @@
       "0 * * * *"
     ]
   },
+  // A2 (server-authority plan §5-P1): native Cloudflare Rate Limiting bindings —
+  // the distributed layer of defense. The in-process Map in `lib/rateLimit.ts`
+  // counts per isolate, so the effective limit was `limit x instances`; these
+  // bindings count globally (eventually-consistent edge counter) and close that
+  // gap for the MUTATION routes. Reads stay in-process by design.
+  //
+  // Simple mode only (fixed limit/period per binding), so there is one binding
+  // per distinct mutation limit in `lib/rateLimitRoutes.ts` RATE_LIMITS —
+  // `NATIVE_BINDING_FOR_LIMIT` there maps a rule's limit to its binding name.
+  // All matrix windows are 60s, matching `period: 60`.
+  //
+  // `lib/rateLimitNative.ts` degrades gracefully: on any binding error (local
+  // dev, non-CF runtime, transient API failure) the request falls back to the
+  // in-process limiter instead of failing the request.
+  "ratelimits":   [
+    { "name": "RL_MUT10",  "namespace_id": "1001",  "simple": { "limit": 10,  "period": 60 } },
+    { "name": "RL_MUT20",  "namespace_id": "1002",  "simple": { "limit": 20,  "period": 60 } },
+    { "name": "RL_MUT30",  "namespace_id": "1003",  "simple": { "limit": 30,  "period": 60 } },
+    { "name": "RL_MUT40",  "namespace_id": "1004",  "simple": { "limit": 40,  "period": 60 } },
+    { "name": "RL_MUT60",  "namespace_id": "1005",  "simple": { "limit": 60,  "period": 60 } },
+    { "name": "RL_MUT120", "namespace_id": "1006", "simple": { "limit": 120, "period": 60 } }
+  ],
   // Public, build-time configuration.
   //
   // These are NEXT_PUBLIC_* values, which Next.js INLINES INTO THE CLIENT BUNDLE at

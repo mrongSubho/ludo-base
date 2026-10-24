@@ -15,7 +15,7 @@ import {
     createLobbySlots,
     INITIAL_GAME_STATE,
 } from '../lib/gameLogic';
-import { assignCorners2v2, assignCornersFFA, shufflePlayers, CORNER_SLOTS } from '../lib/boardLayout';
+import { assignCornersForShape, assignCornersFFA, shufflePlayers, CORNER_SLOTS } from '../lib/boardLayout';
 import { TEAM_PAIRINGS, TEAM_ID, BASE_INDEX } from '../lib/constants';
 import type { PlayerColor } from '../lib/types';
 
@@ -44,14 +44,27 @@ test('2v2 team ids match TEAM_PAIRINGS', () => {
     assert.notEqual(getTeam('green', '2v2'), getTeam('red', '2v2'));
 });
 
-test('assignCorners2v2 seats teammates on the same diagonal axis', () => {
+test('assignCornersForShape seats 2v2 teammates diagonally opposite', () => {
+    // Owner's spec (updated 2026-10-24): teammates sit diagonally opposite.
+    // Green+Blue on one diagonal axis, Red+Yellow on the other diagonal axis.
+    const isDiagonal = (c1: string, c2: string) =>
+        (c1 === 'BL' && c2 === 'TR') || (c1 === 'TR' && c2 === 'BL') ||
+        (c1 === 'BR' && c2 === 'TL') || (c1 === 'TL' && c2 === 'BR');
     for (let i = 0; i < 20; i++) {
-        const cc = assignCorners2v2();
-        const axisOf = (corner: string) =>
-            (['BL', 'TR'].includes(corner) ? 'A' : 'B') as 'A' | 'B';
-        assert.equal(axisOf(cc.green), axisOf(cc.blue), 'green/blue must share a diagonal');
-        assert.equal(axisOf(cc.red), axisOf(cc.yellow), 'red/yellow must share a diagonal');
-        assert.notEqual(axisOf(cc.green), axisOf(cc.red), 'teams must sit on opposite diagonals');
+        const cc = assignCornersForShape('2v2');
+        assert.ok(isDiagonal(cc.green, cc.blue), 'green/blue must sit diagonally opposite');
+        assert.ok(isDiagonal(cc.red, cc.yellow), 'red/yellow must sit diagonally opposite');
+    }
+});
+
+test('assignCornersForShape seats 1v1 opponents diagonally opposite', () => {
+    // Owner's spec (updated 2026-10-24): 1v1 opponents always sit diagonally opposite.
+    const isDiagonal = (c1: string, c2: string) =>
+        (c1 === 'BL' && c2 === 'TR') || (c1 === 'TR' && c2 === 'BL') ||
+        (c1 === 'BR' && c2 === 'TL') || (c1 === 'TL' && c2 === 'BR');
+    for (let i = 0; i < 20; i++) {
+        const cc = assignCornersForShape('1v1');
+        assert.ok(isDiagonal(cc.green, cc.yellow), '1v1 opponents must sit diagonally opposite');
     }
 });
 

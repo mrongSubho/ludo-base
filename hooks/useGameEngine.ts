@@ -6,7 +6,7 @@ import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import confetti from 'canvas-confetti';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { PlayerColor, PowerType, BotDifficulty, GameState, GameIntent } from '@/lib/types';
-import { Point, PathCell, ColorCorner, assignCornersFFA, assignCorners2v2, shufflePlayers } from '@/lib/boardLayout';
+import { Point, PathCell, ColorCorner, assignCornersForShape, shufflePlayers } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
 import { useAudio } from '../app/hooks/useAudio';
 import {
@@ -285,7 +285,12 @@ export function useGameEngine({
         localGameState,
         setLocalGameState,
         matchConnectionStatus,
-        isNetworked: isLobbyConnected,
+        // A quick match never opens a P2P lobby, so `isLobbyConnected` is false
+        // by design while the Durable Object is the authority. Passing it alone
+        // told the timer this was an OFFLINE match, so it drove the local turn
+        // clock and advanced phases on a board the server had never moved —
+        // the second half of the "stalls after the first die" divergence.
+        isNetworked: isLobbyConnected || roomAuthority,
         hasAuthoritativeSnapshot,
     });
 
@@ -362,6 +367,31 @@ export function useGameEngine({
     // the seq-advance effect below, so this one ran first and made that one
     // unreachable — while also clobbering the host-only local fields the
     // careful merge below preserves (powerTiles types, matchId, UI state).
+    //
+    // ── But the replacement never arrived ──────────────────────────────────
+    //
+    // Deleting it left this hook the ONLY copy of the board, while the room's
+    // fan-out was merged into the CONTEXT's `gameState`. So the two diverged
+    // permanently: QuickMatchPanel read the context and opened the board, while
+    // `Board` rendered this hook's `INITIAL_GAME_STATE` forever — every token at
+    // home, "ROLL TO START", and a roll that resolved against a board the server
+    // had never seen. The match stalled after the first die.
+    //
+    // The careful merge is already done for us: `applyServerState` (NET-24/PW-2)
+    // re-attaches powerTiles types and playerPowers types before writing the
+    // context, so `networkGameState` is safe to adopt wholesale. Only genuinely
+    // local fields are preserved.
+    useEffect(() => {
+        if (!roomAuthority || !networkGameState) return;
+        setLocalGameState(prev => ({
+            ...prev,
+            ...networkGameState,
+            // ENG-11: the respawn seed is minted locally and never crosses the
+            // wire — keep the local copy so replacement tiles stay stable.
+            powerTileSeed: prev.powerTileSeed ?? networkGameState.powerTileSeed,
+            lastUpdate: Date.now(),
+        }));
+    }, [roomAuthority, networkGameState]);
 
     // Authorize the player's whole match as soon as the host publishes the
     // authoritative match id. This keeps the wallet prompt in the pre-match
@@ -466,7 +496,9 @@ export function useGameEngine({
     }, [isAuthority, lastIntent, handleRoll, moveToken, handleUsePower, toggleAutoPlay, clearIntent, localGameState.diceValue]);
 
     const resetGame = useCallback(() => {
-        const newCC = playerCount === '2v2' ? assignCorners2v2() : assignCornersFFA(playerCount as '1v1' | '4P');
+        // One seating rule for every shape, same as the room's self-seed — a
+        // rematch must not seat differently from the match it replaces.
+        const newCC = assignCornersForShape(playerCount);
         // Preserve seating mode: a single-human (offline/bot-seated) board stays bot-seeded;
         // real multiplayer boards keep template shuffling.
         const offlineSeeded = initialPlayers.filter(p => !p.isAi).length === 1;

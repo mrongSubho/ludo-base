@@ -214,19 +214,36 @@ describe('Phase S3 — Match Room Two-Client Synchronization & Self-Seeding', ()
         })
       );
 
-      // Room must broadcast state at seq = 1 to BOTH Client A and Client B
+      // Room must send intent_ack to the roller and broadcast state at seq = 1
+      // to BOTH Client A and Client B.
       const latestMsgA = serverSockA.getLastMessage();
       const latestMsgB = serverSockB.getLastMessage();
 
-      assert.equal(latestMsgA?.t, 'state');
-      assert.equal(latestMsgB?.t, 'state');
-      assert.equal(latestMsgA?.seq, 1);
-      assert.equal(latestMsgB?.seq, 1);
+      assert.equal(latestMsgA?.t, 'intent_ack', 'roller must get intent_ack');
+      assert.equal(latestMsgB?.t, 'state', 'other client must get state broadcast');
 
-      const rolledStateA = latestMsgA?.state as GameState;
-      const rolledStateB = latestMsgB?.state as GameState;
+      const stateMsgA = serverSockA.messages.map((m) => JSON.parse(m)).find((m) => m.t === 'state' && m.seq === 1);
+      const stateMsgB = serverSockB.messages.map((m) => JSON.parse(m)).find((m) => m.t === 'state' && m.seq === 1);
+      assert.ok(stateMsgA, 'Client A must receive state broadcast at seq 1');
+      assert.ok(stateMsgB, 'Client B must receive state broadcast at seq 1');
+
+      const rolledStateA = stateMsgA?.state as GameState;
+      const rolledStateB = stateMsgB?.state as GameState;
       assert.deepEqual(rolledStateA, rolledStateB, 'Both clients must receive identical roll state');
-      assert.ok(rolledStateA.diceValue !== null && rolledStateA.diceValue >= 1 && rolledStateA.diceValue <= 6);
+      // Two valid post-roll shapes:
+      //  - legal moves (a six from yard, or tokens out): same player, phase
+      //    'moving', the face still showing;
+      //  - auto-pass (no legal moves, not a six): turn advanced, phase
+      //    'rolling', diceValue RESET to null — a stale face here used to
+      //    freeze the next player's Roll button (it gates on diceValue===null).
+      const advanced = rolledStateA.currentPlayer !== 'green';
+      if (advanced) {
+        assert.equal(rolledStateA.diceValue, null, 'auto-pass must reset the face for the next player');
+        assert.equal(rolledStateA.gamePhase, 'rolling');
+      } else {
+        assert.ok(rolledStateA.diceValue !== null && rolledStateA.diceValue >= 1 && rolledStateA.diceValue <= 6);
+        assert.equal(rolledStateA.gamePhase, 'moving');
+      }
 
       // ── Step 5: The player who is NOT the current player attempts REQUEST_ROLL ──
       // If Client A rolled a non-six from yard, engine auto-advanced to Yellow.

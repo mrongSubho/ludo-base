@@ -22,13 +22,43 @@ E  quality residuals ── independent, cheap
 G/I owner decisions & later product ── external
 ```
 
-**Priority queue:** ① A1 / DO operational proof → ② F0 (CHAIN-01..03 blockers) → ③ B (UI sweep) → ④ F1 (Sepolia funded acceptance) → ⑤ C1–C4 → ⑥ E1/E2/E4 → ⑦ D (schedule hardware) → ⑧ G/H/I (owner/external).
+**Priority queue:** ~~① A1 / DO operational proof~~ (done) → ~~② F0~~ (closed 2026-10-20) → ③ B (UI sweep) → ④ F1 (Sepolia funded acceptance) → ⑤ C1–C4 → ⑥ E1/E2/E4 → ⑦ D (schedule hardware) → ⑧ G/H/I (owner/external).
 
 ---
 
-## Track A — Server-authority migration (P0; largest deferred engineering; **not started**)
+## Track A — Server-authority migration (P0; **A1 + A2 closed, room path live**)
 
-Verified evidence: `wrangler.jsonc` has `main: ".open-next/worker.js"`, **no** `durable_objects`, **no** `migrations`; `src/worker.ts` does not exist. The P0 spike is the gate — nothing in A3/A4 may be designed before it passes.
+**Status 2026-10-24** (supersedes the 2026-10-15 evidence below, which predates the DO landing):
+`wrangler.jsonc` has `main: "src/worker.ts"`, `durable_objects` (`MATCH_ROOM`→`MatchRoom`,
+`RATE_LIMITER`→`RateLimitDO`), a `new_sqlite_classes` migration, and a cron trigger. A1 is done;
+A2 is done (see below); the room WS path is live and verified end-to-end (`/api/room/:id/ws`,
+ticket auth via `/api/auth/match`, two-client roll committed). A4 is **partially** done: roll
+minting, move resolution (`resolveNetworkedMove`) and power application run in-process in the
+MatchRoom DO; remaining A4 work is the `match_commit_action` relocation, DO-alarm clock/AI turns,
+and the third engine copy + `check:engine` target.
+
+### ~~A1 — P0 spike: custom worker entry + DO wiring~~ (**Closed**)
+
+Closed: `src/worker.ts` (OpenNext re-export + `MatchRoom`/`RateLimitDO` + cron
+`handleScheduledCleanups`), DO bindings + `new_sqlite_classes` migration in `wrangler.jsonc`,
+deployed and serving the live room path. Full prose in `IMPLEMENTATION_RECORD.md` (2026-10-24
+MatchRoom entries). Original spec retained below for reference.
+
+### ~~A2 — P1 foundations: rate limiting + paid baseline~~ (**Closed 2026-10-24**)
+
+Closed per §5-P1's "native binding first": six simple-mode native Rate Limiting bindings
+(`RL_MUT10`…`RL_MUT120`) in `wrangler.jsonc`, consumed by an async `middleware.ts` on the
+allowed path after the in-process check (`lib/rateLimitNative.ts` fails open to the in-process
+floor). Reads stay in-process. Documented accuracy finding: the native binding is approximate
+and per-location — the effective mutation budget is ≈`limit × locations` (was `limit ×
+isolates`); a strict global limit would need the built-and-bound `RateLimitDO` (explicitly
+deferred). Four new pins in `scripts/rate-limit.test.ts` (tier coverage, wrangler↔map parity,
+fail-open wrapper, middleware ordering). Live-verified: binding engaged on every mutation;
+burst on `/api/siwe/verify` returns 429 at the configured rate. Full prose in
+`IMPLEMENTATION_RECORD.md` ("A2 — Distributed mutation rate limiting"). Workers Paid remains a
+deployment/owner item, unchanged.
+
+Original spec retained below for reference.
 
 ### A1 — P0 spike: custom worker entry + DO wiring
 
@@ -52,7 +82,12 @@ Spec: plan §5-P1 (CF native Rate Limiting binding **first**; DO counters only i
 
 **Verify:** binding present in `wrangler.jsonc`; a burst against one mutation route returns 429 at the configured rate; `scripts/rate-limit.test.ts` green; `npm test` green.
 
-### A3 — P3: room as transport/`seq`/fan-out/reconnect — **a pure HTTP proxy of the untouched Edge functions**
+### A3 — P3: room as transport/`seq`/fan-out/reconnect — **largely done; remaining: live drills + latency re-measure**
+
+The transport itself (ticket auth, `seq`, fan-out, state frames) is live and verified end-to-end
+with two clients (2026-10-24). What remains from the original spec: the reconnect/seq drill runs
+against production (`npm run test:netcode` locally green), the §4.11 latency breakdown re-measure,
+and the §4.9 failure-row audit. Original spec retained below for reference.
 
 Hard rule: do **not** refactor `move-auth` in P3 (`match_commit_action` relocation moved to P4). Specs: §4.4 (concurrency), §4.13 (local dev), §4.5/4.7 (WS auth), §4.9 (failure rows), §4.11 (latency), §5-P3, matrix §3B/§6/§10.
 
@@ -62,7 +97,13 @@ Hard rule: do **not** refactor `move-auth` in P3 (`match_commit_action` relocati
 
 **Verify:** DO concurrency tests green inside `npm run test:concurrency`; reconnect/seq drills green (`npm run test:netcode`); the ~180–350 ms cross-cloud latency breakdown from §4.11 re-measured; `npm run check:engine` still green (one engine unchanged); `npm test` green.
 
-### A4 — P4: relocation, clock, and server-originated flows
+### A4 — P4: relocation, clock, and server-originated flows — **partially done**
+
+In-process in the MatchRoom DO already: roll minting (`roll_minted`), move resolution via
+`resolveNetworkedMove` (capture/traps/boosts/three-sixes/power pickup), power application, and
+turn timers scheduled through the timer heap. Remaining: relocate `match_commit_action`
+(atomic RPC), DO alarms as the clock + AI turns, server-originated settle/record/stream, and the
+engine third copy with the `check:engine` third target. Original spec retained below.
 
 Spec: §5-P4, matrix §3B/§6/§10.
 
@@ -167,7 +208,10 @@ npm run drill:live                                     # live netcode drills (ne
 
 ## Appendix — verified evidence for the statuses above (2026-10-15)
 
-- `wrangler.jsonc`: `main = .open-next/worker.js`, no `durable_objects`, no `migrations`; `src/worker.ts` absent → Track A not started.
+- `wrangler.jsonc` (2026-10-15 evidence, **superseded**): `main = .open-next/worker.js`, no
+  `durable_objects`, no `migrations`; `src/worker.ts` absent → Track A not started. **As of
+  2026-10-24** the opposite holds: `main = src/worker.ts`, DO bindings + migration present, A1/A2
+  closed, room path live — see the Track A status block above.
 - `node_modules/playwright` present + chromium-1208 cached → Track C unblocked; visual gates run locally.
 - "Scoped spacing repair" = 0; `useIsDaybreak` = 0 code refs; Daybreak status tokens corrected (`#92400e/#166534/#b91c1c`) → reset layering + design P1/P2/P3 landed.
 - Only real code TODO in `lib/`: the `builderCode.ts` placeholder (E4); the `@deprecated` marks are intentional decrypt-only legacy paths guarded by tests.

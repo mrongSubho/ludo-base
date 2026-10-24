@@ -107,8 +107,13 @@ test('REA-07: a mid-match toggle reaches every mounted consumer', () => {
                 ),
             );
         });
-        assert.equal(seen.a, 'pawn');
-        assert.equal(seen.b, 'pawn');
+        // The invariant is propagation, not the default. Read whatever the
+        // default currently is and toggle away from it — a test pinned to
+        // 'pawn' breaks every time the default changes, which is exactly what
+        // happened when orb became the default.
+        const initial = seen.a;
+        const other = initial === 'orb' ? 'pawn' : 'orb';
+        assert.equal(seen.b, initial, 'both readers must see the same initial value');
 
         // Toggle through a THIRD instance (the settings panel), the way the
         // real bug manifested: only the setter re-rendered.
@@ -123,11 +128,11 @@ test('REA-07: a mid-match toggle reaches every mounted consumer', () => {
             writer = TestRenderer.create(React.createElement(Grab, null));
         });
         act(() => {
-            captured!('token-style', 'orb');
+            captured!('token-style', other);
         });
 
-        assert.equal(seen.a, 'orb', 'reader A must follow the toggle');
-        assert.equal(seen.b, 'orb', 'reader B must follow the toggle');
+        assert.equal(seen.a, other, 'reader A must follow the toggle');
+        assert.equal(seen.b, other, 'reader B must follow the toggle');
         root!.unmount();
         writer!.unmount();
     } finally {
@@ -143,7 +148,8 @@ test('REA-07: an unmounted consumer stops receiving toggles', () => {
         act(() => {
             root = TestRenderer.create(React.createElement(Reader, { id: 'solo', seen }));
         });
-        assert.equal(seen.solo, 'pawn');
+        const initial = seen.solo;
+        const other = initial === 'orb' ? 'pawn' : 'orb';
         root!.unmount();
 
         let captured: ((k: 'token-style', v: string) => void) | null = null;
@@ -158,7 +164,7 @@ test('REA-07: an unmounted consumer stops receiving toggles', () => {
         });
         // Must not throw after the reader is gone (listener leak check).
         act(() => {
-            captured!('token-style', 'orb');
+            captured!('token-style', other);
         });
         writer!.unmount();
     } finally {
