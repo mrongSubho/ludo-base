@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { buildEcdhMessage, ecdhKeyFingerprint, isFreshIssuedAt } from '@/lib/matchProof';
 import { verifyPersonalSign } from '@/lib/walletVerify';
-import { requireSessionWallet, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
 import { canonicalizeP256Jwk } from '@/lib/validation/ecdhJwk';
 import type { Json } from '@/types/database.types';
 
@@ -53,6 +53,12 @@ export async function POST(request: Request) {
         const canonical = canonicalizeP256Jwk(publicKey);
         if (!canonical.ok) {
             return NextResponse.json({ error: canonical.error }, { status: 400 });
+        }
+
+        const provErr = await ensurePlayerRow(recovered);
+        if (provErr) {
+            console.error('[ecdh] player provision failed', recovered, provErr);
+            return NextResponse.json({ error: 'Could not provision player profile' }, { status: 500 });
         }
 
         // Service role: players writes are default-deny; proof is the wallet

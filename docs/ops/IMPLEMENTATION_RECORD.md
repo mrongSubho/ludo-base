@@ -2761,3 +2761,23 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - In `hooks/useDataBoot.ts`, `messages` state merges local outbox messages with server messages during initial hydration and refresh, so failed messages remain in the chat thread with retry capability across page reloads and tab navigation.
    - In `hooks/GameDataContext.tsx`, `transformConvos` synthesizes conversations for peers with local/outbox messages who aren't yet in `rawConversations`, and updates existing conversations with the latest local/outbox message content.
    - Deleting a message via `deleteMessageLocal` purges it from the outbox; successful sends clear the outbox entry automatically.
+
+### 5. Resolution of E2EE Key Registration Failure & Realtime Delivery (2026-10-25)
+1. **Root Cause Analysis (Repetitive Modal & "Recipient hasn't registered keys")**:
+   - `exportPublicKeyJwk` in `lib/encryption.ts` exported raw WebCrypto JWKs, which inherently include `key_ops: []` and `ext: true`.
+   - On `POST /api/profile/ecdh`, the SEC-25 validator `canonicalizeP256Jwk` strictly rejected any JWK containing `key_ops` or `ext` with HTTP 400.
+   - As a result, `/api/profile/ecdh` failed on every single attempt: `localStorage.setItem('ludo-ecdh-published', ...)` was never reached, and `players.ecdh_pubkey` remained `null` for all users in Supabase.
+   - On CDP in-game wallets: `publishMyEcdhPubkey` re-ran on every send gesture, displaying `SignWaitModal` for ~1s while `autoSign` executed, repeating endlessly.
+   - On external wallets (MetaMask): re-prompted `personal_sign` on every send.
+   - Senders attempting to DM any recipient failed at `fetchPeerEcdhPubkey` returning null, surfacing `"Recipient hasn't registered encryption keys yet. Ask them to open messages."`.
+2. **Canonical Public JWK Serialization** — [`lib/encryption.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/encryption.ts):
+   - `exportPublicKeyJwk` now constructs a canonical RFC 7517 object `{ kty: 'EC', crv: 'P-256', x: raw.x, y: raw.y }`, stripping WebCrypto runtime metadata (`key_ops`, `ext`) so `canonicalizeP256Jwk` validates and persists the key.
+3. **Player Profile Provisioning** — [`app/api/profile/ecdh/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/profile/ecdh/route.ts):
+   - Added `ensurePlayerRow(recovered)` prior to updating `players.ecdh_pubkey`, guaranteeing foreign key integrity for fresh accounts.
+4. **App Session Caching & Robust Comparison** — [`hooks/useDataActions.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useDataActions.ts):
+   - In `sendMessage`, replaced brittle `JSON.stringify` comparison with field-level coordinate matching (`x`, `y`, `crv`).
+   - Removed unnecessary `force: true` from initial send so valid cached app sessions are reused without re-triggering authentication prompts.
+5. **Universal Realtime DM Delivery** — [`hooks/useDataActions.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useDataActions.ts), [`hooks/GameDataContext.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/GameDataContext.tsx):
+   - Sender broadcasts delivery notifications to `dm-inbox-${targetId}` upon successful insertion.
+   - `GameDataContext` maintains an active subscription to `dm-inbox-${lowerAddr}` across the entire app lifecycle, triggering `refreshMessages()` upon receipt so messages, conversation previews, and unread counts update in real time without requiring the user to have that specific thread pre-opened.
+   - In-game wallets (`mode === 'ingame'`) automatically register ECDH keys in the background on initial session grant via silent passkey signing.

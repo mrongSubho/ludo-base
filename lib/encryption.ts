@@ -203,10 +203,19 @@ export async function getOrCreateIdentityKey(ownerId: string): Promise<CryptoKey
     return pair;
 }
 
-/** Export static public key as JWK for publishing / wire. */
+/** Export static public key as canonical JWK for publishing / wire. */
 export async function exportPublicKeyJwk(ownerId: string): Promise<JsonWebKey> {
     const pair = await getOrCreateIdentityKey(ownerId);
-    return crypto.subtle.exportKey('jwk', pair.publicKey);
+    const raw = await crypto.subtle.exportKey('jwk', pair.publicKey);
+    // SEC-25 / RFC 7517: return canonical P-256 public JWK (kty, crv, x, y only).
+    // WebCrypto subtly adds `key_ops: []` and `ext: true`, which strict
+    // canonicalizers (and `canonicalizeP256Jwk`) reject as unexpected members.
+    return {
+        kty: 'EC',
+        crv: 'P-256',
+        x: raw.x,
+        y: raw.y,
+    };
 }
 
 export function isSealedBox(value: unknown): value is SealedBox {

@@ -109,9 +109,11 @@ import { useDataSync } from './useDataSync';
 import { usePeerChat } from './usePeerChat';
 import { useDataActions } from './useDataActions';
 import { useAppSession } from './useAppSession';
+import { usePlayerSigner } from './usePlayerSigner';
 
 export const GameDataProvider = ({ children }: { children: ReactNode }) => {
     const { address } = useCurrentUser();
+    const player = usePlayerSigner();
     const { ready: isAppSessionReady, sessionId } = useAppSession();
     
     // 1. Data Boot / Hydration Hook
@@ -338,6 +340,29 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         setRawConversations,
         setupConnectionListeners
     });
+
+    // 5. DM Realtime Inbox Listener (updates inbox across entire app)
+    useEffect(() => {
+        if (!address) return;
+        const lowerAddr = address.toLowerCase();
+        const channel = supabase
+            .channel(`dm-inbox-${lowerAddr}`)
+            .on('broadcast', { event: 'message' }, () => {
+                void refreshMessages();
+            })
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [address, refreshMessages]);
+
+    // 6. Auto-publish ECDH key for in-game wallets on session grant (silent passkey)
+    useEffect(() => {
+        if (address && sessionId && player.mode === 'ingame') {
+            void ensureEcdhPublished();
+        }
+    }, [address, sessionId, player.mode, ensureEcdhPublished]);
 
     // --- CONVERSATION TRANSFORMATION ---
     useEffect(() => {

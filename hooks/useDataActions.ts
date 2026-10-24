@@ -9,6 +9,7 @@ import { DataConnection, Peer } from 'peerjs';
 import { buildEcdhMessage, ecdhKeyFingerprint } from '@/lib/matchProof';
 import { useAppSession } from './useAppSession';
 import { showAuthPrompt } from '@/hooks/useAuthPrompt';
+import { supabase } from '@/lib/supabase';
 import { SEND_ERROR_MESSAGE } from '@/lib/sendErrors';
 import { saveOutboxMessage, removeOutboxMessage } from '@/lib/messageOutbox';
 
@@ -52,6 +53,9 @@ async function publishMyEcdhPubkey(
             try {
                 localStorage.setItem(`ludo-ecdh-published-${walletAddress.toLowerCase()}`, '1');
             } catch { /* best-effort */ }
+        } else {
+            const errData = await res.json().catch(() => ({}));
+            console.error('[ecdh] publish failed', res.status, errData);
         }
     } catch (err) {
         console.warn('Failed to publish ECDH pubkey', err);
@@ -177,9 +181,7 @@ export const useDataActions = ({
         };
 
         try {
-            // Explicit user gesture: force=true bypasses any passive cooldown/backoff
-            // and ensures the SignWaitModal is displayed if session needs signing.
-            const dmSession = await ensureAppSession({ context: 'messaging', force: true });
+            const dmSession = await ensureAppSession();
             if (!dmSession) {
                 failMessage(SEND_ERROR_MESSAGE.auth);
                 return;
@@ -198,8 +200,13 @@ export const useDataActions = ({
             if (!ecdhAlreadyPublished(lowerAddr)) {
                 const localJwk = await exportPublicKeyJwk(lowerAddr);
                 const serverJwk = await fetchPeerEcdhPubkey(lowerAddr, dmSession, lowerAddr);
-                if (!serverJwk || JSON.stringify(serverJwk) !== JSON.stringify(localJwk)) {
+                const isMatch = serverJwk && serverJwk.x === localJwk.x && serverJwk.y === localJwk.y && serverJwk.crv === localJwk.crv;
+                if (!isMatch) {
                     await publishMyEcdhPubkey(lowerAddr, signMessageAsync);
+                } else {
+                    try {
+                        localStorage.setItem(`ludo-ecdh-published-${lowerAddr}`, '1');
+                    } catch { /* best-effort */ }
                 }
             }
 
@@ -278,6 +285,15 @@ export const useDataActions = ({
                     }
                     return m;
                 }));
+
+                // Nudge recipient's inbox topic so their client refetches immediately
+                try {
+                    void supabase.channel(`dm-inbox-${targetId.toLowerCase()}`).send({
+                        type: 'broadcast',
+                        event: 'message',
+                        payload: { from: lowerAddr, at: Date.now() },
+                    });
+                } catch { /* best-effort */ }
             }
 
         } catch (err) {
@@ -352,7 +368,8 @@ export const useDataActions = ({
 
             if (!ecdhAlreadyPublished(lowerAddr)) {
                 const serverJwk = await fetchPeerEcdhPubkey(lowerAddr, sid, lowerAddr);
-                if (serverJwk && JSON.stringify(serverJwk) === JSON.stringify(localJwk)) {
+                const isMatch = serverJwk && serverJwk.x === localJwk.x && serverJwk.y === localJwk.y && serverJwk.crv === localJwk.crv;
+                if (isMatch) {
                     try {
                         localStorage.setItem(`ludo-ecdh-published-${lowerAddr}`, '1');
                     } catch { /* best-effort */ }

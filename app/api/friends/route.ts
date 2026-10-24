@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- legacy wire/UI types; typed burn-down tracked in docs/ops/DEPLOY_OPS.md */
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { requireAppSession, requireSessionWallet, serviceDb } from '@/lib/serverAuth';
+import { requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 import { isWalletAddress, normalizeWallet } from '@/lib/validation/wallet';
 import { checkRateLimit, clientIp, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 
