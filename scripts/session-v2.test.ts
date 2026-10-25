@@ -76,7 +76,17 @@ test('Session v2: Token parser extracts from Cookie and Bearer header', () => {
     });
     assert.equal(parseSessionToken(bearerReq), token);
 
-    // 4. Missing token returns null
+    // 4. From custom header x-session-id
+    const xSessionReq = new Request('https://ludobase.com/api/profile', {
+        headers: { 'x-session-id': token },
+    });
+    assert.equal(parseSessionToken(xSessionReq), token);
+
+    // 5. From URL search query parameters (?sessionId= or ?token=)
+    const queryReq = new Request(`https://ludobase.com/api/messages?walletAddress=0x123&sessionId=${token}`);
+    assert.equal(parseSessionToken(queryReq), token);
+
+    // 6. Missing token returns null
     const emptyReq = new Request('https://ludobase.com/api/profile');
     assert.equal(parseSessionToken(emptyReq), null);
 });

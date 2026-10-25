@@ -133,6 +133,18 @@ export function parseSessionToken(request: Request): string | null {
     const xSession = request.headers.get('x-session-id') || request.headers.get('x-session-token');
     if (xSession) return xSession.trim();
 
+    // 4. Check URL search parameters (GET/HEAD requests or query fallback)
+    try {
+        const url = new URL(request.url);
+        const qSession =
+            url.searchParams.get('sessionId') ||
+            url.searchParams.get('token') ||
+            url.searchParams.get('session');
+        if (qSession) return qSession.trim();
+    } catch {
+        // ignore malformed URL
+    }
+
     return null;
 }
 

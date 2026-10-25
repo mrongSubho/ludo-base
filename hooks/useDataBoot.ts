@@ -59,7 +59,12 @@ export const useDataBoot = (address: string | undefined) => {
             // a private-section failure degrades to empty, everything else
             // still lands, and the caller learns it failed via `sectionsFailed`.
             const privateData = sessionId
-                ? fetch(`/api/messages?walletAddress=${encodeURIComponent(lowerAddr)}&sessionId=${encodeURIComponent(sessionId)}`).then(async res => {
+                ? fetch(`/api/messages?walletAddress=${encodeURIComponent(lowerAddr)}`, {
+                    headers: {
+                        Authorization: `Bearer ${sessionId}`,
+                        'x-session-id': sessionId,
+                    },
+                }).then(async res => {
                     if (!res.ok) throw new Error(`Messages API failed: ${res.status}`);
                     return res.json();
                 }).catch((err) => {
@@ -96,7 +101,12 @@ export const useDataBoot = (address: string | undefined) => {
             // so myProfile.coins survives default-deny (baseline grant excludes it).
             if (sessionId && profileRes.data) {
                 try {
-                    const svcRes = await fetch(`/api/profile?walletAddress=${encodeURIComponent(lowerAddr)}&sessionId=${encodeURIComponent(sessionId)}`);
+                    const svcRes = await fetch(`/api/profile?walletAddress=${encodeURIComponent(lowerAddr)}`, {
+                        headers: {
+                            Authorization: `Bearer ${sessionId}`,
+                            'x-session-id': sessionId,
+                        },
+                    });
                     if (svcRes.ok) {
                         const svc = await svcRes.json();
                         if (typeof svc?.coins === 'number') profileRes.data.coins = svc.coins;
@@ -248,7 +258,12 @@ export const useDataBoot = (address: string | undefined) => {
         const sessionId = peekAppSession();
         if (!sessionId) return;
         try {
-            const res = await fetch(`/api/messages?walletAddress=${encodeURIComponent(lowerAddr)}&sessionId=${encodeURIComponent(sessionId)}`);
+            const res = await fetch(`/api/messages?walletAddress=${encodeURIComponent(lowerAddr)}`, {
+                headers: {
+                    Authorization: `Bearer ${sessionId}`,
+                    'x-session-id': sessionId,
+                },
+            });
             if (!res.ok) return;
             const data = await res.json();
             if (data.conversations) setRawConversations(data.conversations);
