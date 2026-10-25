@@ -289,11 +289,13 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
     // Mark as read when opening a chat: durable DB mark + session-seen
     // (feeds the vanish ledger so read threads stay gone next session).
     useEffect(() => {
-        if (selectedChatId && activeChat?.unread) {
-            markAsRead(selectedChatId);
+        if (selectedChatId) {
             markThreadSeen(selectedChatId);
+            if (activeChat?.unread) {
+                markAsRead(selectedChatId);
+            }
         }
-    }, [selectedChatId, activeChat?.unread]);
+    }, [selectedChatId, activeChat?.unread, markAsRead, markThreadSeen]);
 
     // ── Client-side vanish ledger ──────────────────────────────────────
     // Server flags are best-effort (migration/RLS dependent). This ledger
@@ -319,7 +321,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         }
     }, [vanishedKey]);
 
-    // Whatever is read while this session lives stays visible this session…
+    // Whatever is in the active thread while this session lives stays visible this session…
     useEffect(() => {
         if (!selectedChatId || !address) return;
         const me = address.toLowerCase();
@@ -329,7 +331,7 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
             const s = m.sender_id.toLowerCase();
             const r = m.receiver_id.toLowerCase();
             if ((s === me && r === friend) || (s === friend && r === me)) {
-                if (m.is_read && !readThisSessionRef.current.has(m.id)) {
+                if (!readThisSessionRef.current.has(m.id)) {
                     readThisSessionRef.current.add(m.id);
                     changed = true;
                 }
@@ -412,11 +414,12 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
         // Belt-and-suspenders with the boot filter: never show own-flagged rows.
         if (m.sender_id.toLowerCase() === me && m.deleted_by_sender) return false;
         if (m.receiver_id.toLowerCase() === me && m.deleted_by_receiver) return false;
-        // Read earlier this session stays visible until you leave.
+        // Seen earlier this session stays visible until you leave.
         if (readThisSessionRef.current.has(m.id)) return true;
-        // Session rule: this session's messages + anything still unread.
-        if (!m.is_read) return true;
-        return new Date(m.created_at).getTime() >= new Date(sessionStartRef.current).getTime();
+        // Session rule: fresh messages created this session always show.
+        if (new Date(m.created_at).getTime() >= new Date(sessionStartRef.current).getTime()) return true;
+        // Only unread INCOMING messages from prior sessions survive to be read.
+        return m.receiver_id.toLowerCase() === me && !m.is_read;
     };
 
     const threadMessages = activeChat ? (() => {

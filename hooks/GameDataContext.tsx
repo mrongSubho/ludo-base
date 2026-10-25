@@ -227,8 +227,8 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         if (m.sender_id.toLowerCase() === me && m.deleted_by_sender) return false;
         if (m.receiver_id.toLowerCase() === me && m.deleted_by_receiver) return false;
         if (readThisSessionRef.current.has(m.id)) return true;
-        if (!m.is_read) return true;
-        return new Date(m.created_at).getTime() >= new Date(sessionStartRef.current).getTime();
+        if (new Date(m.created_at).getTime() >= new Date(sessionStartRef.current).getTime()) return true;
+        return m.receiver_id.toLowerCase() === me && !m.is_read;
     }, [address, vanishedIds]);
 
     // A thread is unread when the FRIEND has anything you haven't seen:
@@ -409,8 +409,9 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
 
                 // If local messages have a newer message (e.g. outbox/failed send), show it as lastMessage
                 const threadMsgs = messages.filter(m =>
-                    (m.sender_id.toLowerCase() === lowerAddr && m.receiver_id.toLowerCase() === otherId) ||
-                    (m.receiver_id.toLowerCase() === lowerAddr && m.sender_id.toLowerCase() === otherId)
+                    ((m.sender_id.toLowerCase() === lowerAddr && m.receiver_id.toLowerCase() === otherId) ||
+                    (m.receiver_id.toLowerCase() === lowerAddr && m.sender_id.toLowerCase() === otherId)) &&
+                    _isMessageVisible(m)
                 );
                 let latestMsg = decryptedLastMsg;
                 let latestTimestamp = date.getTime();
@@ -422,6 +423,8 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
                         latestTimestamp = localTime;
                         timeStr = formatTime(new Date(lastLocal.created_at));
                     }
+                } else if (unreadCount === 0 && decryptedLastMsg === '[Encrypted Message]') {
+                    latestMsg = '';
                 }
 
                 return {
@@ -486,7 +489,7 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
         };
 
         transformConvos();
-    }, [rawConversations, address, profilesMap, decryptStoredContent, messages, friends.acceptedFriends]);
+    }, [rawConversations, address, profilesMap, decryptStoredContent, messages, friends.acceptedFriends, _isMessageVisible]);
 
     // Session boundary: signing out (or switching wallets) wipes the
     // previous identity's chats, threads, and badges instantly. Boot
