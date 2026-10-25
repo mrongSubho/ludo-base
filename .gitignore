@@ -77,3 +77,7 @@ design-system/
 
 # Local migration ledger written by scripts/db/apply-migration.mjs
 .supabase-applied.json
+
+# Local research and APK dumps
+/research/
+
