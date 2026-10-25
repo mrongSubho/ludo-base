@@ -6,7 +6,7 @@ import { useAccount } from 'wagmi';
 import { supabase } from '@/lib/supabase';
 import { Peer, DataConnection } from 'peerjs';
 import { decryptAnyMessage, exportPublicKeyJwk, getOrCreateIdentityKey } from '@/lib/encryption';
-import { clearOutboxForPeer } from '@/lib/messageOutbox';
+import { clearOutboxForPeer, getSentPlaintext } from '@/lib/messageOutbox';
 import type { Json } from '@/types/database.types';
 
 // --- TYPES ---
@@ -268,10 +268,13 @@ export const GameDataProvider = ({ children }: { children: ReactNode }) => {
     // --- DECRYPTION HELPER ---
     const decryptStoredContent = useCallback(async (content: string, otherId: string) => {
         if (!address) return content;
+        const lower = address.toLowerCase();
+        const cachedSent = getSentPlaintext(lower, content);
+        if (cachedSent) return cachedSent;
         try {
             // Sealed box (v1 ECDH) or legacy wallet-hash body
             if (content.startsWith('{')) {
-                return await decryptAnyMessage(address.toLowerCase(), content, otherId.toLowerCase());
+                return await decryptAnyMessage(lower, content, otherId.toLowerCase());
             }
             return content;
         } catch (e) {

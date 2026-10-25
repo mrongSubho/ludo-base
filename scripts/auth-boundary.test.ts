@@ -479,6 +479,42 @@ test('CRY-06: v2 round-trip survives non-extractable storage', async () => {
     }
 });
 
+test('CRY-07: getOrCreateIdentityKey deduplicates concurrent parallel requests', async () => {
+    const { getOrCreateIdentityKey, clearIdentityKeyCacheForTest } = await import('../lib/encryption');
+    clearIdentityKeyCacheForTest();
+    const owner = '0x' + 'ee'.repeat(20);
+    const results = await Promise.all(Array.from({ length: 10 }, () => getOrCreateIdentityKey(owner)));
+    const first = results[0];
+    for (let i = 1; i < results.length; i++) {
+        assert.strictEqual(results[i], first, 'all concurrent calls must resolve to the identical keypair promise');
+    }
+});
+
+test('CRY-08: saveSentPlaintext caches and retrieves by message id and ciphertext', async () => {
+    const store = new Map<string, string>();
+    (globalThis as Record<string, unknown>).window = {};
+    (globalThis as Record<string, unknown>).localStorage = {
+        getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+        setItem: (k: string, v: string) => void store.set(k, String(v)),
+        removeItem: (k: string) => void store.delete(k),
+    };
+    try {
+        const { saveSentPlaintext, getSentPlaintext } = await import('../lib/messageOutbox');
+        const wallet = '0x' + '11'.repeat(20);
+        const msgId = 'msg-12345';
+        const ciphertext = JSON.stringify({ v: 2, epk: 'test', ct: 'abcd' });
+        const text = 'secret sent text';
+
+        saveSentPlaintext(wallet, msgId, text, ciphertext);
+        assert.equal(getSentPlaintext(wallet, msgId), text, 'retrievable by message ID');
+        assert.equal(getSentPlaintext(wallet, ciphertext), text, 'retrievable by ciphertext string');
+        assert.equal(getSentPlaintext(wallet, 'non-existent'), null, 'returns null for unknown keys');
+    } finally {
+        delete (globalThis as Record<string, unknown>).window;
+        delete (globalThis as Record<string, unknown>).localStorage;
+    }
+});
+
 // ── CDP MFA bridge: silent-hang fix (found live 2026-10-07) ─────────────────
 // CDP's withMfa awaits a deferred that only a fully-completed verifyPasskey
 // settles. The bridge swallowed every failure (`catch {}`), left `busy` set,

@@ -44,20 +44,32 @@ function storageKey(ownerId: string): string {
 const IDB_DB = 'ludo-ecdh';
 const IDB_STORE = 'keys';
 
+let idbPromise: Promise<IDBDatabase | null> | null = null;
+
 function idb(): Promise<IDBDatabase | null> {
     if (typeof indexedDB === 'undefined') return Promise.resolve(null);
-    return new Promise((resolve) => {
+    if (idbPromise) return idbPromise;
+    idbPromise = new Promise((resolve) => {
         try {
             const req = indexedDB.open(IDB_DB, 1);
             req.onupgradeneeded = () => {
                 req.result.createObjectStore(IDB_STORE);
             };
             req.onsuccess = () => resolve(req.result);
-            req.onerror = () => resolve(null);
+            req.onerror = () => {
+                idbPromise = null;
+                resolve(null);
+            };
+            req.onblocked = () => {
+                idbPromise = null;
+                resolve(null);
+            };
         } catch {
+            idbPromise = null;
             resolve(null);
         }
     });
+    return idbPromise;
 }
 
 async function idbGet(ownerId: string): Promise<CryptoKeyPair | null> {
@@ -91,11 +103,6 @@ async function idbPut(ownerId: string, pair: CryptoKeyPair): Promise<void> {
             resolve();
         }
     });
-    try {
-        db.close();
-    } catch {
-        /* best-effort */
-    }
 }
 
 /** Owner ids whose identity was regenerated since the last call. Consumed by
@@ -134,73 +141,92 @@ function b64decode(s: string): Uint8Array {
     return out;
 }
 
+const identityKeyCache = new Map<string, Promise<CryptoKeyPair>>();
+
+export function clearIdentityKeyCacheForTest(): void {
+    identityKeyCache.clear();
+    idbPromise = null;
+}
+
 /** Load or create this identity's static ECDH keypair. */
-export async function getOrCreateIdentityKey(ownerId: string): Promise<CryptoKeyPair> {
-    // 1. Opaque non-extractable pair in IndexedDB (CRY-06 steady state).
-    const stored = await idbGet(ownerId);
-    if (stored) return stored;
+export function getOrCreateIdentityKey(ownerId: string): Promise<CryptoKeyPair> {
+    const norm = ownerId.toLowerCase();
+    const existing = identityKeyCache.get(norm);
+    if (existing) return existing;
 
-    // 2. Legacy localStorage JWK (extractable, pre-CRY-06). Still valid —
-    // migrate it into IndexedDB so the next load takes path 1.
-    const key = storageKey(ownerId);
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
-    if (raw) {
-        try {
-            const parsed = JSON.parse(raw) as { publicKey: JsonWebKey; privateKey: JsonWebKey };
-            const publicKey = await crypto.subtle.importKey(
-                'jwk', parsed.publicKey, { name: CURVE, namedCurve: NAMED_CURVE }, true, []
-            );
-            const privateKey = await crypto.subtle.importKey(
-                'jwk', parsed.privateKey, { name: CURVE, namedCurve: NAMED_CURVE }, true, ['deriveBits']
-            );
-            const pair = { publicKey, privateKey };
-            await idbPut(ownerId, pair);
+    const promise = (async () => {
+        // 1. Opaque non-extractable pair in IndexedDB (CRY-06 steady state).
+        const stored = await idbGet(norm);
+        if (stored) return stored;
+
+        // 2. Legacy localStorage JWK (extractable, pre-CRY-06). Still valid —
+        // migrate it into IndexedDB so the next load takes path 1.
+        const key = storageKey(norm);
+        const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw) as { publicKey: JsonWebKey; privateKey: JsonWebKey };
+                const publicKey = await crypto.subtle.importKey(
+                    'jwk', parsed.publicKey, { name: CURVE, namedCurve: NAMED_CURVE }, true, []
+                );
+                const privateKey = await crypto.subtle.importKey(
+                    'jwk', parsed.privateKey, { name: CURVE, namedCurve: NAMED_CURVE }, true, ['deriveBits']
+                );
+                const pair = { publicKey, privateKey };
+                await idbPut(norm, pair);
+                return pair;
+            } catch {
+                // Stored JWK unusable — fall through and regenerate below.
+                // markRegenerated fires there, forcing an immediate republish.
+            }
+        }
+
+        // 3. Fresh identity: non-extractable, persisted as an opaque key object.
+        // generateKey throwing propagates — callers mark the send failed (UI state)
+        // rather than proceeding with no identity. The pair is returned ONLY when
+        // a read-back proves it is durably stored; otherwise the legacy fallback
+        // below applies, so a silent store failure can never strand DMs on a key
+        // that vanishes at reload.
+        const pair = (await crypto.subtle.generateKey(
+            { name: CURVE, namedCurve: NAMED_CURVE },
+            false,
+            ['deriveKey', 'deriveBits']
+        )) as CryptoKeyPair;
+        await idbPut(norm, pair);
+        if (await idbGet(norm)) {
+            markRegenerated(norm);
             return pair;
-        } catch {
-            // Stored JWK unusable — fall through and regenerate below.
-            // markRegenerated fires there, forcing an immediate republish.
         }
-    }
 
-    // 3. Fresh identity: non-extractable, persisted as an opaque key object.
-    // generateKey throwing propagates — callers mark the send failed (UI state)
-    // rather than proceeding with no identity. The pair is returned ONLY when
-    // a read-back proves it is durably stored; otherwise the legacy fallback
-    // below applies, so a silent store failure can never strand DMs on a key
-    // that vanishes at reload.
-    const pair = (await crypto.subtle.generateKey(
-        { name: CURVE, namedCurve: NAMED_CURVE },
-        false,
-        ['deriveKey', 'deriveBits']
-    )) as CryptoKeyPair;
-    await idbPut(ownerId, pair);
-    if (await idbGet(ownerId)) {
-        markRegenerated(ownerId);
+        // 4. No opaque storage (SSR/tests/private mode): legacy extractable JWK in
+        // localStorage so DMs still work where opaque storage cannot.
+        if (typeof localStorage !== 'undefined') {
+            try {
+                // A fresh legacy extractable pair for this fallback only.
+                const legacy = (await crypto.subtle.generateKey(
+                    { name: CURVE, namedCurve: NAMED_CURVE },
+                    true,
+                    ['deriveKey', 'deriveBits']
+                )) as CryptoKeyPair;
+                const legacyPub = await crypto.subtle.exportKey('jwk', legacy.publicKey);
+                const legacyPriv = await crypto.subtle.exportKey('jwk', legacy.privateKey);
+                localStorage.setItem(key, JSON.stringify({ publicKey: legacyPub, privateKey: legacyPriv }));
+                markRegenerated(norm);
+                return legacy;
+            } catch {
+                // Storage unavailable — session-only identity.
+            }
+        }
+
+        markRegenerated(norm);
         return pair;
-    }
+    })();
 
-    // 4. No opaque storage (SSR/tests/private mode): legacy extractable JWK in
-    // localStorage so DMs still work where opaque storage cannot.
-    if (typeof localStorage !== 'undefined') {
-        try {
-            // A fresh legacy extractable pair for this fallback only.
-            const legacy = (await crypto.subtle.generateKey(
-                { name: CURVE, namedCurve: NAMED_CURVE },
-                true,
-                ['deriveKey', 'deriveBits']
-            )) as CryptoKeyPair;
-            const legacyPub = await crypto.subtle.exportKey('jwk', legacy.publicKey);
-            const legacyPriv = await crypto.subtle.exportKey('jwk', legacy.privateKey);
-            localStorage.setItem(key, JSON.stringify({ publicKey: legacyPub, privateKey: legacyPriv }));
-            markRegenerated(ownerId);
-            return legacy;
-        } catch {
-            // Storage unavailable — session-only identity.
-        }
-    }
-
-    markRegenerated(ownerId);
-    return pair;
+    identityKeyCache.set(norm, promise);
+    promise.catch(() => {
+        identityKeyCache.delete(norm);
+    });
+    return promise;
 }
 
 /** Export static public key as canonical JWK for publishing / wire. */

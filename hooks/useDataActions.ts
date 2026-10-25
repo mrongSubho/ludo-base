@@ -11,7 +11,7 @@ import { useAppSession } from './useAppSession';
 import { showAuthPrompt } from '@/hooks/useAuthPrompt';
 import { supabase } from '@/lib/supabase';
 import { SEND_ERROR_MESSAGE } from '@/lib/sendErrors';
-import { saveOutboxMessage, removeOutboxMessage } from '@/lib/messageOutbox';
+import { saveOutboxMessage, removeOutboxMessage, saveSentPlaintext } from '@/lib/messageOutbox';
 
 interface ActionProps {
     address: string | undefined;
@@ -275,6 +275,9 @@ export const useDataActions = ({
                 failMessage(error?.message || SEND_ERROR_MESSAGE.server);
             } else {
                 removeOutboxMessage(lowerAddr, tempId);
+                if (data?.id) {
+                    saveSentPlaintext(lowerAddr, data.id, content, JSON.stringify(encrypted));
+                }
                 setMessages(prev => prev.map(m => {
                     if (m.id === tempId) {
                         const merged = { ...(data || optimisticMsg) };

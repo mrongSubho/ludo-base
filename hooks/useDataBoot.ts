@@ -6,7 +6,7 @@ import { getProgression } from '@/lib/progression';
 import { UserProfile, LeaderboardEntry, Friend, MessageData } from './GameDataContext';
 import { supabase } from '@/lib/supabase';
 import { useAppSession } from './useAppSession';
-import { loadOutbox } from '@/lib/messageOutbox';
+import { loadOutbox, getSentPlaintext } from '@/lib/messageOutbox';
 
 /**
  * REA-03: cheap structural compare for the identity fields the realtime
@@ -183,7 +183,12 @@ export const useDataBoot = (address: string | undefined) => {
             // Process Messages
             if (privateRes.messages) {
                 const decryptedMessages = await Promise.all(privateRes.messages.map(async (m: any) => {
-                    const otherId = m.sender_id.toLowerCase() === lowerAddr ? m.receiver_id : m.sender_id;
+                    const isMe = m.sender_id.toLowerCase() === lowerAddr;
+                    if (isMe) {
+                        const cached = getSentPlaintext(lowerAddr, m.id) || getSentPlaintext(lowerAddr, m.content);
+                        if (cached) return { ...m, content: cached };
+                    }
+                    const otherId = isMe ? m.receiver_id : m.sender_id;
                     return {
                         ...m,
                         content: await decryptStoredContent(m.content, otherId)
@@ -270,7 +275,12 @@ export const useDataBoot = (address: string | undefined) => {
             if (!data.messages) return;
 
             const decrypted = await Promise.all((data.messages as MessageData[]).map(async (m) => {
-                const otherId = m.sender_id.toLowerCase() === lowerAddr ? m.receiver_id : m.sender_id;
+                const isMe = m.sender_id.toLowerCase() === lowerAddr;
+                if (isMe) {
+                    const cached = getSentPlaintext(lowerAddr, m.id) || getSentPlaintext(lowerAddr, m.content);
+                    if (cached) return { ...m, content: cached };
+                }
+                const otherId = isMe ? m.receiver_id : m.sender_id;
                 return { ...m, content: await decryptStoredContent(m.content, otherId) };
             }));
 

@@ -82,3 +82,46 @@ export function clearOutboxForPeer(walletAddress: string, peerId: string): void 
         /* best-effort */
     }
 }
+
+// ─── Local cache for own-sent message plaintext ─────────────────────────────
+// Sealed boxes (ECDH v2) can only be decrypted by the recipient holding their
+// private key; the sender cannot decrypt their own box from the wire.
+// Persisting recent sent plaintexts locally allows the sender to re-read their
+// own sent messages across reloads/reboots within the session.
+
+const SENT_CACHE_PREFIX = 'ludo-sent-plaintext-';
+
+export function saveSentPlaintext(walletAddress: string, messageId: string, plaintext: string, ciphertext?: string): void {
+    if (typeof window === 'undefined' || !walletAddress || !messageId) return;
+    try {
+        const key = `${SENT_CACHE_PREFIX}${walletAddress.toLowerCase()}`;
+        const raw = localStorage.getItem(key);
+        const map: Record<string, string> = raw ? JSON.parse(raw) : {};
+        map[messageId] = plaintext;
+        if (ciphertext) {
+            map[ciphertext] = plaintext;
+        }
+        const keys = Object.keys(map);
+        if (keys.length > 400) {
+            for (let i = 0; i < keys.length - 400; i++) {
+                delete map[keys[i]];
+            }
+        }
+        localStorage.setItem(key, JSON.stringify(map));
+    } catch {
+        /* best-effort */
+    }
+}
+
+export function getSentPlaintext(walletAddress: string, keyOrId: string): string | null {
+    if (typeof window === 'undefined' || !walletAddress || !keyOrId) return null;
+    try {
+        const key = `${SENT_CACHE_PREFIX}${walletAddress.toLowerCase()}`;
+        const raw = localStorage.getItem(key);
+        if (!raw) return null;
+        const map: Record<string, string> = JSON.parse(raw);
+        return typeof map[keyOrId] === 'string' ? map[keyOrId] : null;
+    } catch {
+        return null;
+    }
+}
