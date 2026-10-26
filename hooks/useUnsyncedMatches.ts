@@ -1,0 +1,173 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useAccount, useChainId, useWriteContract } from "wagmi";
+import type { Hex } from "viem";
+import { missionSystemAddress, MISSION_SYSTEM_ABI } from "@/lib/missionSystem";
+import { useAppSession } from "@/hooks/useAppSession";
+import { parseChainId } from "@/lib/chains";
+
+export interface UnsyncedMatchItem {
+    match_id: string;
+    player_id: string;
+    won: boolean;
+    is_pvp: boolean;
+    captures: number;
+    played_at: string;
+}
+
+export function useUnsyncedMatches() {
+    const { address } = useAccount();
+    const chainIdRaw = useChainId();
+    const { writeContractAsync } = useWriteContract();
+    const { ensureAppSession } = useAppSession();
+
+    const [matches, setMatches] = useState<UnsyncedMatchItem[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchUnsynced = useCallback(async () => {
+        if (!address) {
+            setMatches([]);
+            return;
+        }
+        setIsLoading(true);
+        setError(null);
+        try {
+            const sessionId = await ensureAppSession({ context: 'missions' });
+            if (!sessionId) {
+                setMatches([]);
+                return;
+            }
+            const chainId = parseChainId(chainIdRaw) ?? 84532;
+            const res = await fetch(
+                `/api/matches/unsynced?walletAddress=${encodeURIComponent(address)}&chainId=${chainId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${sessionId}`,
+                        'x-session-id': sessionId,
+                    },
+                },
+            );
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData?.error || "Failed to fetch unsynced matches");
+            }
+            const data = await res.json();
+            setMatches(data?.matches ?? []);
+        } catch (err: unknown) {
+            console.error("[useUnsyncedMatches] fetch error:", err);
+            setError(err instanceof Error ? err.message : "Failed to load unsynced matches");
+        } finally {
+            setIsLoading(false);
+        }
+    }, [address, chainIdRaw, ensureAppSession]);
+
+    useEffect(() => {
+        void fetchUnsynced();
+    }, [fetchUnsynced]);
+
+    useEffect(() => {
+        const handleUpdate = () => {
+            void fetchUnsynced();
+        };
+        window.addEventListener("mission-update", handleUpdate);
+        return () => window.removeEventListener("mission-update", handleUpdate);
+    }, [fetchUnsynced]);
+
+    const syncOnChain = useCallback(async () => {
+        const sysAddr = missionSystemAddress();
+        if (!address || !sysAddr) {
+            setError("Wallet or MissionSystem not configured");
+            return null;
+        }
+        setIsSyncing(true);
+        setError(null);
+        try {
+            const sessionId = await ensureAppSession({ context: 'missions' });
+            if (!sessionId) {
+                throw new Error("Sign in to sync matches");
+            }
+            const chainId = parseChainId(chainIdRaw) ?? 84532;
+            const res = await fetch(
+                `/api/matches/unsynced?walletAddress=${encodeURIComponent(address)}&chainId=${chainId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${sessionId}`,
+                        'x-session-id': sessionId,
+                    },
+                },
+            );
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || "Failed to prepare match sync");
+
+            const { attestations, signatures, matches: pendingMatches } = data;
+            if (!attestations || attestations.length === 0) {
+                await fetchUnsynced();
+                return null;
+            }
+
+            const tx = await writeContractAsync({
+                address: sysAddr,
+                abi: MISSION_SYSTEM_ABI,
+                functionName: "syncFreeMatches",
+                args: [
+                    attestations.map((a: {
+                        matchId: Hex;
+                        player: `0x${string}`;
+                        won: number;
+                        isPvp: number;
+                        captures: number;
+                        playedAt: number;
+                        deadline: number;
+                    }) => ({
+                        matchId: a.matchId,
+                        player: a.player,
+                        won: a.won,
+                        isPvp: a.isPvp,
+                        captures: a.captures,
+                        playedAt: BigInt(a.playedAt),
+                        deadline: BigInt(a.deadline),
+                    })),
+                    signatures as Hex[],
+                ],
+            });
+
+            // Confirm sync with DB
+            const matchIds = pendingMatches.map((m: { match_id: string }) => m.match_id);
+            await fetch("/api/matches/sync-confirm", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    walletAddress: address,
+                    sessionId,
+                    matchIds,
+                    txHash: tx,
+                }),
+            }).catch((err) => console.error("sync-confirm network error:", err));
+
+            await fetchUnsynced();
+            window.dispatchEvent(new CustomEvent("mission-update"));
+            window.dispatchEvent(new CustomEvent("ludo-profile-refresh"));
+            return tx;
+        } catch (err: unknown) {
+            console.error("[useUnsyncedMatches] sync failed:", err);
+            const msg = err instanceof Error ? err.message : "Sync failed";
+            setError(msg);
+            throw err;
+        } finally {
+            setIsSyncing(false);
+        }
+    }, [address, chainIdRaw, ensureAppSession, fetchUnsynced, writeContractAsync]);
+
+    return {
+        matches,
+        count: matches.length,
+        isLoading,
+        isSyncing,
+        error,
+        fetchUnsynced,
+        syncOnChain,
+    };
+}

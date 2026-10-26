@@ -2819,3 +2819,39 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
     - **Sealed Box Asymmetry & Sent Plaintext Cache (CRY-08)**: ECDH P-256 sealed boxes on wire are mathematically encrypted exclusively for the recipient's private key (`deriveAesKeyV2(ephemeral.priv, recipient.pub)`). The sender's private key cannot decrypt wire boxes. Prior to reboot, senders saw their own plaintext in optimistic local memory, but on refresh/reboot, fetching their own wire boxes caused decryption failures falling back to `[Encrypted Message]`.
     - Implemented `saveSentPlaintext` and `getSentPlaintext` in `lib/messageOutbox.ts` to index sent plaintexts by both message ID and ciphertext string in local storage.
     - Wired `saveSentPlaintext` upon successful send in `useDataActions.ts`, and updated `useDataBoot.ts` (`bootSequence` and `refreshMessages`) and `GameDataContext.tsx` (`decryptStoredContent`) to resolve sender's own messages and conversation preview snippets from local cache before attempting wire decryption.
+
+### 7. On-Chain Settlement Relayer, Lazy Free-Match Sync, and 1:1 Pull-Based Mission Claims (2026-10-27)
+1. **De-Oracle & Server Gas Elimination**:
+   - Replaced the push oracle architecture (where the backend oracle paid gas for micro-actions and mission claims) with a sustainable on-chain architecture.
+   - Segmented match settlements into two sustainable execution models: Option 2 (Server Relayer funded by protocol rake) for paid matches and arena betting, and Option 3 (Lazy Settlement + Hybrid On-Chain Sync) for free matches.
+2. **Paid Match & Spectator Betting Settle Relayer (Option 2)** — [`lib/poolRelayer.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/poolRelayer.ts), [`app/api/chips/settle/relay/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/chips/settle/relay/route.ts):
+   - Created `relaySettlePool` to submit `MatchPool.settlePool` transactions on Base using an authorized relayer key (`POOL_RELAYER_PRIVATE_KEY` / `CHIPS_ESCROW_OPERATOR_KEY`).
+   - Settle transactions are automatically executed post-match and funded by the protocol rake (~$0.005 on Base), ensuring that even if all players immediately exit after a match, the prize pool and spectator betting pools are guaranteed to settle on-chain without requiring the winner to submit a transaction.
+   - Gated `/api/chips/settle/relay` with session authentication (`requireSessionWallet`), rate limiting (10 req/min in `RATE_LIMITS`), and state idempotency.
+3. **Lazy Settlement & Hybrid Free-Match Sync Queue (Option 3)** — [`supabase/migrations/202610270001_free_match_sync_queue.sql`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/supabase/migrations/202610270001_free_match_sync_queue.sql), [`app/api/match/record/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/match/record/route.ts):
+   - Created `player_free_matches` table (`match_id`, `player_id`, `won`, `is_pvp`, `captures`, `played_at`, `onchain_synced`, `sync_tx_hash`) with unique constraints on `(player_id, match_id)` and RLS policies.
+   - `app/api/match/record` queues free match records into `player_free_matches` with `onchain_synced = false`, eliminating server-side gas spends on zero-rake gameplay.
+4. **Cryptographic Attestations & Smart Contract Sync** — [`lib/freeMatchAttestation.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/freeMatchAttestation.ts), [`contracts/src/MissionSystem.sol`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/contracts/src/MissionSystem.sol):
+   - Defined EIP-712 structured data schema: `FreeMatchAttestation(bytes32 matchId,address player,uint8 won,uint8 isPvp,uint16 captures,uint256 playedAt,uint256 deadline)`.
+   - Built `GET /api/matches/unsynced` returning player's unsynced matches signed by the backend oracle key.
+   - In `MissionSystem.sol`, added `syncFreeMatches(FreeMatchAttestation[] calldata matchAttestations, bytes[] calldata sigs)`:
+     - Verifies EIP-712 signatures against `progressOracle`.
+     - Guarantees replay protection via `mapping(bytes32 => mapping(address => bool)) public matchSynced`.
+     - Validates that `att.player == msg.sender` (sender pays their own gas).
+     - Accrues mission progress on-chain for active daily and weekly missions.
+   - Built `POST /api/matches/sync-confirm` to mark confirmed matches as `onchain_synced = true` upon transaction confirmation.
+5. **Strict 1:1 Pull-Based Mission Claims & Sunday UTC Rollover Forfeiture** — [`contracts/src/MissionSystem.sol`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/contracts/src/MissionSystem.sol):
+   - Aligned periodic cycles: `DAY` resets at UTC midnight (`block.timestamp / 1 days`); `WEEK` resets strictly on Sunday 00:00:00 UTC (`(block.timestamp + 4 days) / 7 days`), accounting for Thursday Epoch Day 0.
+   - Decoupled `_complete` from push transfers; completed missions record `claimableReward` and require explicit pull claims.
+   - Implemented `claimMission(bytes32 missionId)`: players claim missions individually (1:1), directly interacting with the contract and paying gas.
+   - Enforced strict period expiration: unclaimed rewards from past days or weeks are forfeited when the period advances. Late-synced matches from prior periods do not revive expired daily or weekly rewards.
+   - Added `isClaimed(address wallet, bytes32 missionId)` view method to query individual claim status on-chain.
+6. **Frontend Integration & Unsynced Matches Hub** — [`hooks/useUnsyncedMatches.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useUnsyncedMatches.ts), [`app/components/UnsyncedMatchesPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/UnsyncedMatchesPanel.tsx), [`app/components/MissionPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MissionPanel.tsx):
+   - Built `UnsyncedMatchesPanel` showing live count of unsynced free matches, expandable match details (wins, captures, timestamps), and a "Sync On-Chain" button that batch-submits attestations to `MissionSystem.syncFreeMatches`.
+   - Integrated `UnsyncedMatchesPanel` into `MissionPanel`, seamlessly allowing users to sync their gameplay before claiming mission rewards.
+   - Updated `useMissionVoucherClaim` and `MissionPanel` to invoke `MissionSystem.claimMission` individually per mission with user-paid transactions.
+7. **Verification & Test Coverage**:
+   - Foundry: 104/104 tests passing in `contracts/test` (including day/week rollover forfeiture, replay protection, late-sync forfeiture, and EIP-712 verification in `MissionSystem.t.sol`).
+   - Engine & Auth Suite: 549/549 passing tests in `npm test` across all 60 test suites.
+   - TypeScript: 0 compilation errors (`npx tsc --noEmit`).
+   - ESLint: 0 errors across all modified and new modules (`npx eslint`).

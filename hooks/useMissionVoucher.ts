@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useAccount, useWriteContract, useChainId } from "wagmi";
 import type { Address, Hex } from "viem";
 import { missionClaimAddress } from "@/lib/missionVoucher";
+import { missionSystemAddress, missionIdBytes32, MISSION_SYSTEM_ABI } from "@/lib/missionSystem";
 import { useAppSession } from "@/hooks/useAppSession";
 import { parseChainId } from "@/lib/chains";
 
@@ -36,14 +37,30 @@ export function useMissionVoucherClaim() {
 
     const claim = useCallback(
         async (missionId: string) => {
+            const sysAddr = missionSystemAddress();
             const claimAddr = missionClaimAddress();
-            if (!address || !claimAddr) {
-                setError("Wallet or MissionClaim not configured");
+            if (!address || (!sysAddr && !claimAddr)) {
+                setError("Wallet or Mission contract not configured");
                 setStep("error");
                 return null;
             }
             setError(null);
             try {
+                // If on-chain MissionSystem is active, pull claim directly from contract (user pays gas)
+                if (sysAddr) {
+                    setStep("claim");
+                    const midBytes32 = missionIdBytes32(missionId);
+                    const tx = await writeContractAsync({
+                        address: sysAddr,
+                        abi: MISSION_SYSTEM_ABI,
+                        functionName: "claimMission",
+                        args: [midBytes32],
+                    });
+                    setStep("done");
+                    return tx;
+                }
+
+                // Fallback: Voucher-based MissionClaim
                 setStep("voucher");
                 const sessionId = await ensureAppSession({ context: 'missions' });
                 if (!sessionId) {
@@ -68,7 +85,7 @@ export function useMissionVoucherClaim() {
                 setStep("claim");
                 const v = data.voucher;
                 const tx = await writeContractAsync({
-                    address: claimAddr,
+                    address: claimAddr!,
                     abi: MISSION_CLAIM_ABI,
                     functionName: "claim",
                     args: [

@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import { buildMatchRecordMessage, isFreshIssuedAt } from '@/lib/matchProof';
 import { verifyPersonalSign } from '@/lib/walletVerify';
 import { serviceDb, requireSession } from '@/lib/serverAuth';
-import { reportProgress } from '@/lib/missionOracle';
 import { rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 import { checkRateLimitShared } from '@/lib/rateLimitShared';
 
@@ -468,24 +467,28 @@ export async function POST(request: Request) {
             console.error('[missions] match settlement progress failed:', missionErr);
         }
 
-        // On-chain mirror (no-op until MissionSystem is configured for this env).
-        // Fire-and-forget by design: these are external chain writes, not DB
-        // round trips, so they stay outside the batched path above. The DB
-        // mirror for the daily missions is the upsert; the weekly missions live
-        // on-chain alone, because a daily-keyed row cannot represent a 7-day one.
-        if (winnerLower && playerByWallet.has(winnerLower)) {
-            void reportProgress(winnerLower, 'daily_win_1', 1);
-            void reportProgress(winnerLower, 'weekly_win_3', 1);
-        }
-        for (const addr of new Set(lowerParts)) {
-            void reportProgress(addr, 'daily_play_3', 1);
-            void reportProgress(addr, 'weekly_play_10', 1);
-            if (isPvpMatch) void reportProgress(addr, 'weekly_pvp_2', 1);
-        }
-        for (const [addr, count] of Object.entries(captures)) {
-            if (count <= 0) continue;
-            void reportProgress(addr, 'daily_capture_2', count);
-            void reportProgress(addr, 'weekly_capture_10', count);
+        // Option 3 Lazy Sync: Queue free match progress in player_free_matches
+        // for players to batch-sync on-chain (paying gas) when they choose.
+        try {
+            const freeMatchRows = Array.from(new Set(lowerParts)).map((addr) => ({
+                match_id: matchId,
+                player_id: addr,
+                won: addr === winnerLower,
+                is_pvp: isPvpMatch,
+                captures: Number(captures[addr] ?? 0),
+                played_at: new Date().toISOString(),
+                onchain_synced: false,
+            }));
+            if (freeMatchRows.length > 0) {
+                const { error: queueErr } = await supabase
+                    .from('player_free_matches')
+                    .upsert(freeMatchRows, { onConflict: 'player_id,match_id' });
+                if (queueErr) {
+                    console.error('[matches] failed to queue free match for sync:', queueErr);
+                }
+            }
+        } catch (queueErr) {
+            console.error('[matches] free match queue unexpected error:', queueErr);
         }
 
         // Onboarding tracks (server-owned progress; claims stay pull-based).

@@ -358,9 +358,8 @@ export const OnboardingPanel = () => {
                     // Nullish, not `||`: a target of 0 is valid and must survive.
                     const targetVal = typeof x.target === 'number' ? x.target : 1;
                     const isCompleted = useOnChain ? oc!.completed : progressVal >= targetVal;
-                    const onChainPaid = useOnChain && isCompleted;
-                    const isClaimed = onChainPaid || x.is_claimed;
-                    const claimable = !onChainPaid && x.claimable;
+                    const isClaimed = (useOnChain ? oc!.claimed : false) || x.is_claimed;
+                    const claimable = !isClaimed && (isCompleted || x.claimable);
                     const progressPercent = Math.min((progressVal / Math.max(targetVal, 1)) * 100, 100);
                     return (
                         <motion.div
@@ -420,9 +419,7 @@ export const OnboardingPanel = () => {
                                     onClick={claimable ? () => handleClaim(x.track) : undefined}
                                     className={`min-w-[70px] rounded-xl ${isClaimed ? '' : claimable ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
                                 >
-                                    {onChainPaid ? (
-                                        'Received'
-                                    ) : isClaimed ? (
+                                    {isClaimed ? (
                                         'Claimed'
                                     ) : claimable ? (
                                         <span className="flex items-center gap-1">

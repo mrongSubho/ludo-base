@@ -52,6 +52,45 @@ export const MISSION_SYSTEM_ABI = [
     ],
     outputs: [{ name: "", type: "bool" }],
   },
+  {
+    type: "function",
+    name: "isClaimed",
+    stateMutability: "view",
+    inputs: [
+      { name: "wallet", type: "address" },
+      { name: "missionId", type: "bytes32" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "claimMission",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "missionId", type: "bytes32" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "syncFreeMatches",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "matchAttestations",
+        type: "tuple[]",
+        components: [
+          { name: "matchId", type: "bytes32" },
+          { name: "player", type: "address" },
+          { name: "won", type: "uint8" },
+          { name: "isPvp", type: "uint8" },
+          { name: "captures", type: "uint16" },
+          { name: "playedAt", type: "uint64" },
+          { name: "deadline", type: "uint64" },
+        ],
+      },
+      { name: "sigs", type: "bytes[]" },
+    ],
+    outputs: [],
+  },
 ] as const;
 
 export function missionSystemAddress(): Address | undefined {
@@ -74,6 +113,8 @@ export interface OnChainMissionState {
   progress: number;
   /** True if the wallet completed the mission in its current period. */
   completed: boolean;
+  /** True if the wallet claimed the reward in its current period. */
+  claimed: boolean;
 }
 
 // NOTE: the client type is left inferred (via ReturnType) rather than annotated
@@ -134,15 +175,26 @@ export async function readMissionStates(
       })),
     });
 
+    const claimedRes = await client.multicall({
+      contracts: ids.map((id) => ({
+        address: addr,
+        abi: MISSION_SYSTEM_ABI,
+        functionName: "isClaimed",
+        args: [wallet, id],
+      })),
+    });
+
     const out: Record<string, OnChainMissionState> = {};
     missionIds.forEach((mid, i) => {
       const pr = progress[i];
       if (pr.status === "success" && Array.isArray(pr.result)) {
         const [p, done] = pr.result as [bigint, boolean];
+        const isClm = claimedRes[i]?.status === "success" ? Boolean(claimedRes[i].result) : false;
         out[mid] = {
           missionId: mid,
           progress: Number(p), // safe: contract caps progress at target (<= 10)
           completed: Boolean(done),
+          claimed: isClm,
         };
       }
     });

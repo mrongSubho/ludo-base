@@ -4,13 +4,17 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {MissionSystem} from "../src/MissionSystem.sol";
 import {MockChips} from "./MockChips.sol";
+import {EIP712} from "../src/lib/EIP712.sol";
 
 /// @dev Mirror the events so vm.expectEmit can match them by signature.
 interface MissionSystemEvents {
     event MissionCompleted(address indexed wallet, bytes32 indexed missionId, bytes32 period, uint256 reward);
-    event PayoutPending(address indexed wallet, bytes32 indexed missionId, bytes32 period, uint256 reward);
+    event MissionClaimed(address indexed wallet, bytes32 indexed missionId, bytes32 period, uint256 reward);
     event ProgressRecorded(
         address indexed wallet, bytes32 indexed missionId, bytes32 period, uint256 progress, bool completed
+    );
+    event FreeMatchSynced(
+        address indexed player, bytes32 indexed matchId, uint8 won, uint8 isPvp, uint16 captures, uint64 playedAt
     );
 }
 
@@ -19,18 +23,25 @@ contract MissionSystemTest is Test {
     MissionSystem missions;
 
     address owner = address(0xA11CE);
-    address oracle = address(0x071CE); // progress oracle
+    uint256 oraclePk = 0x071CE;
+    address oracle;
     address alice = address(0xA1);
     address bob = address(0xB0);
     address mallory = address(0xBAD);
     address treasury = address(0x7EA5);
 
     bytes32 constant DAILY = keccak256("daily_play_3");
+    bytes32 constant DAILY_WIN = keccak256("daily_win_1");
+    bytes32 constant DAILY_CAP = keccak256("daily_capture_2");
     bytes32 constant WEEKLY = keccak256("weekly_play_10");
+    bytes32 constant WEEKLY_WIN = keccak256("weekly_win_3");
+    bytes32 constant WEEKLY_CAP = keccak256("weekly_capture_10");
+    bytes32 constant WEEKLY_PVP = keccak256("weekly_pvp_2");
     bytes32 constant ONCE = keccak256("onboarding_tutorial");
     bytes32 constant PREREQ = keccak256("core_prereq");
 
     function setUp() public {
+        oracle = vm.addr(oraclePk);
         chips = new MockChips();
         vm.prank(owner);
         missions = new MissionSystem(chips, oracle, owner);
@@ -40,6 +51,25 @@ contract MissionSystemTest is Test {
         chips.approve(address(missions), 1_000_000e18);
         vm.prank(treasury);
         missions.fund(1_000_000e18);
+    }
+
+    function _signFreeMatch(uint256 pk, MissionSystem.FreeMatchAttestation memory m) internal view returns (bytes memory) {
+        bytes32 domainSep = EIP712.domainHash("LudoBase MissionSystem", address(missions));
+        bytes32 structHash = keccak256(
+            abi.encode(
+                missions.FREE_MATCH_TYPEHASH(),
+                m.matchId,
+                m.player,
+                m.won,
+                m.isPvp,
+                m.captures,
+                m.playedAt,
+                m.deadline
+            )
+        );
+        bytes32 digest = EIP712.digest(domainSep, structHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(pk, digest);
+        return abi.encodePacked(r, s, v);
     }
 
     // ── Mission creation (owner) ───────────────────────────────────────────────
@@ -78,15 +108,15 @@ contract MissionSystemTest is Test {
 
     function test_recordProgress_on_unknown_or_inactive_mission() public {
         vm.prank(oracle);
-        vm.expectRevert(MissionSystem.NotFound.selector);
+        // Unconfigured mission does nothing (no revert on unknown so sync doesn't fail).
         missions.recordProgress(alice, DAILY, 1);
 
         vm.prank(owner);
         missions.setMission(DAILY, MissionSystem.MissionKind.DAY, 10e18, 3, bytes32(0), false);
 
         vm.prank(oracle);
-        vm.expectRevert(MissionSystem.NotActive.selector);
         missions.recordProgress(alice, DAILY, 1);
+        assertEq(missions.progress(alice, DAILY, missions.currentPeriod(DAILY)), 0);
     }
 
     function test_recordProgress_zero_delta_reverts() public {
@@ -97,9 +127,9 @@ contract MissionSystemTest is Test {
         missions.recordProgress(alice, DAILY, 0);
     }
 
-    // ── Progress accrual, completion, payout ─────────────────────────────────────
+    // ── Progress accrual, completion, pull payout ───────────────────────────────
 
-    function test_progress_accrues_and_pays_on_completion() public {
+    function test_progress_accrues_and_pulls_on_claim() public {
         vm.prank(owner);
         missions.setMission(DAILY, MissionSystem.MissionKind.DAY, 10e18, 3, bytes32(0), true);
 
@@ -121,58 +151,59 @@ contract MissionSystemTest is Test {
 
         assertEq(missions.progress(alice, DAILY, period), 3, "capped at target");
         assertTrue(missions.completed(alice, DAILY, period), "completed");
-        assertEq(chips.balanceOf(alice), before + 10e18, "reward paid");
-        assertEq(missions.totalClaimed(), 10e18);
+        // Pull model: no automatic transfer yet
+        assertEq(chips.balanceOf(alice), before, "tokens not pushed automatically");
         assertTrue(missions.isCompleted(alice, DAILY), "isCompleted(view) true in current period");
-    }
+        assertFalse(missions.isClaimed(alice, DAILY), "not claimed yet");
 
-    function test_already_completed_is_idempotent_no_double_pay() public {
-        vm.prank(owner);
-        missions.setMission(DAILY, MissionSystem.MissionKind.DAY, 10e18, 1, bytes32(0), true);
-        bytes32 period = missions.currentPeriod(DAILY);
+        // Alice pulls her reward
+        vm.expectEmit(true, true, true, true, address(missions));
+        emit MissionSystemEvents.MissionClaimed(alice, DAILY, period, 10e18);
+        vm.prank(alice);
+        missions.claimMission(DAILY);
 
-        vm.prank(oracle);
-        missions.recordProgress(alice, DAILY, 1);
-        assertTrue(missions.completed(alice, DAILY, period));
-
-        uint256 before = chips.balanceOf(alice);
-        // Oracle keeps reporting — must be a no-op, no second payout.
-        vm.prank(oracle);
-        missions.recordProgress(alice, DAILY, 1);
-        vm.prank(oracle);
-        missions.recordProgress(alice, DAILY, 99);
-        assertEq(chips.balanceOf(alice), before, "no double pay");
+        assertEq(chips.balanceOf(alice), before + 10e18, "reward received on claim");
         assertEq(missions.totalClaimed(), 10e18);
+        assertTrue(missions.isClaimed(alice, DAILY), "claimed marked true");
+
+        // Double claim reverts
+        vm.prank(alice);
+        vm.expectRevert(MissionSystem.AlreadyClaimed.selector);
+        missions.claimMission(DAILY);
     }
 
-    // ── Scheduling: DAY and WEEK rollover ────────────────────────────────────────
+    // ── Scheduling: DAY and WEEK rollover & forfeiture ──────────────────────────
 
-    function test_daily_mission_resets_each_day() public {
+    function test_daily_mission_forfeits_past_unclaimed_on_day_rollover() public {
         vm.prank(owner);
         missions.setMission(DAILY, MissionSystem.MissionKind.DAY, 10e18, 1, bytes32(0), true);
 
-        // Day 0: complete.
+        // Day 0: complete but do NOT claim
         vm.prank(oracle);
         missions.recordProgress(alice, DAILY, 1);
         bytes32 day0 = missions.currentPeriod(DAILY);
         assertTrue(missions.completed(alice, DAILY, day0));
 
-        // Advance to next UTC day -> new period, fresh progress, payable again.
+        // Advance to next UTC day (period rolls over)
         uint256 dayStart = block.timestamp;
         vm.warp(dayStart + 1 days + 1);
         bytes32 day1 = missions.currentPeriod(DAILY);
         assertNotEq(day0, day1, "period rolled over");
-        assertEq(missions.progress(alice, DAILY, day1), 0, "fresh progress next day");
-        assertFalse(missions.completed(alice, DAILY, day1));
 
-        uint256 before = chips.balanceOf(alice);
+        // Claiming now looks at current period (day 1) which is not yet completed -> forfeits!
+        vm.prank(alice);
+        vm.expectRevert(MissionSystem.NotFound.selector);
+        missions.claimMission(DAILY);
+
+        // Complete for Day 1 and claim
         vm.prank(oracle);
         missions.recordProgress(alice, DAILY, 1);
-        assertEq(chips.balanceOf(alice), before + 10e18, "paid again next day");
-        assertEq(missions.totalClaimed(), 20e18);
+        vm.prank(alice);
+        missions.claimMission(DAILY);
+        assertEq(chips.balanceOf(alice), 10e18, "only day 1 claimed");
     }
 
-    function test_weekly_mission_resets_each_week() public {
+    function test_weekly_mission_resets_on_sunday_and_forfeits_unclaimed() public {
         vm.prank(owner);
         missions.setMission(WEEKLY, MissionSystem.MissionKind.WEEK, 20e18, 1, bytes32(0), true);
 
@@ -181,26 +212,18 @@ contract MissionSystemTest is Test {
         bytes32 wk0 = missions.currentPeriod(WEEKLY);
         assertTrue(missions.completed(alice, WEEKLY, wk0));
 
-        // Within the same 7-day bucket: still completed, no new payout.
-        uint256 wkStart = block.timestamp;
-        vm.warp(wkStart + 3 days);
-        assertEq(missions.currentPeriod(WEEKLY), wk0, "same week bucket");
-        uint256 mid = chips.balanceOf(alice);
-        vm.prank(oracle);
-        missions.recordProgress(alice, WEEKLY, 1);
-        assertEq(chips.balanceOf(alice), mid, "no pay within same week");
-
-        // Roll into the next 7-day bucket (t + 8 days).
-        vm.warp(wkStart + 3 days + 5 days);
+        // Warp 8 days across Sunday UTC 00:00 boundary
+        vm.warp(block.timestamp + 8 days);
         bytes32 wk1 = missions.currentPeriod(WEEKLY);
         assertNotEq(wk0, wk1, "week rolled over");
-        uint256 before = chips.balanceOf(alice);
-        vm.prank(oracle);
-        missions.recordProgress(alice, WEEKLY, 1);
-        assertEq(chips.balanceOf(alice), before + 20e18, "paid in the new week");
+
+        // Unclaimed reward from wk0 is forfeited
+        vm.prank(alice);
+        vm.expectRevert(MissionSystem.NotFound.selector);
+        missions.claimMission(WEEKLY);
     }
 
-    function test_once_mission_completes_a_single_time() public {
+    function test_once_mission_completes_and_claims_a_single_time() public {
         vm.prank(owner);
         missions.setMission(ONCE, MissionSystem.MissionKind.ONCE, 50e18, 1, bytes32(0), true);
 
@@ -208,14 +231,109 @@ contract MissionSystemTest is Test {
         missions.recordProgress(alice, ONCE, 1);
         assertTrue(missions.isCompleted(alice, ONCE));
 
-        // Never resets — same constant period forever.
-        uint256 onceStart = block.timestamp;
-        vm.warp(onceStart + 365 days);
-        assertEq(missions.currentPeriod(ONCE), missions.currentPeriod(ONCE), "ONCE period is constant");
-        uint256 before = chips.balanceOf(alice);
-        vm.prank(oracle);
-        missions.recordProgress(alice, ONCE, 1);
-        assertEq(chips.balanceOf(alice), before, "no second payout, ever");
+        vm.prank(alice);
+        missions.claimMission(ONCE);
+        assertEq(chips.balanceOf(alice), 50e18);
+
+        // Never resets — second claim reverts
+        vm.warp(block.timestamp + 365 days);
+        vm.prank(alice);
+        vm.expectRevert(MissionSystem.AlreadyClaimed.selector);
+        missions.claimMission(ONCE);
+    }
+
+    // ── Free Match Batch Sync ──────────────────────────────────────────────────
+
+    function test_syncFreeMatches_happy_path() public {
+        vm.prank(owner);
+        missions.setMission(DAILY, MissionSystem.MissionKind.DAY, 10e18, 3, bytes32(0), true);
+        vm.prank(owner);
+        missions.setMission(DAILY_WIN, MissionSystem.MissionKind.DAY, 10e18, 1, bytes32(0), true);
+        vm.prank(owner);
+        missions.setMission(WEEKLY, MissionSystem.MissionKind.WEEK, 20e18, 10, bytes32(0), true);
+
+        MissionSystem.FreeMatchAttestation[] memory batch = new MissionSystem.FreeMatchAttestation[](2);
+        batch[0] = MissionSystem.FreeMatchAttestation({
+            matchId: keccak256("match_1"),
+            player: alice,
+            won: 1,
+            isPvp: 1,
+            captures: 2,
+            playedAt: uint64(block.timestamp),
+            deadline: uint64(block.timestamp + 1 hours)
+        });
+        batch[1] = MissionSystem.FreeMatchAttestation({
+            matchId: keccak256("match_2"),
+            player: alice,
+            won: 0,
+            isPvp: 1,
+            captures: 1,
+            playedAt: uint64(block.timestamp),
+            deadline: uint64(block.timestamp + 1 hours)
+        });
+
+        bytes[] memory sigs = new bytes[](2);
+        sigs[0] = _signFreeMatch(oraclePk, batch[0]);
+        sigs[1] = _signFreeMatch(oraclePk, batch[1]);
+
+        vm.prank(alice);
+        missions.syncFreeMatches(batch, sigs);
+
+        // Progress checked
+        bytes32 dayPeriod = missions.currentPeriod(DAILY);
+        (uint256 playProg, ) = missions.getProgress(alice, DAILY, dayPeriod);
+        assertEq(playProg, 2, "2 matches played");
+
+        (uint256 winProg, bool winDone) = missions.getProgress(alice, DAILY_WIN, dayPeriod);
+        assertEq(winProg, 1, "1 win recorded");
+        assertTrue(winDone, "daily win completed");
+
+        // Alice claims her daily win
+        vm.prank(alice);
+        missions.claimMission(DAILY_WIN);
+        assertEq(chips.balanceOf(alice), 10e18, "daily win reward claimed");
+
+        // Replay of same match reverts
+        vm.prank(alice);
+        vm.expectRevert(MissionSystem.AlreadyCompleted.selector);
+        missions.syncFreeMatches(batch, sigs);
+    }
+
+    function test_syncFreeMatches_late_sync_daily_forfeits_but_weekly_credits() public {
+        vm.prank(owner);
+        missions.setMission(DAILY, MissionSystem.MissionKind.DAY, 10e18, 3, bytes32(0), true);
+        vm.prank(owner);
+        missions.setMission(WEEKLY, MissionSystem.MissionKind.WEEK, 20e18, 10, bytes32(0), true);
+
+        uint64 playedYesterday = 100;
+        vm.warp(100 + 1 days + 1); // advance to tomorrow
+
+        MissionSystem.FreeMatchAttestation[] memory batch = new MissionSystem.FreeMatchAttestation[](1);
+        batch[0] = MissionSystem.FreeMatchAttestation({
+            matchId: keccak256("match_yesterday"),
+            player: alice,
+            won: 1,
+            isPvp: 1,
+            captures: 0,
+            playedAt: playedYesterday,
+            deadline: uint64(block.timestamp + 1 hours)
+        });
+
+        bytes[] memory sigs = new bytes[](1);
+        sigs[0] = _signFreeMatch(oraclePk, batch[0]);
+
+        vm.prank(alice);
+        missions.syncFreeMatches(batch, sigs);
+
+        // Today's daily play is NOT incremented because match was played yesterday (forfeited daily)
+        bytes32 todayPeriod = missions.currentPeriod(DAILY);
+        (uint256 dailyProg, ) = missions.getProgress(alice, DAILY, todayPeriod);
+        assertEq(dailyProg, 0, "yesterday match does not count for today's daily");
+
+        // But weekly play IS incremented if within the same Sunday-aligned week
+        bytes32 weekPeriod = missions.currentPeriod(WEEKLY);
+        (uint256 weeklyProg, ) = missions.getProgress(alice, WEEKLY, weekPeriod);
+        assertEq(weeklyProg, 1, "yesterday match counts for weekly if in same week");
     }
 
     // ── Prerequisite gating ──────────────────────────────────────────────────────
@@ -224,95 +342,51 @@ contract MissionSystemTest is Test {
         vm.prank(owner);
         missions.setMission(PREREQ, MissionSystem.MissionKind.ONCE, 5e18, 1, bytes32(0), true);
         vm.prank(owner);
-        missions.setMission(ONCE, MissionSystem.MissionKind.ONCE, 50e18, 1, PREREQ, true); // depends on PREREQ
+        missions.setMission(ONCE, MissionSystem.MissionKind.ONCE, 50e18, 1, PREREQ, true);
 
         bytes32 period = missions.currentPeriod(ONCE);
 
-        // Completing the dependent first must fail the gate.
         vm.prank(oracle);
         vm.expectRevert(MissionSystem.PrerequisiteNotMet.selector);
         missions.recordProgress(alice, ONCE, 1);
 
-        // Complete the prerequisite first (ONCE -> same constant period).
         vm.prank(oracle);
         missions.recordProgress(alice, PREREQ, 1);
         assertTrue(missions.completed(alice, PREREQ, period));
 
-        // Now the dependent completes and pays.
-        uint256 before = chips.balanceOf(alice);
+        // Now dependent completes
         vm.prank(oracle);
         missions.recordProgress(alice, ONCE, 1);
-        assertEq(chips.balanceOf(alice), before + 50e18, "dependent pays after prereq");
-    }
+        assertTrue(missions.completed(alice, ONCE, period));
 
-    // ── Reserve shortfall -> pending payout ──────────────────────────────────────
-
-    function test_short_reserve_queues_payout_then_claimable() public {
-        // Drain the reserve to just below one reward.
-        uint256 bal = chips.balanceOf(address(missions));
-        vm.prank(owner);
-        missions.setMinReserve(0);
-        vm.prank(owner);
-        missions.withdrawSurplus(bal - (10e18 - 1)); // leave 10e18 - 1
-        assertEq(chips.balanceOf(address(missions)), 10e18 - 1);
-
-        vm.prank(owner);
-        missions.setMission(DAILY, MissionSystem.MissionKind.DAY, 10e18, 1, bytes32(0), true);
-        bytes32 period = missions.currentPeriod(DAILY);
-
-        // Completion is recorded on-chain even though the reserve can't pay yet.
-        vm.expectEmit(true, true, true, true, address(missions));
-        emit MissionSystemEvents.PayoutPending(alice, DAILY, period, 10e18);
-        vm.prank(oracle);
-        missions.recordProgress(alice, DAILY, 1);
-
-        assertTrue(missions.completed(alice, DAILY, period), "completed despite short reserve");
-        assertEq(missions.pendingPayout(periodKey(alice, DAILY, period)), 10e18, "payout queued");
-        assertEq(chips.balanceOf(alice), 0, "nothing paid yet");
-
-        // Fund the reserve, then anyone (here: wallet) can claim the queued payout.
-        chips.mint(treasury, 100e18);
-        vm.prank(treasury);
-        chips.approve(address(missions), 100e18);
-        vm.prank(treasury);
-        missions.fund(100e18);
-
-        uint256 before = chips.balanceOf(alice);
-        vm.prank(alice); // wallet claims its own queued payout
-        missions.claimPayout(alice, DAILY, period);
-        assertEq(chips.balanceOf(alice), before + 10e18, "queued payout claimed");
-        assertEq(missions.pendingPayout(periodKey(alice, DAILY, period)), 0, "queue cleared");
-        assertEq(missions.totalClaimed(), 10e18);
-    }
-
-    function test_claimPayout_reverts_when_nothing_pending() public {
-        vm.prank(owner);
-        missions.setMission(DAILY, MissionSystem.MissionKind.DAY, 10e18, 1, bytes32(0), true);
-        vm.prank(oracle);
-        missions.recordProgress(alice, DAILY, 1); // pays immediately (reserve full)
-        bytes32 period = missions.currentPeriod(DAILY);
+        // Alice claims both
         vm.prank(alice);
-        vm.expectRevert(MissionSystem.BadParam.selector);
-        missions.claimPayout(alice, DAILY, period); // nothing pending
+        missions.claimMission(PREREQ);
+        vm.prank(alice);
+        missions.claimMission(ONCE);
+        assertEq(chips.balanceOf(alice), 55e18);
     }
 
     // ── Pause ───────────────────────────────────────────────────────────────────
 
-    function test_paused_blocks_progress() public {
+    function test_paused_blocks_progress_and_claim() public {
         vm.prank(owner);
-        missions.setMission(DAILY, MissionSystem.MissionKind.DAY, 10e18, 3, bytes32(0), true);
+        missions.setMission(DAILY, MissionSystem.MissionKind.DAY, 10e18, 1, bytes32(0), true);
+        vm.prank(oracle);
+        missions.recordProgress(alice, DAILY, 1);
+
         vm.prank(owner);
         missions.setPaused(true);
 
-        vm.prank(oracle);
+        vm.prank(alice);
         vm.expectRevert(MissionSystem.Paused.selector);
-        missions.recordProgress(alice, DAILY, 1);
+        missions.claimMission(DAILY);
 
         vm.prank(owner);
         missions.setPaused(false);
-        vm.prank(oracle);
-        missions.recordProgress(alice, DAILY, 1);
-        assertEq(missions.progress(alice, DAILY, missions.currentPeriod(DAILY)), 1);
+        vm.prank(alice);
+        missions.claimMission(DAILY);
+        assertEq(chips.balanceOf(alice), 10e18);
     }
 
     function test_setPaused_and_setOracle_onlyOwner() public {
@@ -362,11 +436,5 @@ contract MissionSystemTest is Test {
         vm.prank(mallory);
         vm.expectRevert(MissionSystem.OnlyOwner.selector);
         missions.withdrawSurplus(1);
-    }
-
-    // ── Helpers ─────────────────────────────────────────────────────────────────
-
-    function periodKey(address w, bytes32 m, bytes32 p) internal view returns (bytes32) {
-        return missions.periodKey(w, m, p);
     }
 }

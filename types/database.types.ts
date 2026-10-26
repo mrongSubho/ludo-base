@@ -1444,6 +1444,54 @@ export type Database = {
           },
         ]
       }
+      player_free_matches: {
+        Row: {
+          captures: number
+          created_at: string
+          id: string
+          is_pvp: boolean
+          match_id: string
+          onchain_synced: boolean
+          played_at: string
+          player_id: string
+          sync_tx_hash: string | null
+          won: boolean
+        }
+        ComputedFields: never
+        Insert: {
+          captures?: number
+          created_at?: string
+          id?: string
+          is_pvp?: boolean
+          match_id: string
+          onchain_synced?: boolean
+          played_at?: string
+          player_id: string
+          sync_tx_hash?: string | null
+          won?: boolean
+        }
+        Update: {
+          captures?: number
+          created_at?: string
+          id?: string
+          is_pvp?: boolean
+          match_id?: string
+          onchain_synced?: boolean
+          played_at?: string
+          player_id?: string
+          sync_tx_hash?: string | null
+          won?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_free_matches_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
       player_missions: {
         Row: {
           created_at: string

@@ -77,6 +77,9 @@ export const RATE_LIMITS: Record<string, LimitRule> = {
     'missions/daily-bonus': { limit: 10, windowMs: 60_000, methods: ['POST'] },
     'onboarding/progress': { limit: 60, windowMs: 60_000 },
     'lobby/invites': { limit: 60, windowMs: 60_000, methods: ['GET'] },
+    'chips/settle/relay': { limit: 10, windowMs: 60_000, methods: ['POST'] },
+    'matches/sync-confirm': { limit: 20, windowMs: 60_000, methods: ['POST'] },
+    'matches/unsynced': { limit: 60, windowMs: 60_000, methods: ['GET'] },
 };
 
 /**
@@ -119,6 +122,7 @@ export const SESSION_GATED = new Set([
     'chips/escrow-balance',
     'chips/lobby-ticket',
     'chips/settle/propose',
+    'chips/settle/relay',
     'feedback',
     'friendships',
     'galxe/callback',
@@ -129,6 +133,8 @@ export const SESSION_GATED = new Set([
     'marketplace/purchase',
     'match/record',
     'match/start',
+    'matches/sync-confirm',
+    'matches/unsynced',
     'matchmaking/cancel',
     'matchmaking/join',
     'matchmaking/status',

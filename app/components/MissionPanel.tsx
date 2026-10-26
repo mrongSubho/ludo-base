@@ -17,6 +17,7 @@ import { missionBadgeFor, type MissionBadgeKey } from '@/lib/missionBadge';
 import { Button } from './Button';
 import { useToast } from './Toast';
 import { useMissionOnChainState } from '@/hooks/useMissionOnChainState';
+import { UnsyncedMatchesPanel } from './UnsyncedMatchesPanel';
 
 // ─── Mission panel (moved out of Arena) ─────────────────────────────────────
 // Daily / weekly / onboard missions + claim. Arena stays live-only.
@@ -219,7 +220,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
     // (authoritative) or, when the contract is not configured, via the DB row.
     const isMissionDone = (m: Mission) => {
         const oc = onChain.configured ? onChain.states[m.id] : undefined;
-        if (oc) return oc.completed || Boolean((m as any).is_claimed);
+        if (oc) return oc.claimed || Boolean((m as any).is_claimed);
         // A target of 0 is valid (daily_bonus) and must not be coerced to 1.
         const target = typeof m.target === 'number' ? m.target : 1;
         return (m.progress ?? 0) >= target || Boolean((m as any).is_claimed);
@@ -376,6 +377,9 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                     </div>
                                                 ) : (
                                                     <div className="flex flex-col gap-2 pb-2">
+                                                        {!isGuest && (
+                                                            <UnsyncedMatchesPanel />
+                                                        )}
                                                         <AnimatePresence mode="popLayout">
                                                             {visibleMissions.map((mission) => {
                                                                 // On-chain overlay: when the contract is configured and this
@@ -386,22 +390,14 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                 const progressVal = useOnChain
                                                                     ? oc!.progress
                                                                     : (mission.progress || 0);
-                                                                // Nullish (`??`), NOT `||`: a target of 0 is a real, valid
-                                                                // threshold — `daily_bonus` is "claimable on sight" with
-                                                                // target 0. `mission.target || 1` silently turned 0 into 1, so
-                                                                // that mission never read as complete and its button fell
-                                                                // through to handleGo() -> onClose() (the "clicking Daily
-                                                                // Bonus bounces me to the lobby" bug).
                                                                 const targetVal =
                                                                     typeof mission.target === 'number' ? mission.target : 1;
                                                                 const onChainCompleted = useOnChain && oc!.completed;
+                                                                const onChainClaimed = useOnChain && oc!.claimed;
                                                                 const dbClaimed = Boolean((mission as any).is_claimed);
+                                                                const isClaimed = onChainClaimed || dbClaimed;
                                                                 const isCompleted =
-                                                                    onChainCompleted || dbClaimed || progressVal >= targetVal;
-                                                                // Paid one way or another => the legacy voucher CLAIM stays
-                                                                // off, so the contract paying on completion cannot turn
-                                                                // into a second payout through /api/missions/voucher.
-                                                                const isPaid = onChainCompleted || dbClaimed;
+                                                                    onChainCompleted || progressVal >= targetVal || isClaimed;
                                                                 const progressPercent = Math.min(
                                                                     (progressVal / Math.max(targetVal, 1)) * 100,
                                                                     100
@@ -495,35 +491,27 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                 </div>
                                                                                 <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
                                                                                     <div
-                                                                                        className={`h-full rounded-full transition-all duration-1000 ease-out ${isPaid ? 'bg-white/20' : isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-cyan-600'}`}
+                                                                                        className={`h-full rounded-full transition-all duration-1000 ease-out ${isClaimed ? 'bg-white/20' : isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-cyan-600'}`}
                                                                                         style={{ width: `${progressPercent}%` }}
                                                                                     />
                                                                                 </div>
                                                                             </div>
-                                                                            {/* The mission action is the shared Button (Phase C.1/C.3):
-                                                                                `loading` replaces the hand-rolled spinner div and
-                                                                                `disabled` brings the visible treatment the old
-                                                                                "Claimed" state was faking with a grey fill. The
-                                                                                completed state keeps its positive read via
-                                                                                --positive instead of green-500. */}
                                                                             <Button
                                                                                 variant="secondary"
                                                                                 size="sm"
                                                                                 loading={claimingId === mission.id}
                                                                                 loadingIcon={<ThinkingOrb state="solving" size={20} />}
-                                                                                disabled={isPaid}
+                                                                                disabled={isClaimed}
                                                                                 onClick={
-                                                                                    isPaid
+                                                                                    isClaimed
                                                                                         ? undefined
                                                                                         : isCompleted
                                                                                           ? () => handleClaim(mission.id)
                                                                                           : () => handleGo(mission.id)
                                                                                 }
-                                                                                className={`min-w-[70px] rounded-xl ${isPaid ? '' : isCompleted ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
+                                                                                className={`min-w-[70px] rounded-xl ${isClaimed ? '' : isCompleted ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
                                                                             >
-                                                                                {onChainCompleted ? (
-                                                                                    'Received'
-                                                                                ) : dbClaimed ? (
+                                                                                {isClaimed ? (
                                                                                     'Claimed'
                                                                                 ) : isCompleted ? (
                                                                                     <span className="flex items-center gap-1">
