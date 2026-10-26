@@ -2875,3 +2875,25 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - `npx tsc --noEmit`: 0 errors.
    - `npx eslint`: 0 errors.
    - `npm test`: 549/549 pass across 60 test suites.
+
+### 9. Match History Telemetry Enrichment & Tap-to-Expand Sync Hub (2026-10-27)
+1. **Automatic Free Match Backfill & Queue Alignment** — [`lib/freeMatchSync.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/freeMatchSync.ts), [`app/api/matches/unsynced/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/matches/unsynced/route.ts), [`app/api/matches/history/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/matches/history/route.ts):
+   - Implemented `backfillPlayerFreeMatches(db, wallet)`: automatically discovers any historical or casual free matches recorded in `matches` that are missing in `player_free_matches` and queues them for lazy on-chain settlement with `onConflict: 'player_id,match_id', ignoreDuplicates: true`.
+   - Resolves count discrepancy: `/api/matches/unsynced` and `/api/matches/history` now agree on identical unsynced match counts.
+2. **Tap-to-Expand Collapsible Sync Command Center** — [`app/components/UnsyncedMatchesPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/UnsyncedMatchesPanel.tsx):
+   - Transformed header strip into an interactive toggle button with explicit states:
+     - `count === 0`: displays `"All Matches Synced On-Chain"` with green check and `SYNCED` badge.
+     - `count > 0`: displays `"${count} Unsynced Matches ready to sync"` with pulsing amber dot and `SYNC QUEUE` pill.
+   - Smooth animated drawer expansion (`framer-motion`) reveals breakdown metrics (wins, captures, pending), batch-sync CTA button, and full queue inspect list.
+3. **Scoreboard Individual Player Telemetry (Kicks & Got Kicked)** — [`app/api/matches/history/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/matches/history/route.ts), [`app/components/MatchHistoryTab.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MatchHistoryTab.tsx):
+   - Batch queries `match_states` alongside pools and player profiles.
+   - Maps player seat colors to `match_states.state.matchStats[color]`, extracting authoritative `kicks` (captures made) and `gotKicked` (times token was captured) per participant.
+   - Scoreboard drawer renders individual `⚔️ X Kicked` and `🛡️ Y Captured` metric pills next to winner/defeated badges.
+4. **Interactive Combatant Profiles with Public Profile Modal** — [`app/components/MatchHistoryTab.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MatchHistoryTab.tsx), [`app/components/UserProfilePanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/UserProfilePanel.tsx), [`app/page.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/page.tsx):
+   - Individual combatant avatars and usernames in the scoreboard drawer are interactive buttons with hover styling.
+   - Clicking any participant with an EVM wallet address triggers `onOpenProfile` to open `PublicProfileModal` (with local fallback), enabling players to scout opponents, view win rates, send friend requests, or initiate DMs.
+5. **Quality Gates & Regression Test Suite** — [`scripts/match-history-telemetry.test.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/scripts/match-history-telemetry.test.ts):
+   - Added unit and invariant checks pinning `MatchParticipantProfile` telemetry, backfill synchronization, header label contracts, and profile modal dispatching.
+   - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+   - `npx eslint`: 0 errors.
+   - `npm test`: 553/553 pass across 61 test suites.

@@ -782,6 +782,7 @@ export default function Page() {
                       onClose={closeTab}
                       onOpenMarketplace={() => toggle('marketplace')}
                       onOpenWallet={() => toggle('wallet')}
+                      onOpenProfile={(uid) => setSelectedProfileAddress(uid)}
                     />
                 </PanelErrorBoundary>
               )}

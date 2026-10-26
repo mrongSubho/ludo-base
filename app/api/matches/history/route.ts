@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireSessionWallet, serviceDb } from '@/lib/serverAuth';
+import { backfillPlayerFreeMatches } from '@/lib/freeMatchSync';
 
 export interface MatchParticipantProfile {
     wallet: string;
@@ -8,6 +9,8 @@ export interface MatchParticipantProfile {
     rankTier: string | null;
     isWinner: boolean;
     isMe: boolean;
+    kicks: number;
+    gotKicked: number;
 }
 
 export interface MatchHistoryRecord {
@@ -57,7 +60,10 @@ export async function GET(request: Request) {
         const me = wallet.toLowerCase();
         const db = serviceDb();
 
-        // 1. Fetch matches & player_free_matches in parallel
+        // 1. Backfill any offline/casual free matches missing in player_free_matches
+        await backfillPlayerFreeMatches(db, me);
+
+        // 2. Fetch matches & player_free_matches in parallel
         const [matchesRes, freeMatchesRes] = await Promise.all([
             db
                 .from('matches')
@@ -104,11 +110,11 @@ export async function GET(request: Request) {
             allMatchIds.add(f.match_id);
         }
 
-        // 2. Batch-fetch chips_pools & player profiles in parallel
+        // 3. Batch-fetch chips_pools, player profiles & match_states in parallel
         const matchIdList = [...allMatchIds];
         const walletList = [...allWallets];
 
-        const [poolsRes, playersRes] = await Promise.all([
+        const [poolsRes, playersRes, statesRes] = await Promise.all([
             matchIdList.length > 0
                 ? db
                       .from('chips_pools')
@@ -121,6 +127,12 @@ export async function GET(request: Request) {
                       .select('wallet_address, username, avatar_url, rank_tier')
                       .in('wallet_address', walletList)
                 : Promise.resolve({ data: [], error: null }),
+            matchIdList.length > 0
+                ? db
+                      .from('match_states')
+                      .select('match_id, state, player_seats, color_corner')
+                      .in('match_id', matchIdList)
+                : Promise.resolve({ data: [], error: null }),
         ]);
 
         const poolByMatchId = new Map(
@@ -131,6 +143,10 @@ export async function GET(request: Request) {
 
         const profileByWallet = new Map(
             (playersRes.data ?? []).map((p) => [p.wallet_address.toLowerCase(), p])
+        );
+
+        const stateByMatchId = new Map(
+            (statesRes.data ?? []).map((s) => [String(s.match_id), s])
         );
 
         const records: MatchHistoryRecord[] = [];
@@ -182,8 +198,51 @@ export async function GET(request: Request) {
                 m.match_shape ||
                 (partWallets.length === 2 ? '1v1' : partWallets.length >= 4 ? '4P' : '1v1');
 
+            const stateRow = stateByMatchId.get(m.id);
+            const matchStats = (stateRow?.state as { matchStats?: Record<string, { kicks?: number; gotKicked?: number }> } | undefined)?.matchStats;
+
+            const colorByWallet = new Map<string, string>();
+            if (Array.isArray(stateRow?.player_seats)) {
+                for (const s of stateRow.player_seats as Array<{ walletAddress?: string; color?: string }>) {
+                    if (s?.walletAddress && s?.color) {
+                        colorByWallet.set(s.walletAddress.toLowerCase(), s.color.toLowerCase());
+                    }
+                }
+            } else if (stateRow?.player_seats && typeof stateRow.player_seats === 'object') {
+                for (const [col, s] of Object.entries(stateRow.player_seats as Record<string, { wallet?: string }>)) {
+                    if (s?.wallet) {
+                        colorByWallet.set(s.wallet.toLowerCase(), col.toLowerCase());
+                    }
+                }
+            }
+            const statePlayers = (stateRow?.state as { players?: Array<{ walletAddress?: string; color?: string }> } | undefined)?.players;
+            if (Array.isArray(statePlayers)) {
+                for (const p of statePlayers) {
+                    if (p?.walletAddress && p?.color) {
+                        colorByWallet.set(p.walletAddress.toLowerCase(), p.color.toLowerCase());
+                    }
+                }
+            }
+
             const participants: MatchParticipantProfile[] = partWallets.map((addr) => {
                 const prof = profileByWallet.get(addr);
+                const col = colorByWallet.get(addr);
+                let pKicks = 0;
+                let pGotKicked = 0;
+
+                if (col && matchStats?.[col]) {
+                    pKicks = Number(matchStats[col]?.kicks || 0);
+                    pGotKicked = Number(matchStats[col]?.gotKicked || 0);
+                } else if (addr === me) {
+                    pKicks = captures;
+                } else {
+                    const metaCaptures =
+                        metaObj.captures && typeof metaObj.captures === 'object'
+                            ? Number((metaObj.captures as Record<string, unknown>)[addr] ?? 0)
+                            : 0;
+                    pKicks = metaCaptures;
+                }
+
                 return {
                     wallet: addr,
                     username: prof?.username ?? null,
@@ -191,6 +250,8 @@ export async function GET(request: Request) {
                     rankTier: prof?.rank_tier ?? null,
                     isWinner: winnerLc !== null && addr === winnerLc,
                     isMe: addr === me,
+                    kicks: pKicks,
+                    gotKicked: pGotKicked,
                 };
             });
 
@@ -256,6 +317,8 @@ export async function GET(request: Request) {
                         rankTier: meProf?.rank_tier ?? null,
                         isWinner: Boolean(f.won),
                         isMe: true,
+                        kicks: Number(f.captures || 0),
+                        gotKicked: 0,
                     },
                 ],
             });

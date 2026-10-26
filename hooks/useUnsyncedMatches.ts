@@ -5,6 +5,7 @@ import { useAccount, useChainId, useWriteContract } from "wagmi";
 import type { Hex } from "viem";
 import { missionSystemAddress, MISSION_SYSTEM_ABI } from "@/lib/missionSystem";
 import { useAppSession } from "@/hooks/useAppSession";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { parseChainId } from "@/lib/chains";
 
 export interface UnsyncedMatchItem {
@@ -16,8 +17,10 @@ export interface UnsyncedMatchItem {
     played_at: string;
 }
 
-export function useUnsyncedMatches() {
-    const { address } = useAccount();
+export function useUnsyncedMatches(targetWallet?: string | null) {
+    const { address: wagmiAddress } = useAccount();
+    const { address: currentUserAddress } = useCurrentUser();
+    const address = targetWallet ?? wagmiAddress ?? currentUserAddress;
     const chainIdRaw = useChainId();
     const { writeContractAsync } = useWriteContract();
     const { ensureAppSession } = useAppSession();
@@ -150,6 +153,7 @@ export function useUnsyncedMatches() {
             await fetchUnsynced();
             window.dispatchEvent(new CustomEvent("mission-update"));
             window.dispatchEvent(new CustomEvent("ludo-profile-refresh"));
+            window.dispatchEvent(new CustomEvent("ludo-matches-synced"));
             return tx;
         } catch (err: unknown) {
             console.error("[useUnsyncedMatches] sync failed:", err);

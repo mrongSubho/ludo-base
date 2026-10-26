@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useChainId } from 'wagmi';
 import { useAppSession } from '@/hooks/useAppSession';
 import { UnsyncedMatchesPanel } from './UnsyncedMatchesPanel';
+import PublicProfileModal from './PublicProfileModal';
 import type { MatchHistoryRecord } from '@/app/api/matches/history/route';
 import {
     LuTrophy,
@@ -69,9 +70,11 @@ function formatModeLabel(mode: string, shape: string, isPvp: boolean): string {
 export function MatchHistoryTab({
     address,
     isGuest,
+    onOpenProfile,
 }: {
     address: string | null | undefined;
     isGuest: boolean;
+    onOpenProfile?: (address: string) => void;
 }) {
     const { ensureAppSession } = useAppSession();
     const chainId = useChainId();
@@ -80,6 +83,7 @@ export function MatchHistoryTab({
     const [error, setError] = useState<string | null>(null);
     const [filter, setFilter] = useState<HistoryFilter>('all');
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
 
     const fetchHistory = useCallback(async () => {
         if (!address || isGuest) {
@@ -170,7 +174,7 @@ export function MatchHistoryTab({
     return (
         <div className="flex flex-col gap-3 pb-3">
             {/* 1. On-Chain Sync Command Center (Relocated from MissionPanel) */}
-            <UnsyncedMatchesPanel onSynced={fetchHistory} />
+            <UnsyncedMatchesPanel targetWallet={address} onSynced={fetchHistory} />
 
             {/* 2. CODM Tactical Combat Summary Ribbon */}
             <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3">
@@ -432,48 +436,126 @@ export function MatchHistoryTab({
 
                                             {/* Participant Scoreboard List */}
                                             <div className="flex flex-col gap-1.5">
-                                                {m.participants.map((p) => (
-                                                    <div
-                                                        key={p.wallet}
-                                                        className="rounded-xl bg-white/[0.04] border border-white/10 px-2.5 py-1.5 flex items-center justify-between gap-2"
-                                                    >
-                                                        <div className="flex items-center gap-2 min-w-0">
-                                                            <div className="w-6 h-6 rounded-full bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center shrink-0 text-ludo-xs font-black text-cyan-300 uppercase">
-                                                                {(p.username?.[0] || p.wallet[2] || 'P').toUpperCase()}
-                                                            </div>
-                                                            <div className="min-w-0">
-                                                                <div className="flex items-center gap-1.5">
-                                                                    <span className="text-ludo-xs font-bold text-white truncate">
-                                                                        {p.username || shortAddr(p.wallet)}
-                                                                    </span>
-                                                                    {p.isMe && (
-                                                                        <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-ludo-xs font-mono font-black uppercase">
-                                                                            You
+                                                {m.participants.map((p) => {
+                                                    const isClickable =
+                                                        Boolean(p.wallet) && /^0x[a-f0-9]{40}$/i.test(p.wallet);
+                                                    return (
+                                                        <div
+                                                            key={p.wallet}
+                                                            className="rounded-xl bg-white/[0.04] border border-white/10 px-2.5 py-1.5 flex items-center justify-between gap-2"
+                                                        >
+                                                            {/* Left: Avatar + Username (Clickable to open profile) */}
+                                                            <button
+                                                                type="button"
+                                                                disabled={!isClickable}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (isClickable) {
+                                                                        if (onOpenProfile) {
+                                                                            onOpenProfile(p.wallet);
+                                                                        } else {
+                                                                            setSelectedProfileAddress(p.wallet);
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center gap-2 min-w-0 group text-left ${
+                                                                    isClickable
+                                                                        ? 'cursor-pointer hover:opacity-90'
+                                                                        : 'cursor-default'
+                                                                }`}
+                                                                title={
+                                                                    isClickable
+                                                                        ? 'Inspect combatant profile'
+                                                                        : undefined
+                                                                }
+                                                            >
+                                                                <div className="w-7 h-7 rounded-full bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center shrink-0 overflow-hidden group-hover:border-cyan-300 transition-colors">
+                                                                    {p.avatarUrl &&
+                                                                    (p.avatarUrl.startsWith('http') ||
+                                                                        p.avatarUrl.startsWith('/')) ? (
+                                                                        <img
+                                                                            src={p.avatarUrl}
+                                                                            alt={p.username || 'Combatant'}
+                                                                            className="w-full h-full object-cover"
+                                                                        />
+                                                                    ) : (
+                                                                        <span className="text-ludo-xs font-black text-cyan-300 uppercase">
+                                                                            {(
+                                                                                p.username?.[0] ||
+                                                                                p.wallet[2] ||
+                                                                                'P'
+                                                                            ).toUpperCase()}
                                                                         </span>
                                                                     )}
                                                                 </div>
-                                                                {p.rankTier && (
-                                                                    <div className="text-ludo-xs font-bold text-white/40 uppercase tracking-wider">
-                                                                        {p.rankTier}
+                                                                <div className="min-w-0">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span
+                                                                            className={`text-ludo-xs font-bold text-white truncate transition-colors ${
+                                                                                isClickable
+                                                                                    ? 'group-hover:text-cyan-300 group-hover:underline'
+                                                                                    : ''
+                                                                            }`}
+                                                                        >
+                                                                            {p.username || shortAddr(p.wallet)}
+                                                                        </span>
+                                                                        {p.isMe && (
+                                                                            <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-ludo-xs font-mono font-black uppercase">
+                                                                                You
+                                                                            </span>
+                                                                        )}
                                                                     </div>
+                                                                    {p.rankTier && (
+                                                                        <div className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
+                                                                            {p.rankTier}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </button>
+
+                                                            {/* Right: Individual Telemetry (Kicks & Got Kicked) + Outcome */}
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <div className="flex items-center gap-1.5 text-ludo-xs font-mono">
+                                                                    <span
+                                                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-amber-300"
+                                                                        title="Captures / Kicks made"
+                                                                    >
+                                                                        <LuSwords className="w-3 h-3 text-amber-400 shrink-0" />
+                                                                        <span className="tabular-nums font-black">
+                                                                            {p.kicks}
+                                                                        </span>
+                                                                        <span className="text-[10px] text-white/40 uppercase tracking-tight">
+                                                                            Kicked
+                                                                        </span>
+                                                                    </span>
+                                                                    <span
+                                                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-red-300"
+                                                                        title="Times token was captured / kicked"
+                                                                    >
+                                                                        <LuShieldAlert className="w-3 h-3 text-red-400 shrink-0" />
+                                                                        <span className="tabular-nums font-black">
+                                                                            {p.gotKicked}
+                                                                        </span>
+                                                                        <span className="text-[10px] text-white/40 uppercase tracking-tight">
+                                                                            Captured
+                                                                        </span>
+                                                                    </span>
+                                                                </div>
+
+                                                                {p.isWinner ? (
+                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/30 text-ludo-xs font-mono font-black text-amber-400 uppercase">
+                                                                        <LuTrophy className="w-3 h-3 shrink-0" />
+                                                                        Winner
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="px-2 py-0.5 text-ludo-xs font-mono font-bold text-white/35 uppercase">
+                                                                        Defeated
+                                                                    </span>
                                                                 )}
                                                             </div>
                                                         </div>
-
-                                                        <div className="flex items-center gap-1.5 shrink-0">
-                                                            {p.isWinner ? (
-                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-mono font-black text-amber-400 uppercase">
-                                                                    <LuTrophy className="w-3 h-3 shrink-0" />
-                                                                    Winner
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-ludo-xs font-mono font-bold text-white/35 uppercase">
-                                                                    Defeated
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
 
                                             {/* Match Telemetry Footer */}
@@ -507,6 +589,19 @@ export function MatchHistoryTab({
                     })}
                 </div>
             )}
+
+            {/* Local Public Profile Modal fallback */}
+            <PublicProfileModal
+                isOpen={Boolean(selectedProfileAddress)}
+                userAddress={selectedProfileAddress}
+                onClose={() => setSelectedProfileAddress(null)}
+                onDM={(userId) => {
+                    setSelectedProfileAddress(null);
+                    window.dispatchEvent(
+                        new CustomEvent('ludo-open-chat', { detail: { wallet: userId } })
+                    );
+                }}
+            />
         </div>
     );
 }

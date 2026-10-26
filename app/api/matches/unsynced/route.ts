@@ -6,6 +6,7 @@ import {
     signFreeMatchAttestation,
     type FreeMatchAttestation,
 } from '@/lib/freeMatchAttestation';
+import { backfillPlayerFreeMatches } from '@/lib/freeMatchSync';
 import { keccak256, toBytes, type Address, type Hex } from 'viem';
 
 export async function GET(request: Request) {
@@ -22,6 +23,10 @@ export async function GET(request: Request) {
         const missionSystem = missionSystemAddress();
 
         const db = serviceDb();
+
+        // 1. Backfill any offline/casual free matches that are not yet queued in player_free_matches
+        await backfillPlayerFreeMatches(db, wallet);
+
         const { data: unsynced, error } = await db
             .from('player_free_matches')
             .select('match_id, player_id, won, is_pvp, captures, played_at')

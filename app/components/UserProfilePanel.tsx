@@ -104,10 +104,12 @@ export default function UserProfilePanel({
     onClose,
     onOpenMarketplace,
     onOpenWallet,
+    onOpenProfile,
 }: {
     onClose: () => void;
     onOpenMarketplace?: () => void;
     onOpenWallet?: () => void;
+    onOpenProfile?: (address: string) => void;
 }) {
     const { profile, address, displayName: finalName, isGuest } = useCurrentUser();
     const { guard } = useGuestWall();
@@ -377,7 +379,11 @@ export default function UserProfilePanel({
                 {/* Scrollable Content Area */}
                 <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-2">
                     {activeTab === 'history' ? (
-                        <MatchHistoryTab address={address} isGuest={isGuest} />
+                        <MatchHistoryTab
+                            address={address}
+                            isGuest={isGuest}
+                            onOpenProfile={onOpenProfile}
+                        />
                     ) : (
                         <>
                     {/* Identity row: avatar + name/tier + coins */}
