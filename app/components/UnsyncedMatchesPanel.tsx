@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUnsyncedMatches } from '@/hooks/useUnsyncedMatches';
+import { formatWeb3Error } from '@/lib/web3Error';
 import { Button } from './Button';
 import { useToast } from './Toast';
 import {
@@ -12,6 +13,7 @@ import {
     LuTrophy,
     LuSwords,
     LuCircleCheck,
+    LuShieldAlert,
 } from 'react-icons/lu';
 
 export function UnsyncedMatchesPanel({
@@ -21,7 +23,7 @@ export function UnsyncedMatchesPanel({
     targetWallet?: string | null;
     onSynced?: () => void;
 }) {
-    const { matches, count, isLoading, isSyncing, syncOnChain, error } =
+    const { matches, count, batchCount, isLoading, isSyncing, syncOnChain, error } =
         useUnsyncedMatches(targetWallet);
     const [isExpanded, setIsExpanded] = useState(false);
     const toast = useToast();
@@ -31,15 +33,14 @@ export function UnsyncedMatchesPanel({
 
     const handleSync = async () => {
         try {
-            const syncedCount = count;
-            const tx = await syncOnChain();
-            if (tx) {
-                toast(`Successfully synced ${syncedCount} matches on-chain!`, 'success');
+            const res = await syncOnChain();
+            if (res?.tx) {
+                toast(`Successfully synced ${res.syncedCount} matches on Base!`, 'success');
                 window.dispatchEvent(new CustomEvent('ludo-matches-synced'));
                 onSynced?.();
             }
         } catch (err: unknown) {
-            toast(err instanceof Error ? err.message : 'Failed to sync on-chain', 'error');
+            toast(formatWeb3Error(err), 'error');
         }
     };
 
@@ -130,12 +131,13 @@ export function UnsyncedMatchesPanel({
                                 </div>
 
                                 <p className="text-ludo-xs text-white/60 leading-relaxed">
-                                    Batch-commit your off-chain free match history onto Base in a single transaction to credit active Daily &amp; Weekly missions.
+                                    Batch-commit your off-chain free match history onto Base in gas-optimized batches (up to 10 matches per tx) to credit active Daily &amp; Weekly missions.
                                 </p>
 
                                 {error && (
-                                    <div className="text-ludo-xs text-red-400 font-mono font-bold">
-                                        {error}
+                                    <div className="rounded-xl bg-red-500/10 border border-red-500/25 px-3 py-2 flex items-center gap-2 text-ludo-xs font-mono font-bold text-red-300">
+                                        <LuShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
+                                        <span className="leading-snug">{error}</span>
                                     </div>
                                 )}
 
@@ -149,6 +151,8 @@ export function UnsyncedMatchesPanel({
                                         <LuRefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
                                         {isSyncing
                                             ? 'Syncing On-Chain…'
+                                            : count > batchCount
+                                            ? `Sync Next ${batchCount} Matches On-Chain (${batchCount} of ${count})`
                                             : `Sync ${count} ${count === 1 ? 'Match' : 'Matches'} On-Chain`}
                                     </span>
                                 </Button>

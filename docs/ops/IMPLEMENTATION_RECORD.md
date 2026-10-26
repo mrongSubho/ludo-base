@@ -2897,3 +2897,24 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
    - `npx eslint`: 0 errors.
    - `npm test`: 553/553 pass across 61 test suites.
+
+### 10. Web3 Error Beautification & Safe 10-Match Transaction Batching (2026-10-27)
+1. **Safe EVM Transaction Gas Capping (Batch Size 10)** — [`app/api/matches/unsynced/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/matches/unsynced/route.ts), [`hooks/useUnsyncedMatches.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useUnsyncedMatches.ts):
+   - Root Cause: Submitting 50 signed attestations in a single transaction prompted `eth_sendRawTransaction: exceeds max transaction gas limit` (~4M+ gas estimation on RPC `0x14a34` / Base Sepolia).
+   - Fix: Bound transaction batches to `BATCH_SIZE = 10` (~800k gas, well below the 2M-3M RPC ceiling).
+   - Maintained global queue tracking: `/api/matches/unsynced` queries `totalCount` of all unsynced matches, allowing the UI to display the full queue (e.g. 50 pending) while submitting safe 10-match chunks.
+   - Reactive Queue Progress: CTA button dynamically reads `Sync Next 10 Matches On-Chain (10 of 50)` $\to$ `(10 of 40)` $\to$ `(10 of 30)`, syncing atomically with confirmation.
+2. **Web3 Revert Error Beautification & Sanitization** — [`lib/web3Error.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/web3Error.ts):
+   - Implemented `formatWeb3Error(err: unknown): string` to strip internal JSON-RPC envelopes, viem contract call dumps, 50-element hex signature arrays, docs links, and stack traces.
+   - Translates raw exceptions into clean, friendly single-sentence messages:
+     - User cancellation $\to$ `"Transaction cancelled in wallet."`
+     - Gas limit $\to$ `"Batch exceeds network gas limit. Please sync in smaller batches of 10."`
+     - Insufficient ETH $\to$ `"Insufficient ETH balance on Base for gas fee."`
+     - OnlyOracle $\to$ `"Attestation signature expired or unauthorized. Please refresh queue."`
+     - AlreadyCompleted $\to$ `"These matches have already been settled on-chain."`
+   - Integrated across [`UnsyncedMatchesPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/UnsyncedMatchesPanel.tsx), [`useUnsyncedMatches.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useUnsyncedMatches.ts), and [`useMissionVoucher.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useMissionVoucher.ts).
+3. **Verification**:
+   - `scripts/match-history-telemetry.test.ts`: Added unit tests verifying `formatWeb3Error`, `BATCH_SIZE = 10`, and UI batch progress formatting.
+   - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+   - `npx eslint`: 0 errors.
+   - `npm test`: 556/556 pass across 61 test suites.

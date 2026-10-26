@@ -6,6 +6,7 @@ import type { Address, Hex } from "viem";
 import { missionClaimAddress } from "@/lib/missionVoucher";
 import { missionSystemAddress, missionIdBytes32, MISSION_SYSTEM_ABI } from "@/lib/missionSystem";
 import { useAppSession } from "@/hooks/useAppSession";
+import { formatWeb3Error } from "@/lib/web3Error";
 import { parseChainId } from "@/lib/chains";
 
 export const MISSION_CLAIM_ABI = [
@@ -101,7 +102,7 @@ export function useMissionVoucherClaim() {
                 setStep("done");
                 return tx;
             } catch (e) {
-                setError(e instanceof Error ? e.message : "Mission claim failed");
+                setError(formatWeb3Error(e));
                 setStep("error");
                 return null;
             }

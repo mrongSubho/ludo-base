@@ -7,6 +7,7 @@ import { missionSystemAddress, MISSION_SYSTEM_ABI } from "@/lib/missionSystem";
 import { useAppSession } from "@/hooks/useAppSession";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { parseChainId } from "@/lib/chains";
+import { formatWeb3Error } from "@/lib/web3Error";
 
 export interface UnsyncedMatchItem {
     match_id: string;
@@ -26,6 +27,7 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
     const { ensureAppSession } = useAppSession();
 
     const [matches, setMatches] = useState<UnsyncedMatchItem[]>([]);
+    const [totalCount, setTotalCount] = useState<number>(0);
     const [isLoading, setIsLoading] = useState(false);
     const [isSyncing, setIsSyncing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -33,6 +35,7 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
     const fetchUnsynced = useCallback(async () => {
         if (!address) {
             setMatches([]);
+            setTotalCount(0);
             return;
         }
         setIsLoading(true);
@@ -41,6 +44,7 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
             const sessionId = await ensureAppSession({ context: 'missions' });
             if (!sessionId) {
                 setMatches([]);
+                setTotalCount(0);
                 return;
             }
             const chainId = parseChainId(chainIdRaw) ?? 84532;
@@ -58,10 +62,13 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
                 throw new Error(errData?.error || "Failed to fetch unsynced matches");
             }
             const data = await res.json();
-            setMatches(data?.matches ?? []);
+            const fetchedMatches = data?.matches ?? [];
+            setMatches(fetchedMatches);
+            const total = typeof data?.totalCount === 'number' ? data.totalCount : fetchedMatches.length;
+            setTotalCount(total);
         } catch (err: unknown) {
             console.error("[useUnsyncedMatches] fetch error:", err);
-            setError(err instanceof Error ? err.message : "Failed to load unsynced matches");
+            setError(formatWeb3Error(err));
         } finally {
             setIsLoading(false);
         }
@@ -82,7 +89,8 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
     const syncOnChain = useCallback(async () => {
         const sysAddr = missionSystemAddress();
         if (!address || !sysAddr) {
-            setError("Wallet or MissionSystem not configured");
+            const msg = "Wallet or MissionSystem contract not configured";
+            setError(msg);
             return null;
         }
         setIsSyncing(true);
@@ -137,7 +145,7 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
                 ],
             });
 
-            // Confirm sync with DB
+            // Confirm synced batch with DB
             const matchIds = pendingMatches.map((m: { match_id: string }) => m.match_id);
             await fetch("/api/matches/sync-confirm", {
                 method: "POST",
@@ -154,12 +162,12 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
             window.dispatchEvent(new CustomEvent("mission-update"));
             window.dispatchEvent(new CustomEvent("ludo-profile-refresh"));
             window.dispatchEvent(new CustomEvent("ludo-matches-synced"));
-            return tx;
+            return { tx, syncedCount: matchIds.length };
         } catch (err: unknown) {
             console.error("[useUnsyncedMatches] sync failed:", err);
-            const msg = err instanceof Error ? err.message : "Sync failed";
-            setError(msg);
-            throw err;
+            const friendlyMsg = formatWeb3Error(err);
+            setError(friendlyMsg);
+            throw new Error(friendlyMsg);
         } finally {
             setIsSyncing(false);
         }
@@ -167,7 +175,8 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
 
     return {
         matches,
-        count: matches.length,
+        count: totalCount,
+        batchCount: matches.length,
         isLoading,
         isSyncing,
         error,

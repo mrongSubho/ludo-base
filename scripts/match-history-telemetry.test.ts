@@ -11,6 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { formatWeb3Error } from '../lib/web3Error';
 
 const root = join(import.meta.dirname ?? __dirname, '..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
@@ -72,4 +73,32 @@ test('MatchHistoryTab renders participant kicks, gotKicked and wires PublicProfi
     assert.match(tabCode, /p\.kicks/, 'Must display participant kicks');
     assert.match(tabCode, /p\.gotKicked/, 'Must display participant gotKicked');
     assert.match(tabCode, /setSelectedProfileAddress/, 'Must trigger profile modal on participant click');
+});
+
+test('formatWeb3Error turns raw EVM/gas limit revert strings into clean player-friendly messages', () => {
+    const gasError = 'The contract function "syncFreeMatches" reverted with the following reason: RPC 0x14a34 Custom eth_sendRawTransaction: exceeds max transaction gas limit Contract Call: address: 0x663d7c6b13A43962901e7665ad018A52B849709F function: syncFreeMatches(...) args: ([...50 items...]) Docs: https://viem.sh';
+    const formatted = formatWeb3Error(new Error(gasError));
+    assert.match(formatted, /gas limit/i, 'Must mention gas limit');
+    assert.ok(!formatted.includes('0x663d7c6b'), 'Must not leak contract address');
+    assert.ok(!formatted.includes('Contract Call:'), 'Must not leak Contract Call internals');
+    assert.ok(!formatted.includes('viem.sh'), 'Must not leak docs link');
+
+    const userReject = 'User rejected the request.';
+    assert.equal(formatWeb3Error(new Error(userReject)), 'Transaction cancelled in wallet.');
+
+    const fundsError = 'insufficient funds for gas * price + value';
+    assert.equal(formatWeb3Error(new Error(fundsError)), 'Insufficient ETH balance on Base for gas fee.');
+});
+
+test('/api/matches/unsynced enforces 10-match safe batch size and returns totalCount', () => {
+    const unsyncedCode = read('app/api/matches/unsynced/route.ts');
+    assert.match(unsyncedCode, /BATCH_SIZE\s*=\s*10/, 'Must define BATCH_SIZE = 10');
+    assert.match(unsyncedCode, /totalCount/, 'Must include totalCount in response');
+});
+
+test('UnsyncedMatchesPanel renders batch progress button and uses formatWeb3Error', () => {
+    const panelCode = read('app/components/UnsyncedMatchesPanel.tsx');
+    assert.match(panelCode, /formatWeb3Error/, 'Must use formatWeb3Error');
+    assert.match(panelCode, /batchCount/, 'Must read batchCount');
+    assert.match(panelCode, /count > batchCount/, 'Must format batch progress button label');
 });
