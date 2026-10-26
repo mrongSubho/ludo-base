@@ -91,6 +91,17 @@ export const MISSION_SYSTEM_ABI = [
     ],
     outputs: [],
   },
+  { type: "error", name: "OnlyOwner", inputs: [] },
+  { type: "error", name: "OnlyOracle", inputs: [] },
+  { type: "error", name: "BadParam", inputs: [] },
+  { type: "error", name: "Paused", inputs: [] },
+  { type: "error", name: "NotFound", inputs: [] },
+  { type: "error", name: "NotActive", inputs: [] },
+  { type: "error", name: "AlreadyCompleted", inputs: [] },
+  { type: "error", name: "AlreadyClaimed", inputs: [] },
+  { type: "error", name: "PrerequisiteNotMet", inputs: [] },
+  { type: "error", name: "InsufficientReserves", inputs: [] },
+  { type: "error", name: "ReserveFloor", inputs: [] },
 ] as const;
 
 export function missionSystemAddress(): Address | undefined {

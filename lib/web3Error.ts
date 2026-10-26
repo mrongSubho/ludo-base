@@ -19,17 +19,7 @@ export function formatWeb3Error(err: unknown): string {
         return 'Transaction cancelled in wallet.';
     }
 
-    // 2. Gas limit / batch size issues
-    if (
-        lower.includes('exceeds max transaction gas limit') ||
-        lower.includes('gas limit') ||
-        lower.includes('out of gas') ||
-        lower.includes('gas required exceeds')
-    ) {
-        return 'Batch exceeds network gas limit. Please sync in smaller batches of 10.';
-    }
-
-    // 3. Insufficient balance for transaction fee
+    // 2. Insufficient balance for transaction fee
     if (
         lower.includes('insufficient funds') ||
         lower.includes('exceeds balance') ||
@@ -39,7 +29,7 @@ export function formatWeb3Error(err: unknown): string {
         return 'Insufficient ETH balance on Base for gas fee.';
     }
 
-    // 4. Contract-level revert reasons (MissionSystem.sol & Ludo contracts)
+    // 3. Contract-level revert reasons (MissionSystem.sol & Ludo contracts)
     if (lower.includes('onlyoracle')) {
         return 'Attestation signature expired or unauthorized. Please refresh queue.';
     }
@@ -60,6 +50,17 @@ export function formatWeb3Error(err: unknown): string {
     }
     if (lower.includes('alreadyclaimed')) {
         return 'Reward for this period has already been claimed.';
+    }
+
+    // 4. Gas limit / batch size issues
+    if (
+        lower.includes('exceeds max transaction gas limit') ||
+        lower.includes('gas limit') ||
+        lower.includes('out of gas') ||
+        lower.includes('gas required exceeds') ||
+        lower.includes('intrinsic gas too low')
+    ) {
+        return 'Batch exceeds network gas limit. Please sync in smaller batches of 10.';
     }
 
     // 5. Pending / nonce collisions

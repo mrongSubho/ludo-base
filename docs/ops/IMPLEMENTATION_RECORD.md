@@ -2918,3 +2918,27 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
    - `npx eslint`: 0 errors.
    - `npm test`: 556/556 pass across 61 test suites.
+
+### 11. Base Sepolia MissionSystem Deployment & Sync Revert Resolution (2026-10-27)
+1. **Root Cause Diagnosis**:
+   - The error `"RPC 0x14a34 Custom eth_sendRawTransaction: exceeds max transaction gas limit"` was NOT caused by transaction gas limits or batch size.
+   - The contract address `0x663d7c6b13A43962901e7665ad018A52B849709F` in `.env.local` / `wrangler.jsonc` was an earlier deployment of `MissionSystem` that predated the addition of `syncFreeMatches`, `matchSynced`, and `claimMission` (commit `0a2ecc0`).
+   - Function selector `0x7eccc00b` (`syncFreeMatches`) and `0x548069d9` (`matchSynced`) did not exist on the deployed bytecode, triggering the contract fallback revert. Base Sepolia's node during `eth_estimateGas` on an unhandled revert emitted the generic `exceeds max transaction gas limit` message.
+2. **Canonical Contract Deployment on Base Sepolia (Chain ID 84532)**:
+   - Deployed fresh `contracts/src/MissionSystem.sol` containing full lazy settlement and 1:1 pull claims:
+     - **Contract Address**: [`0xdfB78b0A8c1877156f00858c764CA72Ba4a6e2C6`](https://sepolia.basescan.org/address/0xdfB78b0A8c1877156f00858c764CA72Ba4a6e2C6)
+     - **Creation TX**: `0x00aef00d23759a66a25590b6502c4cf400278f336d9d132e3a5cf2094bd0732c`
+     - **Owner**: `0xbcCa5DcBF293D98A627fD3814D5AE8249bB1DFaF`
+     - **Progress Oracle**: `0xCE2C06C39F1D852b758c93db4273Aa4E43A15CA2`
+     - **CHIPS Token**: `0xB200000000000000000000821408122b9Ed3d05B`
+   - Initialized all 23 missions on-chain (`6 Daily` + `6 Weekly` + `11 Onboarding`) via `InitMissionSystem.s.sol`.
+   - Funded reward reserve with 10,000 CHIPS (`10,000e18`) from the deployer treasury.
+3. **Environment & Wire Configuration**:
+   - Updated `NEXT_PUBLIC_MISSION_SYSTEM_ADDRESS` to `0xdfB78b0A8c1877156f00858c764CA72Ba4a6e2C6` across `.env.local`, `contracts/.env`, `wrangler.jsonc`, and `src/cloudflare-env.d.ts`.
+   - Added all 11 custom error signatures to `MISSION_SYSTEM_ABI` in [`lib/missionSystem.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/missionSystem.ts) (`OnlyOwner`, `OnlyOracle`, `BadParam`, `Paused`, `NotFound`, `NotActive`, `AlreadyCompleted`, `AlreadyClaimed`, `PrerequisiteNotMet`, `InsufficientReserves`, `ReserveFloor`).
+   - Updated [`lib/web3Error.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/web3Error.ts) to evaluate contract-level reverts before generic gas estimation errors.
+4. **Live Verification**:
+   - Simulated `syncFreeMatches` live against Base Sepolia RPC: confirmed successful execution.
+   - Estimated gas for 10-match batch: 1,119,348 gas (~$0.003 Base gas), validating that 10-match batches execute smoothly well below block limits.
+   - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+   - `npm test`: 556/556 pass across 61 test suites.

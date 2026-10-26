@@ -76,10 +76,10 @@ test('MatchHistoryTab renders participant kicks, gotKicked and wires PublicProfi
 });
 
 test('formatWeb3Error turns raw EVM/gas limit revert strings into clean player-friendly messages', () => {
-    const gasError = 'The contract function "syncFreeMatches" reverted with the following reason: RPC 0x14a34 Custom eth_sendRawTransaction: exceeds max transaction gas limit Contract Call: address: 0x663d7c6b13A43962901e7665ad018A52B849709F function: syncFreeMatches(...) args: ([...50 items...]) Docs: https://viem.sh';
+    const gasError = 'The contract function "syncFreeMatches" reverted with the following reason: RPC 0x14a34 Custom eth_sendRawTransaction: exceeds max transaction gas limit Contract Call: address: 0xdfB78b0A8c1877156f00858c764CA72Ba4a6e2C6 function: syncFreeMatches(...) args: ([...50 items...]) Docs: https://viem.sh';
     const formatted = formatWeb3Error(new Error(gasError));
     assert.match(formatted, /gas limit/i, 'Must mention gas limit');
-    assert.ok(!formatted.includes('0x663d7c6b'), 'Must not leak contract address');
+    assert.ok(!formatted.includes('0xdfB78b0A'), 'Must not leak contract address');
     assert.ok(!formatted.includes('Contract Call:'), 'Must not leak Contract Call internals');
     assert.ok(!formatted.includes('viem.sh'), 'Must not leak docs link');
 
