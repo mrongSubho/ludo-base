@@ -17,7 +17,6 @@ import { missionBadgeFor, type MissionBadgeKey } from '@/lib/missionBadge';
 import { Button } from './Button';
 import { useToast } from './Toast';
 import { useMissionOnChainState } from '@/hooks/useMissionOnChainState';
-import { UnsyncedMatchesPanel } from './UnsyncedMatchesPanel';
 
 // ─── Mission panel (moved out of Arena) ─────────────────────────────────────
 // Daily / weekly / onboard missions + claim. Arena stays live-only.
@@ -377,9 +376,6 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                     </div>
                                                 ) : (
                                                     <div className="flex flex-col gap-2 pb-2">
-                                                        {!isGuest && (
-                                                            <UnsyncedMatchesPanel />
-                                                        )}
                                                         <AnimatePresence mode="popLayout">
                                                             {visibleMissions.map((mission) => {
                                                                 // On-chain overlay: when the contract is configured and this

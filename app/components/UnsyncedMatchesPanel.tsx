@@ -7,20 +7,23 @@ import { Button } from './Button';
 import { useToast } from './Toast';
 import { LuRefreshCw, LuChevronDown, LuChevronUp, LuTrophy, LuSwords, LuCircleCheck } from 'react-icons/lu';
 
-export function UnsyncedMatchesPanel() {
+export function UnsyncedMatchesPanel({ onSynced }: { onSynced?: () => void }) {
     const { matches, count, isLoading, isSyncing, syncOnChain, error } = useUnsyncedMatches();
     const [isExpanded, setIsExpanded] = useState(false);
     const toast = useToast();
 
     if (count === 0 && !isLoading) {
         return (
-            <div className="mb-4 px-3 py-2 rounded-xl bg-cyan-500/[0.05] border border-cyan-500/20 flex items-center justify-between">
+            <div className="px-3.5 py-2.5 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                    <LuCircleCheck className="w-4 h-4 text-cyan-400" />
-                    <span className="text-ludo-xs font-mono font-bold uppercase tracking-wider text-cyan-300/80">
-                        All Free Matches Synced On-Chain
+                    <LuCircleCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="text-ludo-xs font-mono font-black uppercase tracking-[0.16em] text-white/70">
+                        All Free Matches Verified On-Chain
                     </span>
                 </div>
+                <span className="px-2 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-400/40 text-ludo-xs font-mono font-black text-cyan-300 uppercase tracking-wider">
+                    Synced
+                </span>
             </div>
         );
     }
@@ -30,9 +33,12 @@ export function UnsyncedMatchesPanel() {
 
     const handleSync = async () => {
         try {
+            const syncedCount = count;
             const tx = await syncOnChain();
             if (tx) {
-                toast(`Successfully synced ${count} matches on-chain!`, 'success');
+                toast(`Successfully synced ${syncedCount} matches on-chain!`, 'success');
+                window.dispatchEvent(new CustomEvent('ludo-matches-synced'));
+                onSynced?.();
             }
         } catch (err: unknown) {
             toast(err instanceof Error ? err.message : 'Failed to sync on-chain', 'error');
@@ -40,45 +46,51 @@ export function UnsyncedMatchesPanel() {
     };
 
     return (
-        <div className="mb-4 rounded-xl bg-gradient-to-br from-cyan-950/40 via-black/40 to-black/60 border border-cyan-500/30 overflow-hidden shadow-[0_0_20px_rgba(34,211,238,0.1)]">
-            <div className="p-3 flex flex-col gap-2.5">
+        <div className="rounded-2xl bg-white/[0.04] border border-cyan-400/40 overflow-hidden">
+            <div className="p-3.5 flex flex-col gap-2.5">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                        <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
                         <span className="text-ludo-xs font-mono font-black uppercase tracking-[0.16em] text-cyan-300">
-                            Unsynced Match History ({count})
+                            On-Chain Telemetry Queue ({count})
                         </span>
                     </div>
                     <button
                         type="button"
                         onClick={() => setIsExpanded((prev) => !prev)}
-                        className="text-ludo-xs font-mono text-cyan-400/70 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+                        className="text-ludo-xs font-mono font-bold text-white/60 hover:text-white flex items-center gap-1 transition-colors uppercase tracking-wider"
                     >
-                        {isExpanded ? 'Hide' : 'View'}
+                        {isExpanded ? 'Hide Queue' : 'Inspect'}
                         {isExpanded ? <LuChevronUp className="w-3.5 h-3.5" /> : <LuChevronDown className="w-3.5 h-3.5" />}
                     </button>
                 </div>
 
-                <div className="flex items-center gap-4 text-ludo-xs font-mono text-white/70">
-                    <div className="flex items-center gap-1.5">
-                        <LuTrophy className="w-3.5 h-3.5 text-amber-400" />
-                        <span>{wins} {wins === 1 ? 'Win' : 'Wins'}</span>
+                <div className="grid grid-cols-3 gap-1.5">
+                    <div className="rounded-xl bg-black/40 border border-white/5 px-2.5 py-1.5 flex items-center gap-1.5">
+                        <LuTrophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span className="text-ludo-xs font-mono font-black text-white tabular-nums">
+                            {wins} {wins === 1 ? 'Win' : 'Wins'}
+                        </span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                        <LuSwords className="w-3.5 h-3.5 text-rose-400" />
-                        <span>{totalCaptures} {totalCaptures === 1 ? 'Capture' : 'Captures'}</span>
+                    <div className="rounded-xl bg-black/40 border border-white/5 px-2.5 py-1.5 flex items-center gap-1.5">
+                        <LuSwords className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                        <span className="text-ludo-xs font-mono font-black text-white tabular-nums">
+                            {totalCaptures} {totalCaptures === 1 ? 'Capture' : 'Captures'}
+                        </span>
                     </div>
-                    <div className="text-white/40">
-                        {count} Total {count === 1 ? 'Match' : 'Matches'}
+                    <div className="rounded-xl bg-black/40 border border-white/5 px-2.5 py-1.5 flex items-center justify-center">
+                        <span className="text-ludo-xs font-mono font-black text-cyan-300 tabular-nums uppercase">
+                            {count} Pending
+                        </span>
                     </div>
                 </div>
 
-                <p className="text-ludo-xs text-white/50 leading-relaxed">
-                    Sync your free match history on-chain in 1 transaction to update daily & weekly mission progress.
+                <p className="text-ludo-xs text-white/60 leading-relaxed">
+                    Batch-commit your off-chain free match history onto Base in a single transaction to credit active Daily &amp; Weekly missions.
                 </p>
 
                 {error && (
-                    <div className="text-ludo-xs text-rose-400 font-mono">
+                    <div className="text-ludo-xs text-red-400 font-mono font-bold">
                         {error}
                     </div>
                 )}
@@ -86,7 +98,8 @@ export function UnsyncedMatchesPanel() {
                 <Button
                     onClick={handleSync}
                     disabled={isSyncing || isLoading || count === 0}
-                    className="w-full h-8 text-ludo-xs font-black tracking-wider uppercase bg-cyan-500 hover:bg-cyan-400 text-black rounded-lg transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+                    variant="primary"
+                    className="w-full h-9 text-ludo-xs font-black tracking-[0.16em] uppercase rounded-xl"
                 >
                     <span className="flex items-center justify-center gap-2">
                         <LuRefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
@@ -102,7 +115,7 @@ export function UnsyncedMatchesPanel() {
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="border-t border-cyan-500/20 bg-black/40 px-3 py-2 flex flex-col gap-1.5 max-h-48 overflow-y-auto"
+                        className="border-t border-white/10 bg-black/40 px-3.5 py-2 flex flex-col gap-1.5 max-h-44 overflow-y-auto no-scrollbar"
                     >
                         {matches.map((m) => (
                             <div
@@ -110,7 +123,7 @@ export function UnsyncedMatchesPanel() {
                                 className="flex items-center justify-between text-ludo-xs font-mono py-1 border-b border-white/5 last:border-0"
                             >
                                 <div className="flex items-center gap-2">
-                                    <span className={m.won ? 'text-emerald-400 font-bold' : 'text-white/40'}>
+                                    <span className={m.won ? 'text-emerald-400 font-black' : 'text-red-400 font-bold'}>
                                         {m.won ? 'VICTORY' : 'DEFEAT'}
                                     </span>
                                     {m.captures > 0 && (
@@ -118,13 +131,11 @@ export function UnsyncedMatchesPanel() {
                                             • {m.captures} {m.captures === 1 ? 'capture' : 'captures'}
                                         </span>
                                     )}
-                                    {m.is_pvp && (
-                                        <span className="px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-300 text-[10px]">
-                                            PvP
-                                        </span>
-                                    )}
+                                    <span className="px-1.5 py-0.5 rounded bg-cyan-500/15 border border-cyan-400/40 text-cyan-300 text-ludo-xs font-black uppercase">
+                                        {m.is_pvp ? 'PvP' : 'AI'}
+                                    </span>
                                 </div>
-                                <span className="text-white/35 text-[11px]">
+                                <span className="text-white/40 tabular-nums">
                                     {new Date(m.played_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>

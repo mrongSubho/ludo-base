@@ -78,6 +78,7 @@ export const RATE_LIMITS: Record<string, LimitRule> = {
     'onboarding/progress': { limit: 60, windowMs: 60_000 },
     'lobby/invites': { limit: 60, windowMs: 60_000, methods: ['GET'] },
     'chips/settle/relay': { limit: 10, windowMs: 60_000, methods: ['POST'] },
+    'matches/history': { limit: 60, windowMs: 60_000, methods: ['GET'] },
     'matches/sync-confirm': { limit: 20, windowMs: 60_000, methods: ['POST'] },
     'matches/unsynced': { limit: 60, windowMs: 60_000, methods: ['GET'] },
 };
@@ -133,6 +134,7 @@ export const SESSION_GATED = new Set([
     'marketplace/purchase',
     'match/record',
     'match/start',
+    'matches/history',
     'matches/sync-confirm',
     'matches/unsynced',
     'matchmaking/cancel',

@@ -13,10 +13,15 @@ import { getShowcased } from '@/lib/showcase';
 import { exitGuest } from '@/lib/guest';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { useAppSession } from '@/hooks/useAppSession';
+import { useUnsyncedMatches } from '@/hooks/useUnsyncedMatches';
+import { PanelTabs, TabCount } from './PanelTabs';
+import { MatchHistoryTab } from './MatchHistoryTab';
 import {
     AVATARS, AvatarDef, encodeAvatar, isDirectImage, isUnlocked,
     resolveAvatarDef, validateName, NAME_RULES,
 } from '@/lib/avatars';
+
+type ProfileTab = 'overview' | 'history';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as marketplace/settings/rankings/friends/messages/arena: this panel
@@ -107,6 +112,8 @@ export default function UserProfilePanel({
     const { profile, address, displayName: finalName, isGuest } = useCurrentUser();
     const { guard } = useGuestWall();
     const { ensureAppSession } = useAppSession();
+    const { count: unsyncedCount } = useUnsyncedMatches();
+    const [activeTab, setActiveTab] = useState<ProfileTab>('overview');
 
     const finalAvatar = profile?.avatar_url || null;
     const avatarDef = resolveAvatarDef(finalAvatar);
@@ -342,9 +349,37 @@ export default function UserProfilePanel({
                     </div>
                 )}
 
+                {/* Top-Level Profile Tabs (Overview | Match History) */}
+                <div className="px-5 pt-2.5 relative z-10">
+                    <PanelTabs<ProfileTab>
+                        value={activeTab}
+                        onPick={setActiveTab}
+                        cols={2}
+                        options={[
+                            {
+                                value: 'overview',
+                                label: 'Overview',
+                            },
+                            {
+                                value: 'history',
+                                label: 'Match History',
+                                badge:
+                                    unsyncedCount > 0 ? (
+                                        <TabCount active={activeTab === 'history'}>
+                                            {unsyncedCount}
+                                        </TabCount>
+                                    ) : undefined,
+                            },
+                        ]}
+                    />
+                </div>
+
                 {/* Scrollable Content Area */}
                 <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-2">
-
+                    {activeTab === 'history' ? (
+                        <MatchHistoryTab address={address} isGuest={isGuest} />
+                    ) : (
+                        <>
                     {/* Identity row: avatar + name/tier + coins */}
                     <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex items-center gap-3">
                         {avatarDef ? (
@@ -713,6 +748,8 @@ export default function UserProfilePanel({
                         </div>
 
                     </section>
+                        </>
+                    )}
 
                     </div>
                 </div>

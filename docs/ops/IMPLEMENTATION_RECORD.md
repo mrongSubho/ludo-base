@@ -2855,3 +2855,23 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - Engine & Auth Suite: 549/549 passing tests in `npm test` across all 60 test suites.
    - TypeScript: 0 compilation errors (`npx tsc --noEmit`).
    - ESLint: 0 errors across all modified and new modules (`npx eslint`).
+
+### 8. Call of Duty Mobile-Style Match History & On-Chain Sync Hub (2026-10-27)
+1. **Unified Battle Log API** — [`app/api/matches/history/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/matches/history/route.ts):
+   - Created `GET /api/matches/history?wallet=0x...` authenticated via `requireSessionWallet` with standard session headers (P3 compliant).
+   - Aggregates and cross-references 4 database tables: `matches` (game mode, shape, participants, outcome, timestamps), `player_free_matches` (captures, PvP status, on-chain sync status, sync TX hash), `chips_pools` (wagers, prize pool, settlement TX), and `players` (display names, rank tiers, and avatars).
+   - Enforces rate limiting (`60 req/min GET`) and session-gating in [`lib/rateLimitRoutes.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/rateLimitRoutes.ts).
+2. **Profile Panel Navigation** — [`app/components/UserProfilePanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/UserProfilePanel.tsx):
+   - Added `PanelTabs` (`OVERVIEW` | `MATCH HISTORY`) with an active `TabCount` badge reflecting pending unsynced free matches.
+3. **CODM Tactical Battle Log & Scoreboard** — [`app/components/MatchHistoryTab.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MatchHistoryTab.tsx):
+   - Embedded relocated `UnsyncedMatchesPanel` at top of Battle Log as the on-chain synchronization command center.
+   - 4-column combat telemetry ribbon: `BATTLES`, `WIN RATE % (W-L)`, `CAPTURES`, `NET RXP`.
+   - Filter pills: `All`, `Classic`, `Power`, `Paid`, `Unsynced`.
+   - Tactical match cards with vertical victory/defeat accent bars, outcome stamps, mode callouts, duration, captures, and on-chain verification pills (`SETTLED` / `SYNCED` / `UNSYNCED`).
+   - Inline expandable scoreboard drawer detailing seated squad rosters, winner status, rank tiers, room codes, match IDs, and direct BaseScan transaction links.
+4. **Theme Proofing**:
+   - Compliant with `.ludo-profile-scope` design token contract across `theme-retro-futurism` and `theme-daybreak`.
+5. **Quality Gates**:
+   - `npx tsc --noEmit`: 0 errors.
+   - `npx eslint`: 0 errors.
+   - `npm test`: 549/549 pass across 60 test suites.
