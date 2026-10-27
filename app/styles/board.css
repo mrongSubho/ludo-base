@@ -1683,7 +1683,7 @@ body.theme-retro-futurism .token-dot-placeholder {
 }
 
 .match-stats-card {
-  width: min(380px, 100%);
+  width: min(420px, calc(100vw - 24px));
   max-height: min(82dvh, 680px);
   overflow-y: auto;
   overscroll-behavior: contain;

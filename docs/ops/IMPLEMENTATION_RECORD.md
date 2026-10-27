@@ -2968,3 +2968,24 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - `scripts/match-history-telemetry.test.ts`: Added unit tests verifying `home` metric on history route, telemetry pills on `MatchHistoryTab` and `MatchStatsOverlay`, `PublicProfileModal` connectivity, and `Winner`/`Defeated` labels.
    - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
    - `npm test`: 558/558 pass across 61 test suites.
+
+### 13. Bespoke Rank Tier Vector Insignias & Layout Collision Fix (2026-10-27)
+1. **Bespoke Vector Insignia Design** — [`app/components/RankTierIcon.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/RankTierIcon.tsx):
+   - Created dedicated tactical insignia component rendering custom vector emblems for each progression tier:
+     - **Bronze**: Notched combat shield with single copper chevron (`#b45309`, `#f59e0b`).
+     - **Silver**: Dual-chevron tactical crest with steel bevels (`#94a3b8`, `#f8fafc`).
+     - **Gold**: Winged combat shield with gilded star (`#eab308`, `#facc15`).
+     - **Platinum**: Faceted cobalt crown crest with crystalline core (`#60a5fa`, `#93c5fd`).
+     - **Diamond**: Prismatic brilliant-cut diamond gem with electric cyan glow (`#22d3ee`, `#67e8f9`).
+     - **Arena Master**: Elite crowned skull / combat crest with flaming crimson-orange wings (`#ea580c`, `#f97316`).
+     - **Bot Squad / AI**: Microprocessor tactical AI core with circuitry nodes (`#f59e0b`, `#fbbf24`).
+2. **Typography & Layout Overlap Resolution** — [`app/components/MatchStatsOverlay.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MatchStatsOverlay.tsx), [`app/components/MatchHistoryTab.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MatchHistoryTab.tsx), [`app/styles/board.css`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/styles/board.css):
+   - Reduced rank tier font size from `text-[10px]` with loose tracking to `text-[9px] font-mono font-bold tracking-tight uppercase truncate` paired inline with the tier's custom vector insignia.
+   - Applied thematic tier colors (`text-amber-500`, `text-slate-300`, `text-yellow-400`, `text-blue-400`, `text-cyan-300`, `text-orange-400`).
+   - Saved ~106px of horizontal space on narrow screens by making telemetry text labels (`Home`, `Kicked`, `Captured`) responsive via `hidden sm:inline`, displaying compact icons + metrics (`🏠 4/4`, `⚔️ 0`, `🛡️ 1`) on compact viewports.
+   - Broadened `.match-stats-card` from static `min(380px, 100%)` to `min(420px, calc(100vw - 24px))` to give full comfortable breathing room on modern mobile screens.
+3. **Verification**:
+   - `scripts/match-history-telemetry.test.ts`: Added assertions verifying `RankTierIcon` renders insignias for all tiers and that `text-[9px]` is applied.
+   - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+   - `npx eslint`: 0 errors.
+   - `npm test`: 559/559 pass across 61 test suites.

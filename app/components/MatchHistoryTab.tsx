@@ -22,6 +22,7 @@ import {
     LuBot,
 } from 'react-icons/lu';
 import { FiHome } from 'react-icons/fi';
+import RankTierIcon, { getTierColorClass } from './RankTierIcon';
 
 type HistoryFilter = 'all' | 'classic' | 'power' | 'ranked' | 'unsynced';
 
@@ -501,22 +502,32 @@ export function MatchHistoryTab({
                                                                             {p.username || shortAddr(p.wallet)}
                                                                         </span>
                                                                         {p.isMe && (
-                                                                            <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-ludo-xs font-mono font-black uppercase">
+                                                                            <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-ludo-xs font-mono font-black uppercase shrink-0">
                                                                                 You
                                                                             </span>
                                                                         )}
                                                                     </div>
                                                                     {p.rankTier && (
-                                                                        <div className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
-                                                                            {p.rankTier}
+                                                                        <div className="flex items-center gap-1 min-w-0 mt-0.5">
+                                                                            <RankTierIcon
+                                                                                tier={p.rankTier}
+                                                                                className="w-3 h-3 shrink-0"
+                                                                            />
+                                                                            <span
+                                                                                className={`text-[9px] font-mono font-bold tracking-tight uppercase truncate ${getTierColorClass(
+                                                                                    p.rankTier
+                                                                                )}`}
+                                                                            >
+                                                                                {p.rankTier}
+                                                                            </span>
                                                                         </div>
                                                                     )}
                                                                 </div>
                                                             </button>
 
                                                             {/* Right: Individual Telemetry (Home, Kicks & Got Kicked) + Outcome */}
-                                                            <div className="flex items-center gap-2 shrink-0">
-                                                                <div className="flex items-center gap-1.5 text-ludo-xs font-mono">
+                                                            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                                                                <div className="flex items-center gap-1 sm:gap-1.5 text-ludo-xs font-mono">
                                                                     <span
                                                                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-emerald-300"
                                                                         title="Tokens Home"
@@ -525,7 +536,7 @@ export function MatchHistoryTab({
                                                                         <span className="tabular-nums font-black">
                                                                             {p.home ?? (p.isWinner ? 4 : 0)}/4
                                                                         </span>
-                                                                        <span className="text-[10px] text-white/40 uppercase tracking-tight">
+                                                                        <span className="hidden sm:inline text-[9px] text-white/40 uppercase tracking-tight">
                                                                             Home
                                                                         </span>
                                                                     </span>
@@ -537,7 +548,7 @@ export function MatchHistoryTab({
                                                                         <span className="tabular-nums font-black">
                                                                             {p.kicks}
                                                                         </span>
-                                                                        <span className="text-[10px] text-white/40 uppercase tracking-tight">
+                                                                        <span className="hidden sm:inline text-[9px] text-white/40 uppercase tracking-tight">
                                                                             Kicked
                                                                         </span>
                                                                     </span>
@@ -549,19 +560,19 @@ export function MatchHistoryTab({
                                                                         <span className="tabular-nums font-black">
                                                                             {p.gotKicked}
                                                                         </span>
-                                                                        <span className="text-[10px] text-white/40 uppercase tracking-tight">
+                                                                        <span className="hidden sm:inline text-[9px] text-white/40 uppercase tracking-tight">
                                                                             Captured
                                                                         </span>
                                                                     </span>
                                                                 </div>
 
                                                                 {p.isWinner ? (
-                                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/30 text-ludo-xs font-mono font-black text-amber-400 uppercase">
+                                                                    <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/30 text-ludo-xs font-mono font-black text-amber-400 uppercase shrink-0">
                                                                         <LuTrophy className="w-3 h-3 shrink-0" />
                                                                         Winner
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="px-2 py-0.5 text-ludo-xs font-mono font-bold text-white/35 uppercase">
+                                                                    <span className="px-1.5 sm:px-2 py-0.5 text-ludo-xs font-mono font-bold text-white/35 uppercase shrink-0">
                                                                         Defeated
                                                                     </span>
                                                                 )}

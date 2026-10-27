@@ -75,6 +75,8 @@ test('MatchHistoryTab renders participant home, kicks, gotKicked and wires Publi
     const tabCode = read('app/components/MatchHistoryTab.tsx');
 
     assert.match(tabCode, /PublicProfileModal/, 'Must import and render PublicProfileModal');
+    assert.match(tabCode, /RankTierIcon/, 'Must import and render RankTierIcon');
+    assert.match(tabCode, /text-\[9px\]/, 'Must use compact text-[9px] for rank tier');
     assert.match(tabCode, /p\.home/, 'Must display participant home count');
     assert.match(tabCode, /p\.kicks/, 'Must display participant kicks');
     assert.match(tabCode, /p\.gotKicked/, 'Must display participant gotKicked');
@@ -87,6 +89,8 @@ test('MatchStatsOverlay implements unified tactical design matching MatchHistory
     const overlayCode = read('app/components/MatchStatsOverlay.tsx');
 
     assert.match(overlayCode, /PublicProfileModal/, 'Must import and render PublicProfileModal');
+    assert.match(overlayCode, /RankTierIcon/, 'Must import and render RankTierIcon');
+    assert.match(overlayCode, /text-\[9px\]/, 'Must use compact text-[9px] for rank tier');
     assert.match(overlayCode, /FiHome/, 'Must render FiHome icon');
     assert.match(overlayCode, /LuSwords/, 'Must render LuSwords icon');
     assert.match(overlayCode, /LuShieldAlert/, 'Must render LuShieldAlert icon');
@@ -98,6 +102,18 @@ test('MatchStatsOverlay implements unified tactical design matching MatchHistory
     assert.match(overlayCode, /onOpenProfile/, 'Must support onOpenProfile callback');
     assert.match(overlayCode, /Winner/, 'Must display Winner badge');
     assert.match(overlayCode, /Defeated/, 'Must display Defeated badge');
+});
+
+test('RankTierIcon exports bespoke tactical vector insignias for all tiers and bots', () => {
+    const iconCode = read('app/components/RankTierIcon.tsx');
+
+    assert.match(iconCode, /Bronze Insignia/, 'Must support Bronze tier insignia');
+    assert.match(iconCode, /Silver Insignia/, 'Must support Silver tier insignia');
+    assert.match(iconCode, /Gold Insignia/, 'Must support Gold tier insignia');
+    assert.match(iconCode, /Platinum Insignia/, 'Must support Platinum tier insignia');
+    assert.match(iconCode, /Diamond Insignia/, 'Must support Diamond tier insignia');
+    assert.match(iconCode, /Arena Master Insignia/, 'Must support Arena Master insignia');
+    assert.match(iconCode, /Bot Squad Insignia/, 'Must support Bot Squad insignia');
 });
 
 test('MatchHistoryTab uses Ranked Match branding instead of Paid', () => {
