@@ -2942,3 +2942,29 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - Estimated gas for 10-match batch: 1,119,348 gas (~$0.003 Base gas), validating that 10-match batches execute smoothly well below block limits.
    - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
    - `npm test`: 556/556 pass across 61 test suites.
+
+### 12. Unified Post-Match Scoreboard & Winning Card Telemetry (2026-10-27)
+1. **Design & Metric Harmonization** — [`app/components/MatchStatsOverlay.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MatchStatsOverlay.tsx), [`app/components/MatchHistoryTab.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MatchHistoryTab.tsx):
+   - Harmonized the end-of-game victory overlay card (`MatchStatsOverlay`) and the expanded match history drawer (`MatchHistoryTab`) to use an identical tactical CODM terminal-glass aesthetic.
+   - **Clickable Player Profiles**: Clickable combatant button wrapping the avatar and display name; clicking opens [`PublicProfileModal`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/PublicProfileModal.tsx) for any human wallet.
+   - **Badges & Ranks**:
+     - `YOU` badge (cyan-500/20) and `AI` badge (amber-400/20).
+     - Subtitle displaying rank tier (`BRONZE`, `SILVER`, `GOLD`, etc. from `getTierInfo(rxp)`) or `'Bot Squad'` for AI players.
+     - Finishing position badge (`1`, `2`, `3`, `4`).
+   - **Unified Combat Telemetry Pills**:
+     - `🏠 {home}/4 Home` with `FiHome` in emerald-400 / emerald-300.
+     - `⚔️ {kicks} Kicked` with `LuSwords` in amber-400 / amber-300.
+     - `🛡️ {gotKicked} Captured` with `LuShieldAlert` in red-400 / red-300.
+   - **Outcome Pills**:
+     - Winner: Gold/amber trophy pill with `LuTrophy` and `Winner` (or ranked CHIPS prize payout).
+     - Defeated: Muted uppercase pill (`DEFEATED`).
+2. **Backend Telemetry Extension** — [`app/api/matches/history/route.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/api/matches/history/route.ts):
+   - Extended `MatchParticipantProfile` with `home: number`.
+   - Computed tokens home from `stateRow.state.positions[col]` where `pos === BOARD_FINISH_INDEX` (57), with fallback `won ? 4 : 0`.
+3. **Theme Compatibility & Styling** — [`app/styles/board.css`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/styles/board.css):
+   - Transitioned `.match-stats-row` from rigid grid to responsive flex layout matching `MatchHistoryTab`.
+   - Added Daybreak theme overrides for `.match-stats-row` (`.text-white`, `.text-white/40`, `.bg-white/[0.04]`, `.border-white/5`) ensuring high-contrast dark ink on light porcelain.
+4. **Verification**:
+   - `scripts/match-history-telemetry.test.ts`: Added unit tests verifying `home` metric on history route, telemetry pills on `MatchHistoryTab` and `MatchStatsOverlay`, `PublicProfileModal` connectivity, and `Winner`/`Defeated` labels.
+   - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+   - `npm test`: 558/558 pass across 61 test suites.

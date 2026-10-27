@@ -463,6 +463,7 @@ export default function Board({
                 lxpGain={lxpGain}
                 onRematch={resetGame}
                 onExit={onExitMatch}
+                onOpenProfile={onOpenProfile}
                 poolId={claimConfigured ? poolId : null}
                 onClaimChips={claimConfigured ? () => void claimChips() : undefined}
                 claimableChips={

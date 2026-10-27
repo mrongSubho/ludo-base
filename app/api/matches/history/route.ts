@@ -11,6 +11,7 @@ export interface MatchParticipantProfile {
     isMe: boolean;
     kicks: number;
     gotKicked: number;
+    home: number;
 }
 
 export interface MatchHistoryRecord {
@@ -199,7 +200,12 @@ export async function GET(request: Request) {
                 (partWallets.length === 2 ? '1v1' : partWallets.length >= 4 ? '4P' : '1v1');
 
             const stateRow = stateByMatchId.get(m.id);
-            const matchStats = (stateRow?.state as { matchStats?: Record<string, { kicks?: number; gotKicked?: number }> } | undefined)?.matchStats;
+            const stateObj = stateRow?.state as {
+                matchStats?: Record<string, { kicks?: number; gotKicked?: number }>;
+                positions?: Record<string, number[]>;
+            } | undefined;
+            const matchStats = stateObj?.matchStats;
+            const positions = stateObj?.positions;
 
             const colorByWallet = new Map<string, string>();
             if (Array.isArray(stateRow?.player_seats)) {
@@ -229,6 +235,7 @@ export async function GET(request: Request) {
                 const col = colorByWallet.get(addr);
                 let pKicks = 0;
                 let pGotKicked = 0;
+                let pHome = 0;
 
                 if (col && matchStats?.[col]) {
                     pKicks = Number(matchStats[col]?.kicks || 0);
@@ -243,6 +250,12 @@ export async function GET(request: Request) {
                     pKicks = metaCaptures;
                 }
 
+                if (col && Array.isArray(positions?.[col])) {
+                    pHome = positions[col].filter((pos: number) => pos === 57).length;
+                } else if (winnerLc !== null && addr === winnerLc) {
+                    pHome = 4;
+                }
+
                 return {
                     wallet: addr,
                     username: prof?.username ?? null,
@@ -252,6 +265,7 @@ export async function GET(request: Request) {
                     isMe: addr === me,
                     kicks: pKicks,
                     gotKicked: pGotKicked,
+                    home: pHome,
                 };
             });
 
@@ -319,6 +333,7 @@ export async function GET(request: Request) {
                         isMe: true,
                         kicks: Number(f.captures || 0),
                         gotKicked: 0,
+                        home: f.won ? 4 : 0,
                     },
                 ],
             });

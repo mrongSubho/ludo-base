@@ -3,16 +3,23 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Hex } from 'viem';
+import {
+    LuSwords,
+    LuShieldAlert,
+    LuTrophy,
+} from 'react-icons/lu';
+import { FiHome } from 'react-icons/fi';
 import { SettlePoolButton } from './SettlePoolButton';
 import { buildPayoutPlan, payoutColorsForWinner, payoutShareLabel, type MatchShape } from '@/lib/payoutPlan';
 import { BOARD_FINISH_INDEX, TEAM_ID } from '@/lib/constants';
 import { GameState, PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
 import { getDisplayNameHelper } from './PlayerInfoRow';
-import Chip from './Chip';
 import { ThinkingOrb } from './ThinkingOrb';
 import { buildMatchReceipt, renderReceiptMarkdown, type MatchReceipt } from '@/lib/receipt/buildMatchReceipt';
 import { usePoolSummary } from '@/hooks/useChipsPool';
+import { getTierInfo } from '@/lib/progression';
+import PublicProfileModal from './PublicProfileModal';
 
 // ─── Post-match stats sheet ──────────────────────────────────────────────────
 // Terminal-glass treatment of the classic win sheet: result banner, XP strip,
@@ -64,38 +71,6 @@ function matchShapeOf(playerCount: string): MatchShape {
     return '4P';
 }
 
-const RankBadge = ({ rank, won }: { rank: number; won: boolean }) => (
-    <div
-        className={`match-stats-rank ${won ? 'won' : ''}`}
-        aria-label={`Rank ${rank}`}
-    >
-        {rank}
-    </div>
-);
-
-const HomeGlyph = () => (
-    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 10.5 12 3l9 7.5" />
-        <path d="M5 10v10h14V10" />
-    </svg>
-);
-
-/** Outgoing capture — token you sent home. */
-const KickGlyph = () => (
-    <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 16c2-1 4-4 4-7V5h3l1 4 3 2 3-1v3l-4 2v4c0 2-2 3-4 3s-4-1-4-3z" />
-        <path d="M14 8l3-3M17 12l3 1" />
-    </svg>
-);
-
-/** Incoming capture — token of yours sent home. */
-const KickedGlyph = () => (
-    <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" />
-    </svg>
-);
-
 function combatFor(
     color: PlayerColor,
     gameState: GameState
@@ -116,6 +91,8 @@ export interface MatchStatsOverlayProps {
     lxpGain?: number | null;
     onRematch: () => void;
     onExit?: () => void;
+    /** Open user public profile modal callback */
+    onOpenProfile?: (address: string) => void;
     /**
      * MatchPool claim (pull). Wired in Board when poolId is known.
      */
@@ -154,6 +131,7 @@ export function MatchStatsOverlay({
     lxpGain,
     onRematch,
     onExit,
+    onOpenProfile,
     onClaimChips,
     poolId,
     claimableChips,
@@ -169,6 +147,7 @@ export function MatchStatsOverlay({
     seq,
     replay,
 }: MatchStatsOverlayProps) {
+    const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
     const seats = playerCount === '1v1' ? 2 : 4;
 
     const rows = useMemo(() => {
@@ -339,60 +318,164 @@ export function MatchStatsOverlay({
                             {rows.map((row, idx) => {
                                 const accent = COLOR_ACCENT[row.player.color] || '#00E5FF';
                                 const isMe = myPlayer?.color === row.player.color;
+                                const displayName = getDisplayNameHelper(row.player);
+                                const wallet = row.player.walletAddress;
+                                const isClickable = Boolean(wallet) && /^0x[a-f0-9]{40}$/i.test(wallet!);
+                                const tier = row.player.isAi
+                                    ? 'Bot Squad'
+                                    : getTierInfo(row.player.rxp || 0).tier;
+
                                 return (
                                     <div
                                         key={row.player.color}
                                         className={`match-stats-row ${row.won ? 'won' : ''} ${isMe ? 'me' : ''}`}
                                     >
-                                        <RankBadge rank={idx + 1} won={row.won} />
-                                        <div className="match-stats-avatar" style={{ borderColor: accent }}>
-                                            {row.player.avatar &&
-                                            (row.player.avatar.startsWith('http') || row.player.avatar.startsWith('/')) ? (
-                                                 
-                                                <img src={row.player.avatar} alt="" className="w-full h-full object-cover" width={96} height={96} />
-                                            ) : (
-                                                <span className="text-sm font-black" style={{ color: accent }}>
-                                                    {getDisplayNameHelper(row.player).slice(0, 1)}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="match-stats-id">
-                                            <div className="match-stats-name">
-                                                {getDisplayNameHelper(row.player)}
-                                                {row.player.isAi && <span className="match-stats-ai">AI</span>}
+                                        {/* Left: Rank Badge + Avatar + Username (Clickable to open profile) */}
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <div
+                                                className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-mono font-black shrink-0 ${
+                                                    row.won
+                                                        ? 'bg-amber-400/20 border border-amber-400/40 text-amber-300'
+                                                        : 'bg-white/5 border border-white/10 text-white/40'
+                                                }`}
+                                                aria-label={`Rank ${idx + 1}`}
+                                            >
+                                                {idx + 1}
                                             </div>
-                                            <div className="match-stats-combat">
-                                                <span className="match-stats-home" style={{ color: accent }}>
-                                                    <HomeGlyph />
-                                                    {row.home}/4
-                                                </span>
-                                                <Chip size="sm" status="ok" icon={<KickGlyph />} title="Kicks — tokens you sent home">
-                                                    {row.kicks}
-                                                </Chip>
-                                                <Chip size="sm" status="warn" icon={<KickedGlyph />} title="Got kicked — your tokens sent home">
-                                                    {row.gotKicked}
-                                                </Chip>
-                                            </div>
+
+                                            <button
+                                                type="button"
+                                                disabled={!isClickable}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (isClickable && wallet) {
+                                                        if (onOpenProfile) {
+                                                            onOpenProfile(wallet);
+                                                        } else {
+                                                            setSelectedProfileAddress(wallet);
+                                                        }
+                                                    }
+                                                }}
+                                                className={`flex items-center gap-2 min-w-0 group text-left ${
+                                                    isClickable
+                                                        ? 'cursor-pointer hover:opacity-90'
+                                                        : 'cursor-default'
+                                                }`}
+                                                title={isClickable ? 'Inspect combatant profile' : undefined}
+                                            >
+                                                <div
+                                                    className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden border transition-colors group-hover:border-cyan-300"
+                                                    style={{
+                                                        borderColor: accent,
+                                                        backgroundColor: `${accent}20`,
+                                                    }}
+                                                >
+                                                    {row.player.avatar &&
+                                                    (row.player.avatar.startsWith('http') ||
+                                                        row.player.avatar.startsWith('/')) ? (
+                                                        <img
+                                                            src={row.player.avatar}
+                                                            alt={displayName}
+                                                            className="w-full h-full object-cover"
+                                                            width={28}
+                                                            height={28}
+                                                        />
+                                                    ) : (
+                                                        <span
+                                                            className="text-ludo-xs font-black uppercase"
+                                                            style={{ color: accent }}
+                                                        >
+                                                            {displayName.slice(0, 1)}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span
+                                                            className={`text-ludo-xs font-bold text-white truncate transition-colors ${
+                                                                isClickable
+                                                                    ? 'group-hover:text-cyan-300 group-hover:underline'
+                                                                    : ''
+                                                            }`}
+                                                        >
+                                                            {displayName}
+                                                        </span>
+                                                        {isMe && (
+                                                            <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-ludo-xs font-mono font-black uppercase">
+                                                                You
+                                                            </span>
+                                                        )}
+                                                        {row.player.isAi && (
+                                                            <span className="px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 text-ludo-xs font-mono font-black uppercase">
+                                                                AI
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[10px] font-bold text-white/40 uppercase tracking-wider">
+                                                        {tier}
+                                                    </div>
+                                                </div>
+                                            </button>
                                         </div>
-                                        <div className={`match-stats-outcome ${row.won ? 'win' : 'lose'}`}>
+
+                                        {/* Right: Individual Telemetry (Home, Kicked, Captured) + Outcome */}
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <div className="flex items-center gap-1.5 text-ludo-xs font-mono">
+                                                <span
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-emerald-300"
+                                                    title="Tokens Home"
+                                                >
+                                                    <FiHome className="w-3 h-3 text-emerald-400 shrink-0" />
+                                                    <span className="tabular-nums font-black">{row.home}/4</span>
+                                                    <span className="text-[10px] text-white/40 uppercase tracking-tight">
+                                                        Home
+                                                    </span>
+                                                </span>
+
+                                                <span
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-amber-300"
+                                                    title="Captures / Kicks made"
+                                                >
+                                                    <LuSwords className="w-3 h-3 text-amber-400 shrink-0" />
+                                                    <span className="tabular-nums font-black">{row.kicks}</span>
+                                                    <span className="text-[10px] text-white/40 uppercase tracking-tight">
+                                                        Kicked
+                                                    </span>
+                                                </span>
+
+                                                <span
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-red-300"
+                                                    title="Times token was captured / kicked"
+                                                >
+                                                    <LuShieldAlert className="w-3 h-3 text-red-400 shrink-0" />
+                                                    <span className="tabular-nums font-black">{row.gotKicked}</span>
+                                                    <span className="text-[10px] text-white/40 uppercase tracking-tight">
+                                                        Captured
+                                                    </span>
+                                                </span>
+                                            </div>
+
                                             {row.won ? (
-                                                isPaid ? (
-                                                    <>
-                                                        <span className="match-stats-outcome-label">
-                                                            Prize
-                                                            {winnerCount > 1
-                                                                ? ` · ${payoutShareLabel(shape, idx + 1, winnerCount)}`
-                                                                : ''}
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/30 text-ludo-xs font-mono font-black text-amber-400 uppercase">
+                                                    <LuTrophy className="w-3 h-3 shrink-0" />
+                                                    {isPaid && estClaim > 0 ? (
+                                                        <span>
+                                                            {formatChips(Math.floor(estClaim))} CHIPS
+                                                            {winnerCount > 1 && (
+                                                                <span className="text-[10px] text-amber-400/70 ml-1">
+                                                                    ({payoutShareLabel(shape, idx + 1, winnerCount)})
+                                                                </span>
+                                                            )}
                                                         </span>
-                                                        <span className="match-stats-outcome-val">
-                                                            {formatChips(Math.floor(estClaim))}
-                                                        </span>
-                                                    </>
-                                                ) : (
-                                                    <span className="match-stats-outcome-val">WIN</span>
-                                                )
+                                                    ) : (
+                                                        'Winner'
+                                                    )}
+                                                </span>
                                             ) : (
-                                                <span className="match-stats-outcome-val muted">LOSE</span>
+                                                <span className="px-2 py-0.5 text-ludo-xs font-mono font-bold text-white/35 uppercase">
+                                                    Defeated
+                                                </span>
                                             )}
                                         </div>
                                     </div>
@@ -562,6 +645,19 @@ export function MatchStatsOverlay({
                                 </svg>
                             </button>
                         </div>
+
+                        {/* Local Public Profile Modal fallback */}
+                        <PublicProfileModal
+                            isOpen={Boolean(selectedProfileAddress)}
+                            userAddress={selectedProfileAddress}
+                            onClose={() => setSelectedProfileAddress(null)}
+                            onDM={(userId) => {
+                                setSelectedProfileAddress(null);
+                                window.dispatchEvent(
+                                    new CustomEvent('ludo-open-chat', { detail: { wallet: userId } })
+                                );
+                            }}
+                        />
                     </motion.div>
                 </div>
             )}

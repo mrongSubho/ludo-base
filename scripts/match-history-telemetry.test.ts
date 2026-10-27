@@ -16,8 +16,13 @@ import { formatWeb3Error } from '../lib/web3Error';
 const root = join(import.meta.dirname ?? __dirname, '..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
 
-test('MatchParticipantProfile includes kicks and gotKicked metrics', () => {
+test('MatchParticipantProfile includes home, kicks and gotKicked metrics', () => {
     const historyRoute = read('app/api/matches/history/route.ts');
+    assert.match(
+        historyRoute,
+        /home:\s*number;/,
+        'MatchParticipantProfile must include home telemetry'
+    );
     assert.match(
         historyRoute,
         /kicks:\s*number;/,
@@ -66,13 +71,33 @@ test('UnsyncedMatchesPanel has tap-to-expand collapsible states with required ti
     assert.match(panelCode, /setIsExpanded/, 'Must toggle isExpanded on click');
 });
 
-test('MatchHistoryTab renders participant kicks, gotKicked and wires PublicProfileModal', () => {
+test('MatchHistoryTab renders participant home, kicks, gotKicked and wires PublicProfileModal', () => {
     const tabCode = read('app/components/MatchHistoryTab.tsx');
 
     assert.match(tabCode, /PublicProfileModal/, 'Must import and render PublicProfileModal');
+    assert.match(tabCode, /p\.home/, 'Must display participant home count');
     assert.match(tabCode, /p\.kicks/, 'Must display participant kicks');
     assert.match(tabCode, /p\.gotKicked/, 'Must display participant gotKicked');
     assert.match(tabCode, /setSelectedProfileAddress/, 'Must trigger profile modal on participant click');
+    assert.match(tabCode, /Winner/, 'Must display Winner badge');
+    assert.match(tabCode, /Defeated/, 'Must display Defeated badge');
+});
+
+test('MatchStatsOverlay implements unified tactical design matching MatchHistoryTab with clickable profiles', () => {
+    const overlayCode = read('app/components/MatchStatsOverlay.tsx');
+
+    assert.match(overlayCode, /PublicProfileModal/, 'Must import and render PublicProfileModal');
+    assert.match(overlayCode, /FiHome/, 'Must render FiHome icon');
+    assert.match(overlayCode, /LuSwords/, 'Must render LuSwords icon');
+    assert.match(overlayCode, /LuShieldAlert/, 'Must render LuShieldAlert icon');
+    assert.match(overlayCode, /LuTrophy/, 'Must render LuTrophy icon');
+    assert.match(overlayCode, /row\.home/, 'Must display row.home count');
+    assert.match(overlayCode, /row\.kicks/, 'Must display row.kicks count');
+    assert.match(overlayCode, /row\.gotKicked/, 'Must display row.gotKicked count');
+    assert.match(overlayCode, /setSelectedProfileAddress/, 'Must support local profile modal trigger');
+    assert.match(overlayCode, /onOpenProfile/, 'Must support onOpenProfile callback');
+    assert.match(overlayCode, /Winner/, 'Must display Winner badge');
+    assert.match(overlayCode, /Defeated/, 'Must display Defeated badge');
 });
 
 test('MatchHistoryTab uses Ranked Match branding instead of Paid', () => {

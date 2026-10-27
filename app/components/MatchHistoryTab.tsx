@@ -21,6 +21,7 @@ import {
     LuSparkles,
     LuBot,
 } from 'react-icons/lu';
+import { FiHome } from 'react-icons/fi';
 
 type HistoryFilter = 'all' | 'classic' | 'power' | 'ranked' | 'unsynced';
 
@@ -513,9 +514,21 @@ export function MatchHistoryTab({
                                                                 </div>
                                                             </button>
 
-                                                            {/* Right: Individual Telemetry (Kicks & Got Kicked) + Outcome */}
+                                                            {/* Right: Individual Telemetry (Home, Kicks & Got Kicked) + Outcome */}
                                                             <div className="flex items-center gap-2 shrink-0">
                                                                 <div className="flex items-center gap-1.5 text-ludo-xs font-mono">
+                                                                    <span
+                                                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-emerald-300"
+                                                                        title="Tokens Home"
+                                                                    >
+                                                                        <FiHome className="w-3 h-3 text-emerald-400 shrink-0" />
+                                                                        <span className="tabular-nums font-black">
+                                                                            {p.home ?? (p.isWinner ? 4 : 0)}/4
+                                                                        </span>
+                                                                        <span className="text-[10px] text-white/40 uppercase tracking-tight">
+                                                                            Home
+                                                                        </span>
+                                                                    </span>
                                                                     <span
                                                                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-amber-300"
                                                                         title="Captures / Kicks made"

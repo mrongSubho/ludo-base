@@ -1876,10 +1876,10 @@ body.theme-daybreak .match-stats-xp-num {
   gap: 6px;
 }
 .match-stats-row {
-  display: grid;
-  grid-template-columns: 28px 40px 1fr auto;
-  gap: 10px;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 8px 10px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.03);
@@ -1899,6 +1899,20 @@ body.theme-daybreak .match-stats-row {
 body.theme-daybreak .match-stats-row.won {
   border-color: rgba(13, 109, 135, 0.3);
   background: rgba(13, 109, 135, 0.06);
+}
+body.theme-daybreak .match-stats-row .text-white {
+  color: #0f172a;
+}
+body.theme-daybreak .match-stats-row .text-white\/40,
+body.theme-daybreak .match-stats-row .text-white\/35 {
+  color: rgba(15, 23, 42, 0.45);
+}
+body.theme-daybreak .match-stats-row .bg-white\/\[0\.04\] {
+  background-color: rgba(15, 23, 42, 0.04);
+}
+body.theme-daybreak .match-stats-row .border-white\/5,
+body.theme-daybreak .match-stats-row .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.08);
 }
 
 .match-stats-rank {
