@@ -22,13 +22,13 @@ import {
     LuBot,
 } from 'react-icons/lu';
 
-type HistoryFilter = 'all' | 'classic' | 'power' | 'paid' | 'unsynced';
+type HistoryFilter = 'all' | 'classic' | 'power' | 'ranked' | 'unsynced';
 
 const FILTERS: { id: HistoryFilter; label: string }[] = [
     { id: 'all', label: 'All' },
     { id: 'classic', label: 'Classic' },
     { id: 'power', label: 'Power' },
-    { id: 'paid', label: 'Paid' },
+    { id: 'ranked', label: 'Ranked Match' },
     { id: 'unsynced', label: 'Unsynced' },
 ];
 
@@ -136,7 +136,7 @@ export function MatchHistoryTab({
             if (filter === 'all') return true;
             if (filter === 'classic') return m.gameMode.toLowerCase() === 'classic';
             if (filter === 'power') return m.gameMode.toLowerCase() === 'power';
-            if (filter === 'paid') return m.isPaidPool;
+            if (filter === 'ranked') return m.isPaidPool;
             if (filter === 'unsynced') return !m.onchainSynced;
             return true;
         });
@@ -289,7 +289,7 @@ export function MatchHistoryTab({
                     <div className="text-ludo-xs font-bold text-white/35 max-w-[220px]">
                         {filter === 'all'
                             ? 'Complete your first match to populate your battle log.'
-                            : `No matches match the "${filter.toUpperCase()}" filter.`}
+                            : `No matches match the "${filter === 'ranked' ? 'RANKED MATCH' : filter.toUpperCase()}" filter.`}
                     </div>
                 </div>
             ) : (
@@ -381,8 +381,8 @@ export function MatchHistoryTab({
                                                 {m.isPaidPool ? (
                                                     <span className="font-black text-cyan-300 uppercase">
                                                         {m.poolPrizeFund
-                                                            ? `${m.poolPrizeFund} CHIPS Pot`
-                                                            : 'Paid Pool'}
+                                                            ? `Ranked Match • ${m.poolPrizeFund} CHIPS`
+                                                            : 'Ranked Match'}
                                                     </span>
                                                 ) : (
                                                     <span className="text-white/50 uppercase">

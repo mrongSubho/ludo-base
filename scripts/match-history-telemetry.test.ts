@@ -75,6 +75,15 @@ test('MatchHistoryTab renders participant kicks, gotKicked and wires PublicProfi
     assert.match(tabCode, /setSelectedProfileAddress/, 'Must trigger profile modal on participant click');
 });
 
+test('MatchHistoryTab uses Ranked Match branding instead of Paid', () => {
+    const tabCode = read('app/components/MatchHistoryTab.tsx');
+
+    assert.match(tabCode, /label:\s*'Ranked Match'/, 'Filter pill must be named Ranked Match');
+    assert.match(tabCode, /'Ranked Match'/, 'Paid pool matches must display as Ranked Match');
+    assert.ok(!tabCode.includes("label: 'Paid'"), 'Must not have Paid filter pill');
+    assert.ok(!tabCode.includes("'Paid Pool'"), 'Must not display Paid Pool');
+});
+
 test('formatWeb3Error turns raw EVM/gas limit revert strings into clean player-friendly messages', () => {
     const gasError = 'The contract function "syncFreeMatches" reverted with the following reason: RPC 0x14a34 Custom eth_sendRawTransaction: exceeds max transaction gas limit Contract Call: address: 0xdfB78b0A8c1877156f00858c764CA72Ba4a6e2C6 function: syncFreeMatches(...) args: ([...50 items...]) Docs: https://viem.sh';
     const formatted = formatWeb3Error(new Error(gasError));
