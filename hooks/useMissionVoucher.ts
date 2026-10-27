@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useAccount, useWriteContract, useChainId } from "wagmi";
+import { useAccount, useWriteContract, useChainId, usePublicClient } from "wagmi";
 import type { Address, Hex } from "viem";
 import { missionClaimAddress } from "@/lib/missionVoucher";
 import { missionSystemAddress, missionIdBytes32, MISSION_SYSTEM_ABI } from "@/lib/missionSystem";
@@ -32,6 +32,7 @@ export function useMissionVoucherClaim() {
     const { address } = useAccount();
     const chainIdRaw = useChainId();
     const { writeContractAsync, isPending } = useWriteContract();
+    const publicClient = usePublicClient();
     const { ensureAppSession } = useAppSession();
     const [step, setStep] = useState<"idle" | "voucher" | "claim" | "done" | "error">("idle");
     const [error, setError] = useState<string | null>(null);
@@ -41,9 +42,10 @@ export function useMissionVoucherClaim() {
             const sysAddr = missionSystemAddress();
             const claimAddr = missionClaimAddress();
             if (!address || (!sysAddr && !claimAddr)) {
-                setError("Wallet or Mission contract not configured");
+                const msg = "Wallet or Mission contract not configured";
+                setError(msg);
                 setStep("error");
-                return null;
+                throw new Error(msg);
             }
             setError(null);
             try {
@@ -57,6 +59,9 @@ export function useMissionVoucherClaim() {
                         functionName: "claimMission",
                         args: [midBytes32],
                     });
+                    if (publicClient && tx) {
+                        await publicClient.waitForTransactionReceipt({ hash: tx });
+                    }
                     setStep("done");
                     return tx;
                 }
@@ -65,9 +70,10 @@ export function useMissionVoucherClaim() {
                 setStep("voucher");
                 const sessionId = await ensureAppSession({ context: 'missions' });
                 if (!sessionId) {
-                    setError("Sign in to claim");
+                    const msg = "Sign in to claim";
+                    setError(msg);
                     setStep("error");
-                    return null;
+                    throw new Error(msg);
                 }
                 const chainId = parseChainId(chainIdRaw) ?? 84532;
                 const res = await fetch("/api/missions/voucher", {
@@ -99,15 +105,19 @@ export function useMissionVoucherClaim() {
                         data.signature as Hex,
                     ],
                 });
+                if (publicClient && tx) {
+                    await publicClient.waitForTransactionReceipt({ hash: tx });
+                }
                 setStep("done");
                 return tx;
             } catch (e) {
-                setError(formatWeb3Error(e));
+                const formatted = formatWeb3Error(e);
+                setError(formatted);
                 setStep("error");
-                return null;
+                throw new Error(formatted);
             }
         },
-        [address, chainIdRaw, ensureAppSession, writeContractAsync],
+        [address, chainIdRaw, ensureAppSession, writeContractAsync, publicClient],
     );
 
     return { claim, step, isPending, error };

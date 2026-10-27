@@ -2,25 +2,24 @@ import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 import { loadMissionDef, periodBucketFor } from '@/lib/missionCatalog';
 import { reportProgress } from '@/lib/missionOracle';
+import { isMissionSystemConfigured, missionSystemAddress, MISSION_SYSTEM_ABI } from '@/lib/missionSystem';
 import { issueMissionVoucher, type IssuedVoucher } from '@/lib/missionVoucherIssue';
+import { createPublicClient, http, keccak256, toBytes, type Address } from 'viem';
+import { baseSepolia } from 'viem/chains';
 
 /**
  * POST /api/missions/daily-bonus  { walletAddress, sessionId }
  *
- * The daily check-in ("Daily Bonus", `daily_bonus`). Target 0 — it completes on
- * the first progress event, so this endpoint IS the trigger.
+ * The daily check-in ("Daily Bonus", `daily_bonus`). Target 0.
  *
- * Reward delivery, in order:
- *  1. **MissionSystem (authority)** — one `reportProgress` both completes the
- *     mission and pays the CHIPS from the contract's own reserve.
- *  2. **EIP-712 voucher (fallback)** — only when the oracle did not report
- *     (contract/address/oracle key unset, or the RPC rejected the send), so the
- *     player is never left unpaid just because the chain path is offline.
+ * On-chain authority (MissionSystem):
+ *  1. Server oracle verifies check-in and submits `recordProgress` (waiting for receipt),
+ *     which flips `completed = true` on-chain.
+ *  2. The connected user then executes a 1:1 pull claim on-chain (`claimMission`),
+ *     paying their own gas fee to withdraw CHIPS directly into their wallet.
  *
- * Exactly one of the two pays per (wallet, UTC day): on success the
- * `player_missions` row is written with `is_claimed = true`, which is also the
- * gate `issueMissionVoucher` reads (see lib/missionVoucherIssue.ts) — that is
- * what keeps the two paths from paying twice. Retries are idempotent no-ops.
+ * Fallback (when MissionSystem is unconfigured):
+ *  Issues an EIP-712 voucher for MissionClaim.
  */
 const DAILY_BONUS_MISSION = 'daily_bonus';
 
@@ -34,15 +33,77 @@ export async function POST(request: Request) {
         if (!authed) {
             return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         }
-        const wallet = authed.toLowerCase();
+        const wallet = authed.toLowerCase() as Address;
 
         const def = await loadMissionDef(DAILY_BONUS_MISSION);
         if (!def) {
             return NextResponse.json({ error: 'Unknown mission' }, { status: 404 });
         }
         const bucket = periodBucketFor(def, new Date());
-
         const db = serviceDb();
+
+        // ── 1. On-chain MissionSystem Path (Authority) ───────────────────────
+        if (isMissionSystemConfigured()) {
+            const sysAddr = missionSystemAddress()!;
+            const rpc = process.env.NEXT_PUBLIC_MISSION_RPC_URL?.trim();
+            const client = createPublicClient({ chain: baseSepolia, transport: http(rpc || undefined) });
+            const mid = keccak256(toBytes(DAILY_BONUS_MISSION));
+
+            const isClaimedOnChain = await client.readContract({
+                address: sysAddr,
+                abi: MISSION_SYSTEM_ABI,
+                functionName: 'isClaimed',
+                args: [wallet, mid],
+            });
+
+            if (isClaimedOnChain) {
+                return NextResponse.json({
+                    success: true,
+                    alreadyClaimed: true,
+                    delivered: 'onchain' as const,
+                    reward: def.rewardChips,
+                    rewardCurrency: 'CHIPS' as const,
+                });
+            }
+
+            const isCompletedOnChain = await client.readContract({
+                address: sysAddr,
+                abi: MISSION_SYSTEM_ABI,
+                functionName: 'isCompleted',
+                args: [wallet, mid],
+            });
+
+            if (!isCompletedOnChain) {
+                // Submit progress record from oracle and wait for confirmation on Base Sepolia (~2s)
+                const ok = await reportProgress(wallet, DAILY_BONUS_MISSION, 1, true);
+                if (!ok) {
+                    return NextResponse.json({ error: 'Failed to record daily check-in on-chain' }, { status: 500 });
+                }
+            }
+
+            // Sync database row: progress = 1, is_claimed = false (until claimed on-chain)
+            await db.from('player_missions').upsert(
+                {
+                    player_id: wallet,
+                    mission_id: DAILY_BONUS_MISSION,
+                    period_id: bucket,
+                    progress: 1,
+                    is_claimed: false,
+                    last_updated: new Date().toISOString(),
+                },
+                { onConflict: 'player_id,mission_id,period_id' }
+            );
+
+            return NextResponse.json({
+                success: true,
+                completed: true,
+                delivered: 'onchain' as const,
+                reward: def.rewardChips,
+                rewardCurrency: 'CHIPS' as const,
+            });
+        }
+
+        // ── 2. Legacy / Fallback Voucher Path ────────────────────────────────
         const { data: existing, error: readErr } = await db
             .from('player_missions')
             .select('progress, is_claimed')
@@ -58,44 +119,31 @@ export async function POST(request: Request) {
             return NextResponse.json({
                 success: true,
                 alreadyClaimed: true,
-                delivered: 'onchain' as const,
+                delivered: 'voucher' as const,
                 reward: def.rewardChips,
                 rewardCurrency: 'CHIPS' as const,
             });
         }
 
-        // Primary path: the contract is the authority and pays on completion.
-        const reported = await reportProgress(wallet, DAILY_BONUS_MISSION, 1);
-
-        let delivered: 'onchain' | 'voucher' = 'onchain';
+        const issue = await issueMissionVoucher(wallet, DAILY_BONUS_MISSION);
+        const delivered = 'voucher' as const;
         let voucher: IssuedVoucher | null = null;
-        if (!reported) {
-            // Fallback so the player is still paid exactly once when the oracle
-            // cannot report. The claim lock is the unique
-            // (wallet_address, mission_id, period_id) constraint on
-            // `mission_vouchers`; a 409 means an earlier attempt already paid.
-            const issue = await issueMissionVoucher(wallet, DAILY_BONUS_MISSION);
-            if (!issue.ok) {
-                console.error('[daily-bonus] voucher fallback failed:', issue.error);
-                if (issue.status === 409) {
-                    await markClaimed(db, wallet, bucket, existing?.progress ?? 0);
-                    return NextResponse.json({
-                        success: true,
-                        alreadyClaimed: true,
-                        delivered: 'voucher' as const,
-                        reward: def.rewardChips,
-                        rewardCurrency: 'CHIPS' as const,
-                    });
-                }
-                return NextResponse.json({ error: issue.error }, { status: issue.status });
+        if (!issue.ok) {
+            console.error('[daily-bonus] voucher fallback failed:', issue.error);
+            if (issue.status === 409) {
+                await markClaimed(db, wallet, bucket, existing?.progress ?? 0);
+                return NextResponse.json({
+                    success: true,
+                    alreadyClaimed: true,
+                    delivered: 'voucher' as const,
+                    reward: def.rewardChips,
+                    rewardCurrency: 'CHIPS' as const,
+                });
             }
-            delivered = 'voucher';
-            voucher = issue.issued;
+            return NextResponse.json({ error: issue.error }, { status: issue.status });
         }
+        voucher = issue.issued;
 
-        // Mark the period claimed. `is_claimed` is the same flag
-        // `issueMissionVoucher` checks, so this also closes the voucher path for
-        // today — the mechanism that prevents a double payout.
         const writeErr = await markClaimed(db, wallet, bucket, existing?.progress ?? 0);
         if (writeErr) return writeErr;
 

@@ -152,3 +152,23 @@ test('UnsyncedMatchesPanel renders batch progress button and uses formatWeb3Erro
     assert.match(panelCode, /batchCount/, 'Must read batchCount');
     assert.match(panelCode, /count > batchCount/, 'Must format batch progress button label');
 });
+
+test('MissionPanel handleClaim triggers 1:1 pull claims for all missions including daily_bonus', () => {
+    const missionPanelCode = read('app/components/MissionPanel.tsx');
+    assert.match(missionPanelCode, /isMissionSystemConfigured/, 'Must check isMissionSystemConfigured');
+    assert.match(missionPanelCode, /claimVoucher\(missionId\)/, 'Must call claimVoucher on-chain');
+    assert.match(missionPanelCode, /isClaimed\s*=\s*useOnChain\s*\?\s*onChainClaimed\s*:\s*dbClaimed/, 'Must prioritize onChainClaimed as authority');
+});
+
+test('lib/missionOracle uses walletClient.sendTransaction and supports waitForReceipt', () => {
+    const oracleCode = read('lib/missionOracle.ts');
+    assert.match(oracleCode, /walletClient\.sendTransaction/, 'Must use sendTransaction to sign locally with privateKeyToAccount');
+    assert.ok(!oracleCode.includes("method: 'eth_sendTransaction'"), 'Must not send raw eth_sendTransaction to public node');
+    assert.match(oracleCode, /waitForReceipt/, 'Must support waitForReceipt');
+});
+
+test('useMissionVoucherClaim waits for transaction receipt on-chain', () => {
+    const voucherHookCode = read('hooks/useMissionVoucher.ts');
+    assert.match(voucherHookCode, /waitForTransactionReceipt/, 'Must await waitForTransactionReceipt');
+    assert.match(voucherHookCode, /claimMission/, 'Must call claimMission on MissionSystem');
+});

@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMissionVoucherClaim } from '@/hooks/useMissionVoucher';
 import { missionClaimAddress } from '@/lib/missionVoucher';
+import { isMissionSystemConfigured } from '@/lib/missionSystem';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
 import { useGuestWall } from '@/hooks/GuestWallContext';
@@ -94,7 +95,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
     const [missions, setMissions] = useState<Mission[]>([]);
     const [isLoadingMissions, setIsLoadingMissions] = useState(false);
     const [claimingId, setClaimingId] = useState<string | null>(null);
-    const { claim: claimVoucher, error: voucherError } = useMissionVoucherClaim();
+    const { claim: claimVoucher } = useMissionVoucherClaim();
     const [missionsLocked, setMissionsLocked] = useState(false);
 
     // On-chain mission state overlay (MissionSystem contract, Base Sepolia).
@@ -149,49 +150,46 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
         if (!guard('arena-claim')) return;
         setClaimingId(missionId);
         try {
+            // 1. For daily_bonus, if not yet completed on-chain, trigger oracle to record progress
             if (missionId === 'daily_bonus') {
-                // The daily check-in is server-driven — nothing is signed here.
-                // MissionSystem completes it (target 0) and pays the CHIPS from
-                // its own reserve; the endpoint keeps exactly one payout per
-                // (wallet, UTC day) and suppresses the legacy voucher for it.
-                const sessionId = await ensureAppSession({ context: 'missions' });
-                if (!sessionId) {
-                    toast('Sign in to claim', 'error');
-                    return;
+                const oc = onChain.configured ? onChain.states['daily_bonus'] : undefined;
+                if (!oc?.completed) {
+                    const sessionId = await ensureAppSession({ context: 'missions' });
+                    if (!sessionId) {
+                        toast('Sign in to claim', 'error');
+                        return;
+                    }
+                    const res = await fetch('/api/missions/daily-bonus', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ walletAddress: address, sessionId }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data?.error || 'Daily check-in failed');
+                    if (data?.alreadyClaimed) {
+                        toast('Daily bonus already claimed today.', 'info');
+                        await onChain.refresh();
+                        await fetchMissions();
+                        return;
+                    }
+                    await onChain.refresh();
                 }
-                const res = await fetch('/api/missions/daily-bonus', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ walletAddress: address, sessionId }),
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data?.error || 'claim failed');
-                window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
-                window.dispatchEvent(new CustomEvent('ludo-chips-refresh'));
-                onChain.refresh();
-                await fetchMissions();
-                toast(
-                    data?.alreadyClaimed
-                        ? 'Daily bonus already claimed today.'
-                        : 'Daily bonus claimed — CHIPS are in your wallet.',
-                    'success',
-                );
-                return;
             }
-            if (missionClaimAddress()) {
+
+            // 2. Execute on-chain pull claim (user prompts MetaMask and pays gas)
+            if (isMissionSystemConfigured() || missionClaimAddress()) {
                 const tx = await claimVoucher(missionId);
                 if (tx) {
                     window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
                     window.dispatchEvent(new CustomEvent('ludo-chips-refresh'));
+                    await onChain.refresh();
                     await fetchMissions();
                     toast('Reward claimed — CHIPS are in your wallet.', 'success');
-                } else if (voucherError) {
-                    toast(voucherError, 'error');
                 }
                 return;
             }
             // Coin rewards are retired (202609300001). Rewards are CHIPS and
-            // are only claimable when MissionClaim is configured for the chain.
+            // are only claimable when MissionSystem or MissionClaim is configured for the chain.
             toast('Mission rewards require the CHIPS contract to be configured.', 'error');
         } catch (err) {
             console.error('Claim error:', err);
@@ -215,11 +213,11 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                   activeMissionTab === 'daily' ? m.id.startsWith('daily') : !m.id.startsWith('daily')
               );
 
-    // A mission counts as "done" when the on-chain contract says completed
+    // A mission counts as "done" when the on-chain contract says claimed
     // (authoritative) or, when the contract is not configured, via the DB row.
     const isMissionDone = (m: Mission) => {
         const oc = onChain.configured ? onChain.states[m.id] : undefined;
-        if (oc) return oc.claimed || Boolean((m as any).is_claimed);
+        if (oc) return oc.claimed;
         // A target of 0 is valid (daily_bonus) and must not be coerced to 1.
         const target = typeof m.target === 'number' ? m.target : 1;
         return (m.progress ?? 0) >= target || Boolean((m as any).is_claimed);
@@ -391,7 +389,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                 const onChainCompleted = useOnChain && oc!.completed;
                                                                 const onChainClaimed = useOnChain && oc!.claimed;
                                                                 const dbClaimed = Boolean((mission as any).is_claimed);
-                                                                const isClaimed = onChainClaimed || dbClaimed;
+                                                                const isClaimed = useOnChain ? onChainClaimed : dbClaimed;
                                                                 const isCompleted =
                                                                     onChainCompleted || progressVal >= targetVal || isClaimed;
                                                                 const progressPercent = Math.min(

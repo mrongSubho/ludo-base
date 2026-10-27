@@ -53,9 +53,10 @@
  * the exact value lib/missionCatalog.ts exports as missionIdBytes32 and the contract
  * keys on. Use the SAME mission_id strings already used off-chain.
  */
-import { createWalletClient, encodeFunctionData, http, keccak256, toBytes } from 'viem';
+import { createPublicClient, createWalletClient, encodeFunctionData, http, keccak256, toBytes } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { viemChainFor, verifyRpcUrl } from '@/lib/chains';
+import { baseSepolia } from 'viem/chains';
+import { verifyRpcUrl } from '@/lib/chains';
 
 const CHAIN_ID = 84532 as const; // Base Sepolia — the only supported signing chain
 
@@ -80,11 +81,14 @@ function missionIdBytes32(missionId: string): `0x${string}` {
 
 let warnedMissingConfig = false;
 
-type Clients = {
-    address: `0x${string}`;
-    walletClient: ReturnType<typeof createWalletClient>;
-    account: ReturnType<typeof privateKeyToAccount>;
-};
+function makeClients(address: `0x${string}`, pk: `0x${string}`, rpc?: string) {
+    const account = privateKeyToAccount(pk);
+    const walletClient = createWalletClient({ account, chain: baseSepolia, transport: http(rpc) });
+    const publicClient = createPublicClient({ chain: baseSepolia, transport: http(rpc) });
+    return { address, walletClient, publicClient, account };
+}
+
+type Clients = ReturnType<typeof makeClients>;
 
 /**
  * Lazily build (and memoise) the viem clients. Returns null when unconfigured or
@@ -116,11 +120,8 @@ async function getClients(): Promise<Clients | null> {
         return null;
     }
 
-    const chain = viemChainFor(CHAIN_ID);
     const rpc = verifyRpcUrl(CHAIN_ID) || undefined; // '' => viem public endpoint (dev fallback)
-    const account = privateKeyToAccount(pk as `0x${string}`);
-    const walletClient = createWalletClient({ account, chain, transport: http(rpc) });
-    return { address: address as `0x${string}`, walletClient, account };
+    return makeClients(address as `0x${string}`, pk as `0x${string}`, rpc);
 }
 
 /**
@@ -135,12 +136,13 @@ async function getClients(): Promise<Clients | null> {
  *
  * The contract accumulates progress and flips completion (paying CHIPS) once the
  * target is reached; further calls for the same (wallet, mission, period) are
- * idempotent. `daily_bonus` has target 0, so a single call completes + pays it.
+ * idempotent. `daily_bonus` has target 0, so a single call completes it.
  */
 export async function reportProgress(
     wallet: string,
     missionId: string,
     delta: number | bigint,
+    waitForReceipt: boolean = false,
 ): Promise<boolean> {
     const clients = await getClients();
     if (!clients) return false;
@@ -157,13 +159,17 @@ export async function reportProgress(
             functionName: 'recordProgress',
             args: [w as `0x${string}`, missionIdBytes32(missionId), amount],
         });
-        const hash = (await clients.walletClient.request({
-            method: 'eth_sendTransaction',
-            params: [{ from: clients.account.address, to: clients.address, data }],
-        })) as `0x${string}`;
+        const hash = await clients.walletClient.sendTransaction({
+            to: clients.address,
+            data,
+        });
         console.info(
             `[missionOracle] recordProgress ${missionId} -> ${w} delta ${amount.toString()} tx ${hash}`,
         );
+        if (waitForReceipt) {
+            const receipt = await clients.publicClient.waitForTransactionReceipt({ hash });
+            return receipt.status === 'success';
+        }
         return true;
     } catch (err) {
         // Never break the request. The Postgres write already succeeded.

@@ -358,7 +358,7 @@ export const OnboardingPanel = () => {
                     // Nullish, not `||`: a target of 0 is valid and must survive.
                     const targetVal = typeof x.target === 'number' ? x.target : 1;
                     const isCompleted = useOnChain ? oc!.completed : progressVal >= targetVal;
-                    const isClaimed = (useOnChain ? oc!.claimed : false) || x.is_claimed;
+                    const isClaimed = useOnChain ? oc!.claimed : x.is_claimed;
                     const claimable = !isClaimed && (isCompleted || x.claimable);
                     const progressPercent = Math.min((progressVal / Math.max(targetVal, 1)) * 100, 100);
                     return (
