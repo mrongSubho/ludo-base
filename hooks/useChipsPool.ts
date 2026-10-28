@@ -18,6 +18,7 @@ import {
     isChipsConfigured,
     matchPoolAddress,
 } from "@/lib/chips";
+import { readAllowanceDirect, DEFAULT_TACTICAL_ALLOWANCE } from "@/hooks/useChipsAllowance";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useCdpUserOp } from "@/hooks/useCdpUserOp";
 import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
@@ -68,6 +69,11 @@ export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHu
         let hidePrompt: (() => void) | undefined;
         try {
             const amount = parseUnits(entryFeeHuman || "0", 18);
+            const currentAllowance = address && pool
+                ? await readAllowanceDirect(address as Address, pool as Address)
+                : BigInt(0);
+            const hasAllowance = currentAllowance >= amount;
+
             const approveData = encodeFunctionData({
                 abi: CHIPS_ERC20_ABI,
                 functionName: "approve",
@@ -87,22 +93,47 @@ export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHu
 
             // In-game CDP: one UserOp batch + dataSuffix (W4).
             if (player.mode === "ingame" && cdpUserOp.isInGame) {
-                setStep("approve");
-                await cdpUserOp.sendCalls([
-                    { to: chips, data: approveData },
-                    { to: pool, data: joinData },
-                ]);
+                const calls = hasAllowance
+                    ? [{ to: pool, data: joinData }]
+                    : [
+                          { to: chips, data: approveData },
+                          { to: pool, data: joinData },
+                      ];
+                setStep(hasAllowance ? "join" : "approve");
+                await cdpUserOp.sendCalls(calls);
                 setBatched(true);
                 setStep("done");
                 return;
             }
 
-            // External: EIP-5792 batch when available, else two txs.
+            // External: If allowance is already sufficient, SKIP approve entirely! (1 popup only)
+            if (hasAllowance) {
+                setStep("join");
+                await writeContractAsync({
+                    address: pool,
+                    abi: MATCH_POOL_ABI,
+                    functionName: "joinPool",
+                    args: [poolId],
+                });
+                updateAuthPromptStatus("Transaction submitted! Confirming entry on-chain...", "Confirming On-Chain");
+                setStep("done");
+                return;
+            }
+
+            // External without allowance: EIP-5792 batch when available, else two txs.
+            // Option A: tactical budget allowance (500 CHIPS) so subsequent matches need 0 approvals!
+            const tacticalApproveAmount = DEFAULT_TACTICAL_ALLOWANCE > amount ? DEFAULT_TACTICAL_ALLOWANCE : amount;
+            const tacticalApproveData = encodeFunctionData({
+                abi: CHIPS_ERC20_ABI,
+                functionName: "approve",
+                args: [pool, tacticalApproveAmount],
+            });
+
             try {
                 setStep("approve");
                 await sendCallsAsync({
                     calls: [
-                        { to: chips, data: approveData },
+                        { to: chips, data: tacticalApproveData },
                         { to: pool, data: joinData },
                     ],
                 });
@@ -119,7 +150,7 @@ export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHu
                 address: chips,
                 abi: CHIPS_ERC20_ABI,
                 functionName: "approve",
-                args: [pool, amount],
+                args: [pool, tacticalApproveAmount],
             });
             setStep("join");
             updateAuthPromptStatus("Approval confirmed! Please approve pool entry in your wallet...", "Awaiting Entry");

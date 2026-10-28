@@ -3053,3 +3053,29 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
    - `npm run lint`: 0 errors.
    - `npm test`: 573/573 tests pass (11 skipped).
+
+### 17. CHIPS Token Allowance Hub & Consolidated Claim Hub (2026-10-28)
+1. **Architectural Invariant**:
+   - Pre-Authorization Allowance Hub and Reward Claims are centralized under `Wallet → More` for both CDP (in-game smart wallet) and External (MetaMask, Base Account, etc.) wallets.
+   - **Tactical Budget Model**: Ranked match matchmaking defaults to a 500 CHIPS tactical approval preset (~50 matches). Subsequent match joins verify `readAllowanceDirect(owner, pool) >= entryFee`; if satisfied, the approval transaction is skipped completely, prompting the user with only a single `joinPool` confirmation.
+   - **CDP Smart Accounts**: Retains atomic multi-call UserOps (`sendCalls`) and checks allowance before batching, reducing batched calls from `[approve, join]` to `[join]` when allowance is sufficient, and supports Coinbase Spend Permissions.
+2. **Implementation** — [`hooks/useChipsAllowance.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useChipsAllowance.ts), [`hooks/useChipsPool.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useChipsPool.ts), [`app/components/AllowanceHubSheet.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/AllowanceHubSheet.tsx), [`app/components/ClaimHubSheet.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/ClaimHubSheet.tsx), [`app/components/WalletPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/WalletPanel.tsx):
+   - **useChipsAllowance**:
+     - Provides `ALLOWANCE_PRESETS` (`Casual 100`, `Tactical 500 (Recommended)`, `High Roller 1,000`, `Unlimited`) and `DEFAULT_TACTICAL_ALLOWANCE`.
+     - Static `readAllowanceDirect` helper allows imperative allowance querying inside match join workflows.
+     - Supports 1-click `revoke()` (sets allowance to `0`) and custom amount approvals guarded by `SignWaitModal`.
+   - **Skip-Approve Match Join Flow**:
+     - `useChipsPool.join()` inspects on-chain allowance first. If already approved, skips the approval step and directly calls `joinPool`.
+     - In unapproved states, sets the default approval to 500 CHIPS, eliminating future approval prompts across ranked matches.
+   - **AllowanceHubSheet & ClaimHubSheet UI**:
+     - Built using Coinbase-style design tokens (`cb-screen`, `cb-card`, `cb-section`) and strict `--text-ludo-*` typography without raw pixel utilities.
+     - Pure SVG iconography (zero emojis) and responsive status indications.
+     - Consolidated claim sheet unifies ranked match pool settlements (`useClaimAll`), season airdrops (`useSeasonClaim`), and legacy snapshot vouchers (`useLegacyClaim`).
+3. **Verification & Gates**:
+   - Added unit & invariant tests in [`scripts/allowance-hub.test.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/scripts/allowance-hub.test.ts) covering preset definitions, closed-fail readers, simulator integration (500 CHIPS tactical, 0 CHIPS revoke, unlimited warning), and the skip-approve match invariant.
+   - Added test to `package.json`.
+   - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+   - `npm run lint`: 0 errors.
+   - `npm run check:type-scale`: 0 hardcoded pixel sites.
+   - `npm run check:motion`: compositor-only passed.
+   - `npm test`: 580/580 tests pass (11 skipped).

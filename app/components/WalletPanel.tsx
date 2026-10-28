@@ -12,14 +12,26 @@ import ReceiveSheet from "./ReceiveSheet";
 import WalletActivityList from "./WalletActivityList";
 import WcWalletPanel from "./WcWalletPanel";
 import WalletSecurityPanel from "./WalletSecurityPanel";
+import AllowanceHubSheet from "./AllowanceHubSheet";
+import ClaimHubSheet from "./ClaimHubSheet";
 
 /**
  * Wallet — Coinbase-style card.
  * Footer: Home · Swap · Activity · More.
- * More hosts Dapps + Security. App Settings live in the header gear only
+ * More hosts Allowances, Claims, Dapps, and Security. App Settings live in the header gear only
  * (never duplicated here). Activity is footer-only (no second action tile).
  */
-type Screen = "home" | "send" | "receive" | "swap" | "activity" | "more" | "dapps" | "security";
+type Screen =
+    | "home"
+    | "send"
+    | "receive"
+    | "swap"
+    | "activity"
+    | "more"
+    | "dapps"
+    | "security"
+    | "allowance"
+    | "claims";
 
 function shortAddr(a: string | undefined) {
     if (!a) return "—";
@@ -165,6 +177,8 @@ const TITLES: Record<Screen, string> = {
     more: "More",
     dapps: "Dapps",
     security: "Security",
+    allowance: "CHIPS Allowances",
+    claims: "Claim Hub",
 };
 
 export default function WalletPanel({ onClose }: { onClose: () => void }) {
@@ -192,7 +206,12 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
     };
 
     const isHome = screen === "home";
-    const isMoreBranch = screen === "more" || screen === "dapps" || screen === "security";
+    const isMoreBranch =
+        screen === "more" ||
+        screen === "dapps" ||
+        screen === "security" ||
+        screen === "allowance" ||
+        screen === "claims";
     const title = TITLES[screen];
 
     // Footer: four destinations. Swap/Activity are first-class tabs (no
@@ -475,6 +494,32 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                             <div className="cb-card cb-more-card">
                                 <MoreRow
                                     icon={
+                                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                            <path d="m9 12 2 2 4-4" />
+                                        </svg>
+                                    }
+                                    title="CHIPS Allowances"
+                                    hint="Ranked pool match budget & pre-authorizations"
+                                    onClick={() => setScreen("allowance")}
+                                />
+                                <MoreRow
+                                    icon={
+                                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                                            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                                            <path d="M4 22h16" />
+                                            <path d="M10 14.66V17c0 .55-.45 1-1 1H7" />
+                                            <path d="M14 14.66V17c0 .55.45 1 1 1h2" />
+                                            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                                        </svg>
+                                    }
+                                    title="Claim Hub"
+                                    hint="Match pool prizes, season airdrops & rewards"
+                                    onClick={() => setScreen("claims")}
+                                />
+                                <MoreRow
+                                    icon={
                                         <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <rect x="4" y="5" width="16" height="14" rx="3" />
                                             <path d="M8 10h3M8 14h8" />
@@ -498,6 +543,16 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                 />
                             </div>
                             {/* Settings intentionally absent — header gear only. */}
+                        </div>
+                    )}
+                    {screen === "allowance" && (
+                        <div className="cb-screen">
+                            <AllowanceHubSheet />
+                        </div>
+                    )}
+                    {screen === "claims" && (
+                        <div className="cb-screen">
+                            <ClaimHubSheet />
                         </div>
                     )}
                     {screen === "dapps" && (
