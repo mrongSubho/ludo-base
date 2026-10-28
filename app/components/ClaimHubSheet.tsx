@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useClaimAll } from "@/hooks/useChipsPool";
-import { useLegacyClaim, useSeasonClaim } from "@/hooks/useMerkleClaim";
+import { useLegacyClaim } from "@/hooks/useMerkleClaim";
 import { useChipsBalance } from "@/hooks/useChipsBalance";
 import { shortHex } from "@/lib/chips";
 import Button from "./Button";
@@ -18,7 +18,6 @@ export default function ClaimHubSheet({
     const { claimMany, isPending: claimingPools, error: poolClaimError, configured: poolClaimConfigured } =
         useClaimAll();
     const legacy = useLegacyClaim();
-    const season = useSeasonClaim("1");
 
     const [statusNote, setStatusNote] = useState<string | null>(null);
 
@@ -42,7 +41,7 @@ export default function ClaimHubSheet({
             <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 text-ludo-xs font-mono text-white/60 leading-relaxed text-left flex items-start gap-2">
                 <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-cyan-400 shrink-0 shadow-[0_0_6px_rgba(0,229,255,0.8)]" />
                 <span>
-                    Claim Hub consolidates all on-chain rewards: ranked match pool prize funds, season airdrops, and legacy snapshot allocations.
+                    Claim Hub consolidates all on-chain rewards: ranked match pool prize funds and legacy snapshot allocations.
                 </span>
             </div>
 
@@ -108,71 +107,7 @@ export default function ClaimHubSheet({
                 </div>
             </section>
 
-            {/* 2. Season Rewards (Merkle Claim) */}
-            <section className="cb-section">
-                <div className="cb-section-head">
-                    <span>Season 1 Airdrop</span>
-                    <Chip size="sm">{season.claimed ? "Claimed" : season.canClaim ? "Ready" : "Checking"}</Chip>
-                </div>
-                <div className="cb-card p-3.5 space-y-3 text-left">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    className="w-4 h-4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                >
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                </svg>
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-ludo-sm font-bold text-white leading-tight">
-                                    Season Epoch 1
-                                </span>
-                                <span className="text-ludo-xs font-mono text-white/40">
-                                    {season.entry
-                                        ? `${season.humanAmount} allocation verified`
-                                        : "No Season 1 allocation for this wallet"}
-                                </span>
-                            </div>
-                        </div>
-                        {season.entry && (
-                            <span className="text-ludo-sm font-mono font-bold text-emerald-400">
-                                {season.humanAmount}
-                            </span>
-                        )}
-                    </div>
-
-                    {season.entry && !season.claimed && (
-                        <Button
-                            variant="primary"
-                            size="md"
-                            fullWidth
-                            disabled={!season.canClaim || season.claiming}
-                            onClick={() => void season.claim()}
-                            className="uppercase tracking-widest font-black text-ludo-xs"
-                        >
-                            {season.claiming ? (
-                                <div className="flex items-center gap-2">
-                                    <ThinkingOrb state="solving" size={20} />
-                                    <span>Claiming Airdrop…</span>
-                                </div>
-                            ) : season.canClaim ? (
-                                `Claim ${season.humanAmount}`
-                            ) : (
-                                "Airdrop Claim Locked"
-                            )}
-                        </Button>
-                    )}
-                </div>
-            </section>
-
-            {/* 3. Legacy Snapshot Conversion */}
+            {/* 2. Legacy Snapshot Conversion */}
             {legacy.entry && (
                 <section className="cb-section">
                     <div className="cb-section-head">
@@ -182,7 +117,7 @@ export default function ClaimHubSheet({
                     <div className="cb-card p-3.5 space-y-3 text-left">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
                                     <svg
                                         viewBox="0 0 24 24"
                                         className="w-4 h-4"
@@ -206,7 +141,7 @@ export default function ClaimHubSheet({
                                     </span>
                                 </div>
                             </div>
-                            <span className="text-ludo-sm font-mono font-bold text-purple-300">
+                            <span className="text-ludo-sm font-mono font-bold text-cyan-300">
                                 {legacy.humanAmount}
                             </span>
                         </div>
@@ -234,10 +169,45 @@ export default function ClaimHubSheet({
                 </section>
             )}
 
+            {/* 3. Season 1 Airdrop (Inactive Section at Bottom) */}
+            <section className="cb-section opacity-50">
+                <div className="cb-section-head">
+                    <span className="text-white/60">Season 1 Airdrop</span>
+                    <Chip size="sm" className="bg-white/5 text-white/40 border-white/10">Inactive</Chip>
+                </div>
+                <div className="cb-card p-3.5 space-y-3 text-left bg-white/[0.01] border-dashed border-white/10">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-white/30">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                </svg>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-ludo-sm font-bold text-white/60 leading-tight">
+                                    Season Epoch 1
+                                </span>
+                                <span className="text-ludo-xs font-mono text-white/30">
+                                    Airdrop window concluded · Section inactive
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             {/* Error or Status message */}
-            {(statusNote || poolClaimError || season.error || legacy.error) && (
+            {(statusNote || poolClaimError || legacy.error) && (
                 <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-ludo-xs font-mono text-white/70 text-left">
-                    {statusNote || poolClaimError || season.error || legacy.error}
+                    {statusNote || poolClaimError || legacy.error}
                 </div>
             )}
         </div>

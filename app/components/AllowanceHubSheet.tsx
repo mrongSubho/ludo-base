@@ -13,6 +13,7 @@ export default function AllowanceHubSheet() {
         spender,
         allowance,
         allowanceHuman,
+        isUnlimited,
         approve,
         revoke,
         isPending,
@@ -127,12 +128,20 @@ export default function AllowanceHubSheet() {
             <section className="cb-section space-y-2">
                 <div className="cb-section-head">
                     <span>Pre-Authorize Match Budget</span>
-                    <span className="text-ludo-xs font-mono text-white/40">Option A: Tactical</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                     {ALLOWANCE_PRESETS.map((preset) => {
                         const isSelected = selectedPreset === preset.chips;
+                        const isCurrentActive = preset.isUnlimited
+                            ? isUnlimited
+                            : allowance > BigInt(0) &&
+                              (allowance === preset.amount ||
+                                  (preset.chips === 500 &&
+                                      allowance <= preset.amount &&
+                                      allowance > BigInt(100) * BigInt(10 ** 18)));
+                        const isDefault = preset.chips === 500 && !hasActiveAllowance;
+
                         return (
                             <button
                                 key={preset.label}
@@ -152,11 +161,15 @@ export default function AllowanceHubSheet() {
                                     >
                                         {preset.chips === Infinity ? "Unlimited" : `${preset.chips} CHIPS`}
                                     </span>
-                                    {preset.recommended && (
-                                        <span className="text-ludo-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/30">
-                                            Rec
+                                    {isCurrentActive ? (
+                                        <span className="text-ludo-xs font-mono font-bold text-cyan-400 bg-cyan-500/15 px-1.5 py-0.5 rounded border border-cyan-500/40 uppercase">
+                                            Active
                                         </span>
-                                    )}
+                                    ) : isDefault ? (
+                                        <span className="text-ludo-xs font-mono font-bold text-white/50 bg-white/5 px-1.5 py-0.5 rounded border border-white/10 uppercase">
+                                            Default
+                                        </span>
+                                    ) : null}
                                 </div>
                                 <span className="text-ludo-xs text-white/40 mt-1 leading-tight">
                                     {preset.hint}
