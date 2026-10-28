@@ -18,6 +18,7 @@ import { missionBadgeFor, type MissionBadgeKey } from '@/lib/missionBadge';
 import { Button } from './Button';
 import { useToast } from './Toast';
 import { useMissionOnChainState } from '@/hooks/useMissionOnChainState';
+import { ClaimingOverlay } from './ClaimingOverlay';
 
 // ─── Mission panel (moved out of Arena) ─────────────────────────────────────
 // Daily / weekly / onboard missions + claim. Arena stays live-only.
@@ -381,17 +382,22 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                 const oc =
                                                                     onChain.configured ? onChain.states[mission.id] : undefined;
                                                                 const useOnChain = Boolean(oc);
-                                                                const progressVal = useOnChain
+                                                                const rawProgress = useOnChain
                                                                     ? oc!.progress
                                                                     : (mission.progress || 0);
-                                                                const targetVal =
+                                                                const rawTarget =
                                                                     typeof mission.target === 'number' ? mission.target : 1;
                                                                 const onChainCompleted = useOnChain && oc!.completed;
                                                                 const onChainClaimed = useOnChain && oc!.claimed;
                                                                 const dbClaimed = Boolean((mission as any).is_claimed);
                                                                 const isClaimed = useOnChain ? onChainClaimed : dbClaimed;
                                                                 const isCompleted =
-                                                                    onChainCompleted || progressVal >= targetVal || isClaimed;
+                                                                    onChainCompleted || rawProgress >= rawTarget || isClaimed;
+
+                                                                // Normalize target and progress for display:
+                                                                // Daily check-in (target 0) or completed/claimed missions always show 1/1 (or full target)
+                                                                const targetVal = rawTarget <= 0 ? 1 : rawTarget;
+                                                                const progressVal = (isCompleted || isClaimed) ? Math.max(rawProgress, targetVal) : rawProgress;
                                                                 const progressPercent = Math.min(
                                                                     (progressVal / Math.max(targetVal, 1)) * 100,
                                                                     100
@@ -407,6 +413,8 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                         key={mission.id}
                                                                         className="flex flex-col gap-3 bg-white/[0.04] border border-white/10 p-4 rounded-2xl hover:bg-white/[0.07] hover:border-white/25 transition-colors relative overflow-hidden group"
                                                                     >
+                                                                        {/* Full-Card Tactical Radar + ThinkingOrb Claiming Overlay */}
+                                                                        <ClaimingOverlay isClaiming={claimingId === mission.id} />
                                                                         {isCompleted && (
                                                                             <div className="absolute inset-0 bg-green-500/5 opacity-50 blur-xl pointer-events-none" />
                                                                         )}

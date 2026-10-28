@@ -10,6 +10,7 @@ import { MISSION_CLAIM_ABI } from '@/hooks/useMissionVoucher';
 import { ONBOARDING_TRACKS, ONBOARDING_TRACK_KEYS, WELCOME_GRANT_DESC, type OnboardingTrack } from '@/lib/onboardingShared';
 import Button from './Button';
 import { useMissionOnChainState } from '@/hooks/useMissionOnChainState';
+import { ClaimingOverlay } from './ClaimingOverlay';
 
 // ─── OnboardingPanel ─────────────────────────────────────────────────────────
 // CHIPS onboarding tracks (planning 7.7): progress, claim CTA, referral code.
@@ -354,12 +355,13 @@ export const OnboardingPanel = () => {
                     // On-chain overlay (MissionSystem is the payout authority for onboarding):
                     const oc = onChain.configured ? onChain.states[x.track] : undefined;
                     const useOnChain = Boolean(oc);
-                    const progressVal = useOnChain ? oc!.progress : (x.progress || 0);
-                    // Nullish, not `||`: a target of 0 is valid and must survive.
-                    const targetVal = typeof x.target === 'number' ? x.target : 1;
-                    const isCompleted = useOnChain ? oc!.completed : progressVal >= targetVal;
+                    const rawProgress = useOnChain ? oc!.progress : (x.progress || 0);
+                    const rawTarget = typeof x.target === 'number' ? x.target : 1;
+                    const targetVal = rawTarget <= 0 ? 1 : rawTarget;
+                    const isCompleted = useOnChain ? oc!.completed : rawProgress >= rawTarget;
                     const isClaimed = useOnChain ? oc!.claimed : x.is_claimed;
                     const claimable = !isClaimed && (isCompleted || x.claimable);
+                    const progressVal = (isCompleted || isClaimed) ? Math.max(rawProgress, targetVal) : rawProgress;
                     const progressPercent = Math.min((progressVal / Math.max(targetVal, 1)) * 100, 100);
                     return (
                         <motion.div
@@ -369,6 +371,8 @@ export const OnboardingPanel = () => {
                             key={x.track}
                             className="flex flex-col gap-3 bg-white/[0.04] border border-white/10 p-4 rounded-2xl hover:bg-white/[0.07] hover:border-white/25 transition-colors relative overflow-hidden"
                         >
+                            {/* Full-Card Tactical Radar + ThinkingOrb Claiming Overlay */}
+                            <ClaimingOverlay isClaiming={claimingId === x.track} />
                             {isCompleted && (
                                 <div className="absolute inset-0 bg-green-500/5 opacity-50 blur-xl pointer-events-none" />
                             )}
@@ -456,6 +460,7 @@ export const OnboardingPanel = () => {
                             animate={{ opacity: 1, scale: 1 }}
                             className="flex flex-col gap-3 bg-white/[0.04] border border-white/10 p-4 rounded-2xl hover:bg-white/[0.07] hover:border-white/25 transition-colors relative overflow-hidden"
                         >
+                            <ClaimingOverlay isClaiming={claimingId === WELCOME_ID} />
                             {welcomeClaimed && (
                                 <div className="absolute inset-0 bg-green-500/5 opacity-50 blur-xl pointer-events-none" />
                             )}
