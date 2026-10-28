@@ -11,6 +11,7 @@ import { useWriteContract } from "wagmi";
 import { encodeFunctionData, isAddress, parseUnits, type Address } from "viem";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useCdpUserOp } from "@/hooks/useCdpUserOp";
+import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
 import { CHIPS_ERC20_ABI, chipsAddress } from "@/lib/chips";
 
 export type SendTokenKey = "usdc" | "chips";
@@ -54,6 +55,7 @@ export function useSendToken() {
             }
             setStatus("pending");
             setError(null);
+            let hidePrompt: (() => void) | undefined;
             try {
                 const amount = parseUnits(params.amount || "0", meta.decimals);
                 if (amount <= BigInt(0)) throw new Error("Amount must be greater than 0");
@@ -61,6 +63,12 @@ export function useSendToken() {
                     abi: CHIPS_ERC20_ABI,
                     functionName: "transfer",
                     args: [to as Address, amount],
+                });
+                hidePrompt = showTxPrompt({
+                    context: "token-send",
+                    title: `SEND ${meta.label}`,
+                    statusText: `Please approve the transfer in your wallet to send ${params.amount} ${meta.label} to ${to.slice(0, 6)}...${to.slice(-4)}.`,
+                    explanationText: `Direct ERC-20 transfer of ${params.amount} ${meta.label} on Base. Standard network gas fee applies.`,
                 });
                 if (player.mode === "ingame" && cdpUserOp.isInGame) {
                     const res = await cdpUserOp.sendCalls([{ to: meta.address, data }]);
@@ -74,12 +82,15 @@ export function useSendToken() {
                     });
                     setTxHash(hash as string);
                 }
+                updateAuthPromptStatus("Transfer broadcast! Confirming on-chain...", "Confirming On-Chain");
                 setStatus("success");
                 return txHash;
             } catch (e) {
                 setError(e instanceof Error ? e.message : String(e));
                 setStatus("error");
                 return null;
+            } finally {
+                hidePrompt?.();
             }
         },
         [player.address, player.mode, cdpUserOp, writeContractAsync, txHash],

@@ -11,6 +11,7 @@ import { useSendTransaction } from "wagmi";
 import { parseEther, isAddress, type Address } from "viem";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useCdpUserOp } from "@/hooks/useCdpUserOp";
+import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
 
 export function useSendNative() {
     const player = usePlayerSigner();
@@ -39,11 +40,18 @@ export function useSendNative() {
             }
             setStatus("pending");
             setError(null);
+            let hidePrompt: (() => void) | undefined;
             try {
                 const value = parseEther(params.amountEth || "0");
                 if (value <= BigInt(0)) {
                     throw new Error("Amount must be greater than 0");
                 }
+                hidePrompt = showTxPrompt({
+                    context: "contract-call",
+                    title: "SEND ETH",
+                    statusText: `Please approve the transfer in your wallet to send ${params.amountEth} ETH to ${to.slice(0, 6)}...${to.slice(-4)}.`,
+                    explanationText: `Native ETH transfer of ${params.amountEth} ETH on Base.`,
+                });
                 if (player.mode === "ingame" && cdpUserOp.isInGame) {
                     const res = await cdpUserOp.sendCalls([{ to: to as Address, value }]);
                     setTxHash(res.userOperationHash);
@@ -55,12 +63,15 @@ export function useSendNative() {
                     });
                     setTxHash(hash);
                 }
+                updateAuthPromptStatus("Transfer broadcast! Confirming on-chain...", "Confirming On-Chain");
                 setStatus("success");
                 return txHash;
             } catch (e) {
                 setError(e instanceof Error ? e.message : String(e));
                 setStatus("error");
                 return null;
+            } finally {
+                hidePrompt?.();
             }
         },
         [player.address, player.mode, cdpUserOp, sendTransactionAsync, txHash],

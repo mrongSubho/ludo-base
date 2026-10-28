@@ -11,6 +11,7 @@ import { ONBOARDING_TRACKS, ONBOARDING_TRACK_KEYS, WELCOME_GRANT_DESC, type Onbo
 import Button from './Button';
 import { useMissionOnChainState } from '@/hooks/useMissionOnChainState';
 import { ClaimingOverlay } from './ClaimingOverlay';
+import { showTxPrompt, updateAuthPromptStatus } from '@/hooks/useAuthPrompt';
 
 // ─── OnboardingPanel ─────────────────────────────────────────────────────────
 // CHIPS onboarding tracks (planning 7.7): progress, claim CTA, referral code.
@@ -162,7 +163,13 @@ export const OnboardingPanel = () => {
                 setNotice(id === WELCOME_ID ? 'Welcome grant marked pending' : 'Marked pending');
             } else if (data.voucher && data.signature && data.missionClaim) {
                 setNotice('Voucher issued — confirm in wallet');
+                let hidePrompt: (() => void) | undefined;
                 try {
+                    hidePrompt = showTxPrompt({
+                        context: "mission-claim",
+                        title: "CLAIM ONBOARDING REWARD",
+                        statusText: "Please approve the transaction in your wallet to claim your reward on-chain.",
+                    });
                     await writeContractAsync({
                         address: data.missionClaim,
                         abi: MISSION_CLAIM_ABI,
@@ -177,9 +184,12 @@ export const OnboardingPanel = () => {
                             data.signature,
                         ],
                     });
+                    updateAuthPromptStatus("Reward transaction submitted! Confirming on-chain...", "Confirming On-Chain");
                     setNotice('Claim submitted on-chain');
                 } catch {
                     setNotice('Voucher issued — claim on-chain later');
+                } finally {
+                    hidePrompt?.();
                 }
             } else {
                 setNotice(`Claimed +${data.reward ?? 0} CHIPS`);

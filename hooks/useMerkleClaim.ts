@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAccount, usePublicClient, useWriteContract } from "wagmi";
 import type { Hex } from "viem";
+import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
 import {
     LEGACY_CLAIM_ABI,
     SEASON_CLAIM_ABI,
@@ -125,18 +126,27 @@ export function useLegacyClaim() {
         }
         setError(null);
         setStatus("claiming");
+        let hidePrompt: (() => void) | undefined;
         try {
+            hidePrompt = showTxPrompt({
+                context: "merkle-claim",
+                title: "CLAIM LEGACY REWARD",
+                statusText: "Please approve the transaction in your wallet to claim your legacy CHIPS allocation.",
+            });
             await writeContractAsync({
                 address: contract,
                 abi: LEGACY_CLAIM_ABI,
                 functionName: "claim",
                 args: [BigInt(entry.amount), entry.proof],
             });
+            updateAuthPromptStatus("Claim broadcast! Confirming allocation on-chain...", "Confirming On-Chain");
             setClaimed(true);
             setStatus("done");
         } catch (e) {
             setError(e instanceof Error ? e.message : "claim failed");
             setStatus("error");
+        } finally {
+            hidePrompt?.();
         }
     }, [entry, address, writeContractAsync]);
 
@@ -216,18 +226,27 @@ export function useSeasonClaim(epoch: string = "1") {
         }
         setError(null);
         setStatus("claiming");
+        let hidePrompt: (() => void) | undefined;
         try {
+            hidePrompt = showTxPrompt({
+                context: "merkle-claim",
+                title: `CLAIM SEASON ${epoch} REWARD`,
+                statusText: `Please approve the transaction in your wallet to claim your season ${epoch} reward on-chain.`,
+            });
             await writeContractAsync({
                 address: contract,
                 abi: SEASON_CLAIM_ABI,
                 functionName: "claim",
                 args: [BigInt(epoch), BigInt(entry.amount), entry.proof],
             });
+            updateAuthPromptStatus("Claim broadcast! Confirming season reward on-chain...", "Confirming On-Chain");
             setClaimed(true);
             setStatus("done");
         } catch (e) {
             setError(e instanceof Error ? e.message : "claim failed");
             setStatus("error");
+        } finally {
+            hidePrompt?.();
         }
     }, [entry, address, epoch, writeContractAsync]);
 

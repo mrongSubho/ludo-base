@@ -12,6 +12,7 @@ import { buildPayoutPlan, type MatchShape, type RankedWinner } from "@/lib/payou
 import { MATCH_POOL_ABI, isChipsConfigured, matchPoolAddress } from "@/lib/chips";
 import { parseChainId, type SupportedChainId } from "@/lib/chains";
 import { useAppSession } from "@/hooks/useAppSession";
+import { showAuthPrompt, showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
 
 /**
  * Post-match settle: Edge co-sign via API → host signTypedData → settlePool.
@@ -51,6 +52,7 @@ export function useSettlePool() {
                 return null;
             }
             setError(null);
+            let hidePrompt: (() => void) | undefined;
             try {
                 const chainId = (parseChainId(chainIdRaw) ?? 84532) as SupportedChainId;
                 const sessionId = await ensureAppSession();
@@ -128,15 +130,29 @@ export function useSettlePool() {
                         matchPool: pool,
                         chainId,
                     });
+                    hidePrompt = showAuthPrompt({
+                        context: "betting",
+                        title: "SIGN SETTLEMENT PLAN",
+                        badgeText: "Awaiting Signature",
+                        statusText: "Please approve the typed payout plan in your wallet.",
+                        explanationText: "Zero gas fee. Signs the cryptographically validated payout plan.",
+                    });
                     hostSig = await signTypedDataAsync({
                         domain: typed.domain,
                         types: typed.types,
                         primaryType: typed.primaryType,
                         message: typed.message,
                     });
+                    hidePrompt();
+                    hidePrompt = undefined;
                 }
 
                 setStep("submit");
+                hidePrompt = showTxPrompt({
+                    context: "pool-settle",
+                    title: "SETTLE MATCH POOL",
+                    statusText: "Approve the settlement transaction in your wallet to distribute winnings according to the verified match outcome.",
+                });
                 const tx = await writeContractAsync({
                     address: pool,
                     abi: MATCH_POOL_ABI,
@@ -150,6 +166,7 @@ export function useSettlePool() {
                         edgeSig,
                     ],
                 });
+                updateAuthPromptStatus("Settlement submitted! Confirming on-chain...", "Confirming On-Chain");
                 setLastTx(tx);
                 setStep("done");
                 return tx;
@@ -157,6 +174,8 @@ export function useSettlePool() {
                 setError(e instanceof Error ? e.message : "Settle failed");
                 setStep("error");
                 return null;
+            } finally {
+                hidePrompt?.();
             }
         },
         [

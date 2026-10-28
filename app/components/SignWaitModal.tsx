@@ -1,23 +1,36 @@
 'use client';
 
 import React from 'react';
+import { ThinkingOrb } from './ThinkingOrb';
+import type { PromptMode } from '@/hooks/useAuthPrompt';
 
 export interface SignWaitModalProps {
     isOpen: boolean;
+    mode?: PromptMode;
     title?: string;
     badgeText?: string;
     statusText?: string;
+    networkText?: string;
+    explanationText?: string;
+    cancelLabel?: string;
     onCancel: () => void;
 }
 
 export const SignWaitModal: React.FC<SignWaitModalProps> = ({
     isOpen,
+    mode = 'signature',
     title = 'WALLET SIGN-IN REQUIRED',
     badgeText = 'Awaiting Signature',
     statusText = 'Please approve the sign-in request in your wallet to proceed to online multiplayer.',
+    networkText,
+    explanationText,
+    cancelLabel,
     onCancel,
 }) => {
     if (!isOpen) return null;
+
+    const isTx = mode === 'transaction';
+    const isConfirming = badgeText.toLowerCase().includes('confirming') || badgeText.toLowerCase().includes('mining');
 
     return (
         <div
@@ -42,26 +55,34 @@ export const SignWaitModal: React.FC<SignWaitModalProps> = ({
                     <div className="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping opacity-30" />
                     {/* Spinning outer ring */}
                     <div className="w-16 h-16 rounded-full border-2 border-cyan-500/20 border-t-cyan-400 animate-spin" />
-                    {/* Center icon */}
-                    <div className="absolute inset-0 flex items-center justify-center text-cyan-400 drop-shadow-[0_0_8px_rgba(0,229,255,0.6)]">
-                        <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="w-7 h-7"
-                        >
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                            <path d="M9 12l2 2 4-4" />
-                        </svg>
+                    {/* Center icon / dynamic orb */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        {isTx ? (
+                            <ThinkingOrb state="solving" size={32} tone="accent" />
+                        ) : (
+                            <div className="text-cyan-400 drop-shadow-[0_0_8px_rgba(0,229,255,0.6)]">
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="w-7 h-7"
+                                >
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                    <path d="M9 12l2 2 4-4" />
+                                </svg>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Badge */}
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-ludo-xs font-black text-cyan-400 uppercase tracking-widest shadow-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                    <span
+                        className={`w-1.5 h-1.5 rounded-full ${isConfirming ? 'bg-amber-400' : 'bg-cyan-400'} animate-pulse`}
+                    />
                     {badgeText}
                 </div>
 
@@ -76,11 +97,25 @@ export const SignWaitModal: React.FC<SignWaitModalProps> = ({
                 </div>
 
                 {/* Informational Micro-card */}
-                <div className="w-full flex items-center gap-2.5 rounded-2xl bg-white/[0.04] border border-white/10 px-3.5 py-2.5 text-left">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0 shadow-[0_0_6px_rgba(0,229,255,0.8)]" />
-                    <span className="text-ludo-xs font-medium text-white/70">
-                        Zero gas fee. Sign-in only proves wallet ownership.
-                    </span>
+                <div className="w-full flex flex-col gap-2 rounded-2xl bg-white/[0.04] border border-white/10 px-3.5 py-2.5 text-left text-xs">
+                    <div className="flex items-start gap-2.5">
+                        <span className="w-2 h-2 mt-1 rounded-full bg-cyan-400 shrink-0 shadow-[0_0_6px_rgba(0,229,255,0.8)]" />
+                        <span className="text-ludo-xs font-medium text-white/75 leading-relaxed">
+                            {explanationText ||
+                                (isTx
+                                    ? 'Standard network gas fee applies on Base. Transaction will be verified on-chain.'
+                                    : 'Zero gas fee. Sign-in only proves wallet ownership.')}
+                        </span>
+                    </div>
+                    {networkText && (
+                        <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[10px] font-mono text-white/50">
+                            <span className="tracking-wider uppercase">Network</span>
+                            <span className="text-cyan-400 font-semibold tracking-wide flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                {networkText}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Cancel Action */}
@@ -90,7 +125,7 @@ export const SignWaitModal: React.FC<SignWaitModalProps> = ({
                         onClick={onCancel}
                         className="w-full py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-[0.2em] transition-all border border-white/10 active:scale-95 shadow-sm"
                     >
-                        Return to Lobby
+                        {cancelLabel || (isTx ? 'Dismiss / Reject' : 'Return to Lobby')}
                     </button>
                 </div>
             </div>

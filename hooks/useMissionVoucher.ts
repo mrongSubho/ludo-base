@@ -6,6 +6,7 @@ import type { Address, Hex } from "viem";
 import { missionClaimAddress } from "@/lib/missionVoucher";
 import { missionSystemAddress, missionIdBytes32, MISSION_SYSTEM_ABI } from "@/lib/missionSystem";
 import { useAppSession } from "@/hooks/useAppSession";
+import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
 import { formatWeb3Error } from "@/lib/web3Error";
 import { parseChainId } from "@/lib/chains";
 
@@ -48,10 +49,16 @@ export function useMissionVoucherClaim() {
                 throw new Error(msg);
             }
             setError(null);
+            let hidePrompt: (() => void) | undefined;
             try {
                 // If on-chain MissionSystem is active, pull claim directly from contract (user pays gas)
                 if (sysAddr) {
                     setStep("claim");
+                    hidePrompt = showTxPrompt({
+                        context: "mission-claim",
+                        title: "CLAIM MISSION REWARD",
+                        statusText: "Please approve the transaction in your wallet to claim your CHIPS reward directly on-chain.",
+                    });
                     const midBytes32 = missionIdBytes32(missionId);
                     const tx = await writeContractAsync({
                         address: sysAddr,
@@ -60,6 +67,7 @@ export function useMissionVoucherClaim() {
                         args: [midBytes32],
                     });
                     if (publicClient && tx) {
+                        updateAuthPromptStatus("Transaction broadcast! Confirming reward on-chain...", "Confirming On-Chain");
                         await publicClient.waitForTransactionReceipt({ hash: tx });
                     }
                     setStep("done");
@@ -90,6 +98,11 @@ export function useMissionVoucherClaim() {
                 if (!res.ok) throw new Error(data?.error || "voucher failed");
 
                 setStep("claim");
+                hidePrompt = showTxPrompt({
+                    context: "mission-claim",
+                    title: "CLAIM MISSION REWARD",
+                    statusText: "Please approve the claim transaction in your wallet to withdraw your voucher reward.",
+                });
                 const v = data.voucher;
                 const tx = await writeContractAsync({
                     address: claimAddr!,
@@ -106,6 +119,7 @@ export function useMissionVoucherClaim() {
                     ],
                 });
                 if (publicClient && tx) {
+                    updateAuthPromptStatus("Transaction broadcast! Confirming voucher on-chain...", "Confirming On-Chain");
                     await publicClient.waitForTransactionReceipt({ hash: tx });
                 }
                 setStep("done");
@@ -115,6 +129,8 @@ export function useMissionVoucherClaim() {
                 setError(formatted);
                 setStep("error");
                 throw new Error(formatted);
+            } finally {
+                hidePrompt?.();
             }
         },
         [address, chainIdRaw, ensureAppSession, writeContractAsync, publicClient],

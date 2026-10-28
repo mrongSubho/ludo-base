@@ -6,6 +6,7 @@ import type { Hex } from "viem";
 import { missionSystemAddress, MISSION_SYSTEM_ABI } from "@/lib/missionSystem";
 import { useAppSession } from "@/hooks/useAppSession";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
 import { parseChainId } from "@/lib/chains";
 import { formatWeb3Error } from "@/lib/web3Error";
 
@@ -95,6 +96,7 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
         }
         setIsSyncing(true);
         setError(null);
+        let hidePrompt: (() => void) | undefined;
         try {
             const sessionId = await ensureAppSession({ context: 'missions' });
             if (!sessionId) {
@@ -118,6 +120,12 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
                 await fetchUnsynced();
                 return null;
             }
+
+            hidePrompt = showTxPrompt({
+                context: "sync-matches",
+                title: "SYNC MATCHES ON-CHAIN",
+                statusText: `Please approve the batch transaction in your wallet to record ${attestations.length} match${attestations.length === 1 ? '' : 'es'} onto the blockchain.`,
+            });
 
             const tx = await writeContractAsync({
                 address: sysAddr,
@@ -145,6 +153,8 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
                 ],
             });
 
+            updateAuthPromptStatus("Batch submitted! Verifying matches on-chain...", "Confirming On-Chain");
+
             // Confirm synced batch with DB
             const matchIds = pendingMatches.map((m: { match_id: string }) => m.match_id);
             await fetch("/api/matches/sync-confirm", {
@@ -169,6 +179,7 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
             setError(friendlyMsg);
             throw new Error(friendlyMsg);
         } finally {
+            hidePrompt?.();
             setIsSyncing(false);
         }
     }, [address, chainIdRaw, ensureAppSession, fetchUnsynced, writeContractAsync]);

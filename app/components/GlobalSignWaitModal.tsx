@@ -10,9 +10,13 @@ export default function GlobalSignWaitModal() {
     return (
         <SignWaitModal
             isOpen={prompt.isOpen}
+            mode={prompt.mode}
             title={prompt.title}
             badgeText={prompt.badgeText}
             statusText={prompt.statusText}
+            networkText={prompt.networkText}
+            explanationText={prompt.explanationText}
+            cancelLabel={prompt.cancelLabel}
             onCancel={cancelAuthPrompt}
         />
     );

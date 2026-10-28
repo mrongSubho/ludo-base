@@ -20,6 +20,7 @@ import {
 } from "@/lib/chips";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useCdpUserOp } from "@/hooks/useCdpUserOp";
+import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
 
 function useClaimClock(claimUnlockAt: bigint | undefined) {
     const [now, setNow] = useState(() => BigInt(Math.floor(Date.now() / 1000)));
@@ -64,6 +65,7 @@ export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHu
             return;
         }
         setError(null);
+        let hidePrompt: (() => void) | undefined;
         try {
             const amount = parseUnits(entryFeeHuman || "0", 18);
             const approveData = encodeFunctionData({
@@ -75,6 +77,12 @@ export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHu
                 abi: MATCH_POOL_ABI,
                 functionName: "joinPool",
                 args: [poolId],
+            });
+
+            hidePrompt = showTxPrompt({
+                context: "pool-join",
+                title: "ENTER RANKED POOL",
+                statusText: `Please approve the transaction in your wallet to enter the ${entryFeeHuman ? `${entryFeeHuman} CHIPS ` : ''}ranked pool.`,
             });
 
             // In-game CDP: one UserOp batch + dataSuffix (W4).
@@ -106,6 +114,7 @@ export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHu
             }
 
             setStep("approve");
+            updateAuthPromptStatus("Please approve token allowance in your wallet...", "Awaiting Approval");
             await writeContractAsync({
                 address: chips,
                 abi: CHIPS_ERC20_ABI,
@@ -113,16 +122,20 @@ export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHu
                 args: [pool, amount],
             });
             setStep("join");
+            updateAuthPromptStatus("Approval confirmed! Please approve pool entry in your wallet...", "Awaiting Entry");
             await writeContractAsync({
                 address: pool,
                 abi: MATCH_POOL_ABI,
                 functionName: "joinPool",
                 args: [poolId],
             });
+            updateAuthPromptStatus("Transaction submitted! Confirming entry on-chain...", "Confirming On-Chain");
             setStep("done");
         } catch (e) {
             setError(e instanceof Error ? e.message : "Join failed");
             setStep("error");
+        } finally {
+            hidePrompt?.();
         }
     }, [address, chips, pool, poolId, entryFeeHuman, writeContractAsync, sendCallsAsync, player.mode, cdpUserOp]);
 
@@ -258,7 +271,13 @@ export function usePoolClaim(poolId: `0x${string}` | null | undefined) {
     const claim = useCallback(async () => {
         if (!pool || !poolId) return;
         setError(null);
+        let hidePrompt: (() => void) | undefined;
         try {
+            hidePrompt = showTxPrompt({
+                context: "pool-claim",
+                title: "CLAIM POOL WINNINGS",
+                statusText: "Please approve the transaction in your wallet to transfer your winnings to your wallet.",
+            });
             const claimData = encodeFunctionData({
                 abi: MATCH_POOL_ABI,
                 functionName: "claimMatch",
@@ -274,9 +293,12 @@ export function usePoolClaim(poolId: `0x${string}` | null | undefined) {
                     args: [poolId],
                 });
             }
+            updateAuthPromptStatus("Claim submitted! Confirming on-chain...", "Confirming On-Chain");
             void refetchClaimable();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Claim failed");
+        } finally {
+            hidePrompt?.();
         }
     }, [pool, poolId, writeContractAsync, refetchClaimable, player.mode, cdpUserOp]);
 
@@ -308,7 +330,13 @@ export function useClaimAll() {
         async (poolIds: Hex[]) => {
             if (!hub || !poolIds.length) return;
             setError(null);
+            let hidePrompt: (() => void) | undefined;
             try {
+                hidePrompt = showTxPrompt({
+                    context: "pool-claim",
+                    title: "CLAIM ALL POOL REWARDS",
+                    statusText: `Please approve the transaction in your wallet to batch claim ${poolIds.length} pool reward${poolIds.length === 1 ? '' : 's'}.`,
+                });
                 // Chunk to MAX_CLAIM_REFS
                 const chunkSize = 25;
                 for (let i = 0; i < poolIds.length; i += chunkSize) {
@@ -320,8 +348,11 @@ export function useClaimAll() {
                         args: [chunk],
                     });
                 }
+                updateAuthPromptStatus("Claim submitted! Confirming batch on-chain...", "Confirming On-Chain");
             } catch (e) {
                 setError(e instanceof Error ? e.message : "claimAll failed");
+            } finally {
+                hidePrompt?.();
             }
         },
         [hub, writeContractAsync],
@@ -339,15 +370,24 @@ export function usePoolRefund(poolId: `0x${string}` | null | undefined) {
     const refund = useCallback(async () => {
         if (!pool || !poolId) return;
         setError(null);
+        let hidePrompt: (() => void) | undefined;
         try {
+            hidePrompt = showTxPrompt({
+                context: "contract-call",
+                title: "REFUND POOL ENTRY",
+                statusText: "Please approve the refund transaction in your wallet.",
+            });
             await writeContractAsync({
                 address: pool,
                 abi: MATCH_POOL_ABI,
                 functionName: "refundJoin",
                 args: [poolId],
             });
+            updateAuthPromptStatus("Refund submitted! Confirming on-chain...", "Confirming On-Chain");
         } catch (e) {
             setError(e instanceof Error ? e.message : "Refund failed");
+        } finally {
+            hidePrompt?.();
         }
     }, [pool, poolId, writeContractAsync]);
     return { refund, isPending, error, configured };
