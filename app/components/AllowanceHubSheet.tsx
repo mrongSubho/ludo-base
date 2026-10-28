@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { parseUnits } from "viem";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { formatUnits, parseUnits } from "viem";
 import { useChipsAllowance, ALLOWANCE_PRESETS } from "@/hooks/useChipsAllowance";
 import { shortHex } from "@/lib/chips";
 import Button from "./Button";
@@ -21,11 +21,51 @@ export default function AllowanceHubSheet() {
         readError,
     } = useChipsAllowance();
 
+    const hasActiveAllowance = allowance > BigInt(0);
+
+    const activePreset = useMemo<number | "custom" | null>(() => {
+        if (!hasActiveAllowance) return null;
+        if (isUnlimited) return Infinity;
+
+        // Check exact preset amounts first
+        for (const preset of ALLOWANCE_PRESETS) {
+            if (!preset.isUnlimited && allowance === preset.amount) {
+                return preset.chips;
+            }
+        }
+
+        // Check match-consumed ranges (1,000 tier, 500 tier, 100 tier)
+        if (allowance > BigInt(500) * BigInt(10 ** 18) && allowance <= BigInt(1000) * BigInt(10 ** 18)) {
+            return 1000;
+        }
+        if (allowance > BigInt(100) * BigInt(10 ** 18) && allowance <= BigInt(500) * BigInt(10 ** 18)) {
+            return 500;
+        }
+        if (allowance <= BigInt(100) * BigInt(10 ** 18)) {
+            return 100;
+        }
+
+        return "custom";
+    }, [hasActiveAllowance, isUnlimited, allowance]);
+
     const [selectedPreset, setSelectedPreset] = useState<number | "custom">(500);
     const [customAmount, setCustomAmount] = useState<string>("");
     const [statusMsg, setStatusMsg] = useState<{ text: string; type: "ok" | "err" } | null>(null);
+    const userInteractedRef = useRef(false);
 
-    const hasActiveAllowance = allowance > BigInt(0);
+    // Sync selectedPreset to activePreset whenever on-chain allowance loads or changes,
+    // unless the user has explicitly clicked a different preset in this session.
+    useEffect(() => {
+        if (userInteractedRef.current) return;
+        if (activePreset !== null) {
+            setSelectedPreset(activePreset);
+            if (activePreset === "custom") {
+                setCustomAmount(formatUnits(allowance, 18));
+            }
+        } else {
+            setSelectedPreset(500);
+        }
+    }, [activePreset, allowance]);
 
     const handleApplyAllowance = async () => {
         try {
@@ -46,6 +86,7 @@ export default function AllowanceHubSheet() {
             }
 
             await approve(targetAmount);
+            userInteractedRef.current = false;
             setStatusMsg({ text: "CHIPS allowance updated successfully!", type: "ok" });
         } catch (err: unknown) {
             const raw = err instanceof Error ? err.message : String(err);
@@ -59,6 +100,7 @@ export default function AllowanceHubSheet() {
         try {
             setStatusMsg(null);
             await revoke();
+            userInteractedRef.current = false;
             setStatusMsg({ text: "Spender allowance revoked to 0.", type: "ok" });
         } catch (err: unknown) {
             const raw = err instanceof Error ? err.message : String(err);
@@ -133,20 +175,17 @@ export default function AllowanceHubSheet() {
                 <div className="grid grid-cols-2 gap-2">
                     {ALLOWANCE_PRESETS.map((preset) => {
                         const isSelected = selectedPreset === preset.chips;
-                        const isCurrentActive = preset.isUnlimited
-                            ? isUnlimited
-                            : allowance > BigInt(0) &&
-                              (allowance === preset.amount ||
-                                  (preset.chips === 500 &&
-                                      allowance <= preset.amount &&
-                                      allowance > BigInt(100) * BigInt(10 ** 18)));
+                        const isCurrentActive = activePreset === preset.chips;
                         const isDefault = preset.chips === 500 && !hasActiveAllowance;
 
                         return (
                             <button
                                 key={preset.label}
                                 type="button"
-                                onClick={() => setSelectedPreset(preset.chips)}
+                                onClick={() => {
+                                    userInteractedRef.current = true;
+                                    setSelectedPreset(preset.chips);
+                                }}
                                 className={`flex flex-col items-start p-2.5 rounded-xl border transition-all text-left ${
                                     isSelected
                                         ? "bg-cyan-500/10 border-cyan-400 shadow-[0_0_12px_rgba(0,229,255,0.15)]"
@@ -183,7 +222,10 @@ export default function AllowanceHubSheet() {
                 <div className="pt-1">
                     <button
                         type="button"
-                        onClick={() => setSelectedPreset("custom")}
+                        onClick={() => {
+                            userInteractedRef.current = true;
+                            setSelectedPreset("custom");
+                        }}
                         className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
                             selectedPreset === "custom"
                                 ? "bg-cyan-500/10 border-cyan-400 shadow-[0_0_12px_rgba(0,229,255,0.15)]"
