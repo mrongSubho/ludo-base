@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useAccount, usePublicClient, useWriteContract } from "wagmi";
+import { useAccount, usePublicClient, useWriteContract, useSwitchChain } from "wagmi";
 import type { Hex } from "viem";
 import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
+import { DEFAULT_CHAIN_ID } from "@/lib/chains";
 import {
     LEGACY_CLAIM_ABI,
     SEASON_CLAIM_ABI,
@@ -55,7 +56,8 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 
 /** Legacy coins → CHIPS claim from hosted `legacy-snapshot.json`. */
 export function useLegacyClaim() {
-    const { address } = useAccount();
+    const { address, chainId } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
     const publicClient = usePublicClient();
     const { writeContractAsync, isPending } = useWriteContract();
     const [snapshot, setSnapshot] = useState<LegacySnapshot | null>(null);
@@ -128,6 +130,14 @@ export function useLegacyClaim() {
         setStatus("claiming");
         let hidePrompt: (() => void) | undefined;
         try {
+            if (chainId && chainId !== DEFAULT_CHAIN_ID) {
+                try {
+                    await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
+                } catch (err) {
+                    console.warn("[useLegacyClaim] Network switch before claim failed:", err);
+                }
+            }
+
             hidePrompt = showTxPrompt({
                 context: "merkle-claim",
                 title: "CLAIM LEGACY REWARD",
@@ -148,7 +158,7 @@ export function useLegacyClaim() {
         } finally {
             hidePrompt?.();
         }
-    }, [entry, address, writeContractAsync]);
+    }, [entry, address, writeContractAsync, chainId, switchChainAsync]);
 
     return {
         snapshot,
@@ -166,7 +176,8 @@ export function useLegacyClaim() {
 
 /** Season merkle claim from hosted `/season-leaves.json` (epoch file). */
 export function useSeasonClaim(epoch: string = "1") {
-    const { address } = useAccount();
+    const { address, chainId } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
     const publicClient = usePublicClient();
     const { writeContractAsync, isPending } = useWriteContract();
     const [leaves, setLeaves] = useState<SeasonLeaves | null>(null);
@@ -228,6 +239,14 @@ export function useSeasonClaim(epoch: string = "1") {
         setStatus("claiming");
         let hidePrompt: (() => void) | undefined;
         try {
+            if (chainId && chainId !== DEFAULT_CHAIN_ID) {
+                try {
+                    await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
+                } catch (err) {
+                    console.warn("[useLegacyClaim] Network switch before claim failed:", err);
+                }
+            }
+
             hidePrompt = showTxPrompt({
                 context: "merkle-claim",
                 title: `CLAIM SEASON ${epoch} REWARD`,
@@ -248,7 +267,7 @@ export function useSeasonClaim(epoch: string = "1") {
         } finally {
             hidePrompt?.();
         }
-    }, [entry, address, epoch, writeContractAsync]);
+    }, [entry, address, epoch, writeContractAsync, chainId, switchChainAsync]);
 
     return {
         leaves,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useAccount, useWriteContract, useChainId, usePublicClient } from "wagmi";
+import { useAccount, useWriteContract, useChainId, usePublicClient, useSwitchChain } from "wagmi";
 import type { Address, Hex } from "viem";
 import { missionClaimAddress } from "@/lib/missionVoucher";
 import { missionSystemAddress, missionIdBytes32, MISSION_SYSTEM_ABI } from "@/lib/missionSystem";
@@ -32,6 +32,7 @@ export const MISSION_CLAIM_ABI = [
 export function useMissionVoucherClaim() {
     const { address } = useAccount();
     const chainIdRaw = useChainId();
+    const { switchChainAsync } = useSwitchChain();
     const { writeContractAsync, isPending } = useWriteContract();
     const publicClient = usePublicClient();
     const { ensureAppSession } = useAppSession();
@@ -51,6 +52,14 @@ export function useMissionVoucherClaim() {
             setError(null);
             let hidePrompt: (() => void) | undefined;
             try {
+                if (chainIdRaw && chainIdRaw !== 84532) {
+                    try {
+                        await switchChainAsync({ chainId: 84532 });
+                    } catch (err) {
+                        console.warn("[useMissionVoucher] Network switch before claim failed:", err);
+                    }
+                }
+
                 // If on-chain MissionSystem is active, pull claim directly from contract (user pays gas)
                 if (sysAddr) {
                     setStep("claim");
@@ -133,7 +142,7 @@ export function useMissionVoucherClaim() {
                 hidePrompt?.();
             }
         },
-        [address, chainIdRaw, ensureAppSession, writeContractAsync, publicClient],
+        [address, chainIdRaw, ensureAppSession, writeContractAsync, publicClient, switchChainAsync],
     );
 
     return { claim, step, isPending, error };

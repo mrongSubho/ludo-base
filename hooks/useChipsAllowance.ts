@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, useSwitchChain } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import {
     createPublicClient,
@@ -102,7 +102,8 @@ export async function readAllowanceDirect(
 }
 
 export function useChipsAllowance(customSpender?: `0x${string}`) {
-    const { address: wagmiAddress } = useAccount();
+    const { address: wagmiAddress, chainId } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
     const player = usePlayerSigner();
     const cdpUserOp = useCdpUserOp();
     const { writeContractAsync, isPending: isWriting } = useWriteContract();
@@ -184,6 +185,13 @@ export function useChipsAllowance(customSpender?: `0x${string}`) {
                     });
                     await cdpUserOp.sendCalls([{ to: token, data: approveData as Hex }]);
                 } else {
+                    if (chainId && chainId !== CHIPS_CHAIN_ID) {
+                        try {
+                            await switchChainAsync({ chainId: CHIPS_CHAIN_ID });
+                        } catch (err) {
+                            console.warn("[useChipsAllowance] Network switch before approve failed:", err);
+                        }
+                    }
                     await writeContractAsync({
                         address: token,
                         abi: CHIPS_ERC20_ABI,
@@ -198,7 +206,7 @@ export function useChipsAllowance(customSpender?: `0x${string}`) {
                 hidePrompt?.();
             }
         },
-        [address, token, spender, player.mode, cdpUserOp, writeContractAsync, refetch],
+        [address, token, spender, player.mode, cdpUserOp, writeContractAsync, refetch, chainId, switchChainAsync],
     );
 
     /**

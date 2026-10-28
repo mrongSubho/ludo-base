@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useAccount, useChainId, useSignTypedData, useWriteContract } from "wagmi";
+import { useAccount, useChainId, useSignTypedData, useWriteContract, useSwitchChain } from "wagmi";
 import type { Address, Hex } from "viem";
 import {
     buildSettleTypedData,
@@ -21,6 +21,7 @@ import { showAuthPrompt, showTxPrompt, updateAuthPromptStatus } from "@/hooks/us
 export function useSettlePool() {
     const { address } = useAccount();
     const chainIdRaw = useChainId();
+    const { switchChainAsync } = useSwitchChain();
     const { signTypedDataAsync } = useSignTypedData();
     const { writeContractAsync, isPending } = useWriteContract();
     const { ensureAppSession } = useAppSession();
@@ -148,6 +149,13 @@ export function useSettlePool() {
                 }
 
                 setStep("submit");
+                if (chainIdRaw && chainIdRaw !== 84532) {
+                    try {
+                        await switchChainAsync({ chainId: 84532 });
+                    } catch (err) {
+                        console.warn("[useSettlePool] Network switch failed:", err);
+                    }
+                }
                 hidePrompt = showTxPrompt({
                     context: "pool-settle",
                     title: "SETTLE MATCH POOL",
@@ -185,6 +193,7 @@ export function useSettlePool() {
             chainIdRaw,
             signTypedDataAsync,
             writeContractAsync,
+            switchChainAsync,
         ],
     );
 

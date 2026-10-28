@@ -7,13 +7,16 @@
  */
 
 import { useCallback, useState } from "react";
-import { useSendTransaction } from "wagmi";
+import { useSendTransaction, useAccount, useSwitchChain } from "wagmi";
 import { parseEther, isAddress, type Address } from "viem";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useCdpUserOp } from "@/hooks/useCdpUserOp";
 import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
+import { DEFAULT_CHAIN_ID } from "@/lib/chains";
 
 export function useSendNative() {
+    const { chainId } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
     const player = usePlayerSigner();
     const cdpUserOp = useCdpUserOp();
     const { sendTransactionAsync } = useSendTransaction();
@@ -56,6 +59,13 @@ export function useSendNative() {
                     const res = await cdpUserOp.sendCalls([{ to: to as Address, value }]);
                     setTxHash(res.userOperationHash);
                 } else {
+                    if (chainId && chainId !== DEFAULT_CHAIN_ID) {
+                        try {
+                            await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
+                        } catch (err) {
+                            console.warn("[useSendNative] Network switch failed:", err);
+                        }
+                    }
                     const hash = await sendTransactionAsync({
                         account: player.address as `0x${string}`,
                         to: to as Address,
@@ -74,7 +84,7 @@ export function useSendNative() {
                 hidePrompt?.();
             }
         },
-        [player.address, player.mode, cdpUserOp, sendTransactionAsync, txHash],
+        [player.address, player.mode, cdpUserOp, sendTransactionAsync, txHash, chainId, switchChainAsync],
     );
 
     /** Self-pay max for external EOA: leave ~0.0001 ETH gas buffer. */

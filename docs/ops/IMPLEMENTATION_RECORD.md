@@ -3079,3 +3079,25 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - `npm run check:type-scale`: 0 hardcoded pixel sites.
    - `npm run check:motion`: compositor-only passed.
    - `npm test`: 580/580 tests pass (11 skipped).
+
+### 18. Automatic External Wallet Network Switching (2026-10-29)
+1. **Architectural Invariant**:
+   - Ludo Base runs strictly on Base Sepolia (`84532`, `DEFAULT_CHAIN_ID`).
+   - External wallets (MetaMask, Base Account, etc.) on an off-allowlist chain (such as chain ID `784`, `1`, etc.) automatically trigger an immediate network switch on connect and on network change without crashing or manual intervention.
+   - Pre-flight alignment: All on-chain transaction actions (`joinPool`, `approve`, `claim`, `sync`, `send`) verify that the active wallet network matches Base Sepolia before invoking `writeContractAsync`, preventing Wagmi `ChainMismatchError` exceptions.
+2. **Implementation** — [`app/components/NetworkAutoSwitcher.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/NetworkAutoSwitcher.tsx), [`app/Providers.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/Providers.tsx), [`app/components/LudoWalletModal.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/LudoWalletModal.tsx), [`hooks/useChipsAllowance.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useChipsAllowance.ts), [`hooks/useChipsPool.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useChipsPool.ts), [`hooks/useMerkleClaim.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useMerkleClaim.ts), [`hooks/useMissionVoucher.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useMissionVoucher.ts), [`hooks/useSendToken.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useSendToken.ts), [`hooks/useSendNative.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useSendNative.ts), [`hooks/useSettlePool.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useSettlePool.ts), [`hooks/useUnsyncedMatches.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useUnsyncedMatches.ts):
+   - **Global NetworkAutoSwitcher**:
+     - Mounted in `Providers.tsx` inside `WagmiProvider`.
+     - Observes `useAccount().chainId` and automatically requests `switchChain({ chainId: 84532 })` whenever an external wallet is connected on an off-target network.
+     - Protects against prompt spamming using session-ref deduplication.
+   - **Target-Aware Wallet Connection**:
+     - `LudoWalletModal` passes explicit `chainId: baseSepolia.id` in all `connect()` calls.
+   - **Pre-Flight Write Alignment**:
+     - Every on-chain mutation hook calls `await switchChainAsync({ chainId: 84532 })` before invoking `writeContractAsync`, ensuring transactions never crash if the network switch was previously delayed or skipped.
+3. **Verification & Gates**:
+   - Added automated test in [`scripts/chain-gate.test.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/scripts/chain-gate.test.ts) verifying off-chain mismatch detection on chain `784`.
+   - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+   - `npm run lint`: 0 errors.
+   - `npm run check:type-scale`: 0 hardcoded pixel sites.
+   - `npm run check:motion`: compositor-only passed.
+   - `npm test`: 581/581 tests pass (11 skipped).

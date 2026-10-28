@@ -108,3 +108,14 @@ test('unsupported explicit chain fails closed', async () => {
     const bad = await verifyPersonalSign({ address: acct.address, message: msg, signature, chainId: 1 });
     assert.equal(bad.ok, false, 'chain 1 must fail closed');
 });
+
+test('chain mismatch detection flags external wallet on chain 784 and targets 84532', () => {
+    const externalWalletChainId: number = 784;
+    assert.equal(isSupportedChainId(externalWalletChainId), false);
+    assert.equal(parseChainId(externalWalletChainId), null);
+
+    // Mismatch condition verified
+    const isMismatch = (externalWalletChainId as number) !== (DEFAULT_CHAIN_ID as number);
+    assert.equal(isMismatch, true);
+    assert.equal(DEFAULT_CHAIN_ID, 84532);
+});

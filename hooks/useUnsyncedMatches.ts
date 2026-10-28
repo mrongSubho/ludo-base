@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useAccount, useChainId, useWriteContract } from "wagmi";
+import { useAccount, useChainId, useWriteContract, useSwitchChain } from "wagmi";
 import type { Hex } from "viem";
 import { missionSystemAddress, MISSION_SYSTEM_ABI } from "@/lib/missionSystem";
 import { useAppSession } from "@/hooks/useAppSession";
@@ -24,6 +24,7 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
     const { address: currentUserAddress } = useCurrentUser();
     const address = targetWallet ?? wagmiAddress ?? currentUserAddress;
     const chainIdRaw = useChainId();
+    const { switchChainAsync } = useSwitchChain();
     const { writeContractAsync } = useWriteContract();
     const { ensureAppSession } = useAppSession();
 
@@ -127,6 +128,14 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
                 statusText: `Please approve the batch transaction in your wallet to record ${attestations.length} match${attestations.length === 1 ? '' : 'es'} onto the blockchain.`,
             });
 
+            if (chainIdRaw && chainIdRaw !== 84532) {
+                try {
+                    await switchChainAsync({ chainId: 84532 });
+                } catch (err) {
+                    console.warn("[useUnsyncedMatches] Network switch failed:", err);
+                }
+            }
+
             const tx = await writeContractAsync({
                 address: sysAddr,
                 abi: MISSION_SYSTEM_ABI,
@@ -182,7 +191,7 @@ export function useUnsyncedMatches(targetWallet?: string | null) {
             hidePrompt?.();
             setIsSyncing(false);
         }
-    }, [address, chainIdRaw, ensureAppSession, fetchUnsynced, writeContractAsync]);
+    }, [address, chainIdRaw, ensureAppSession, fetchUnsynced, writeContractAsync, switchChainAsync]);
 
     return {
         matches,

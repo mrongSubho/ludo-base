@@ -7,6 +7,7 @@ import {
     useReadContract,
     useSendCalls,
     useWriteContract,
+    useSwitchChain,
 } from "wagmi";
 import { encodeFunctionData, formatUnits, parseUnits, type Address, type Hex } from "viem";
 import {
@@ -18,7 +19,7 @@ import {
     isChipsConfigured,
     matchPoolAddress,
 } from "@/lib/chips";
-import { readAllowanceDirect, DEFAULT_TACTICAL_ALLOWANCE } from "@/hooks/useChipsAllowance";
+import { readAllowanceDirect, DEFAULT_TACTICAL_ALLOWANCE, CHIPS_CHAIN_ID } from "@/hooks/useChipsAllowance";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useCdpUserOp } from "@/hooks/useCdpUserOp";
 import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
@@ -46,7 +47,8 @@ function formatMmSs(s: number) {
  * Builder-code dataSuffix is applied globally in Providers.tsx.
  */
 export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHuman: string) {
-    const { address: wagmiAddress } = useAccount();
+    const { address: wagmiAddress, chainId } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
     const player = usePlayerSigner();
     const cdpUserOp = useCdpUserOp();
     const address = player.address ?? wagmiAddress;
@@ -104,6 +106,15 @@ export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHu
                 setBatched(true);
                 setStep("done");
                 return;
+            }
+
+            // External: Ensure connected wallet is switched to Base Sepolia (84532) before executing transactions
+            if (chainId && chainId !== CHIPS_CHAIN_ID) {
+                try {
+                    await switchChainAsync({ chainId: CHIPS_CHAIN_ID });
+                } catch (err) {
+                    console.warn("[useChipsPool] Network switch before join failed:", err);
+                }
             }
 
             // External: If allowance is already sufficient, SKIP approve entirely! (1 popup only)
@@ -168,7 +179,7 @@ export function usePoolJoin(poolId: `0x${string}` | null | undefined, entryFeeHu
         } finally {
             hidePrompt?.();
         }
-    }, [address, chips, pool, poolId, entryFeeHuman, writeContractAsync, sendCallsAsync, player.mode, cdpUserOp]);
+    }, [address, chips, pool, poolId, entryFeeHuman, writeContractAsync, sendCallsAsync, player.mode, cdpUserOp, chainId, switchChainAsync]);
 
     return { join, step, isPending: isPending || batchPending, error, configured, batched };
 }
@@ -231,7 +242,8 @@ export function usePoolSummary(poolId: `0x${string}` | null | undefined) {
 
 /** Post-match prize claim (pull) with dispute countdown + gas/net. */
 export function usePoolClaim(poolId: `0x${string}` | null | undefined) {
-    const { address: wagmiAddress } = useAccount();
+    const { address: wagmiAddress, chainId } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
     const player = usePlayerSigner();
     const cdpUserOp = useCdpUserOp();
     const address = player.address ?? wagmiAddress;
@@ -317,6 +329,13 @@ export function usePoolClaim(poolId: `0x${string}` | null | undefined) {
             if (player.mode === "ingame" && cdpUserOp.isInGame) {
                 await cdpUserOp.sendCalls([{ to: pool, data: claimData }]);
             } else {
+                if (chainId && chainId !== CHIPS_CHAIN_ID) {
+                    try {
+                        await switchChainAsync({ chainId: CHIPS_CHAIN_ID });
+                    } catch (err) {
+                        console.warn("[useChipsPool] Network switch before claim failed:", err);
+                    }
+                }
                 await writeContractAsync({
                     address: pool,
                     abi: MATCH_POOL_ABI,
@@ -331,7 +350,7 @@ export function usePoolClaim(poolId: `0x${string}` | null | undefined) {
         } finally {
             hidePrompt?.();
         }
-    }, [pool, poolId, writeContractAsync, refetchClaimable, player.mode, cdpUserOp]);
+    }, [pool, poolId, writeContractAsync, refetchClaimable, player.mode, cdpUserOp, chainId, switchChainAsync]);
 
     return {
         claim,
@@ -351,7 +370,8 @@ export function usePoolClaim(poolId: `0x${string}` | null | undefined) {
 
 /** Paginated claimAll via ClaimHub (MAX_CLAIM_REFS=25). */
 export function useClaimAll() {
-    const { address } = useAccount();
+    const { address, chainId } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
     const hub = claimHubAddress();
     const configured = isChipsConfigured() && Boolean(hub);
     const { writeContractAsync, isPending } = useWriteContract();
@@ -363,6 +383,14 @@ export function useClaimAll() {
             setError(null);
             let hidePrompt: (() => void) | undefined;
             try {
+                if (chainId && chainId !== CHIPS_CHAIN_ID) {
+                    try {
+                        await switchChainAsync({ chainId: CHIPS_CHAIN_ID });
+                    } catch (err) {
+                        console.warn("[useClaimAll] Network switch before batch claim failed:", err);
+                    }
+                }
+
                 hidePrompt = showTxPrompt({
                     context: "pool-claim",
                     title: "CLAIM ALL POOL REWARDS",
@@ -386,7 +414,7 @@ export function useClaimAll() {
                 hidePrompt?.();
             }
         },
-        [hub, writeContractAsync],
+        [hub, writeContractAsync, chainId, switchChainAsync],
     );
 
     return { claimMany, isPending, error, configured, address };

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useConnect, Connector } from 'wagmi';
+import { baseSepolia } from 'wagmi/chains';
 import { IoClose } from 'react-icons/io5';
 import { motion, AnimatePresence } from 'framer-motion';
 import InGameWalletPanel from './InGameWalletPanel';
@@ -134,7 +135,10 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
             connectors.find((c) => c.id === 'baseAccount' || c.type === 'baseAccount') ||
             connectors.find((c) => c.name.toLowerCase().includes('coinbase'));
         if (baseConn) {
-            connect({ connector: baseConn }, { onSuccess: () => writeWalletMode('external') });
+            connect(
+                { connector: baseConn, chainId: baseSepolia.id },
+                { onSuccess: () => writeWalletMode('external') },
+            );
         }
     };
 
@@ -145,7 +149,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
             return;
         }
         connect(
-            { connector },
+            { connector, chainId: baseSepolia.id },
             {
                 onSuccess: () => writeWalletMode('external'),
                 onError: () => {
@@ -158,7 +162,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                     const injectedConn = connectors.find((c) => c.id === 'injected');
                     if (!injectedConn) return;
                     connect(
-                        { connector: injectedConn },
+                        { connector: injectedConn, chainId: baseSepolia.id },
                         { onSuccess: () => writeWalletMode('external') },
                     );
                 },

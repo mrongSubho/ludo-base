@@ -18,6 +18,7 @@ import { ReactNode, useEffect } from "react";
 import { DATA_SUFFIX } from "@/lib/builderCode";
 import { initTelemetry } from "@/lib/telemetry";
 import ProfileSyncer from "./components/ProfileSyncer";
+import NetworkAutoSwitcher from "./components/NetworkAutoSwitcher";
 import FrameProvider from "./components/FrameProvider";
 import BootLock from "./components/BootLock";
 import GlobalSignWaitModal from "./components/GlobalSignWaitModal";
@@ -101,6 +102,7 @@ export function Providers({ children }: { children: ReactNode }) {
                             <TeamUpProvider>
                                 <ToastProvider>
                                 <ProfileSyncer />
+                                <NetworkAutoSwitcher />
                                 <InviteNotification />
                                 <BootLock />
                                 <GlobalSignWaitModal />

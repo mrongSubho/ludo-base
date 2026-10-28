@@ -7,12 +7,13 @@
  */
 
 import { useCallback, useState } from "react";
-import { useWriteContract } from "wagmi";
+import { useWriteContract, useAccount, useSwitchChain } from "wagmi";
 import { encodeFunctionData, isAddress, parseUnits, type Address } from "viem";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useCdpUserOp } from "@/hooks/useCdpUserOp";
 import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
 import { CHIPS_ERC20_ABI, chipsAddress } from "@/lib/chips";
+import { DEFAULT_CHAIN_ID } from "@/lib/chains";
 
 export type SendTokenKey = "usdc" | "chips";
 
@@ -27,6 +28,8 @@ function tokenMeta(key: SendTokenKey) {
 }
 
 export function useSendToken() {
+    const { chainId } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
     const player = usePlayerSigner();
     const cdpUserOp = useCdpUserOp();
     const { writeContractAsync } = useWriteContract();
@@ -74,6 +77,13 @@ export function useSendToken() {
                     const res = await cdpUserOp.sendCalls([{ to: meta.address, data }]);
                     setTxHash(res.userOperationHash);
                 } else {
+                    if (chainId && chainId !== DEFAULT_CHAIN_ID) {
+                        try {
+                            await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
+                        } catch (err) {
+                            console.warn("[useSendToken] Network switch failed:", err);
+                        }
+                    }
                     const hash = await writeContractAsync({
                         address: meta.address,
                         abi: CHIPS_ERC20_ABI,
@@ -93,7 +103,7 @@ export function useSendToken() {
                 hidePrompt?.();
             }
         },
-        [player.address, player.mode, cdpUserOp, writeContractAsync, txHash],
+        [player.address, player.mode, cdpUserOp, writeContractAsync, txHash, chainId, switchChainAsync],
     );
 
     const reset = useCallback(() => {
