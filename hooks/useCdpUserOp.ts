@@ -10,6 +10,7 @@ import { useCallback } from "react";
 import { useSendUserOperation } from "@coinbase/cdp-hooks";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { DATA_SUFFIX } from "@/lib/builderCode";
+import { guardAsyncTransaction } from "@/lib/walletGuard";
 
 export type UserOpCall = {
     to: `0x${string}`;
@@ -30,18 +31,26 @@ export function useCdpUserOp(defaultChainId = 84532) {
             if (player.mode !== "ingame" || !player.address) {
                 throw new Error("useCdpUserOp: in-game CDP wallet required");
             }
-            return sendUserOperation({
-                evmSmartAccount: player.address as `0x${string}`,
-                network: networkFor(chainId),
-                calls: calls.map((c) => ({
-                    to: c.to,
-                    data: c.data ?? "0x",
-                    value: c.value ?? BigInt(0),
-                })),
-                // ERC-8021 attribution — never send unattributed CHIPS txs
-                ...(DATA_SUFFIX ? { dataSuffix: DATA_SUFFIX } : {}),
-                useCdpPaymaster: true,
-            } as Parameters<typeof sendUserOperation>[0]);
+            return guardAsyncTransaction(
+                () =>
+                    sendUserOperation({
+                        evmSmartAccount: player.address as `0x${string}`,
+                        network: networkFor(chainId),
+                        calls: calls.map((c) => ({
+                            to: c.to,
+                            data: c.data ?? "0x",
+                            value: c.value ?? BigInt(0),
+                        })),
+                        // ERC-8021 attribution — never send unattributed CHIPS txs
+                        ...(DATA_SUFFIX ? { dataSuffix: DATA_SUFFIX } : {}),
+                        useCdpPaymaster: true,
+                    } as Parameters<typeof sendUserOperation>[0]),
+                {
+                    title: "IN-GAME TRANSACTION",
+                    statusText: "Please approve the in-game action.",
+                    explanationText: "Sponsored transaction via Coinbase paymaster.",
+                },
+            );
         },
         [player.mode, player.address, sendUserOperation, defaultChainId],
     );

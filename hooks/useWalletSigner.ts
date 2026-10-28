@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { useAccount, useSignMessage, useSignTypedData } from "wagmi";
 import type { WalletSigner } from "@/lib/walletSigner";
+import { guardAsyncSignature } from "@/lib/walletGuard";
 
 /**
  * Default (wagmi) implementation of `WalletSigner`.
@@ -20,7 +21,7 @@ export function useWalletSigner(): WalletSigner {
 
     const signMessageAsync = useCallback(
         async (args: { account: `0x${string}`; message: string }) => {
-            return wagmiSignMessage(args);
+            return guardAsyncSignature(() => wagmiSignMessage(args));
         },
         [wagmiSignMessage],
     );
@@ -35,13 +36,15 @@ export function useWalletSigner(): WalletSigner {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             message: any;
         }) => {
-            return wagmiSignTypedData({
-                account: args.account,
-                domain: args.domain as Parameters<typeof wagmiSignTypedData>[0]["domain"],
-                types: args.types,
-                primaryType: args.primaryType,
-                message: args.message,
-            } as Parameters<typeof wagmiSignTypedData>[0]);
+            return guardAsyncSignature(() =>
+                wagmiSignTypedData({
+                    account: args.account,
+                    domain: args.domain as Parameters<typeof wagmiSignTypedData>[0]["domain"],
+                    types: args.types,
+                    primaryType: args.primaryType,
+                    message: args.message,
+                } as Parameters<typeof wagmiSignTypedData>[0]),
+            );
         },
         [wagmiSignTypedData],
     );

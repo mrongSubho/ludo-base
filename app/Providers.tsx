@@ -27,6 +27,7 @@ import { GameDataProvider } from "@/hooks/GameDataContext";
 import { InviteNotification } from "./components/InviteNotification";
 import { CdpAuthProvider } from "./components/CdpAuthProvider";
 import { prefetchSiweNonce } from "@/hooks/useBaseAccountSigner";
+import { installWagmiConnectorGuards, installBrowserWindowGuard } from "@/lib/walletGuard";
 
 const config = createConfig({
     chains: [baseSepolia],
@@ -65,11 +66,14 @@ const config = createConfig({
     ...(DATA_SUFFIX ? { dataSuffix: DATA_SUFFIX } : {}),
 });
 
+installWagmiConnectorGuards(config);
+
 const queryClient = new QueryClient();
 
 export function Providers({ children }: { children: ReactNode }) {
     useEffect(() => {
         initTelemetry();
+        installBrowserWindowGuard();
         // Warm Base SIWE nonce so "Continue with Base" can open the popup on click.
         prefetchSiweNonce();
     }, []);

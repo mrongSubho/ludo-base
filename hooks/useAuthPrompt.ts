@@ -313,6 +313,20 @@ export function cancelAuthPrompt(): void {
 }
 
 /**
+ * Returns whether any auth prompt is currently open.
+ */
+export function isAuthPromptOpen(): boolean {
+    return currentState.isOpen;
+}
+
+/**
+ * Returns a snapshot of the current auth prompt state.
+ */
+export function getAuthPromptState(): AuthPromptState {
+    return currentState;
+}
+
+/**
  * React hook to subscribe to the global auth prompt state.
  */
 export function useAuthPrompt(): AuthPromptState {

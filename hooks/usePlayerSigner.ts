@@ -3,6 +3,8 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useWalletSigner } from "@/hooks/useWalletSigner";
 import { useCdpParentSigner } from "@/hooks/useCdpParentSigner";
+import { guardAsyncSignature } from "@/lib/walletGuard";
+import type { WalletSigner } from "@/lib/walletSigner";
 import {
     readWalletMode,
     resolveActiveMode,
@@ -42,8 +44,14 @@ export function usePlayerSigner() {
             mode: active,
             address: signer?.address,
             needsReconnect: stored === "ingame" && !ingameLive && !externalLive,
-            signMessageAsync: signer?.signMessageAsync ?? disconnectedSigner,
-            signTypedDataAsync: signer?.signTypedDataAsync ?? disconnectedSigner,
+            signMessageAsync: async (args: Parameters<WalletSigner["signMessageAsync"]>[0]) => {
+                const targetSigner = signer?.signMessageAsync ?? disconnectedSigner;
+                return guardAsyncSignature(() => targetSigner(args));
+            },
+            signTypedDataAsync: async (args: Parameters<WalletSigner["signTypedDataAsync"]>[0]) => {
+                const targetSigner = signer?.signTypedDataAsync ?? disconnectedSigner;
+                return guardAsyncSignature(() => targetSigner(args));
+            },
             setMode,
             ownerEoa: cdp.ownerEoa,
             isSignedInCdp: cdp.isSignedIn,

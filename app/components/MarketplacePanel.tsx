@@ -6,6 +6,7 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { getOwned, addOwned } from '@/lib/inventory';
 import { useAppSession } from '@/hooks/useAppSession';
 import { usePlayerSigner } from '@/hooks/usePlayerSigner';
+import { showAuthPrompt } from '@/hooks/useAuthPrompt';
 import { buildPurchaseIntentMessage } from '@/lib/purchaseIntent';
 import { marketplaceTotalChips } from '@/lib/marketplacePrices';
 import { getShowcased, setShowcased } from '@/lib/showcase';
@@ -496,7 +497,19 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         const requestId = crypto.randomUUID();
         const issuedAt = new Date().toISOString();
         const message = buildPurchaseIntentMessage({ buyer: wallet, itemIds: ids, totalChips: total, requestId, issuedAt });
-        const signature = await player.signMessageAsync({ account: wallet as `0x${string}`, message });
+        const hidePrompt = showAuthPrompt({
+            context: 'marketplace',
+            title: 'AUTHORIZE PURCHASE',
+            badgeText: 'Awaiting Signature',
+            statusText: `Please approve the purchase authorization of ${total} CHIPS in your wallet.`,
+            explanationText: 'Zero gas fee. Cryptographically signs purchase intent.',
+        });
+        let signature: `0x${string}`;
+        try {
+            signature = await player.signMessageAsync({ account: wallet as `0x${string}`, message });
+        } finally {
+            hidePrompt();
+        }
         const response = await fetch('/api/marketplace/purchase', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ walletAddress: wallet, sessionId, itemIds: ids, requestId, message, signature, issuedAt }),

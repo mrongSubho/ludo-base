@@ -2,6 +2,7 @@
 
 import { useCallback } from 'react';
 import { buildBetResolveMessage } from '@/lib/matchProof';
+import { showAuthPrompt } from '@/hooks/useAuthPrompt';
 
 type SignMessageAsync = (args: { account: `0x${string}`; message: string }) => Promise<string>;
 
@@ -19,6 +20,7 @@ export function useSignedResolveBet(opts: {
     const resolveBet = useCallback(async (matchId: string, result: string, betType: string) => {
         if (!isHost || !myAddress) return;
         console.log('🎰 [Host] Triggering signed bet resolution:', { matchId, result, betType });
+        let hidePrompt: (() => void) | undefined;
         try {
             const issuedAt = new Date().toISOString();
             const message = buildBetResolveMessage({
@@ -27,6 +29,13 @@ export function useSignedResolveBet(opts: {
                 betType,
                 hostAddress: myAddress,
                 issuedAt,
+            });
+            hidePrompt = showAuthPrompt({
+                context: 'betting',
+                title: 'AUTHORIZE BET SETTLEMENT',
+                badgeText: 'Awaiting Signature',
+                statusText: 'Please approve the match bet certification signature in your wallet.',
+                explanationText: 'Zero gas fee. Certifies match prediction outcome as room host.',
             });
             const signature = await signMessageAsync({ account: myAddress as `0x${string}`, message });
             const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/resolve-bet`, {
@@ -50,6 +59,8 @@ export function useSignedResolveBet(opts: {
             else console.log('🎰 [Host] resolve-bet ok', data);
         } catch (err) {
             console.error('🎰 [Host] resolve-bet failed', err);
+        } finally {
+            hidePrompt?.();
         }
     }, [isHost, myAddress, signMessageAsync]);
 

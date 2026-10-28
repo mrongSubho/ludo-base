@@ -47,6 +47,7 @@ const SpectatorHUD = dynamic(() => import('./components/SpectatorHUD').then(m =>
 const HostMigrationPanel = dynamic(() => import('./components/HostMigrationPanel').then(m => m.HostMigrationPanel));
 import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
 import { useWalletMode } from '@/hooks/useWalletMode';
+import { showAuthPrompt } from '@/hooks/useAuthPrompt';
 import { ThinkingOrb } from './components/ThinkingOrb';
 import { useTeamUp } from '@/hooks/useTeamUp';
 import PresenceManager from './components/PresenceManager';
@@ -135,10 +136,18 @@ const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
    const toggleStream = async () => {
      setIsPending(true);
      setErr(null);
+     let hidePrompt: (() => void) | undefined;
      try {
        if (!hostAddress) throw new Error('Host wallet unavailable');
        const issuedAt = new Date().toISOString();
        const message = buildStreamMessage({ matchId, roomCode: String(roomCode), hostAddress, enabled: !isStreaming, issuedAt });
+       hidePrompt = showAuthPrompt({
+         context: 'social',
+         title: isStreaming ? 'DISABLE LIVE STREAM' : 'BROADCAST LIVE STREAM',
+         badgeText: 'Awaiting Signature',
+         statusText: isStreaming ? 'Sign to disable the live match stream.' : 'Sign to enable the live match stream for spectators.',
+         explanationText: 'Zero gas fee. Proves host authority over match broadcast.',
+       });
        const signature = await signMessageAsync({ account: hostAddress as `0x${string}`, message });
        const res = await fetch('/api/match/stream', {
          method: 'POST',
@@ -164,6 +173,7 @@ const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
          ? 'Timed out — Supabase slow or unreachable'
          : 'Network error');
      } finally {
+       hidePrompt?.();
        setIsPending(false);
      }
    };
@@ -656,23 +666,35 @@ export default function Page() {
           enabled: false,
           issuedAt,
         });
-        const signature = await signMessageAsync({
-          account: hostAddress as `0x${string}`,
-          message,
-        });
-        await fetch('/api/match/stream', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            matchId: gameState.matchId,
-            roomCode: lobbyState.roomCode,
-            hostAddress,
-            enabled: false,
-            issuedAt,
+        let hidePrompt: (() => void) | undefined;
+        try {
+          hidePrompt = showAuthPrompt({
+            context: 'social',
+            title: 'END LIVE STREAM',
+            badgeText: 'Awaiting Signature',
+            statusText: 'Sign to close the match spectator broadcast before leaving.',
+            explanationText: 'Zero gas fee. Authenticates host match stream closure.',
+          });
+          const signature = await signMessageAsync({
+            account: hostAddress as `0x${string}`,
             message,
-            signature,
-          }),
-        });
+          });
+          await fetch('/api/match/stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              matchId: gameState.matchId,
+              roomCode: lobbyState.roomCode,
+              hostAddress,
+              enabled: false,
+              issuedAt,
+              message,
+              signature,
+            }),
+          });
+        } finally {
+          hidePrompt?.();
+        }
       } catch {
         // Stream cleanup is best-effort; leaving the local game must continue.
       }

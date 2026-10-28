@@ -11,6 +11,7 @@ import { toCoinbaseSmartAccount } from "viem/account-abstraction";
 import { createPublicClient, http, type Address, type TypedDataDefinition } from "viem";
 import { base, baseSepolia } from "viem/chains";
 import type { WalletSigner } from "@/lib/walletSigner";
+import { guardAsyncSignature } from "@/lib/walletGuard";
 
 /**
  * CDP parent-signer (Phase 0a). Identity = parent Smart Account (§1.1).
@@ -67,13 +68,15 @@ export function useCdpParentSigner(defaultChainId = 84532): WalletSigner & {
             if (args.account.toLowerCase() !== address.toLowerCase()) {
                 throw new Error("useCdpParentSigner: refusing non-parent account");
             }
-            const account = await parentSmartAccount({
-                parent: address as Address,
-                ownerEoa,
-                chainId: defaultChainId,
+            return guardAsyncSignature(async () => {
+                const account = await parentSmartAccount({
+                    parent: address as Address,
+                    ownerEoa,
+                    chainId: defaultChainId,
+                });
+                const signature = await account.signMessage({ message: args.message });
+                return signature as `0x${string}`;
             });
-            const signature = await account.signMessage({ message: args.message });
-            return signature as `0x${string}`;
         },
         [address, ownerEoa, defaultChainId],
     );
@@ -92,18 +95,20 @@ export function useCdpParentSigner(defaultChainId = 84532): WalletSigner & {
             if (args.account.toLowerCase() !== address.toLowerCase()) {
                 throw new Error("useCdpParentSigner: refusing non-parent account");
             }
-            const account = await parentSmartAccount({
-                parent: address as Address,
-                ownerEoa,
-                chainId: args.domain.chainId || defaultChainId,
+            return guardAsyncSignature(async () => {
+                const account = await parentSmartAccount({
+                    parent: address as Address,
+                    ownerEoa,
+                    chainId: args.domain.chainId || defaultChainId,
+                });
+                const signature = await account.signTypedData({
+                    domain: args.domain,
+                    types: args.types,
+                    primaryType: args.primaryType,
+                    message: args.message,
+                } as TypedDataDefinition);
+                return signature as `0x${string}`;
             });
-            const signature = await account.signTypedData({
-                domain: args.domain,
-                types: args.types,
-                primaryType: args.primaryType,
-                message: args.message,
-            } as TypedDataDefinition);
-            return signature as `0x${string}`;
         },
         [address, ownerEoa, defaultChainId],
     );

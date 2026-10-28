@@ -7,6 +7,7 @@ import { writeWalletMode, type WalletMode } from "@/lib/walletMode";
 import { buildWalletLinkMessage } from "@/lib/walletLink";
 import { useWalletSigner } from "@/hooks/useWalletSigner";
 import { useAppSession } from "@/hooks/useAppSession";
+import { showAuthPrompt } from "@/hooks/useAuthPrompt";
 import Button from "./Button";
 import Chip from "./Chip";
 
@@ -117,15 +118,40 @@ export default function WalletLinkPanel() {
             const issuedAt = new Date().toISOString();
             const message = buildWalletLinkMessage({ primary: current, linked: other, issuedAt });
 
-            const primarySignature = await player.signMessageAsync({
-                account: current as `0x${string}`,
-                message,
+            let hidePrompt = showAuthPrompt({
+                context: "social",
+                title: "LINK SECONDARY WALLET",
+                badgeText: "Awaiting Signature 1/2",
+                statusText: "Please approve the primary wallet signature to initiate wallet linking.",
+                explanationText: "Zero gas fee. Proves control of the primary wallet.",
             });
+            let primarySignature: `0x${string}`;
+            try {
+                primarySignature = await player.signMessageAsync({
+                    account: current as `0x${string}`,
+                    message,
+                });
+            } finally {
+                hidePrompt();
+            }
+
             const otherSigner = external.address?.toLowerCase() === other ? external : player;
-            const linkedSignature = await otherSigner.signMessageAsync({
-                account: other as `0x${string}`,
-                message,
+            hidePrompt = showAuthPrompt({
+                context: "social",
+                title: "LINK SECONDARY WALLET",
+                badgeText: "Awaiting Signature 2/2",
+                statusText: "Please approve the second wallet signature to verify linking ownership.",
+                explanationText: "Zero gas fee. Proves control of the linked wallet.",
             });
+            let linkedSignature: `0x${string}`;
+            try {
+                linkedSignature = await otherSigner.signMessageAsync({
+                    account: other as `0x${string}`,
+                    message,
+                });
+            } finally {
+                hidePrompt();
+            }
 
             const res = await fetch("/api/wallet-links", {
                 method: "POST",

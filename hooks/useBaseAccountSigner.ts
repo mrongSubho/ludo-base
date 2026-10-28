@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef } from "react";
 import { createBaseAccountSDK, type ProviderInterface } from "@base-org/account";
 import { stringToHex } from "viem";
+import { wrapEip1193Provider, guardAsyncSignature, type Eip1193Provider } from "@/lib/walletGuard";
 import type { WalletSigner } from "@/lib/walletSigner";
 
 /**
@@ -31,7 +32,9 @@ function getProvider(): ProviderInterface {
             appLogoUrl: appLogoUrl(),
         });
     }
-    return sdkSingleton.getProvider();
+    const provider = sdkSingleton.getProvider();
+    wrapEip1193Provider(provider as unknown as Eip1193Provider);
+    return provider;
 }
 
 /** Prefetch SIWE nonce on load so the click handler can open the popup immediately. */
@@ -143,12 +146,14 @@ export function useBaseAccountSigner(): WalletSigner & {
             if (args.account.toLowerCase() !== addressRef.current.toLowerCase()) {
                 throw new Error("useBaseAccountSigner: refusing non-parent account");
             }
-            const messageHex = stringToHex(args.message);
-            const signature = (await provider.request({
-                method: "personal_sign",
-                params: [messageHex, args.account],
-            })) as string;
-            return signature as `0x${string}`;
+            return guardAsyncSignature(async () => {
+                const messageHex = stringToHex(args.message);
+                const signature = (await provider.request({
+                    method: "personal_sign",
+                    params: [messageHex, args.account],
+                })) as string;
+                return signature as `0x${string}`;
+            });
         },
         [],
     );
@@ -170,24 +175,26 @@ export function useBaseAccountSigner(): WalletSigner & {
             if (args.account.toLowerCase() !== addressRef.current.toLowerCase()) {
                 throw new Error("useBaseAccountSigner: refusing non-parent account");
             }
-            const payload = {
-                types: {
-                    EIP712Domain: [
-                        { name: "name", type: "string" },
-                        { name: "version", type: "string" },
-                        { name: "chainId", type: "uint256" },
-                    ],
-                    ...args.types,
-                },
-                primaryType: args.primaryType,
-                domain: args.domain,
-                message: args.message,
-            };
-            const signature = (await provider.request({
-                method: "eth_signTypedData_v4",
-                params: [args.account, JSON.stringify(payload)],
-            })) as string;
-            return signature as `0x${string}`;
+            return guardAsyncSignature(async () => {
+                const payload = {
+                    types: {
+                        EIP712Domain: [
+                            { name: "name", type: "string" },
+                            { name: "version", type: "string" },
+                            { name: "chainId", type: "uint256" },
+                        ],
+                        ...args.types,
+                    },
+                    primaryType: args.primaryType,
+                    domain: args.domain,
+                    message: args.message,
+                };
+                const signature = (await provider.request({
+                    method: "eth_signTypedData_v4",
+                    params: [args.account, JSON.stringify(payload)],
+                })) as string;
+                return signature as `0x${string}`;
+            });
         },
         [],
     );
