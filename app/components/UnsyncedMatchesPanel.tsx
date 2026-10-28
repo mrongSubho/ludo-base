@@ -104,7 +104,7 @@ export function UnsyncedMatchesPanel({
                                 <span className="text-ludo-xs font-mono font-bold text-white/70">
                                     All recent match activity is permanently verified and sealed on Base.
                                 </span>
-                                <span className="text-[11px] font-mono text-white/40">
+                                <span className="text-ludo-sm font-mono text-white/40">
                                     New free matches will queue here automatically for your next gas-minimized batch sync.
                                 </span>
                             </div>
@@ -159,7 +159,7 @@ export function UnsyncedMatchesPanel({
 
                                 {/* Detailed matches in queue */}
                                 <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto no-scrollbar pt-1 border-t border-white/5">
-                                    <span className="text-[10px] font-mono font-bold text-white/40 uppercase tracking-wider">
+                                    <span className="text-ludo-xs font-mono font-bold text-white/40 uppercase tracking-wider">
                                         Queue Breakdown
                                     </span>
                                     {matches.map((m) => (
@@ -169,7 +169,7 @@ export function UnsyncedMatchesPanel({
                                         >
                                             <div className="flex items-center gap-2 min-w-0">
                                                 <span
-                                                    className={`font-black uppercase text-[10px] px-1.5 py-0.2 rounded ${
+                                                    className={`font-black uppercase text-ludo-xs px-1.5 py-0.2 rounded ${
                                                         m.won
                                                             ? 'bg-emerald-500/20 text-emerald-300'
                                                             : 'bg-red-500/20 text-red-300'

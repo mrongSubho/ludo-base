@@ -64,8 +64,14 @@ const MATRIX = {
 
     // ── Chips / settlement ────────────────────────────────────────────────
     'chips/settle/propose':   { methods: ['POST', 'PUT'], auth: 'session', resource: 'host', serviceRole: true },
+    'chips/settle/relay':     { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
     'chips/lobby-ticket':     { methods: ['POST'], auth: 'session', resource: 'host', serviceRole: true },
     'chips/escrow-balance':   { methods: ['GET'], auth: 'session', resource: 'self', serviceRole: true },
+
+    // ── Free matches sync & history ───────────────────────────────────────
+    'matches/history':        { methods: ['GET'], auth: 'session', resource: 'self', serviceRole: true },
+    'matches/unsynced':       { methods: ['GET'], auth: 'session', resource: 'self', serviceRole: true },
+    'matches/sync-confirm':   { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
 
     // ── Spectator betting ─────────────────────────────────────────────────
     'spectator-bets':         { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },

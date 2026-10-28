@@ -3032,3 +3032,24 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
    - `npm run lint`: 0 errors.
    - `npm test`: 567/567 pass across 62 test suites.
+
+### 16. Pre-Flight Telemetry & Zero-Gas Revert Protection (2026-10-28)
+1. **Architectural Invariant**:
+   - Integrated dry-run transaction simulation and asset flow analysis into the Dual-Modal waiting system (`SignWaitModal`).
+   - Every on-chain transaction (`eth_sendTransaction`, `wallet_sendCalls`) is dry-run simulated against Base Sepolia RPC before/during wallet prompt confirmation, providing immediate tactical preview with zero emojis (pure SVG iconography and terminal-glass design).
+2. **Implementation** — [`lib/txSimulator.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/txSimulator.ts), [`hooks/useAuthPrompt.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useAuthPrompt.ts), [`app/components/SignWaitModal.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/SignWaitModal.tsx), [`lib/walletGuard.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/walletGuard.ts):
+   - **Pre-Flight Simulator Engine**:
+     - Decodes calldata across all Ludo Base contracts: `MissionSystem`, `CHIPS`, `MatchPool`, `ClaimHub`, `MissionClaim`, `SeasonClaim`, and native ETH transfers.
+     - Detects and resolves target contracts with `Verified Core` security badges.
+     - Runs parallel `estimateGas` and dry-run execution (`eth_call`) on Base Sepolia (`84532`).
+     - Decodes asset movements into structured "You Send (Outflow)" and "You Receive (Inflow)" cards.
+     - Inspects ERC-20 allowances, flagging unlimited allowance approvals with tactical caution alerts.
+   - **Zero-Gas Revert Protection**:
+     - If the simulation indicates the transaction would fail/revert on-chain, immediately triggers the red pre-flight warning box with `formatWeb3Error` reason and prompts the user to reject the wallet request to avoid losing gas.
+   - **System-Wide Universal Interception**:
+     - In `lib/walletGuard.ts`, `wrapEip1193Provider` triggers `getInitialTelemetry` instantaneously (zero-latency calldata decode) and streams full RPC simulation into `SignWaitModal` across all transactions.
+3. **Verification & Gates**:
+   - Added unit and invariant tests: [`scripts/preflight-simulator.test.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/scripts/preflight-simulator.test.ts).
+   - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+   - `npm run lint`: 0 errors.
+   - `npm test`: 573/573 tests pass (11 skipped).

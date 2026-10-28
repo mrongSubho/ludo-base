@@ -319,7 +319,7 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
             {sendError && (
                 <div
                     role="alert"
-                    className="mx-5 mb-1 flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] leading-snug text-red-200"
+                    className="mx-5 mb-1 flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-ludo-sm leading-snug text-red-200"
                 >
                     <span aria-hidden="true">⚠</span>
                     <span className="flex-1">{sendError}</span>
@@ -1323,7 +1323,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
             {sendError && (
                 <div
                     role="alert"
-                    className="mx-5 mb-1 flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] leading-snug text-red-200"
+                    className="mx-5 mb-1 flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-ludo-sm leading-snug text-red-200"
                 >
                     <span aria-hidden="true">⚠</span>
                     <span className="flex-1">{sendError}</span>

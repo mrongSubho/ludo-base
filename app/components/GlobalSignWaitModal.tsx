@@ -17,6 +17,7 @@ export default function GlobalSignWaitModal() {
             networkText={prompt.networkText}
             explanationText={prompt.explanationText}
             cancelLabel={prompt.cancelLabel}
+            telemetry={prompt.telemetry}
             onCancel={cancelAuthPrompt}
         />
     );

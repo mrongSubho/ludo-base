@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import type { PreflightTelemetry } from "@/lib/txSimulator";
 
 export type AuthPromptContext =
     | "general"
@@ -31,6 +32,7 @@ export interface AuthPromptOptions {
     networkText?: string;
     explanationText?: string;
     cancelLabel?: string;
+    telemetry?: PreflightTelemetry;
     onCancel?: () => void;
 }
 
@@ -43,6 +45,7 @@ export interface AuthPromptState {
     networkText?: string;
     explanationText?: string;
     cancelLabel?: string;
+    telemetry?: PreflightTelemetry;
     onCancel?: () => void;
 }
 
@@ -227,6 +230,7 @@ let currentState: AuthPromptState = {
     networkText: CONTEXT_PRESETS.general.networkText,
     explanationText: CONTEXT_PRESETS.general.explanationText,
     cancelLabel: CONTEXT_PRESETS.general.cancelLabel,
+    telemetry: undefined,
 };
 
 const listeners = new Set<() => void>();
@@ -252,6 +256,7 @@ export function showAuthPrompt(opts?: AuthPromptOptions): () => void {
         networkText: opts?.networkText || preset.networkText,
         explanationText: opts?.explanationText || preset.explanationText,
         cancelLabel: opts?.cancelLabel || preset.cancelLabel,
+        telemetry: opts?.telemetry,
         onCancel: opts?.onCancel,
     };
     emit();
@@ -284,6 +289,7 @@ export function hideAuthPrompt(): void {
     currentState = {
         ...currentState,
         isOpen: false,
+        telemetry: undefined,
         onCancel: undefined,
     };
     emit();
@@ -298,6 +304,18 @@ export function updateAuthPromptStatus(statusText: string, badgeText?: string): 
         ...currentState,
         statusText,
         badgeText: badgeText || currentState.badgeText,
+    };
+    emit();
+}
+
+/**
+ * Updates or streams pre-flight simulation telemetry into the active modal.
+ */
+export function updateAuthPromptTelemetry(telemetry?: PreflightTelemetry): void {
+    if (!currentState.isOpen) return;
+    currentState = {
+        ...currentState,
+        telemetry,
     };
     emit();
 }

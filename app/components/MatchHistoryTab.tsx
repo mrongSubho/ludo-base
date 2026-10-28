@@ -514,7 +514,7 @@ export function MatchHistoryTab({
                                                                                 className="w-3 h-3 shrink-0"
                                                                             />
                                                                             <span
-                                                                                className={`text-[9px] font-mono font-bold tracking-tight uppercase truncate ${getTierColorClass(
+                                                                                className={`text-ludo-xs font-mono font-bold tracking-tight uppercase truncate ${getTierColorClass(
                                                                                     p.rankTier
                                                                                 )}`}
                                                                             >
@@ -536,7 +536,7 @@ export function MatchHistoryTab({
                                                                         <span className="tabular-nums font-black">
                                                                             {p.home ?? (p.isWinner ? 4 : 0)}/4
                                                                         </span>
-                                                                        <span className="hidden sm:inline text-[9px] text-white/40 uppercase tracking-tight">
+                                                                        <span className="hidden sm:inline text-ludo-xs text-white/40 uppercase tracking-tight">
                                                                             Home
                                                                         </span>
                                                                     </span>
@@ -548,7 +548,7 @@ export function MatchHistoryTab({
                                                                         <span className="tabular-nums font-black">
                                                                             {p.kicks}
                                                                         </span>
-                                                                        <span className="hidden sm:inline text-[9px] text-white/40 uppercase tracking-tight">
+                                                                        <span className="hidden sm:inline text-ludo-xs text-white/40 uppercase tracking-tight">
                                                                             Kicked
                                                                         </span>
                                                                     </span>
@@ -560,7 +560,7 @@ export function MatchHistoryTab({
                                                                         <span className="tabular-nums font-black">
                                                                             {p.gotKicked}
                                                                         </span>
-                                                                        <span className="hidden sm:inline text-[9px] text-white/40 uppercase tracking-tight">
+                                                                        <span className="hidden sm:inline text-ludo-xs text-white/40 uppercase tracking-tight">
                                                                             Captured
                                                                         </span>
                                                                     </span>

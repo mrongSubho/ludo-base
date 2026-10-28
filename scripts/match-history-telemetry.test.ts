@@ -76,7 +76,7 @@ test('MatchHistoryTab renders participant home, kicks, gotKicked and wires Publi
 
     assert.match(tabCode, /PublicProfileModal/, 'Must import and render PublicProfileModal');
     assert.match(tabCode, /RankTierIcon/, 'Must import and render RankTierIcon');
-    assert.match(tabCode, /text-\[9px\]/, 'Must use compact text-[9px] for rank tier');
+    assert.match(tabCode, /text-(?:\[9px\]|ludo-xs)/, 'Must use compact text for rank tier');
     assert.match(tabCode, /p\.home/, 'Must display participant home count');
     assert.match(tabCode, /p\.kicks/, 'Must display participant kicks');
     assert.match(tabCode, /p\.gotKicked/, 'Must display participant gotKicked');
@@ -90,7 +90,7 @@ test('MatchStatsOverlay implements unified tactical design matching MatchHistory
 
     assert.match(overlayCode, /PublicProfileModal/, 'Must import and render PublicProfileModal');
     assert.match(overlayCode, /RankTierIcon/, 'Must import and render RankTierIcon');
-    assert.match(overlayCode, /text-\[9px\]/, 'Must use compact text-[9px] for rank tier');
+    assert.match(overlayCode, /text-(?:\[9px\]|ludo-xs)/, 'Must use compact text for rank tier');
     assert.match(overlayCode, /FiHome/, 'Must render FiHome icon');
     assert.match(overlayCode, /LuSwords/, 'Must render LuSwords icon');
     assert.match(overlayCode, /LuShieldAlert/, 'Must render LuShieldAlert icon');

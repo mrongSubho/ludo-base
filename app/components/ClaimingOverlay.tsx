@@ -55,7 +55,7 @@ export function ClaimingOverlay({
                             <span className="text-xs font-mono font-black tracking-widest text-cyan-300 uppercase animate-pulse">
                                 {title}
                             </span>
-                            <span className="text-[10px] font-mono text-white/50 tracking-wider uppercase mt-0.5">
+                            <span className="text-ludo-xs font-mono text-white/50 tracking-wider uppercase mt-0.5">
                                 {subtitle}
                             </span>
                         </div>
@@ -63,10 +63,10 @@ export function ClaimingOverlay({
 
                     {/* Laser Scanning Beam (Top to Bottom) */}
                     <motion.div
-                        initial={{ top: '0%' }}
-                        animate={{ top: '100%' }}
+                        initial={{ translateY: '0%' }}
+                        animate={{ translateY: '3500%' }}
                         transition={{ duration: 1.8, repeat: Infinity, ease: 'linear' }}
-                        className="absolute inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent pointer-events-none shadow-[0_0_8px_#22d3ee]"
+                        className="absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent pointer-events-none shadow-[0_0_8px_#22d3ee]"
                     />
                 </motion.div>
             )}

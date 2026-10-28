@@ -10,7 +10,9 @@ import {
     showAuthPrompt,
     showTxPrompt,
     updateAuthPromptStatus,
+    updateAuthPromptTelemetry,
 } from '@/hooks/useAuthPrompt';
+import { simulatePreflight, getInitialTelemetry } from '@/lib/txSimulator';
 
 export const SIGNATURE_METHODS = new Set([
     'personal_sign',
@@ -30,6 +32,54 @@ export const TRANSACTION_METHODS = new Set([
 export interface Eip1193Provider {
     request: (args: { method: string; params?: unknown[] | Record<string, unknown> }) => Promise<unknown>;
     [key: string]: unknown;
+}
+
+function extractTxInfo(args: { method: string; params?: unknown[] | Record<string, unknown> }): {
+    to?: `0x${string}`;
+    data?: `0x${string}`;
+    value?: bigint;
+    from?: `0x${string}`;
+} | null {
+    if (!args.params) return null;
+    if (args.method === 'eth_sendTransaction' && Array.isArray(args.params) && args.params[0]) {
+        const tx = args.params[0] as Record<string, unknown>;
+        const to = typeof tx.to === 'string' && tx.to.startsWith('0x') ? (tx.to as `0x${string}`) : undefined;
+        const data = typeof tx.data === 'string' && tx.data.startsWith('0x') ? (tx.data as `0x${string}`) : undefined;
+        const from = typeof tx.from === 'string' && tx.from.startsWith('0x') ? (tx.from as `0x${string}`) : undefined;
+        let value: bigint | undefined;
+        if (typeof tx.value === 'bigint') {
+            value = tx.value;
+        } else if (typeof tx.value === 'string') {
+            try {
+                value = BigInt(tx.value);
+            } catch {
+                value = undefined;
+            }
+        }
+        return { to, data, value, from };
+    }
+    if (args.method === 'wallet_sendCalls' && Array.isArray(args.params) && args.params[0]) {
+        const req = args.params[0] as Record<string, unknown>;
+        const calls = Array.isArray(req.calls) ? req.calls : [];
+        if (calls[0] && typeof calls[0] === 'object') {
+            const firstCall = calls[0] as Record<string, unknown>;
+            const to = typeof firstCall.to === 'string' && firstCall.to.startsWith('0x') ? (firstCall.to as `0x${string}`) : undefined;
+            const data = typeof firstCall.data === 'string' && firstCall.data.startsWith('0x') ? (firstCall.data as `0x${string}`) : undefined;
+            const from = typeof req.from === 'string' && req.from.startsWith('0x') ? (req.from as `0x${string}`) : undefined;
+            let value: bigint | undefined;
+            if (typeof firstCall.value === 'bigint') {
+                value = firstCall.value;
+            } else if (typeof firstCall.value === 'string') {
+                try {
+                    value = BigInt(firstCall.value);
+                } catch {
+                    value = undefined;
+                }
+            }
+            return { to, data, value, from };
+        }
+    }
+    return null;
 }
 
 export function wrapEip1193Provider<T extends Eip1193Provider>(provider: T | null | undefined): T | null | undefined {
@@ -62,7 +112,32 @@ export function wrapEip1193Provider<T extends Eip1193Provider>(provider: T | nul
         }
 
         if (isTx) {
+            const txInfo = extractTxInfo(args);
+            const triggerSimulation = () => {
+                if (txInfo?.to) {
+                    const initial = getInitialTelemetry({
+                        to: txInfo.to,
+                        data: txInfo.data,
+                        value: txInfo.value,
+                    });
+                    updateAuthPromptTelemetry(initial);
+                    simulatePreflight({
+                        to: txInfo.to,
+                        data: txInfo.data,
+                        value: txInfo.value,
+                        from: txInfo.from,
+                    })
+                        .then((telemetry) => {
+                            updateAuthPromptTelemetry(telemetry);
+                        })
+                        .catch(() => {
+                            // Non-fatal fallback
+                        });
+                }
+            };
+
             if (isAuthPromptOpen()) {
+                triggerSimulation();
                 const res = await originalRequest(args);
                 updateAuthPromptStatus('Transaction submitted! Confirming on-chain...', 'Confirming On-Chain');
                 return res;
@@ -75,6 +150,7 @@ export function wrapEip1193Provider<T extends Eip1193Provider>(provider: T | nul
                 explanationText: 'Standard network gas fee applies on Base. Transaction will be verified on-chain.',
                 networkText: 'Base Sepolia (84532)',
             });
+            triggerSimulation();
             try {
                 const res = await originalRequest(args);
                 updateAuthPromptStatus('Transaction submitted! Confirming on-chain...', 'Confirming On-Chain');
