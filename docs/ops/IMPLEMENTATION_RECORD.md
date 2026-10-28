@@ -2989,3 +2989,46 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
    - `npx eslint`: 0 errors.
    - `npm test`: 559/559 pass across 61 test suites.
+
+### 14. Dual Modal Waiting System & Tactical Radar Overlays (2026-10-28)
+1. **Daily Bonus Progress Normalization** — [`app/components/MissionPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MissionPanel.tsx), [`app/components/OnboardingPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/OnboardingPanel.tsx):
+   - Fixed daily check-in bonus displaying `0/0` on progress bars: normalized zero/undefined targets to `targetVal = 1` and clamped progress to `1/1` (`100%`) when status is completed or claimed.
+2. **Tactical Radar Claiming Overlay** — [`app/components/ClaimingOverlay.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/ClaimingOverlay.tsx):
+   - Created full-card interactive overlay featuring a rotating 360° radar sweep animation, responsive theme support (Daybreak and Retro), and a 64px `ThinkingOrb` in `"searching"` state.
+   - Mounted over mission cards and onboarding tracks while claims are in-flight.
+3. **Dual-Modal Modes (`PromptMode = "signature" | "transaction"`)** — [`app/components/SignWaitModal.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/SignWaitModal.tsx), [`app/components/GlobalSignWaitModal.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/GlobalSignWaitModal.tsx), [`hooks/useAuthPrompt.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useAuthPrompt.ts):
+   - Upgraded system-wide waiting modal from signature-only to dual-mode:
+     - **Signature Mode (Zero Gas)**: Security shield icon, cyan radar pulse ring, and copy stating *"Zero gas fee. Sign-in only proves wallet ownership."*
+     - **Transaction Mode (On-Chain Contract Interactions)**: Dynamic 32px `ThinkingOrb` in `"solving"` state spinning inside orbital beacon, network pill (`Base Sepolia (84532)`), explanation of Base network gas fees, and live state transitions (`Awaiting Confirmation` in wallet $\to$ `Confirming On-Chain` once broadcast).
+   - Integrated across all on-chain surfaces:
+     - Mission pull claims: [`hooks/useMissionVoucher.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useMissionVoucher.ts).
+     - Onboarding reward claims: [`app/components/OnboardingPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/OnboardingPanel.tsx).
+     - Batch match syncs: [`hooks/useUnsyncedMatches.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useUnsyncedMatches.ts).
+     - Ranked match pool entry, claims, batch claims, and refunds: [`hooks/useChipsPool.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useChipsPool.ts).
+     - Dual-signed pool settlements: [`hooks/useSettlePool.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useSettlePool.ts).
+     - ERC-20 & native transfers: [`hooks/useSendToken.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useSendToken.ts), [`hooks/useSendNative.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useSendNative.ts).
+     - Merkle allocations: [`hooks/useMerkleClaim.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useMerkleClaim.ts).
+
+### 15. Universal Dual-Modal Wallet Guard Across All Providers, Connectors, & Signers (2026-10-28)
+1. **Architectural Invariant**:
+   - Guaranteed that NO wallet signature request (`personal_sign`, `eth_sign`, `eth_signTypedData*`) or on-chain transaction approval (`eth_sendTransaction`, `wallet_sendCalls`, CDP `sendUserOperation`) can pop up unannounced without the Dual Modal active across the entire site/app.
+2. **Three-Tier Safety Net Implementation** — [`lib/walletGuard.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/walletGuard.ts), [`app/Providers.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/Providers.tsx):
+   - **Tier 3 (EIP-1193 RPC Transport Interceptor)**:
+     - `wrapEip1193Provider`: Intercepts low-level RPC calls at the provider boundary. If no modal is open, immediately displays the appropriate Dual Modal mode and cleans up on completion/rejection. If a modal is already open, updates status to `"Confirming On-Chain"` on transaction broadcast.
+     - `installWagmiConnectorGuards`: Wraps all connector providers (`baseAccount`, `coinbaseWallet`, `injected`, `walletConnect`, `metaMask`, `safe`) at Wagmi initialization.
+     - `installBrowserWindowGuard`: Intercepts `window.ethereum` and listens for EIP-6963 announced wallets (`eip6963:announceProvider`).
+   - **Tier 2 (Unified Signer & CDP Guard)**:
+     - Wrapped `usePlayerSigner` (`signMessageAsync`, `signTypedDataAsync`), `useWalletSigner`, and `useCdpParentSigner` with `guardAsyncSignature`.
+     - Wrapped `useCdpUserOp.sendCalls` with `guardAsyncTransaction` for sponsored paymaster UserOps.
+     - Wrapped `useBaseAccountSigner` provider and signers.
+   - **Tier 1 (Explicit High-Level Contexts)**:
+     - Added tailored contextual copy to:
+       - Live stream toggling and stream cleanup on match exit: [`app/page.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/page.tsx).
+       - Marketplace item purchase intents: [`app/components/MarketplacePanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/MarketplacePanel.tsx).
+       - Dual-wallet linking (primary and linked wallet signatures): [`app/components/WalletLinkPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/WalletLinkPanel.tsx).
+       - Host spectator bet resolution: [`hooks/useSignedResolveBet.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useSignedResolveBet.ts).
+3. **Automated Verification & Test Gate** — [`scripts/wallet-guard.test.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/scripts/wallet-guard.test.ts):
+   - Added automated tests verifying signature interception, transaction interception, contextual preservation, connector provider wrapping, and async guard helpers.
+   - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+   - `npm run lint`: 0 errors.
+   - `npm test`: 567/567 pass across 62 test suites.
