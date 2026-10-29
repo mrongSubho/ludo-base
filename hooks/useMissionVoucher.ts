@@ -3,9 +3,12 @@
 import { useCallback, useState } from "react";
 import { useAccount, useWriteContract, useChainId, usePublicClient, useSwitchChain } from "wagmi";
 import type { Address, Hex } from "viem";
+import { encodeFunctionData } from "viem";
 import { missionClaimAddress } from "@/lib/missionVoucher";
 import { missionSystemAddress, missionIdBytes32, MISSION_SYSTEM_ABI } from "@/lib/missionSystem";
 import { useAppSession } from "@/hooks/useAppSession";
+import { usePlayerSigner } from "@/hooks/usePlayerSigner";
+import { useCdpUserOp } from "@/hooks/useCdpUserOp";
 import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
 import { formatWeb3Error } from "@/lib/web3Error";
 import { parseChainId } from "@/lib/chains";
@@ -30,14 +33,19 @@ export const MISSION_CLAIM_ABI = [
 
 /** Issue voucher from API then pull MissionClaim.claim on-chain. */
 export function useMissionVoucherClaim() {
-    const { address } = useAccount();
+    const { address: wagmiAddress } = useAccount();
+    const player = usePlayerSigner();
+    const cdpUserOp = useCdpUserOp();
+    const address = player.address ?? wagmiAddress;
     const chainIdRaw = useChainId();
     const { switchChainAsync } = useSwitchChain();
-    const { writeContractAsync, isPending } = useWriteContract();
+    const { writeContractAsync, isPending: isWritePending } = useWriteContract();
     const publicClient = usePublicClient();
     const { ensureAppSession } = useAppSession();
     const [step, setStep] = useState<"idle" | "voucher" | "claim" | "done" | "error">("idle");
     const [error, setError] = useState<string | null>(null);
+
+    const isPending = isWritePending || cdpUserOp.status === "pending";
 
     const claim = useCallback(
         async (missionId: string) => {
@@ -52,15 +60,7 @@ export function useMissionVoucherClaim() {
             setError(null);
             let hidePrompt: (() => void) | undefined;
             try {
-                if (chainIdRaw && chainIdRaw !== 84532) {
-                    try {
-                        await switchChainAsync({ chainId: 84532 });
-                    } catch (err) {
-                        console.warn("[useMissionVoucher] Network switch before claim failed:", err);
-                    }
-                }
-
-                // If on-chain MissionSystem is active, pull claim directly from contract (user pays gas)
+                // If on-chain MissionSystem is active, pull claim directly from contract
                 if (sysAddr) {
                     setStep("claim");
                     hidePrompt = showTxPrompt({
@@ -69,15 +69,35 @@ export function useMissionVoucherClaim() {
                         statusText: "Please approve the transaction in your wallet to claim your CHIPS reward directly on-chain.",
                     });
                     const midBytes32 = missionIdBytes32(missionId);
-                    const tx = await writeContractAsync({
-                        address: sysAddr,
+                    const callData = encodeFunctionData({
                         abi: MISSION_SYSTEM_ABI,
                         functionName: "claimMission",
                         args: [midBytes32],
                     });
-                    if (publicClient && tx) {
-                        updateAuthPromptStatus("Transaction broadcast! Confirming reward on-chain...", "Confirming On-Chain");
-                        await publicClient.waitForTransactionReceipt({ hash: tx });
+
+                    let tx: string | undefined;
+                    if (player.mode === "ingame" && cdpUserOp.isInGame) {
+                        const res = await cdpUserOp.sendCalls([{ to: sysAddr, data: callData }]);
+                        tx = res?.userOperationHash ?? "cdp-userop-submitted";
+                    } else {
+                        if (chainIdRaw && chainIdRaw !== 84532) {
+                            try {
+                                await switchChainAsync({ chainId: 84532 });
+                            } catch (err) {
+                                console.warn("[useMissionVoucher] Network switch before claim failed:", err);
+                            }
+                        }
+                        const hash = await writeContractAsync({
+                            address: sysAddr,
+                            abi: MISSION_SYSTEM_ABI,
+                            functionName: "claimMission",
+                            args: [midBytes32],
+                        });
+                        tx = hash;
+                        if (publicClient && hash) {
+                            updateAuthPromptStatus("Transaction broadcast! Confirming reward on-chain...", "Confirming On-Chain");
+                            await publicClient.waitForTransactionReceipt({ hash });
+                        }
                     }
                     setStep("done");
                     return tx;
@@ -113,8 +133,7 @@ export function useMissionVoucherClaim() {
                     statusText: "Please approve the claim transaction in your wallet to withdraw your voucher reward.",
                 });
                 const v = data.voucher;
-                const tx = await writeContractAsync({
-                    address: claimAddr!,
+                const callData = encodeFunctionData({
                     abi: MISSION_CLAIM_ABI,
                     functionName: "claim",
                     args: [
@@ -127,9 +146,38 @@ export function useMissionVoucherClaim() {
                         data.signature as Hex,
                     ],
                 });
-                if (publicClient && tx) {
-                    updateAuthPromptStatus("Transaction broadcast! Confirming voucher on-chain...", "Confirming On-Chain");
-                    await publicClient.waitForTransactionReceipt({ hash: tx });
+
+                let tx: string | undefined;
+                if (player.mode === "ingame" && cdpUserOp.isInGame) {
+                    const res = await cdpUserOp.sendCalls([{ to: claimAddr!, data: callData }]);
+                    tx = res?.userOperationHash ?? "cdp-userop-submitted";
+                } else {
+                    if (chainIdRaw && chainIdRaw !== 84532) {
+                        try {
+                            await switchChainAsync({ chainId: 84532 });
+                        } catch (err) {
+                            console.warn("[useMissionVoucher] Network switch before voucher claim failed:", err);
+                        }
+                    }
+                    const hash = await writeContractAsync({
+                        address: claimAddr!,
+                        abi: MISSION_CLAIM_ABI,
+                        functionName: "claim",
+                        args: [
+                            v.wallet as Address,
+                            v.missionId as Hex,
+                            BigInt(v.amount),
+                            v.periodId as Hex,
+                            BigInt(v.deadline),
+                            BigInt(v.nonce),
+                            data.signature as Hex,
+                        ],
+                    });
+                    tx = hash;
+                    if (publicClient && hash) {
+                        updateAuthPromptStatus("Transaction broadcast! Confirming voucher on-chain...", "Confirming On-Chain");
+                        await publicClient.waitForTransactionReceipt({ hash });
+                    }
                 }
                 setStep("done");
                 return tx;
@@ -142,7 +190,7 @@ export function useMissionVoucherClaim() {
                 hidePrompt?.();
             }
         },
-        [address, chainIdRaw, ensureAppSession, writeContractAsync, publicClient, switchChainAsync],
+        [address, chainIdRaw, ensureAppSession, writeContractAsync, publicClient, switchChainAsync, player.mode, cdpUserOp],
     );
 
     return { claim, step, isPending, error };

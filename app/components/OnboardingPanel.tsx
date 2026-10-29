@@ -4,7 +4,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useWriteContract } from 'wagmi';
 import type { Address, Hex } from 'viem';
+import { encodeFunctionData } from 'viem';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { usePlayerSigner } from '@/hooks/usePlayerSigner';
+import { useCdpUserOp } from '@/hooks/useCdpUserOp';
 import { useAppSession } from '@/hooks/useAppSession';
 import { MISSION_CLAIM_ABI } from '@/hooks/useMissionVoucher';
 import { ONBOARDING_TRACKS, ONBOARDING_TRACK_KEYS, WELCOME_GRANT_DESC, type OnboardingTrack } from '@/lib/onboardingShared';
@@ -68,6 +71,8 @@ const WELCOME_REWARD = 50;
 
 export const OnboardingPanel = () => {
     const { address, isGuest } = useCurrentUser();
+    const player = usePlayerSigner();
+    const cdpUserOp = useCdpUserOp();
     const { ensureAppSession } = useAppSession();
     const { writeContractAsync } = useWriteContract();
 
@@ -170,20 +175,31 @@ export const OnboardingPanel = () => {
                         title: "CLAIM ONBOARDING REWARD",
                         statusText: "Please approve the transaction in your wallet to claim your reward on-chain.",
                     });
-                    await writeContractAsync({
-                        address: data.missionClaim,
-                        abi: MISSION_CLAIM_ABI,
-                        functionName: 'claim',
-                        args: [
-                            data.voucher.wallet,
-                            data.voucher.missionId,
-                            BigInt(data.voucher.amount),
-                            data.voucher.periodId,
-                            BigInt(data.voucher.deadline),
-                            BigInt(data.voucher.nonce),
-                            data.signature,
-                        ],
-                    });
+                    const claimArgs = [
+                        data.voucher.wallet,
+                        data.voucher.missionId,
+                        BigInt(data.voucher.amount),
+                        data.voucher.periodId,
+                        BigInt(data.voucher.deadline),
+                        BigInt(data.voucher.nonce),
+                        data.signature,
+                    ] as const;
+
+                    if (player.mode === 'ingame' && cdpUserOp.isInGame) {
+                        const callData = encodeFunctionData({
+                            abi: MISSION_CLAIM_ABI,
+                            functionName: 'claim',
+                            args: claimArgs,
+                        });
+                        await cdpUserOp.sendCalls([{ to: data.missionClaim, data: callData }]);
+                    } else {
+                        await writeContractAsync({
+                            address: data.missionClaim,
+                            abi: MISSION_CLAIM_ABI,
+                            functionName: 'claim',
+                            args: claimArgs,
+                        });
+                    }
                     updateAuthPromptStatus("Reward transaction submitted! Confirming on-chain...", "Confirming On-Chain");
                     setNotice('Claim submitted on-chain');
                 } catch {
