@@ -78,6 +78,23 @@ body.theme-daybreak {
      rule so the shell paints identically once it reads the tokens. */
   --panel-border: rgba(15, 23, 42, 0.12);
   --panel-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.22);
+
+  /* ─── Tactical Claiming Overlay tokens — Daybreak ───
+     Porcelain terminal aesthetic: frosted white glass backdrop, hairline teal
+     border, soft slate/teal shadow, subdued high-contrast radar sweep,
+     and deep cyan typography (#0d6d87) complying with AA contrast on white. */
+  --claiming-overlay-bg: rgba(255, 255, 255, 0.94);
+  --claiming-overlay-border: rgba(13, 109, 135, 0.35);
+  --claiming-overlay-shadow: 0 16px 36px -8px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(13, 109, 135, 0.12), 0 2px 10px rgba(13, 109, 135, 0.08);
+  --claiming-overlay-radar: rgba(13, 109, 135, 0.25);
+  --claiming-overlay-ring-1: rgba(13, 109, 135, 0.20);
+  --claiming-overlay-ring-2: rgba(13, 109, 135, 0.12);
+  --claiming-overlay-pulse-border: rgba(13, 109, 135, 0.35);
+  --claiming-overlay-pulse-bg: rgba(13, 109, 135, 0.08);
+  --claiming-overlay-title: #0d6d87;
+  --claiming-overlay-subtitle: rgba(15, 23, 42, 0.60);
+  --claiming-overlay-laser: #0d6d87;
+  --claiming-overlay-laser-shadow: 0 0 8px rgba(13, 109, 135, 0.40);
 }
 
 body.theme-daybreak .cosmic-orb { display: block; }

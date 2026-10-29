@@ -197,6 +197,20 @@
   --err-ghost-bg: rgba(255, 255, 255, 0.10);
   --err-ghost-ink: #ffffff;
   --err-ghost-border: rgba(255, 255, 255, 0.18);
+
+  /* ─── Tactical Claiming Overlay tokens (Retro default) ─── */
+  --claiming-overlay-bg: rgba(0, 0, 0, 0.82);
+  --claiming-overlay-border: rgba(34, 211, 238, 0.50);
+  --claiming-overlay-shadow: 0 0 30px rgba(34, 211, 238, 0.25);
+  --claiming-overlay-radar: rgba(34, 211, 238, 0.45);
+  --claiming-overlay-ring-1: rgba(34, 211, 238, 0.25);
+  --claiming-overlay-ring-2: rgba(34, 211, 238, 0.15);
+  --claiming-overlay-pulse-border: rgba(34, 211, 238, 0.40);
+  --claiming-overlay-pulse-bg: rgba(34, 211, 238, 0.10);
+  --claiming-overlay-title: #67e8f9;
+  --claiming-overlay-subtitle: rgba(255, 255, 255, 0.50);
+  --claiming-overlay-laser: #22d3ee;
+  --claiming-overlay-laser-shadow: 0 0 8px #22d3ee;
 }
 
 /* The two tokens that CHAIN to another theme variable must be declared on
