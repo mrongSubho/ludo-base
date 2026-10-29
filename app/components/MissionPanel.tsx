@@ -13,7 +13,7 @@ import { useIsMobileView } from '@/hooks/useIsMobileView';
 import { PanelChildTabs, TabCount } from './PanelTabs';
 import { OnboardingPanel } from './OnboardingPanel';
 import { ThinkingOrb } from './ThinkingOrb';
-import { LuX, LuShieldCheck, LuListChecks, LuGift, LuDices, LuTrophy, LuSwords, LuBell, LuEye, LuUsers, LuTarget } from 'react-icons/lu';
+import { LuX, LuShieldCheck, LuListChecks, LuGift, LuDices, LuTrophy, LuSwords, LuBell, LuEye, LuUsers, LuTarget, LuClock } from 'react-icons/lu';
 import { missionBadgeFor, type MissionBadgeKey } from '@/lib/missionBadge';
 import { Button } from './Button';
 import { useToast } from './Toast';
@@ -85,6 +85,43 @@ interface MissionPanelProps {
     onSwitchTab?: (tab: any) => void;
 }
 
+function getDailyResetString(): string {
+    const now = new Date();
+    const nextMidnight = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + 1,
+        0, 0, 0, 0
+    ));
+    const diffMs = Math.max(0, nextMidnight.getTime() - now.getTime());
+    const totalSecs = Math.floor(diffMs / 1000);
+    const hours = Math.floor(totalSecs / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    const seconds = totalSecs % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function getWeeklyResetString(): string {
+    const now = new Date();
+    const currentDay = now.getUTCDay();
+    const daysUntilNextMonday = currentDay === 0 ? 1 : (8 - currentDay);
+    const nextMonday = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + daysUntilNextMonday,
+        0, 0, 0, 0
+    ));
+    const diffMs = Math.max(0, nextMonday.getTime() - now.getTime());
+    const totalSecs = Math.floor(diffMs / 1000);
+    const days = Math.floor(totalSecs / 86400);
+    const hours = Math.floor((totalSecs % 86400) / 3600);
+    const minutes = Math.floor((totalSecs % 3600) / 60);
+    if (days > 0) {
+        return `${days}d ${String(hours).padStart(2, '0')}h`;
+    }
+    return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
+}
+
 export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPanelProps) {
     const { address, isGuest } = useCurrentUser();
     const { ensureAppSession } = useAppSession();
@@ -98,6 +135,28 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
     const [claimingId, setClaimingId] = useState<string | null>(null);
     const { claim: claimVoucher } = useMissionVoucherClaim();
     const [missionsLocked, setMissionsLocked] = useState(false);
+    const [resetTimerStr, setResetTimerStr] = useState<string>('');
+
+    useEffect(() => {
+        if (!isOpen || activeMissionTab === 'onboard') {
+            setResetTimerStr('');
+            return;
+        }
+
+        const updateTimer = () => {
+            if (activeMissionTab === 'daily') {
+                setResetTimerStr(getDailyResetString());
+            } else if (activeMissionTab === 'weekly') {
+                setResetTimerStr(getWeeklyResetString());
+            } else {
+                setResetTimerStr('');
+            }
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 1000);
+        return () => clearInterval(interval);
+    }, [isOpen, activeMissionTab]);
 
     // On-chain mission state overlay (MissionSystem contract, Base Sepolia).
     // When configured it is the payout authority; the panel then reflects
@@ -219,6 +278,9 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
     const isMissionDone = (m: Mission) => {
         const oc = onChain.configured ? onChain.states[m.id] : undefined;
         if (oc) return oc.claimed;
+        if (m.id === 'daily_bonus' || m.id.startsWith('daily_bonus')) {
+            return Boolean((m as any).is_claimed);
+        }
         // A target of 0 is valid (daily_bonus) and must not be coerced to 1.
         const target = typeof m.target === 'number' ? m.target : 1;
         return (m.progress ?? 0) >= target || Boolean((m as any).is_claimed);
@@ -324,7 +386,17 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                             <OnboardingPanel />
                                         ) : (
                                             <>
-                                                <SectionLabel>
+                                                <SectionLabel
+                                                    right={
+                                                        resetTimerStr ? (
+                                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/10 text-ludo-xs font-mono font-bold text-white/50 tracking-wider shrink-0">
+                                                                <LuClock className="w-3 h-3 text-cyan-400 shrink-0" />
+                                                                <span className="text-white/40 uppercase">Resets in</span>
+                                                                <span className="text-cyan-300 font-mono tabular-nums">{resetTimerStr}</span>
+                                                            </div>
+                                                        ) : undefined
+                                                    }
+                                                >
                                                     {visibleMissions.length} mission
                                                     {visibleMissions.length === 1 ? '' : 's'} left
                                                 </SectionLabel>
@@ -391,17 +463,35 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                 const onChainClaimed = useOnChain && oc!.claimed;
                                                                 const dbClaimed = Boolean((mission as any).is_claimed);
                                                                 const isClaimed = useOnChain ? onChainClaimed : dbClaimed;
-                                                                const isCompleted =
-                                                                    onChainCompleted || rawProgress >= rawTarget || isClaimed;
+                                                                const isDailyBonus = mission.id === 'daily_bonus' || mission.id.startsWith('daily_bonus');
+                                                                const isCompleted = isDailyBonus
+                                                                    ? !isClaimed
+                                                                    : (onChainCompleted || rawProgress >= rawTarget || isClaimed);
 
                                                                 // Normalize target and progress for display:
-                                                                // Daily check-in (target 0) or completed/claimed missions always show 1/1 (or full target)
-                                                                const targetVal = rawTarget <= 0 ? 1 : rawTarget;
-                                                                const progressVal = (isCompleted || isClaimed) ? Math.max(rawProgress, targetVal) : rawProgress;
-                                                                const progressPercent = Math.min(
-                                                                    (progressVal / Math.max(targetVal, 1)) * 100,
-                                                                    100
-                                                                );
+                                                                // For daily_bonus: new day unclaimed shows 0/0 (empty bar), already claimed shows 1/1 (full bar).
+                                                                let targetVal: number;
+                                                                let progressVal: number;
+                                                                let progressPercent: number;
+
+                                                                if (isDailyBonus) {
+                                                                    if (isClaimed) {
+                                                                        targetVal = 1;
+                                                                        progressVal = 1;
+                                                                        progressPercent = 100;
+                                                                    } else {
+                                                                        targetVal = 0;
+                                                                        progressVal = 0;
+                                                                        progressPercent = 0;
+                                                                    }
+                                                                } else {
+                                                                    targetVal = rawTarget <= 0 ? 1 : rawTarget;
+                                                                    progressVal = (isCompleted || isClaimed) ? Math.max(rawProgress, targetVal) : rawProgress;
+                                                                    progressPercent = Math.min(
+                                                                        (progressVal / Math.max(targetVal, 1)) * 100,
+                                                                        100
+                                                                    );
+                                                                }
                                                                 const badge = missionBadgeFor(mission.id);
 
                                                                 return (
@@ -415,7 +505,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                     >
                                                                         {/* Full-Card Tactical Radar + ThinkingOrb Claiming Overlay */}
                                                                         <ClaimingOverlay isClaiming={claimingId === mission.id} />
-                                                                        {isCompleted && (
+                                                                        {isCompleted && !isClaimed && (
                                                                             <div className="absolute inset-0 bg-green-500/5 opacity-50 blur-xl pointer-events-none" />
                                                                         )}
                                                                         <div className="flex items-start gap-4">
@@ -427,7 +517,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                             <div className="flex flex-col flex-1 min-w-0 pt-0.5">
                                                                                 <div className="flex items-start justify-between gap-2">
                                                                                     <h3
-                                                                                        className={`font-bold text-ludo-lg truncate ${isCompleted ? 'text-green-300' : 'text-white'}`}
+                                                                                        className={`font-bold text-ludo-lg truncate ${isClaimed ? 'text-white/60' : isCompleted ? 'text-green-300' : 'text-white'}`}
                                                                                     >
                                                                                         {mission.title}
                                                                                     </h3>
@@ -483,7 +573,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                         Progress
                                                                                     </span>
                                                                                     <span
-                                                                                        className={`text-xs font-black tabular-nums ${isCompleted ? 'text-green-400' : 'text-white'}`}
+                                                                                        className={`text-xs font-black tabular-nums ${isClaimed ? 'text-white/40' : isCompleted ? 'text-green-400' : 'text-white'}`}
                                                                                     >
                                                                                         {progressVal}{' '}
                                                                                         <span className="text-white/30 text-ludo-xs">
@@ -511,13 +601,11 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                           ? () => handleClaim(mission.id)
                                                                                           : () => handleGo(mission.id)
                                                                                 }
-                                                                                className={`min-w-[70px] rounded-xl ${isClaimed ? '' : isCompleted ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
+                                                                                className={`min-w-[70px] rounded-xl ${isClaimed ? 'opacity-60 cursor-not-allowed border-white/10 bg-white/5 text-white/50' : isCompleted ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
                                                                             >
                                                                                 {isClaimed ? (
-                                                                                    'Claimed'
-                                                                                ) : isCompleted ? (
-                                                                                    <span className="flex items-center gap-1">
-                                                                                        CLAIM{' '}
+                                                                                    <span className="flex items-center gap-1 text-white/60">
+                                                                                        CLAIMED{' '}
                                                                                         <svg
                                                                                             viewBox="0 0 24 24"
                                                                                             fill="none"
@@ -525,11 +613,13 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                                             strokeWidth="3"
                                                                                             strokeLinecap="round"
                                                                                             strokeLinejoin="round"
-                                                                                            className="icon-sm"
+                                                                                            className="icon-sm text-green-400"
                                                                                         >
                                                                                             <polyline points="20 6 9 17 4 12" />
                                                                                         </svg>
                                                                                     </span>
+                                                                                ) : isCompleted ? (
+                                                                                    'CLAIM'
                                                                                 ) : (
                                                                                     'GO'
                                                                                 )}

@@ -431,17 +431,17 @@ export const OnboardingPanel = () => {
                                     loading={claimingId === x.track}
                                     disabled={isClaimed || !claimable}
                                     onClick={claimable ? () => handleClaim(x.track) : undefined}
-                                    className={`min-w-[70px] rounded-xl ${isClaimed ? '' : claimable ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
+                                    className={`min-w-[70px] rounded-xl ${isClaimed ? 'opacity-60 cursor-not-allowed border-white/10 bg-white/5 text-white/50' : claimable ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
                                 >
                                     {isClaimed ? (
-                                        'Claimed'
-                                    ) : claimable ? (
-                                        <span className="flex items-center gap-1">
-                                            CLAIM
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm">
+                                        <span className="flex items-center gap-1 text-white/60">
+                                            CLAIMED{' '}
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm text-green-400">
                                                 <polyline points="20 6 9 17 4 12" />
                                             </svg>
                                         </span>
+                                    ) : claimable ? (
+                                        'CLAIM'
                                     ) : (
                                         'GO'
                                     )}
@@ -522,17 +522,17 @@ export const OnboardingPanel = () => {
                                     loading={claimingId === WELCOME_ID}
                                     disabled={welcomeClaimed}
                                     onClick={() => handleClaim(WELCOME_ID)}
-                                    className={`min-w-[70px] rounded-xl ${welcomeClaimed ? '' : 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]'}`}
+                                    className={`min-w-[70px] rounded-xl ${welcomeClaimed ? 'opacity-60 cursor-not-allowed border-white/10 bg-white/5 text-white/50' : 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]'}`}
                                 >
                                     {welcomeClaimed ? (
-                                        'Claimed'
-                                    ) : (
-                                        <span className="flex items-center gap-1">
-                                            CLAIM
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm">
+                                        <span className="flex items-center gap-1 text-white/60">
+                                            CLAIMED{' '}
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm text-green-400">
                                                 <polyline points="20 6 9 17 4 12" />
                                             </svg>
                                         </span>
+                                    ) : (
+                                        'CLAIM'
                                     )}
                                 </Button>
                                 </div>
