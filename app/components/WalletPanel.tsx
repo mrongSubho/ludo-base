@@ -13,6 +13,7 @@ import WalletActivityList from "./WalletActivityList";
 import WcWalletPanel from "./WcWalletPanel";
 import WalletSecurityPanel from "./WalletSecurityPanel";
 import AllowanceHubSheet from "./AllowanceHubSheet";
+import RevokeAllowanceSheet from "./RevokeAllowanceSheet";
 import ClaimHubSheet from "./ClaimHubSheet";
 
 /**
@@ -31,6 +32,7 @@ type Screen =
     | "dapps"
     | "security"
     | "allowance"
+    | "revoke-allowance"
     | "claims";
 
 function shortAddr(a: string | undefined) {
@@ -178,6 +180,7 @@ const TITLES: Record<Screen, string> = {
     dapps: "Dapps",
     security: "Security",
     allowance: "Token Allowances",
+    "revoke-allowance": "Revoke Allowances",
     claims: "Claim Hub",
 };
 
@@ -211,6 +214,7 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
         screen === "dapps" ||
         screen === "security" ||
         screen === "allowance" ||
+        screen === "revoke-allowance" ||
         screen === "claims";
     const title = TITLES[screen];
 
@@ -260,7 +264,12 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
         },
     ];
 
-    const backTarget: Screen = isMoreBranch && screen !== "more" ? "more" : "home";
+    const backTarget: Screen =
+        screen === "revoke-allowance"
+            ? "allowance"
+            : isMoreBranch && screen !== "more"
+              ? "more"
+              : "home";
 
     return (
         <>
@@ -547,7 +556,12 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                     )}
                     {screen === "allowance" && (
                         <div className="cb-screen">
-                            <AllowanceHubSheet />
+                            <AllowanceHubSheet onOpenRevoke={() => setScreen("revoke-allowance")} />
+                        </div>
+                    )}
+                    {screen === "revoke-allowance" && (
+                        <div className="cb-screen">
+                            <RevokeAllowanceSheet onBack={() => setScreen("allowance")} />
                         </div>
                     )}
                     {screen === "claims" && (
