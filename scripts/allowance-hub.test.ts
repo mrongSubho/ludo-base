@@ -3,35 +3,74 @@ import assert from 'node:assert/strict';
 import { encodeFunctionData, parseUnits } from 'viem';
 import {
     ALLOWANCE_PRESETS,
+    CHIPS_ALLOWANCE_PRESETS,
+    USDC_ALLOWANCE_PRESETS,
     DEFAULT_TACTICAL_ALLOWANCE,
+    formatAllowanceDisplay,
     readAllowanceDirect,
 } from '../hooks/useChipsAllowance';
 import { simulatePreflight } from '../lib/txSimulator';
 import { CHIPS_ERC20_ABI } from '../lib/chips';
 
-test('allowance: standard tactical presets conforms to spec', () => {
+test('allowance: standard user-friendly CHIPS presets conform to spec', () => {
     assert.equal(DEFAULT_TACTICAL_ALLOWANCE, parseUnits('500', 18));
-    assert.equal(ALLOWANCE_PRESETS.length, 4);
+    assert.equal(CHIPS_ALLOWANCE_PRESETS.length, 4);
+    assert.equal(ALLOWANCE_PRESETS, CHIPS_ALLOWANCE_PRESETS);
 
-    const casual = ALLOWANCE_PRESETS.find((p) => p.chips === 100);
-    assert.ok(casual);
-    assert.equal(casual.amount, parseUnits('100', 18));
-    assert.equal(casual.recommended, false);
+    const starter = CHIPS_ALLOWANCE_PRESETS.find((p) => p.chips === 10_000);
+    assert.ok(starter);
+    assert.equal(starter.amount, parseUnits('10000', 18));
+    assert.equal(starter.recommended, false);
 
-    const tactical = ALLOWANCE_PRESETS.find((p) => p.chips === 500);
+    const tactical = CHIPS_ALLOWANCE_PRESETS.find((p) => p.chips === 100_000);
     assert.ok(tactical);
-    assert.equal(tactical.amount, parseUnits('500', 18));
+    assert.equal(tactical.amount, parseUnits('100000', 18));
     assert.equal(tactical.recommended, true);
 
-    const highRoller = ALLOWANCE_PRESETS.find((p) => p.chips === 1000);
-    assert.ok(highRoller);
-    assert.equal(highRoller.amount, parseUnits('1000', 18));
-    assert.equal(highRoller.recommended, false);
+    const proPlayer = CHIPS_ALLOWANCE_PRESETS.find((p) => p.chips === 1_000_000);
+    assert.ok(proPlayer);
+    assert.equal(proPlayer.amount, parseUnits('1000000', 18));
+    assert.equal(proPlayer.recommended, false);
 
-    const unlimited = ALLOWANCE_PRESETS.find((p) => p.chips === Infinity);
+    const unlimited = CHIPS_ALLOWANCE_PRESETS.find((p) => p.chips === Infinity);
     assert.ok(unlimited);
     assert.equal(unlimited.isUnlimited, true);
     assert.equal(unlimited.amount, (BigInt(1) << BigInt(256)) - BigInt(1));
+});
+
+test('allowance: marketplace USDC presets conform to spec', () => {
+    assert.equal(USDC_ALLOWANCE_PRESETS.length, 4);
+
+    const starter = USDC_ALLOWANCE_PRESETS.find((p) => p.value === 5);
+    assert.ok(starter);
+    assert.equal(starter.amount, parseUnits('5', 6));
+    assert.equal(starter.recommended, false);
+
+    const regular = USDC_ALLOWANCE_PRESETS.find((p) => p.value === 20);
+    assert.ok(regular);
+    assert.equal(regular.amount, parseUnits('20', 6));
+    assert.equal(regular.recommended, true);
+
+    const collector = USDC_ALLOWANCE_PRESETS.find((p) => p.value === 50);
+    assert.ok(collector);
+    assert.equal(collector.amount, parseUnits('50', 6));
+    assert.equal(collector.recommended, false);
+
+    const unlimited = USDC_ALLOWANCE_PRESETS.find((p) => p.value === Infinity);
+    assert.ok(unlimited);
+    assert.equal(unlimited.isUnlimited, true);
+    assert.equal(unlimited.amount, (BigInt(1) << BigInt(256)) - BigInt(1));
+});
+
+test('allowance: formatAllowanceDisplay handles units correctly', () => {
+    assert.equal(formatAllowanceDisplay(BigInt(0), 'chips'), '0 CHIPS');
+    assert.equal(formatAllowanceDisplay(BigInt(0), 'usdc'), '$0 USDC');
+    assert.equal(formatAllowanceDisplay(parseUnits('10000', 18), 'chips'), '10k CHIPS');
+    assert.equal(formatAllowanceDisplay(parseUnits('100000', 18), 'chips'), '100k CHIPS');
+    assert.equal(formatAllowanceDisplay(parseUnits('1000000', 18), 'chips'), '1M CHIPS');
+    assert.equal(formatAllowanceDisplay(parseUnits('20', 6), 'usdc'), '$20 USDC');
+    assert.equal(formatAllowanceDisplay((BigInt(1) << BigInt(256)) - BigInt(1), 'chips'), 'Unlimited');
+    assert.equal(formatAllowanceDisplay((BigInt(1) << BigInt(256)) - BigInt(1), 'usdc'), 'Unlimited');
 });
 
 test('allowance: readAllowanceDirect fails closed on invalid addresses', async () => {

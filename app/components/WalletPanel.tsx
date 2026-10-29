@@ -177,7 +177,7 @@ const TITLES: Record<Screen, string> = {
     more: "More",
     dapps: "Dapps",
     security: "Security",
-    allowance: "CHIPS Allowances",
+    allowance: "Token Allowances",
     claims: "Claim Hub",
 };
 
@@ -499,8 +499,8 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                             <path d="m9 12 2 2 4-4" />
                                         </svg>
                                     }
-                                    title="CHIPS Allowances"
-                                    hint="Ranked pool match budget & pre-authorizations"
+                                    title="Token Allowances"
+                                    hint="Pre-approved budgets & 1-click game entry"
                                     onClick={() => setScreen("allowance")}
                                 />
                                 <MoreRow

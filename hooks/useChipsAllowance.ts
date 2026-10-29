@@ -7,6 +7,9 @@ import {
     createPublicClient,
     http,
     encodeFunctionData,
+    formatUnits,
+    getAddress,
+    isAddress,
     type Address,
     type Hex,
 } from "viem";
@@ -17,15 +20,25 @@ import {
     CHIPS_ERC20_ABI,
     chipsAddress,
     matchPoolAddress,
-    formatChips,
     isChipsConfigured,
 } from "@/lib/chips";
 
 export const CHIPS_CHAIN_ID = baseSepolia.id;
 
+export type AllowanceTokenType = "chips" | "usdc";
+
 export interface AllowancePreset {
     label: string;
-    chips: number;
+    chips: number; // units (in CHIPS or USDC dollars)
+    amount: bigint;
+    hint: string;
+    recommended?: boolean;
+    isUnlimited?: boolean;
+}
+
+export interface UsdcAllowancePreset {
+    label: string;
+    value: number;
     amount: bigint;
     hint: string;
     recommended?: boolean;
@@ -33,41 +46,93 @@ export interface AllowancePreset {
 }
 
 /**
- * Standard tactical budget presets for ranked matchmaking allowances.
+ * Standard user-friendly presets for CHIPS ranked matchmaking budgets.
+ * 10k Starter, 100k Tactical (Recommended), 1M Pro Player, Never ask again (Unlimited).
  */
-export const ALLOWANCE_PRESETS: readonly AllowancePreset[] = [
+export const CHIPS_ALLOWANCE_PRESETS: readonly AllowancePreset[] = [
     {
-        label: "Casual (100 CHIPS)",
-        chips: 100,
-        amount: BigInt(100) * BigInt(10 ** 18),
-        hint: "~10 ranked matches",
+        label: "10k Starter",
+        chips: 10_000,
+        amount: BigInt(10_000) * BigInt(10 ** 18),
+        hint: "~100 ranked matches",
         recommended: false,
     },
     {
-        label: "Tactical (500 CHIPS)",
-        chips: 500,
-        amount: BigInt(500) * BigInt(10 ** 18),
-        hint: "~50 ranked matches (Recommended)",
+        label: "100k Tactical",
+        chips: 100_000,
+        amount: BigInt(100_000) * BigInt(10 ** 18),
+        hint: "~1,000 matches (Recommended)",
         recommended: true,
     },
     {
-        label: "High Roller (1,000 CHIPS)",
-        chips: 1000,
-        amount: BigInt(1000) * BigInt(10 ** 18),
+        label: "1M Pro Player",
+        chips: 1_000_000,
+        amount: BigInt(1_000_000) * BigInt(10 ** 18),
         hint: "Heavy tournament grinding",
         recommended: false,
     },
     {
-        label: "Unlimited",
+        label: "Never ask again (Unlimited)",
         chips: Infinity,
         amount: (BigInt(1) << BigInt(256)) - BigInt(1),
-        hint: "DeFi permanent approval",
+        hint: "Never prompt for approvals again",
+        isUnlimited: true,
+        recommended: false,
+    },
+] as const;
+
+/** Alias for backwards compatibility */
+export const ALLOWANCE_PRESETS = CHIPS_ALLOWANCE_PRESETS;
+
+/**
+ * Standard presets for USDC marketplace item budgets.
+ * $5 Starter, $20 Regular (Recommended), $50 Collector, Never ask again (Unlimited).
+ */
+export const USDC_ALLOWANCE_PRESETS: readonly UsdcAllowancePreset[] = [
+    {
+        label: "$5 Starter",
+        value: 5,
+        amount: BigInt(5) * BigInt(10 ** 6),
+        hint: "Casual cosmetics & emotes",
+        recommended: false,
+    },
+    {
+        label: "$20 Regular",
+        value: 20,
+        amount: BigInt(20) * BigInt(10 ** 6),
+        hint: "Popular bundles (Recommended)",
+        recommended: true,
+    },
+    {
+        label: "$50 Collector",
+        value: 50,
+        amount: BigInt(50) * BigInt(10 ** 6),
+        hint: "Premium boards & sets",
+        recommended: false,
+    },
+    {
+        label: "Never ask again (Unlimited)",
+        value: Infinity,
+        amount: (BigInt(1) << BigInt(256)) - BigInt(1),
+        hint: "Never prompt for approvals again",
         isUnlimited: true,
         recommended: false,
     },
 ] as const;
 
 export const DEFAULT_TACTICAL_ALLOWANCE = BigInt(500) * BigInt(10 ** 18);
+
+export const USDC_BASE_SEPOLIA: Address = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+
+export function usdcTokenAddress(): Address {
+    const envAddr = process.env.NEXT_PUBLIC_USDC_ADDRESS;
+    return (envAddr && isAddress(envAddr) ? getAddress(envAddr) : USDC_BASE_SEPOLIA) as Address;
+}
+
+export function marketplaceSpenderAddress(): Address {
+    const envAddr = process.env.NEXT_PUBLIC_MARKETPLACE_ADDRESS || process.env.NEXT_PUBLIC_CLAIM_HUB_ADDRESS;
+    return (envAddr && isAddress(envAddr) ? getAddress(envAddr) : "0x15dF536466Ef58f77e95D7432089DeEBDf276821") as Address;
+}
 
 function getRpcClient() {
     return createPublicClient({
@@ -76,20 +141,39 @@ function getRpcClient() {
     });
 }
 
+export function formatAllowanceDisplay(amount: bigint, tokenType: AllowanceTokenType): string {
+    if (amount >= (BigInt(1) << BigInt(250))) return "Unlimited";
+    if (amount === BigInt(0)) return tokenType === "chips" ? "0 CHIPS" : "$0 USDC";
+
+    if (tokenType === "chips") {
+        const whole = Number(formatUnits(amount, 18));
+        if (whole >= 1_000_000) {
+            return `${Number((whole / 1_000_000).toFixed(1)).toString()}M CHIPS`;
+        }
+        if (whole >= 1_000) {
+            return `${Number((whole / 1_000).toFixed(1)).toString()}k CHIPS`;
+        }
+        return `${whole} CHIPS`;
+    } else {
+        const whole = Number(formatUnits(amount, 6));
+        return `$${whole.toLocaleString()} USDC`;
+    }
+}
+
 /**
  * Static reader for checking allowances imperatively inside async match actions.
  */
 export async function readAllowanceDirect(
     owner: Address,
     spender: Address = matchPoolAddress() as Address,
+    tokenAddress: Address = chipsAddress() as Address,
 ): Promise<bigint> {
-    const token = chipsAddress();
-    if (!token || !owner || !spender) return BigInt(0);
+    if (!tokenAddress || !owner || !spender) return BigInt(0);
 
     try {
         const client = getRpcClient();
         const data = await client.readContract({
-            address: token,
+            address: tokenAddress,
             abi: CHIPS_ERC20_ABI,
             functionName: "allowance",
             args: [owner, spender],
@@ -101,7 +185,10 @@ export async function readAllowanceDirect(
     }
 }
 
-export function useChipsAllowance(customSpender?: `0x${string}`) {
+export function useTokenAllowance(
+    tokenType: AllowanceTokenType = "chips",
+    customSpender?: `0x${string}`,
+) {
     const { address: wagmiAddress, chainId } = useAccount();
     const { switchChainAsync } = useSwitchChain();
     const player = usePlayerSigner();
@@ -109,9 +196,13 @@ export function useChipsAllowance(customSpender?: `0x${string}`) {
     const { writeContractAsync, isPending: isWriting } = useWriteContract();
 
     const address = wagmiAddress ?? (player.address as `0x${string}` | undefined);
-    const token = chipsAddress();
-    const defaultSpender = matchPoolAddress();
+
+    const token = tokenType === "chips" ? chipsAddress() : usdcTokenAddress();
+    const defaultSpender = tokenType === "chips" ? matchPoolAddress() : marketplaceSpenderAddress();
     const spender = customSpender ?? defaultSpender;
+    const decimals = tokenType === "chips" ? 18 : 6;
+    const symbol = tokenType === "chips" ? "CHIPS" : "USDC";
+    const targetName = tokenType === "chips" ? "Ranked Matches" : "Marketplace Items";
 
     const enabled = Boolean(address && token && spender);
 
@@ -138,10 +229,8 @@ export function useChipsAllowance(customSpender?: `0x${string}`) {
 
     const allowanceHuman = useMemo(() => {
         if (!enabled || rawAllowance == null) return "—";
-        if (isUnlimited) return "Unlimited";
-        if (allowance === BigInt(0)) return "0 CHIPS";
-        return `${formatChips(allowance)} CHIPS`;
-    }, [enabled, rawAllowance, isUnlimited, allowance]);
+        return formatAllowanceDisplay(allowance, tokenType);
+    }, [enabled, rawAllowance, allowance, tokenType]);
 
     const hasAllowance = useCallback(
         (neededAmount: bigint) => {
@@ -161,20 +250,19 @@ export function useChipsAllowance(customSpender?: `0x${string}`) {
             }
 
             const isRevoke = amount === BigInt(0);
-            const isUnlim = amount >= (BigInt(1) << BigInt(250));
-            const humanAmount = isRevoke ? "0 CHIPS" : isUnlim ? "Unlimited CHIPS" : `${formatChips(amount)} CHIPS`;
+            const humanAmount = formatAllowanceDisplay(amount, tokenType);
 
             let hidePrompt: (() => void) | undefined;
             try {
                 hidePrompt = showTxPrompt({
                     context: "contract-call",
-                    title: isRevoke ? "REVOKE TOKEN ALLOWANCE" : "SET CHIPS ALLOWANCE",
+                    title: isRevoke ? `RESET ${symbol} BUDGET` : `SET ${symbol} BUDGET`,
                     statusText: isRevoke
-                        ? "Please approve resetting your CHIPS allowance to 0 in your wallet."
-                        : `Please approve the ${humanAmount} allowance for ranked match matchmaking.`,
+                        ? `Please confirm resetting your ${symbol} allowance to 0 in your wallet.`
+                        : `Please approve the ${humanAmount} budget for ${targetName}.`,
                     explanationText: isRevoke
-                        ? "Revoking resets spender permissions back to 0."
-                        : "Pre-authorizing avoids approval popups on subsequent matches.",
+                        ? "Revoking resets your pre-approved budget back to 0. Funds stay safe in your wallet."
+                        : `Pre-approving allows 1-click entry for ${targetName} without popup interruptions.`,
                 });
 
                 if (player.mode === "ingame" && cdpUserOp.isInGame) {
@@ -189,7 +277,7 @@ export function useChipsAllowance(customSpender?: `0x${string}`) {
                         try {
                             await switchChainAsync({ chainId: CHIPS_CHAIN_ID });
                         } catch (err) {
-                            console.warn("[useChipsAllowance] Network switch before approve failed:", err);
+                            console.warn("[useTokenAllowance] Network switch before approve failed:", err);
                         }
                     }
                     await writeContractAsync({
@@ -206,7 +294,7 @@ export function useChipsAllowance(customSpender?: `0x${string}`) {
                 hidePrompt?.();
             }
         },
-        [address, token, spender, player.mode, cdpUserOp, writeContractAsync, refetch, chainId, switchChainAsync],
+        [address, token, spender, tokenType, symbol, targetName, player.mode, cdpUserOp, writeContractAsync, refetch, chainId, switchChainAsync],
     );
 
     /**
@@ -219,6 +307,10 @@ export function useChipsAllowance(customSpender?: `0x${string}`) {
     return {
         address,
         token,
+        tokenType,
+        symbol,
+        decimals,
+        targetName,
         spender,
         allowance,
         allowanceHuman,
@@ -228,8 +320,12 @@ export function useChipsAllowance(customSpender?: `0x${string}`) {
         revoke,
         refetch,
         isPending: isWriting || isFetching,
-        configured: isChipsConfigured(),
+        configured: tokenType === "chips" ? isChipsConfigured() : Boolean(token && spender),
         mode: player.mode,
         readError,
     };
+}
+
+export function useChipsAllowance(customSpender?: `0x${string}`) {
+    return useTokenAllowance("chips", customSpender);
 }

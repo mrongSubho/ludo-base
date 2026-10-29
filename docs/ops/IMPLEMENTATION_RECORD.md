@@ -3101,3 +3101,37 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - `npm run check:type-scale`: 0 hardcoded pixel sites.
    - `npm run check:motion`: compositor-only passed.
    - `npm test`: 581/581 tests pass (11 skipped).
+
+### 19. Global Token Allowances & Plain-English Vocabulary Shift (2026-10-29)
+1. **Architectural Invariant**:
+   - Transformed the single-token CHIPS allowance page into a universal **`Token Allowances`** management surface (`AllowanceHubSheet.tsx`, `WalletPanel.tsx`).
+   - Supports pre-approved budgets for **CHIPS** (Ranked Matches / MatchPool) and **USDC** (Marketplace purchases). ETH is deliberately omitted because native ETH requires no ERC-20 token allowance.
+   - **User-Friendly Plain-English Vocabulary**: Replaced all crypto jargon with conversational, gaming-accessible terms:
+     - Header: `Token Allowances`
+     - Subtitle Banner: *"Set a pre-approved budget so you can enter games instantly with 1 click, skipping repetitive wallet confirmation popups."*
+     - `Ranked Spender` $\to$ `Approved Contract`
+     - Target Contracts: `Ranked Matches` (CHIPS) and `Marketplace Items` (USDC)
+     - Security Badge: `Verified Game Engine`
+     - Presets Section: `Allowance Presets`
+     - CHIPS Presets: `10k Starter`, `100k Tactical (Recommended)`, `1M Pro Player`, `Never ask again (Unlimited)`
+     - USDC Presets: `$5 Starter`, `$20 Regular (Recommended)`, `$50 Collector`, `Never ask again (Unlimited)`
+     - Clear in-sheet Revoke explanation explaining that funds remain 100% safe in wallet and budgets simply reset to 0.
+     - Single & global revoke actions (`REVOKE ALLOWANCE (SET TO 0)` and `Revoke All Token Allowances`).
+2. **Implementation** — [`hooks/useChipsAllowance.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useChipsAllowance.ts), [`app/components/AllowanceHubSheet.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/AllowanceHubSheet.tsx), [`app/components/WalletPanel.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/WalletPanel.tsx), [`lib/txSimulator.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/txSimulator.ts), [`scripts/allowance-hub.test.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/scripts/allowance-hub.test.ts):
+   - **Multi-Token Allowance Hook**:
+     - `useTokenAllowance(tokenType: "chips" | "usdc")` provides decoupled query and write actions for both token systems with token-specific decimals (18 vs 6) and spender targets.
+     - `useChipsAllowance` maintained as backwards-compatible alias.
+     - `formatAllowanceDisplay` formats friendly units (`10k CHIPS`, `100k CHIPS`, `1M CHIPS`, `$20 USDC`, `Unlimited`, etc.).
+   - **Zero-Latency Preflight Simulator**:
+     - Updated `resolveCoreContract` and `decodeCalldata` in `txSimulator.ts` to identify Circle USDC and format allowances using appropriate token decimals.
+   - **AllowanceHubSheet Redesign**:
+     - Responsive 2-tab segmented control for switching between `CHIPS (Ranked)` and `USDC (Marketplace)`.
+     - Active on-chain preset synchronization dynamically selects the matching preset or defaults to recommended without static defaults.
+     - Revoke card provides clear educational guidance without alarming users.
+3. **Verification & Gates**:
+   - Updated [`scripts/allowance-hub.test.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/scripts/allowance-hub.test.ts) covering new CHIPS presets, USDC presets, formatting helpers, and preflight simulations (9/9 passed).
+   - `npx tsc -p tsconfig.json --noEmit`: 0 errors.
+   - `npm run lint`: 0 errors.
+   - `npm run check:type-scale`: 0 hardcoded pixel sites.
+   - `npm run check:motion`: compositor-only passed.
+   - `npm test`: 583/583 tests pass (11 skipped).

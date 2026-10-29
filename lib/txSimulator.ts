@@ -69,6 +69,10 @@ function resolveCoreContract(toAddr?: string): { name: string; isCore: boolean }
     if (lower === chipsAddress()?.toLowerCase()) {
         return { name: 'CHIPS Token (Core)', isCore: true };
     }
+    const usdcAddr = (process.env.NEXT_PUBLIC_USDC_ADDRESS || "0x036CbD53842c5426634e7929541eC2318f3dCF7e").toLowerCase();
+    if (lower === usdcAddr) {
+        return { name: 'USDC Token (Circle)', isCore: true };
+    }
     if (lower === matchPoolAddress()?.toLowerCase()) {
         return { name: 'MatchPool (Ranked)', isCore: true };
     }
@@ -131,19 +135,23 @@ function decodeCalldata(to: `0x${string}`, data: `0x${string}`, value?: bigint):
         }
     } catch { /* try next */ }
 
-    // 3. Try CHIPS ERC-20 ABI
+    // 3. Try ERC-20 ABI (CHIPS / USDC)
     try {
         const decoded = decodeFunctionData({ abi: CHIPS_ERC20_ABI, data });
         if (decoded.functionName === 'approve') {
             const rawAmount = decoded.args?.[1] as bigint | undefined;
-            const amount = rawAmount != null ? formatUnits(rawAmount, 18) : '0';
+            const isUsdc = to.toLowerCase() === (process.env.NEXT_PUBLIC_USDC_ADDRESS || "0x036CbD53842c5426634e7929541eC2318f3dCF7e").toLowerCase();
+            const decimals = isUsdc ? 6 : 18;
+            const symbol = isUsdc ? 'USDC' : 'CHIPS';
+            const amount = rawAmount != null ? formatUnits(rawAmount, decimals) : '0';
             const isUnlimited = rawAmount != null && rawAmount >= (BigInt(1) << BigInt(250));
+            const displayAmount = isUnlimited ? `Unlimited ${symbol}` : isUsdc ? `$${amount} USDC` : `${amount} CHIPS`;
             return {
                 methodName: 'Token Allowance Approval',
                 sending: [
                     {
                         label: 'Allowance Limit',
-                        amount: isUnlimited ? 'Unlimited CHIPS' : `${amount} CHIPS`,
+                        amount: displayAmount,
                     },
                 ],
                 receiving: [
