@@ -77,6 +77,7 @@ const KNOWN_OPTIONAL = {
   NEXT_PUBLIC_PEERJS_PORT: 'falls back to the public PeerJS cloud',
   NEXT_PUBLIC_PEERJS_SECURE: 'defaults to secure',
   NEXT_PUBLIC_USDC_ADDRESS: 'USDC path is not wired',
+  NEXT_PUBLIC_MARKETPLACE_ADDRESS: 'falls back to CLAIM_HUB_ADDRESS',
 };
 
 /** Every NEXT_PUBLIC_* var the app actually reads, scanned from source. */
