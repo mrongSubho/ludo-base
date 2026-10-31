@@ -33,6 +33,7 @@
  */
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { inspectWranglerVars } from './lib-wrangler-guard.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 
@@ -127,6 +128,17 @@ if (existsSync(wranglerPath)) {
     wrangler = JSON.parse(stripJsonc(readFileSync(wranglerPath, 'utf8')));
   } catch (err) {
     console.error('✗ build-env check: wrangler.jsonc does not parse:', err.message);
+    process.exit(1);
+  }
+
+  const guard = inspectWranglerVars(wrangler.vars);
+  if (!guard.valid) {
+    console.error('✗ build-env check: SECURITY VIOLATION in wrangler.jsonc `vars`:');
+    for (const err of guard.errors) {
+      console.error(`    - ${err}`);
+    }
+    console.error('\n  Secrets must NEVER be committed to wrangler.jsonc vars.');
+    console.error('  Use Cloudflare Worker Secrets (scripts/cf-secrets.mjs) or .dev.vars for local dev.\n');
     process.exit(1);
   }
 

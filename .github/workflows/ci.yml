@@ -67,6 +67,8 @@ jobs:
         run: node scripts/check-edge-engine.mjs
       - name: RLS static gate
         run: npm run check:rls
+      - name: Wrangler secret-leak gate (NEXT_PUBLIC_ prefix & deep value scan)
+        run: npm run check:wrangler-guard
       - name: Concurrency gate (parallel claim / bet / settle)
         # Real transactions on real connections: proves the unique-constraint
         # claim lock and the escrow's bounded debit under genuine contention.
