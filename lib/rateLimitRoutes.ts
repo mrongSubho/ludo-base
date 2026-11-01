@@ -81,6 +81,10 @@ export const RATE_LIMITS: Record<string, LimitRule> = {
     'matches/history': { limit: 60, windowMs: 60_000, methods: ['GET'] },
     'matches/sync-confirm': { limit: 20, windowMs: 60_000, methods: ['POST'] },
     'matches/unsynced': { limit: 60, windowMs: 60_000, methods: ['GET'] },
+    'clans/chat': { limit: 60, windowMs: 60_000, methods: ['POST'] },
+    'clans/claims': { limit: 20, windowMs: 60_000, methods: ['POST'] },
+    'clans/war/buyin': { limit: 20, windowMs: 60_000, methods: ['POST'] },
+    'clans/war/board': { limit: 20, windowMs: 60_000, methods: ['POST'] },
 };
 
 /**
@@ -124,6 +128,14 @@ export const SESSION_GATED = new Set([
     'chips/lobby-ticket',
     'chips/settle/propose',
     'chips/settle/relay',
+    'clans',
+    'clans/action',
+    'clans/chat',
+    'clans/claims',
+    'clans/war/board',
+    'clans/war/buyin',
+    'clans/war/fixture',
+    'clans/war/notice',
     'feedback',
     'friendships',
     'galxe/callback',

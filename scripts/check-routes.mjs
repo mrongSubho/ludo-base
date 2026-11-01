@@ -138,6 +138,16 @@ const MATRIX = {
     'push/subscribe':         { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
     'push/test':              { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
     'marketplace/purchase':   { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
+
+    // ── Clans & Clan Wars ──────────────────────────────────────────────────
+    'clans':                  { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
+    'clans/action':           { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
+    'clans/chat':             { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
+    'clans/claims':           { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
+    'clans/war/board':        { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
+    'clans/war/buyin':        { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
+    'clans/war/fixture':      { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
+    'clans/war/notice':       { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
 };
 
 /**

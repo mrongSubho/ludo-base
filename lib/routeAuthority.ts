@@ -100,4 +100,14 @@ export const ROUTE_AUTHORITY_MAP: Record<string, RouteAuthorityEntry> = {
     'push/subscribe':         { methods: ['POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
     'push/test':              { methods: ['POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
     'marketplace/purchase':   { methods: ['POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
+
+    // ── Clans & Clan Wars ──────────────────────────────────────────────────
+    'clans':                  { methods: ['GET', 'POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
+    'clans/action':           { methods: ['POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
+    'clans/chat':             { methods: ['GET', 'POST'], scope: 'app', capability: 'chat.send', csrf: true, resource: 'self', serviceRole: true },
+    'clans/claims':           { methods: ['GET', 'POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
+    'clans/war/board':        { methods: ['GET', 'POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
+    'clans/war/buyin':        { methods: ['POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
+    'clans/war/fixture':      { methods: ['GET', 'POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
+    'clans/war/notice':       { methods: ['GET', 'POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
 };

@@ -125,21 +125,25 @@ const ItemRelic = ({ px, tint }: { px: number; tint: string }) => (
 );
 /** Micro-board swatch: 5x5 Ludo motif (path ring + home courts) — reads as a theme, not an icon */
 const TEAM_DOTS = ['#ef4444', '#22c55e', '#eab308', '#3b82f6'];
-const ThemeSwatch = ({ light = false, size = 52 }: { light?: boolean; size?: number }) => {
-    const base = light ? '#dcd9ea' : '#161b28';
-    const neutral = light ? '#c3c0d4' : '#2a3247';
+const TEAM_DOTS_3077 = ['#ff0055', '#00ff66', '#ffd000', '#0099ff'];
+const ThemeSwatch = ({ mode = 'retro', light: propLight, size = 52 }: { mode?: '3077' | 'retro' | 'light'; light?: boolean; size?: number }) => {
+    const is3077 = mode === '3077';
+    const light = propLight !== undefined ? propLight : mode === 'light';
+    const dots = is3077 ? TEAM_DOTS_3077 : TEAM_DOTS;
+    const base = light ? '#dcd9ea' : is3077 ? '#0b0e14' : '#161b28';
+    const neutral = light ? '#c3c0d4' : is3077 ? 'rgba(0, 229, 255, 0.25)' : '#2a3247';
     const corners = new Set([0, 4, 20, 24]);
     const ringOrder = [0, 1, 2, 3, 4, 9, 14, 19, 24, 23, 22, 21, 20, 15, 10, 5];
-    const home: Record<number, string> = { 7: TEAM_DOTS[0], 11: TEAM_DOTS[1], 13: TEAM_DOTS[2], 17: TEAM_DOTS[3], 12: '#ffffff' };
+    const home: Record<number, string> = { 7: dots[0], 11: dots[1], 13: dots[2], 17: dots[3], 12: is3077 ? '#00e5ff' : '#ffffff' };
     const cells: string[] = [];
     for (let i = 0; i < 25; i++) {
         if (home[i]) cells.push(home[i]);
         else if (corners.has(i)) cells.push(neutral);
-        else if (ringOrder.includes(i)) cells.push(TEAM_DOTS[ringOrder.indexOf(i) % 4]);
+        else if (ringOrder.includes(i)) cells.push(dots[ringOrder.indexOf(i) % 4]);
         else cells.push(base);
     }
     return (
-        <div className="relative rounded-xl overflow-hidden border border-white/25 shadow-lg" style={{ width: size, height: size, background: light ? '#e8e6f0' : '#0a0b14' }}>
+        <div className={`relative rounded-xl overflow-hidden shadow-lg ${is3077 ? 'border border-cyan-400/50 shadow-[0_0_15px_rgba(0,229,255,0.25)]' : 'border border-white/25'}`} style={{ width: size, height: size, background: light ? '#e8e6f0' : is3077 ? '#07080b' : '#0a0b14' }}>
             <div className="grid grid-cols-5 w-full h-full" style={{ gap: 1.5, padding: 5 }}>
                 {cells.map((c, i) => (
                     <div key={i} className="rounded-[2px]" style={{ background: c }} />
@@ -219,6 +223,19 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
     // ─── Catalog (real gear: themes/dices/tokens equip, items are collectibles) ───
     const [marketData, setMarketData] = useState<MarketItem[]>([
         // ─── Themes (equip = instant theme activation) ───
+        {
+            id: 'theme-3077', type: 'themes', kind: 'theme', equipValue: '3077',
+            name: 'Cyber-Tactical 3077',
+            description: 'Flagship matte carbon chassis with hyper-cyan HUD telemetry.',
+            lore: 'Calibrated in Year 3077 for high-stakes onchain combatants who demand razor-sharp mechanical focus.',
+            price: 0, owned: true, rarity: 'legendary', collection: '3077 Protocol', creator: 'CyberSyndicate',
+            collectionStats: { floor: 0, volume: 250000, owners: 75000 },
+            stats: [{ label: 'Mode', value: 'HUD' }, { label: 'Applies', value: 'Instant' }],
+            traits: [{ trait_type: 'Style', value: 'Cyber-Tactical', rarity_percent: 100 }],
+            activity: [{ event: 'Created', from: 'Protocol 3077', to: 'Arena', date: 'Genesis' }],
+            chainInfo: { address: '0x307...777', standard: 'SBT', network: 'Base' },
+            previewColor: 'bg-[#07080b]'
+        },
         {
             id: 'theme-retro', type: 'themes', kind: 'theme', equipValue: 'retro',
             name: 'Retro Night',
@@ -703,7 +720,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         if (item.type === 'tokens') {
             return <img loading="lazy" decoding="async" src="/tokens/king.png" alt={item.name} style={{ width: px, height: px, objectFit: 'contain' }} />;
         }
-        if (item.type === 'themes') return <ThemeSwatch light={item.equipValue === 'light'} size={px} />;
+        if (item.type === 'themes') return <ThemeSwatch mode={item.equipValue as '3077' | 'retro' | 'light'} size={px} />;
         if (item.kind === 'item') return <ItemRelic px={px} tint={item.previewColor} />;
         return item.previewIcon ?? null;
     };
