@@ -1,6 +1,6 @@
 # CLAN_SYSTEM_PLAN.md — Tactical Syndicates (Clans, Leveling, Missions, Wars)
 
-> **Status:** Research + product design **LOCKED for architecture planning** (2026-11-01).
+> **Status:** Research + product design **LOCKED for architecture planning** (2026-11-01; decisions D5–D10 added 2026-11-02).
 > **Next step:** technical architecture (workload placement, migrations, routes, RPCs, gates).
 > **Scope:** product rules, economy, anti-abuse, and the integration constraints the
 > architecture must respect. No code lands from this doc directly.
@@ -14,10 +14,16 @@
 
 | # | Decision | Value |
 | --- | --- | --- |
-| D1 | Member cap | **Starts at 20**, grows with **clan level** (max 50 at L20) — see §4 |
+| D1 | Member cap | **Starts at 20**, grows with **clan level** (50 at L20 in v1; levels open-ended for later seasons) — see §4 |
 | D2 | Creation cost | **10,000 CHIPS** (= one High-roller entry, `TOKEN_PARAMS` §3.5) |
 | D3 | War rhythm | **Weekend Blitz: Friday 00:00 → Sunday 23:59:59 UTC (72 h)** — Bangladesh (UTC+6): Fri 06:00 → Mon 05:59 |
 | D4 | Model | **Hybrid "Tactical Syndicate"**: off-chain social + progression, server-authoritative scoring, on-chain value only at the edges (creation spend, CHIPS claims) |
+| D5 | Clan fees (creation, rename, tag change) | **100% to treasury** (`chips_escrow_config.treasury_wallet`) — no burn split |
+| D6 | Free matches in wars | **0 war weight** — wars score paid-pool matches only (no config flag) |
+| D7 | Reward contract | **New dedicated clan contract** (working name `ClanClaim`) for Vault + war payouts — design discussed separately |
+| D8 | Clan chat | **Plain text**, same model as live broadcast chat (`live_chat`): caps, moderation, reports; no E2E |
+| D9 | Duo party queue | Two clanmates queue together for ranked 2v2 — **pulled into C3** (ships with wars) |
+| D10 | Level ceiling | **Leave headroom** — v1 ships L1–20; curve and unlocks are data-driven so L21+ can be added without migration of logic |
 
 ---
 
@@ -143,7 +149,16 @@ both (anti-farm).
 ### 4.2 Level curve
 
 `CXP required to reach level n = 1,000 × (n − 1)²` (same quadratic family as player LXP in
-`lib/progression.ts`). Max level **20**.
+`lib/progression.ts`). **v1 ships levels 1–20; the ceiling is open-ended (D10).**
+
+Headroom rules:
+
+- Level thresholds and unlocks live in a config table (`clan_level_config`: level, cxp_required,
+  member_cap, officer_slots, unlocks jsonb), not hardcoded constants. Adding L21+ is a data insert.
+- CXP keeps accruing past the current max level (stored as `bigint`), so when new levels open,
+  clans that already earned the CXP level up immediately — no lost progress.
+- The UI shows "MAX (season cap)" at the current ceiling rather than a hard "MAX".
+- Indicative continuation (not committed): L25 = 576,000 CXP / cap 60; L30 = 841,000 CXP / cap 70.
 
 | Level | Total CXP | Pace at ~100 CXP/member/day, 20–30 members |
 | --- | --- | --- |
@@ -172,6 +187,7 @@ Initial tuning — retune from telemetry before the first season locks.
 | 15 | 40 | 5 | Crest frame III |
 | 17 | 45 | 5 | |
 | 20 | **50** | 6 | Crest frame IV (prestige), Hall of Fame entry |
+| 21+ | reserved | reserved | Opened in later seasons via `clan_level_config` (D10) |
 
 All unlocks are **cosmetic or organizational** — none affect match outcomes.
 
@@ -227,9 +243,10 @@ Weekly CXP (Mon 00:00 → Sun 23:59 UTC) fills the vault. Tier thresholds are **
   paid-volume floor for the CHIPS part (otherwise cosmetics only).
 - **Calibration:** daily missions pay 5–20 CHIPS each; one Standard 2v2 pot is 4,000 CHIPS.
   T5 = 150 CHIPS/week is deliberately "meaningful, not farmable".
-- **Delivery:** batched weekly merkle via the `SeasonClaim` pattern (frozen root, 48 h challenge)
-  or a dedicated `ClanClaim` epoch on the same contract family — decided in architecture.
-  Root proposed Monday → claimable **Wednesday** (48 h challenge). Claim lives in Claim Hub.
+- **Delivery:** batched weekly payout through the **new dedicated clan contract** (D7, working
+  name `ClanClaim`). Design is a separate discussion; the assumed baseline is the proven
+  `SeasonClaim` shape (frozen merkle root per epoch, 48 h challenge, per-epoch budget), giving
+  root proposed Monday → claimable **Wednesday**. Claim lives in Claim Hub.
 - **Budget:** weekly global cap from the Playing Rewards season draw; if the sum exceeds the cap,
   payouts scale pro-rata. Line item must be added to `TOKEN_PARAMS.md` before launch.
 
@@ -254,7 +271,7 @@ flowchart LR
 | Pod draw | Fri 00:00 | Pods of **5 clans** (fallback 4–6) within the same division, balanced by Clan War Rating (CWR) and roster size band. |
 | Blitz | Fri 00:00 → Sun 23:59:59 | Scoring matches accrue WP. Live pod scoreboard. |
 | Grace | Sun 23:59 → Mon 00:15 | Matches that **finished** before the end but are inside a MatchPool `disputeWindow` (≤10 min) finalize. Matches finishing after 23:59:59 do not count; matches started before Fri 00:00 do not count. |
-| Settlement | Mon 00:15 | Idempotent job computes final standings, promotion/relegation, CWR, rewards; proposes merkle root. |
+| Settlement | Mon 00:15 | Idempotent job computes final standings, promotion/relegation, CWR, rewards; proposes the payout epoch on the clan contract (D7). |
 | Claims | Wed ~00:15 | Root activates after 48 h challenge → claim in Claim Hub. |
 
 ### 6.2 What counts as a scoring war match
@@ -262,7 +279,7 @@ flowchart LR
 All must be true:
 
 1. Finished inside the Blitz window, with a winner recorded server-side (`match_states.state.winner`); for paid pools, settlement finalized (not disputed / refunded).
-2. **Paid pool** match (Casual 100 / Standard 1,000 / High roller 10,000). Free matches weight is a config flag `war_free_match_weight`, **default 0** (Sybil: free matches are farmable with alts).
+2. **Paid pool** match (Casual 100 / Standard 1,000 / High roller 10,000). **Free matches carry 0 war weight (D6)** — no config flag; free matches are farmable with alts. Free matches still earn CXP (§4.1).
 3. Player was on their clan's locked roster.
 4. **No clanmates on opposing sides** (match voids WP for that clan).
 5. Not vs bots; not offline.
@@ -336,7 +353,7 @@ Per-pod pots (CHIPS), funded from the clan war budget line:
 
 - A clan's share is distributed **pro-rata to members' WP**, min 3 scoring matches, paid-volume
   floor applies. **No clan treasury custody in v1** (everything goes straight to member claims).
-- Delivered in the same Monday merkle root as the Vault.
+- Delivered in the same Monday epoch of the clan contract (D7) as the Vault.
 
 ### 6.8 War Room UI
 
@@ -396,8 +413,9 @@ Reuse the **CHIPS escrow spend rail** from the marketplace
 Clan row and debit commit in one RPC — no paid-but-no-clan state. If escrow balance is short, the
 UI routes to the existing deposit flow (Wallet Guard transaction mode with Pre-Flight Telemetry).
 
-**Fee destination (proposal, to confirm in architecture):** 40% burn / 60% earmarked to the
-clan war budget. This is the sink side that partly funds §6.7.
+**Fee destination (D5, locked):** **100% to the treasury** (`chips_escrow_config.treasury_wallet`),
+same as marketplace sale revenue. Rename and tag-change fees follow the same rule. No burn split at
+the clan layer; any burn or budget allocation is a treasury decision recorded in `TOKEN_PARAMS.md`.
 
 ### 7.5 Onboarding hook
 
@@ -407,9 +425,11 @@ match while in the clan; one lifetime grant per wallet regardless of clan hoppin
 
 ### 7.6 Hall, chat, notifications
 
-- **Clan chat:** private Realtime channel `clan:<clanId>`, membership enforced by Realtime RLS.
-  Plaintext server-side in v1 (group E2E deferred); length caps mirror `live_chat`; reportable via
-  `user_reports`; Officers can delete messages.
+- **Clan chat (D8, locked): plain text, live-broadcast-chat model.** Mirrors `live_chat`: same
+  length caps (`lib/constants.ts` chat wire caps ↔ DB CHECK), server-side inserts, rate limits,
+  Officer delete, report via `user_reports`, block list respected. No E2E (unlike DMs, which stay
+  ECDH sealed boxes). Delivery is still a **membership-gated** private Realtime channel
+  `clan:<clanId>` — plain text does not mean public publish (TU-1).
 - **Rally pings:** "Satoshi and Vitalik entered a 10,000 CHIPS 2v2" → in-app + web push
   (`push_subscriptions`), rate-limited (max 3 per member per hour).
 - **Scrims:** 0-stake private clan matches via the existing invite lobby (room secret). Award no
@@ -422,8 +442,12 @@ match while in the clan; one lifetime grant per wallet regardless of clan hoppin
 - **Clanmate duo:** invite a clanmate from the Clan panel into a 2v2 invite lobby; they take the
   teammate seats per `TEAM_PAIRINGS` (diagonal). Duo multipliers apply automatically when the
   server sees both teammates share a `clan_id` at match start.
-- **Duo queue for matchmaking** (two clanmates queue together into ranked 2v2) is a **dependency**:
-  matchmaking currently pairs individual tickets. Party tickets are an architecture item, phase C4.
+- **Duo party queue (D9, locked into C3):** two clanmates queue together into ranked 2v2 as one
+  party ticket and are seated as teammates (diagonal per `TEAM_PAIRINGS`). Matchmaking today pairs
+  individual tickets, so this needs a party-ticket shape in `matchmaking_queue` /
+  `/api/matchmaking/join` designed against the shape-aware matchmaking migrations (`202610200001`,
+  `202610240001`). Both members must be on the same clan roster, both pass the paid-pool allowance
+  check, and either leaving the queue cancels the party ticket.
 - **Spectate and back:** Clan panel shows "Live now" clanmates → 1-tap spectate; spectator bets work
   as today (no clan-specific betting rules).
 
@@ -433,22 +457,25 @@ match while in the clan; one lifetime grant per wallet regardless of clan hoppin
 
 ```mermaid
 flowchart LR
-    Create["Clan creation 10,000 CHIPS"] --> Burn["40% burn"]
-    Create --> WarBudget["60% clan war budget"]
-    Rename["Rename / tag change"] --> Burn
-    Play["Playing Rewards season draw"] --> WarBudget
+    Create["Clan creation 10,000 CHIPS"] --> Treasury["Treasury (100%)"]
+    Rename["Rename / tag change"] --> Treasury
+    Play["Playing Rewards season draw"] --> WarBudget["Clan war budget (capped)"]
     Play --> VaultBudget["Weekly vault budget (capped)"]
-    WarBudget --> Root["Monday merkle root"]
-    VaultBudget --> Root
-    Root -->|"48h challenge"| Claim["Claim Hub (Wed)"]
+    Treasury -.->|"optional top-up, treasury decision"| WarBudget
+    WarBudget --> Epoch["Monday epoch on ClanClaim contract"]
+    VaultBudget --> Epoch
+    Epoch -->|"48h challenge"| Claim["Claim Hub (Wed)"]
 ```
 
 | Flow | Rule |
 | --- | --- |
-| No MatchPool change | Clan budgets are funded off-chain from treasury / Playing Rewards; MatchPool fee caps (`protocolBps ≤ 500`, `burnBps ≤ 200`) untouched |
+| Clan fees → treasury | **100%** of creation / rename / tag-change fees credit the treasury wallet (D5); no burn split in the clan layer |
+| Reward funding | Vault + war budgets come from the Playing Rewards season draw; treasury top-ups are a separate, recorded treasury decision |
+| No MatchPool change | MatchPool fee caps (`protocolBps ≤ 500`, `burnBps ≤ 200`) untouched |
+| Dedicated contract | Vault + war payouts settle on the new clan contract (D7); design TBD |
 | No clan treasury in v1 | Avoids custody; all CHIPS go to individual member claims |
 | No gameplay purchases | Nothing a clan buys changes a match |
-| Budget sign-off | Vault cap + war pots + fee split must land in `TOKEN_PARAMS.md` before C2/C3 ship |
+| Budget sign-off | Vault cap + war pots must land in `TOKEN_PARAMS.md` before C2/C3 ship |
 
 Order-of-magnitude check: 1,000 clans × ~20 eligible members × ~50 CHIPS avg vault ≈ 1 M CHIPS/week;
 200 pods × ~8,000 avg ≈ 1.6 M/week. Combined ≈ 135 M/year — too high against the S1 400 M draw at that
@@ -465,7 +492,7 @@ scale, which is why the **global weekly caps with pro-rata scaling** are mandato
 | Win trading with a friendly clan | ≤3 scoring matches vs same wallet per war; rival-hit multiplier only across pod clans; anomaly report (pairwise match counts) for ops review |
 | Clan hopping before war | Roster lock Thu 23:59; 24 h join cooldown |
 | Spoofed clan tags in match | Tags attached server-side by wallet |
-| Chat spoofing / injection | Private channels with RLS; server-side inserts; caps; report flow |
+| Chat spoofing / injection | Membership-gated channels with RLS; server-side inserts; `live_chat`-style caps + rate limits; report flow |
 | Late or disputed results | Grace window to Mon 00:15; disputed/refunded pools never count |
 | Double counting | Append-only score ledger, unique `(match_id, wallet, kind)`; settlement idempotent and recomputable from the ledger |
 | Officer abuse (mass kick before payout) | Kicked members keep earned eligibility for the current vault week / war |
@@ -477,8 +504,11 @@ scale, which is why the **global weekly caps with pro-rata scaling** are mandato
 | Table | Purpose |
 | --- | --- |
 | `clans` | identity, level, total CXP, division, CWR, join policy, caps, status |
+| `clan_level_config` | level → cxp_required, member_cap, officer_slots, unlocks (data-driven ceiling, D10) |
 | `clan_members` | `wallet_address` **unique**, role, joined_at, left_at (history kept) |
 | `clan_join_requests` / `clan_invites` | pending flows with expiry |
+| `clan_chat` | plain-text messages, `live_chat` shape and caps (D8) |
+| `clan_party_tickets` | duo party queue tickets for ranked 2v2 (D9) — or a party column on `matchmaking_queue` |
 | `clan_cxp_ledger` | append-only CXP events (source, match_id, amount), unique per source |
 | `clan_mission_catalog` | contract + objective definitions (CXP/WP rewards) |
 | `clan_member_contracts` | daily rolled contracts + progress |
@@ -486,7 +516,7 @@ scale, which is why the **global weekly caps with pro-rata scaling** are mandato
 | `clan_vault_weeks` | weekly CXP, tier reached, settlement status |
 | `clan_wars` / `clan_war_pods` / `clan_war_entries` | war instance, pods, registered clans + roster snapshot |
 | `clan_war_points` | append-only WP ledger, unique `(war_id, match_id, wallet, kind)` |
-| `clan_reward_leaves` | per-wallet CHIPS amounts per epoch → merkle builder |
+| `clan_reward_leaves` | per-wallet CHIPS amounts per epoch → leaf builder for the clan contract (D7) |
 | `clan_score_queue` | outbox filled on match finalization (pattern: `free_match_sync_queue`) |
 
 All `wallet_address` columns lowercase-checked and FK to `players(wallet_address)`.
@@ -534,11 +564,11 @@ Gates: `visual:diff` for layout-shifting changes (board/lobby tag), motion gate,
 
 | Phase | Scope | Exit |
 | --- | --- | --- |
-| **C0 — Sign-off** | This doc, budget lines in `TOKEN_PARAMS.md`, fee split, architecture doc + ADR | Owner approval |
-| **C1 — Foundation** | Clans, members, roles, create (10,000 CHIPS escrow spend), join/leave/requests, discovery, tags (server-sourced), private chat, onboarding hook | RLS + route-auth + schema gates green; creation idempotency tests |
-| **C2 — Progression** | CXP ledger + scorer pipeline, leveling + caps, daily contracts, weekly objectives, Vault + weekly merkle claims | Scorer replay test (recompute = stored); farm-case tests |
-| **C3 — Wars** | Registration, roster lock, pod draw, WP scoring, War Room, settlement, divisions, CWR, seasons, war payouts | Full simulated war week in tests; dispute/grace cases |
-| **C4 — Social polish** | Farcaster channel link + casts, rally push, war queue preference, duo party tickets, Hall of Fame | Netcode/matchmaking drills updated |
+| **C0 — Sign-off** | This doc, budget lines in `TOKEN_PARAMS.md`, architecture doc + ADR, **clan contract design session (D7)** | Owner approval |
+| **C1 — Foundation** | Clans, members, roles, create (10,000 CHIPS escrow spend → treasury), join/leave/requests, discovery, tags (server-sourced), plain-text clan chat, onboarding hook, `clan_level_config` | RLS + route-auth + schema gates green; creation idempotency tests |
+| **C2 — Progression** | CXP ledger + scorer pipeline, leveling + caps, daily contracts, weekly objectives, Vault; **clan contract** deployed (Sepolia) + weekly claims | Scorer replay test (recompute = stored); farm-case tests; contract Foundry tests |
+| **C3 — Wars** | Registration, roster lock, pod draw, WP scoring (paid only), War Room, settlement, divisions, CWR, seasons, war payouts, **duo party queue (D9)** | Full simulated war week in tests; dispute/grace cases; party-ticket matchmaking drill |
+| **C4 — Social polish** | Farcaster channel link + casts, rally push, war queue preference, Hall of Fame, L21+ level content | Netcode/matchmaking drills updated |
 
 ---
 
@@ -553,11 +583,21 @@ Gates: `visual:diff` for layout-shifting changes (board/lobby tag), motion gate,
 
 ---
 
-## 15. Open questions for the architecture session
+## 15. Decision log and remaining open items
 
-1. Fee split for the 10,000 CHIPS: confirm **40% burn / 60% war budget**?
-2. Should free online matches give **any** war weight on Sepolia Alpha (where paid volume is thin), or stay 0?
-3. Vault/war claims: reuse `SeasonClaim` epochs, or deploy a dedicated `ClanClaim` (same frozen-root pattern)?
-4. Group E2E for clan chat now, or plaintext v1 with moderation?
-5. Duo party tickets in matchmaking: C4, or pull into C3 so clanmate 2v2 wars are easy to queue?
-6. Max level 20 / cap 50 — final, or leave headroom (e.g. L25 → 60) for later seasons?
+Resolved 2026-11-02 (now D5–D10 in §0):
+
+| # | Question | Decision |
+| --- | --- | --- |
+| 1 | Creation fee split | 100% to treasury |
+| 2 | Free matches in wars | No — 0 weight |
+| 3 | Claim contract | New dedicated clan contract; design discussed later |
+| 4 | Clan chat encryption | Plain text, like live broadcast chat |
+| 5 | Duo party queue timing | Pulled into C3 |
+| 6 | Level ceiling | Leave headroom (data-driven levels) |
+
+Still open:
+
+1. **Clan contract design (D7):** merkle epochs vs signed vouchers, budget/challenge parameters, owner/root-setter roles, whether it also handles the creation fee on-chain or the escrow rail stays.
+2. **Reward budget numbers:** final vault cap and war pots in `TOKEN_PARAMS.md`.
+3. **Workload placement** of the scorer (Postgres trigger + worker vs DO) — architecture session.
