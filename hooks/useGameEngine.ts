@@ -43,6 +43,8 @@ export interface Player {
     position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
     isAi?: boolean;
     walletAddress?: string;
+    clanTag?: string;
+    clan_tag?: string;
 }
 
 interface UseGameEngineProps {

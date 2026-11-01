@@ -19,7 +19,9 @@ export type AuthPromptContext =
     | "pool-claim"
     | "token-send"
     | "merkle-claim"
-    | "contract-call";
+    | "contract-call"
+    | "clan-claim"
+    | "clan-batch-claim";
 
 export type PromptMode = "signature" | "transaction";
 
@@ -216,6 +218,24 @@ export const CONTEXT_PRESETS: Record<
         networkText: "Base Sepolia (84532)",
         explanationText: "Standard network gas fee applies on Base.",
         cancelLabel: "Cancel",
+    },
+    "clan-claim": {
+        mode: "transaction",
+        title: "CLAIM CLAN REWARD",
+        badgeText: "Awaiting Confirmation",
+        statusText: "Approve the voucher claim in your wallet to withdraw your war rewards or refunded stakes.",
+        networkText: "Base Sepolia (84532)",
+        explanationText: "Calling claimWithVoucher on ClanClaim. Escrowed CHIPS are transferred to your wallet.",
+        cancelLabel: "Cancel Claim",
+    },
+    "clan-batch-claim": {
+        mode: "transaction",
+        title: "BATCH CLAIM CLAN REWARDS",
+        badgeText: "Awaiting Confirmation",
+        statusText: "Approve the multi-voucher batch transaction in your wallet to claim all available clan rewards.",
+        networkText: "Base Sepolia (84532)",
+        explanationText: "Calling claimBatch on ClanClaim contract. Gas optimized pull claim.",
+        cancelLabel: "Cancel Claims",
     },
 };
 

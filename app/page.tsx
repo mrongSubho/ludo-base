@@ -42,6 +42,7 @@ const ArenaPanel = dynamic(() => import('./components/ArenaPanel'));
 const MissionPanel = dynamic(() => import('./components/MissionPanel'));
 const MarketplacePanel = dynamic(() => import('./components/MarketplacePanel'));
 const MessagesPanel = dynamic(() => import('./components/MessagesPanel'));
+const ClanPanel = dynamic(() => import('./components/ClanPanel').then(m => m.ClanPanel));
 const PublicProfileModal = dynamic(() => import('./components/PublicProfileModal'));
 const SpectatorHUD = dynamic(() => import('./components/SpectatorHUD').then(m => m.SpectatorHUD));
 const HostMigrationPanel = dynamic(() => import('./components/HostMigrationPanel').then(m => m.HostMigrationPanel));
@@ -66,7 +67,7 @@ import { buildStreamMessage } from '@/lib/matchProof';
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
 type AppState = 'dashboard' | 'game' | 'spectating';
-type Tab = 'profile' | 'friends' | 'leaderboard' | 'mission' | 'arena' | 'marketplace' | 'settings' | 'messages' | 'wallet' | null;
+type Tab = 'profile' | 'friends' | 'leaderboard' | 'clan' | 'mission' | 'arena' | 'marketplace' | 'settings' | 'messages' | 'wallet' | null;
 
 /** Short brand dwell for the splash sweep; measured from hydration, never from navigation start. */
 const SPLASH_MIN_DWELL_MS = 600;
@@ -833,6 +834,14 @@ export default function Page() {
                       isOpen={true}
                       onClose={closeTab}
                       onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                    />
+                </PanelErrorBoundary>
+              )}
+                {activeTab === 'clan' && (
+                <PanelErrorBoundary name="clan" onClose={closeTab}>
+                    <ClanPanel
+                      isOpen={true}
+                      onClose={closeTab}
                     />
                 </PanelErrorBoundary>
               )}

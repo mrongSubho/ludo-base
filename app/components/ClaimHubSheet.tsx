@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useClaimAll } from "@/hooks/useChipsPool";
 import { useLegacyClaim } from "@/hooks/useMerkleClaim";
 import { useChipsBalance } from "@/hooks/useChipsBalance";
+import { useClanClaims } from "@/hooks/useClanClaims";
 import { shortHex } from "@/lib/chips";
 import Button from "./Button";
 import Chip from "./Chip";
@@ -18,11 +19,13 @@ export default function ClaimHubSheet({
     const { claimMany, isPending: claimingPools, error: poolClaimError, configured: poolClaimConfigured } =
         useClaimAll();
     const legacy = useLegacyClaim();
+    const clanClaims = useClanClaims();
 
     const [statusNote, setStatusNote] = useState<string | null>(null);
 
     const poolCount = claimablePoolIds?.length || 0;
     const hasPoolPrizes = poolCount > 0;
+    const hasClanClaims = clanClaims.claims.length > 0;
 
     const handleClaimPools = async () => {
         if (!claimablePoolIds?.length) {
@@ -169,7 +172,61 @@ export default function ClaimHubSheet({
                 </section>
             )}
 
-            {/* 3. Season 1 Airdrop (Inactive Section at Bottom) */}
+            {/* 3. Clan War Rewards & Refunds (100% Pull Claims - D16) */}
+            <section className="cb-section">
+                <div className="cb-section-head">
+                    <span>Clan War Rewards & Refunds</span>
+                    <Chip size="sm" type="status" status={hasClanClaims ? "ok" : "off"}>
+                        {hasClanClaims ? `${clanClaims.claims.length} Available` : "0 Ready"}
+                    </Chip>
+                </div>
+                <div className="cb-card p-3.5 space-y-3 text-left">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                                ⚔️
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-ludo-sm font-bold text-white leading-tight">
+                                    War Pot Distribution & Escrow Returns
+                                </span>
+                                <span className="text-ludo-xs font-mono text-white/40">
+                                    {hasClanClaims
+                                        ? `${clanClaims.totalClaimableChips} CHIPS ready for pull-claim`
+                                        : "Direct non-custodial claims from ClanClaim.sol"}
+                                </span>
+                            </div>
+                        </div>
+                        {hasClanClaims && (
+                            <span className="text-ludo-sm font-mono font-bold text-emerald-400">
+                                {clanClaims.totalClaimableChips} CHIPS
+                            </span>
+                        )}
+                    </div>
+
+                    <Button
+                        variant="primary"
+                        size="md"
+                        fullWidth
+                        disabled={!hasClanClaims || clanClaims.isClaimingAll}
+                        onClick={() => void clanClaims.claimAll()}
+                        className="uppercase tracking-widest font-black text-ludo-xs"
+                    >
+                        {clanClaims.isClaimingAll ? (
+                            <div className="flex items-center gap-2">
+                                <ThinkingOrb state="solving" size={20} />
+                                <span>Claiming Clan Rewards…</span>
+                            </div>
+                        ) : hasClanClaims ? (
+                            `Claim All (${clanClaims.totalClaimableChips} CHIPS)`
+                        ) : (
+                            "No Clan Claims Pending"
+                        )}
+                    </Button>
+                </div>
+            </section>
+
+            {/* 4. Season 1 Airdrop (Inactive Section at Bottom) */}
             <section className="cb-section opacity-50">
                 <div className="cb-section-head">
                     <span className="text-white/60">Season 1 Airdrop</span>

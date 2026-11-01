@@ -7,20 +7,26 @@ import { Corner } from '@/lib/boardLayout';
 import { getTierInfo } from '@/lib/progression';
 
 export const getDisplayNameHelper = (player: Player) => {
-    if (player.isAi) return player.name;
-    
-    // If the name is already specific (not 'Guest' or 'Host' default), use it.
-    if (player.name && !['Guest', 'Host'].includes(player.name) && !player.name.startsWith('0x')) {
-        return player.name;
+    let baseName = player.name;
+    if (!player.isAi) {
+        // If the name is already specific (not 'Guest' or 'Host' default), use it.
+        if (!player.name || ['Guest', 'Host'].includes(player.name) || player.name.startsWith('0x')) {
+            // If we have a wallet address, show User + last 4 uppercase characters
+            if (player.walletAddress) {
+                const addr = player.walletAddress;
+                baseName = `User ${addr.slice(-4).toUpperCase()}`;
+            } else {
+                baseName = player.name || 'Guest';
+            }
+        }
     }
 
-    // If we have a wallet address, show User + last 4 uppercase characters
-    if (player.walletAddress) {
-        const addr = player.walletAddress;
-        return `User ${addr.slice(-4).toUpperCase()}`;
+    const tag = player.clanTag || player.clan_tag;
+    if (tag) {
+        return `[${tag}] ${baseName}`;
     }
 
-    return player.name || 'Guest';
+    return baseName;
 };
 
 const AWAIT_RING_COLORS: Record<string, string> = {

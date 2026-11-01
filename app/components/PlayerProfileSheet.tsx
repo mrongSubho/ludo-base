@@ -8,6 +8,8 @@ interface Player {
     color: 'green' | 'red' | 'yellow' | 'blue';
     position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
     isAi?: boolean;
+    clanTag?: string;
+    clan_tag?: string;
 }
 
 interface PlayerProfileSheetProps {
@@ -88,6 +90,11 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
 
                 {/* Name + level */}
                 <div className="pp-identity">
+                    {Boolean(player.clanTag || player.clan_tag) && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                            [{player.clanTag || player.clan_tag}]
+                        </span>
+                    )}
                     <span className="pp-name">{player.name.slice(0, 12)}</span>
                     <span className="pp-lv">Lv.{player.level}</span>
                     {player.isAi && <span className="pp-ai-tag">AI</span>}
