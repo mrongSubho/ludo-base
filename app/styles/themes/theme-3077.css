@@ -1,0 +1,166 @@
+/* ─── Ludo 3077: The Flagship Cyber-Tactical Theme ───
+   Matte Carbon Titanium substrate, high-density mechanical HUD,
+   hyper-cyan laser accents (#00E5FF), tactical hazard alerts (#F59E0B),
+   and high-lux combat team insignias (zero generic purple). */
+
+body.theme-3077 {
+  --ludo-bg: #07080b;
+  --ludo-card: #0c1017;
+  --ludo-text: #f1f5f9;
+  --ludo-muted: rgba(241, 245, 249, 0.65);
+  --ludo-faint: rgba(241, 245, 249, 0.35);
+  --ludo-slate: #0b0e14;
+  --ludo-border: rgba(0, 229, 255, 0.22);
+  
+  /* High-Tech Technical Grid Backdrop */
+  --ludo-bg-image:
+    linear-gradient(rgba(0, 229, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 229, 255, 0.035) 1px, transparent 1px),
+    radial-gradient(circle at 50% 15%, rgba(0, 229, 255, 0.09) 0%, transparent 65%),
+    radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.05) 0%, transparent 55%);
+  --ludo-bg-rgb: 7, 8, 11;
+
+  --panel-bg: rgba(11, 14, 20, 0.95);
+  --panel-bg-image: 
+    linear-gradient(180deg, rgba(14, 20, 30, 0.65) 0%, rgba(7, 8, 11, 0.95) 100%),
+    linear-gradient(rgba(0, 229, 255, 0.02) 1px, transparent 1px);
+  --shadow-card: 0 16px 45px -10px rgba(0, 0, 0, 0.85), 0 0 20px -3px rgba(0, 229, 255, 0.12);
+  color: var(--ludo-text);
+  background-color: var(--ludo-bg);
+  background-size: 36px 36px, 36px 36px, 100% 100%, 100% 100%;
+
+  /* ─── Semantic UI Tokens (3077 Cyber-Tactical) ─── */
+  --surface-page: #07080b;
+  --surface-panel: rgba(11, 14, 20, 0.95);
+  --surface-recessed: rgba(0, 229, 255, 0.04);
+  --surface-hover: rgba(0, 229, 255, 0.08);
+  --surface-active: rgba(0, 229, 255, 0.16);
+  --ink-strong: #ffffff;
+  --ink-muted: rgba(241, 245, 249, 0.70);
+  --ink-faint: rgba(241, 245, 249, 0.40);
+  --line-soft: rgba(0, 229, 255, 0.14);
+  --line-strong: rgba(0, 229, 255, 0.35);
+
+  --accent: #00e5ff;
+  --accent-soft: rgba(0, 229, 255, 0.14);
+  --accent-ink: #041014;
+  --warn: #f59e0b;
+  --positive: #00ff66;
+  --negative: #ff0055;
+
+  /* ─── Combat Team Palette (3077 Insignia) ─── */
+  --ludo-green: #00ff66;
+  --ludo-red: #ff0055;
+  --ludo-blue: #0099ff;
+  --ludo-yellow: #ffd000;
+  --ludo-emerald: #00ff66;
+  --ludo-red-vibrant: #ff0055;
+  --ludo-blue-vibrant: #0099ff;
+  --ludo-amber-vibrant: #ffd000;
+
+  /* ─── Marketplace Category Rail Tokens ─── */
+  --market-chip-icon: #00e5ff;
+  --market-chip-count-bg: rgba(0, 229, 255, 0.08);
+  --market-chip-count-ink: rgba(0, 229, 255, 0.75);
+  --market-chip-count-bg-active: rgba(0, 229, 255, 0.22);
+  --market-chip-count-ink-active: #cffafe;
+
+  /* ─── Geometry & Shadow Tokens ─── */
+  --radius-card: 14px;
+  --radius-chip: 8px;
+  --panel-border: rgba(0, 229, 255, 0.24);
+  --panel-shadow: 0 24px 60px -10px rgba(0, 0, 0, 0.9), 0 0 30px -5px rgba(0, 229, 255, 0.18);
+
+  /* ─── Tactical Claiming Overlay Tokens ─── */
+  --claiming-overlay-bg: rgba(7, 8, 11, 0.95);
+  --claiming-overlay-border: rgba(0, 229, 255, 0.60);
+  --claiming-overlay-shadow: 0 0 45px rgba(0, 229, 255, 0.35);
+  --claiming-overlay-radar: rgba(0, 229, 255, 0.55);
+  --claiming-overlay-ring-1: rgba(0, 229, 255, 0.30);
+  --claiming-overlay-ring-2: rgba(0, 229, 255, 0.18);
+  --claiming-overlay-pulse-border: rgba(0, 229, 255, 0.50);
+  --claiming-overlay-pulse-bg: rgba(0, 229, 255, 0.12);
+  --claiming-overlay-title: #00e5ff;
+  --claiming-overlay-subtitle: rgba(241, 245, 249, 0.70);
+  --claiming-overlay-laser: #00e5ff;
+  --claiming-overlay-laser-shadow: 0 0 12px #00e5ff;
+
+  /* ─── Error Boundary Tokens ─── */
+  --err-backdrop: #030406;
+  --err-card-bg: rgba(14, 7, 10, 0.96);
+  --err-card-border: rgba(255, 0, 85, 0.40);
+  --err-card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 0, 85, 0.25);
+  --err-ink: #ffffff;
+  --err-ink-muted: rgba(255, 255, 255, 0.60);
+  --err-kicker: #ff0055;
+  --err-stack-bg: rgba(0, 0, 0, 0.70);
+  --err-stack-border: rgba(255, 0, 85, 0.20);
+  --err-stack-ink: rgba(255, 255, 255, 0.85);
+  --err-cta-bg: #ff0055;
+  --err-cta-ink: #ffffff;
+  --err-cta-border: #ff0055;
+  --err-ghost-bg: rgba(255, 255, 255, 0.08);
+  --err-ghost-ink: #ffffff;
+  --err-ghost-border: rgba(255, 255, 255, 0.20);
+}
+
+/* ─── 3077 Lobby & Chassis Custom Overrides ─── */
+body.theme-3077 .ludo-lobby-scope {
+  backdrop-filter: blur(28px);
+}
+
+body.theme-3077 .ludo-lobby-scope .rounded-3xl {
+  border-radius: 14px;
+  border-color: rgba(0, 229, 255, 0.22);
+}
+
+body.theme-3077 .ludo-ticker-scope > div {
+  background: rgba(11, 14, 20, 0.92);
+  border-color: rgba(0, 229, 255, 0.22);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(0, 229, 255, 0.2);
+}
+
+body.theme-3077 .ludo-ticker-scope > div:hover {
+  border-color: rgba(0, 229, 255, 0.5);
+  box-shadow: 0 10px 36px rgba(0, 229, 255, 0.2), inset 0 1px 0 rgba(0, 229, 255, 0.4);
+}
+
+body.theme-3077 .footer-nav {
+  background: rgba(7, 8, 11, 0.95) !important;
+  border-top: 1px solid rgba(0, 229, 255, 0.2);
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.7);
+}
+
+body.theme-3077 .game-top-bar {
+  background: rgba(11, 14, 20, 0.88);
+  border-color: rgba(0, 229, 255, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+/* ─── 3077 Tactical Panel Scope Borders & Glows ─── */
+body.theme-3077 :is(
+  .ludo-market-scope.border-white\/10,
+  .ludo-settings-scope.border-white\/10,
+  .ludo-rankings-scope.border-white\/10,
+  .ludo-friends-scope.border-white\/10,
+  .ludo-messages-scope.border-white\/10,
+  .ludo-arena-scope.border-white\/10,
+  .ludo-profile-scope.border-white\/10,
+  .ludo-offline-scope.border-white\/10,
+  .ludo-migrate-scope.border-white\/10,
+  .ludo-teamup-scope.border-white\/10,
+  .ludo-quick-scope.border-white\/10,
+  .ludo-pubprofile-scope.border-white\/10,
+  .ludo-livearena-scope.border-white\/10,
+  .ludo-leaderboard-scope.border-white\/10,
+  .ludo-invite-scope.border-white\/10,
+  .ludo-wallet-scope,
+  .ludo-burn-scope.border-white\/10,
+  .ludo-wall-scope.border-white\/10,
+  .ludo-authwait-scope.border-white\/10,
+  .ludo-quit-scope.border-white\/10,
+  .ludo-broadcast-scope.border-white\/10
+) {
+  border-color: rgba(0, 229, 255, 0.32);
+  box-shadow: 0 0 24px rgba(0, 229, 255, 0.15), 0 24px 60px rgba(0, 0, 0, 0.75);
+}

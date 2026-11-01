@@ -78,9 +78,11 @@ function snapshot(): Preferences {
 
     // Legacy 'dark'/'ui' cookies migrate to Retro-Futurism (the default);
     // legacy 'porcelain' cookies migrate to Daybreak.
-    // Valid themes: retro (dark) | light (daybreak).
+    // Valid themes: 3077 (cyber-tactical) | retro (cosmic dark) | light (daybreak).
     const themeRaw = raw.split('|')[0] ?? 'retro';
-    const theme = themeRaw === 'light' || themeRaw === 'porcelain' ? 'light' : 'retro';
+    let theme = 'retro';
+    if (themeRaw === '3077') theme = '3077';
+    else if (themeRaw === 'light' || themeRaw === 'porcelain') theme = 'light';
     const sfx = (raw.split('|')[1] ?? 'on') === 'on';
     const music = (raw.split('|')[2] ?? 'on') === 'on';
     const haptics = (raw.split('|')[3] ?? 'on') === 'on';
@@ -100,8 +102,9 @@ function snapshot(): Preferences {
 
 function applyBodyClasses(p: Preferences): void {
     if (typeof document === 'undefined') return;
-    document.body.classList.remove('theme-retro-futurism', 'theme-daybreak');
-    if (p.theme === 'light') document.body.classList.add('theme-daybreak');
+    document.body.classList.remove('theme-retro-futurism', 'theme-daybreak', 'theme-3077');
+    if (p.theme === '3077') document.body.classList.add('theme-3077');
+    else if (p.theme === 'light') document.body.classList.add('theme-daybreak');
     else document.body.classList.add('theme-retro-futurism');
     document.body.classList.toggle('token-style-orb', p.tokenStyle === 'orb');
 }

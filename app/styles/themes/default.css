@@ -1,6 +1,6 @@
 /* Standard "Cosmic" Midnight Theme — DEFAULT */
 :root, [data-theme='default'] {
-  --theme-panel-bg: rgba(88, 28, 135, 0.15); /* Deep purple glass */
+  --theme-panel-bg: rgba(11, 14, 20, 0.75); /* Carbon glass */
   --theme-panel-bg-dark: rgba(0, 0, 0, 0.6);
   --theme-panel-blur: blur(24px);
   --theme-panel-border: rgba(255, 255, 255, 0.1);

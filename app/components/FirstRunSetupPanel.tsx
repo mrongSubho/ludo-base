@@ -12,6 +12,17 @@ import { Button } from './Button';
 // Fresh devices default to Retro + Orbs; stored prefs are always respected.
 // Selections apply live so the user sees the arena change.
 
+const Cyber3077Icon = (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="22" y1="12" x2="18" y2="12" />
+        <line x1="6" y1="12" x2="2" y2="12" />
+        <line x1="12" y1="6" x2="12" y2="2" />
+        <line x1="12" y1="22" x2="12" y2="18" />
+        <circle cx="12" cy="12" r="4" />
+    </svg>
+);
+
 const BoltIcon = (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
@@ -41,7 +52,7 @@ const OrbIcon = (
 
 export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
     const { preferences, updatePreference } = usePreferences();
-    const theme = preferences.theme === 'light' ? 'light' : 'retro';
+    const theme = preferences.theme === '3077' ? '3077' : preferences.theme === 'light' ? 'light' : 'retro';
     const tokenStyle = preferences.tokenStyle === 'orb' ? 'orb' : 'pawn';
     const defaulted = useRef(false);
 
@@ -97,6 +108,7 @@ export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
                                 value={theme}
                                 onPick={(v) => updatePreference('ludo-theme', v)}
                                 options={[
+                                    { value: '3077', label: '3077', icon: Cyber3077Icon },
                                     { value: 'retro', label: 'Retro', icon: BoltIcon },
                                     { value: 'light', label: 'Daybreak', icon: SunIcon },
                                 ]}

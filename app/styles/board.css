@@ -1177,6 +1177,35 @@ body.theme-daybreak .board-grid::before { box-shadow: inset 0 0 40px rgba(23, 23
 body.theme-daybreak .star-cell { border-color: rgba(23, 23, 23, 0.10); }
 body.theme-daybreak .junction-timer-track-css { border-color: rgba(23, 23, 23, 0.10); }
 
+/* ─── 3077 Cyber-Tactical Board: neon matrix courts, carbon path, laser pads ─── */
+body.theme-3077 {
+  --ludo-base-green: #00ff66;
+  --ludo-base-red: #ff0055;
+  --ludo-base-yellow: #ffd000;
+  --ludo-base-blue: #0099ff;
+  --ludo-path-bg: #0c1017;
+  --ludo-pad-bg: rgba(7, 8, 11, 0.75);
+}
+body.theme-3077 .board-home {
+  box-shadow: 0 0 35px rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+}
+body.theme-3077 .board-home.green { background: #00ff66; }
+body.theme-3077 .board-home.red { background: #ff0055; }
+body.theme-3077 .board-home.yellow { background: #ffd000; }
+body.theme-3077 .board-home.blue { background: #0099ff; }
+body.theme-3077 .board-grid {
+  border-color: rgba(0, 229, 255, 0.25);
+  box-shadow: 0 24px 60px -10px rgba(0, 0, 0, 0.9), 0 0 25px -5px rgba(0, 229, 255, 0.2);
+}
+body.theme-3077 .star-cell { border-color: rgba(0, 229, 255, 0.2); }
+body.theme-3077 .junction-timer-track-css { border-color: rgba(0, 229, 255, 0.25); }
+body.theme-3077 .home-pad {
+  background: rgba(7, 8, 11, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+}
+
 body.theme-retro-futurism .home-pad {
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(8px);
@@ -1556,6 +1585,24 @@ body.theme-retro-futurism .token-count-badge {
   border-color: var(--ludo-slate);
   color: var(--ludo-blue);
   box-shadow: 0 0 10px var(--ludo-blue);
+}
+
+/* 🧬 3077 Cyber-Tactical Token Enhancements */
+body.theme-3077 .ludo-token {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+body.theme-3077 .green-token { color: #00FF66; }
+body.theme-3077 .red-token { color: #FF0055; }
+body.theme-3077 .yellow-token { color: #FFD000; }
+body.theme-3077 .blue-token { color: #0099FF; }
+body.theme-3077 .token-count-badge {
+  background: #07080B;
+  border-color: rgba(0, 229, 255, 0.4);
+  color: #00E5FF;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.35);
 }
 
 /* ─── Stacked Tokens & Blockades ─── */
@@ -3142,6 +3189,50 @@ body.theme-daybreak .match-status-connection-pill {
   border-color: rgba(0, 82, 255, 0.22);
   background: rgba(0, 82, 255, 0.08);
   color: #0052ff;
+}
+
+body.theme-3077 .board-turn-status {
+  border-color: rgba(0, 229, 255, 0.25);
+  background: rgba(11, 14, 20, 0.94);
+  color: rgba(241, 245, 249, 0.7);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.75), 0 0 12px rgba(0, 229, 255, 0.1);
+}
+
+body.theme-3077 .board-turn-status.is-yours {
+  border-color: rgba(0, 229, 255, 0.65);
+  color: #00e5ff;
+  box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.2), 0 0 20px rgba(0, 229, 255, 0.35);
+}
+
+body.theme-3077 .match-status-panel {
+  border-color: rgba(0, 229, 255, 0.3);
+  background: rgba(11, 14, 20, 0.95);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 229, 255, 0.15);
+  color: #f1f5f9;
+}
+
+body.theme-3077 .match-status-center {
+  color: #f1f5f9;
+}
+
+body.theme-3077 .match-status-mode {
+  color: #00e5ff;
+}
+
+body.theme-3077 .match-status-separator {
+  color: rgba(0, 229, 255, 0.3);
+}
+
+body.theme-3077 .match-status-pill {
+  border-color: rgba(0, 229, 255, 0.2);
+  background: rgba(0, 229, 255, 0.06);
+  color: rgba(241, 245, 249, 0.85);
+}
+
+body.theme-3077 .match-status-connection-pill {
+  border-color: rgba(0, 229, 255, 0.35);
+  background: rgba(0, 229, 255, 0.1);
+  color: #00e5ff;
 }
 
 @media (max-width: 560px) {

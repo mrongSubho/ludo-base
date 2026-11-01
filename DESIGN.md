@@ -20,11 +20,11 @@ token — never a one-off class.
 ## 1. Identity & themes
 
 - Chess-token board + `ActionDice` path picker + cosmic terminal glass; mobile-first shell.
-- **Two themes**, both first-class:
-  - `theme-retro-futurism` — default, dark. Cosmic glass, violet rim, cyan accent, scanlines.
+- **Three themes**, all first-class:
+  - `theme-3077` — flagship, cyber-tactical. Matte carbon titanium chassis, hyper-cyan laser telemetry, kinetic sodium hazard alerts.
+  - `theme-retro-futurism` — cosmic dark. Cosmic glass, violet rim, cyan accent, scanlines.
   - `theme-daybreak` — light. Porcelain frost, slate ink, deepened cyan accent, soft shadows.
-- **Theme selection:** cookie `ludo-theme` (`retro` default; legacy `light`/`porcelain` map to
-  Daybreak), applied **server-side** in `app/layout.tsx` — there is no flash of the wrong theme.
+- **Theme selection:** cookie `ludo-theme` (`3077`, `retro`, or `light`), applied **server-side** in `app/layout.tsx` — there is no flash of the wrong theme.
 - **Lobby backdrop:** theme-mapped photography, lobby only (`cyberpunk_bg.png` @ 0.55 /
   `pastel_bg.png` @ 0.3), inside an isolated stacking context at `z-index: -1`.
 - **Fonts are self-hosted** via `next/font` (`app/fonts.ts`) — no third-party font origin.

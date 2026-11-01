@@ -119,13 +119,13 @@
   --radius-xl: 20px;
   --radius-pill: 9999px;
 
-  /* ─── 3. Cyberpunk Design System (Ludo Base) ─── */
-  --cyber-primary: #7C3AED;   /* Violet */
-  --cyber-secondary: #A78BFA; /* Lavender */
-  --cyber-cta: #F43F5E;       /* Rose/Crimson */
-  --cyber-bg: #0F0F23;        /* Deep Space */
-  --cyber-text: #E2E8F0;      /* Slate White */
-  --cyber-accent: #00FFFF;    /* Cyan Neon */
+  /* ─── 3. Cyberpunk Design System (Ludo 3077) ─── */
+  --cyber-primary: #00e5ff;   /* Laser Cyan */
+  --cyber-secondary: #0ea5e9; /* Sky Blue */
+  --cyber-cta: #ff0055;       /* Crimson Strike */
+  --cyber-bg: #07080b;        /* Carbon Titanium */
+  --cyber-text: #f1f5f9;      /* Slate White */
+  --cyber-accent: #00e5ff;    /* Cyan Neon */
 }
 
 /* ─── Panel shell variables (all sandwich panels / sheets / modals read these

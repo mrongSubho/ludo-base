@@ -29,7 +29,6 @@ const COLOR_MAP: Record<string, string> = {
     red: '#ef4444',
     blue: '#3b82f6',
     yellow: '#f59e0b',
-    purple: '#a855f7'
 };
 
 // Dice skins (equipped from the Marketplace): face + pip colors.

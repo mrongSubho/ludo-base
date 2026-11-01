@@ -167,10 +167,29 @@ export const useAudio = () => {
 
         let lfo: OscillatorNode | undefined;
 
-        // Theme mapping: Retro-Futurism neon pulse, Daybreak soft ethereal
+        // Theme mapping: 3077 cyber-tactical drone, Retro-Futurism neon pulse, Daybreak soft ethereal
+        const is3077 = theme.includes('3077');
         const isRetro = theme.includes('retro');
 
-        if (isRetro) {
+        if (is3077) {
+            // Cyber-Tactical 3077: Deep Resonant Sub-Bass Drone & Precision Sweep
+            osc1.type = 'sawtooth';
+            osc1.frequency.setValueAtTime(55.00, ctx.currentTime); // A1
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(110.00, ctx.currentTime); // A2
+
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(450, ctx.currentTime);
+            filter.Q.setValueAtTime(6, ctx.currentTime);
+
+            lfo = ctx.createOscillator();
+            const lfoGain = ctx.createGain();
+            lfo.frequency.setValueAtTime(0.2, ctx.currentTime);
+            lfoGain.gain.setValueAtTime(250, ctx.currentTime);
+            lfo.connect(lfoGain);
+            lfoGain.connect(filter.frequency);
+            lfo.start();
+        } else if (isRetro) {
             // Retro-Futurism: Neon Pulse
             osc1.type = 'sawtooth';
             osc1.frequency.setValueAtTime(73.42, ctx.currentTime); // D2

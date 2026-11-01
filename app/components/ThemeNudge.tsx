@@ -32,7 +32,7 @@ export default function ThemeNudge() {
         setOpen(false);
     };
 
-    const pick = (v: "retro" | "light") => {
+    const pick = (v: "3077" | "retro" | "light") => {
         updatePreference("ludo-theme", v);
         markThemeNudged();
         setOpen(false);
@@ -47,6 +47,9 @@ export default function ThemeNudge() {
                 <span>Pick a look — anytime in Settings.</span>
             </div>
             <div className="theme-nudge-actions">
+                <Chip type="filter" active={preferences.theme === "3077"} onClick={() => pick("3077")}>
+                    3077
+                </Chip>
                 <Chip type="filter" active={preferences.theme === "retro"} onClick={() => pick("retro")}>
                     Retro
                 </Chip>

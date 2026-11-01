@@ -134,8 +134,8 @@ const SCENES = [
  * itself, so the captured state is the same on every run.
  */
 async function applyTheme(page, theme) {
-  const label = theme === 'light' ? 'Daybreak' : 'Retro';
-  const cls = theme === 'light' ? 'theme-daybreak' : 'theme-retro-futurism';
+  const label = theme === '3077' ? '3077' : theme === 'light' ? 'Daybreak' : 'Retro';
+  const cls = theme === '3077' ? 'theme-3077' : theme === 'light' ? 'theme-daybreak' : 'theme-retro-futurism';
   const has = () => page.evaluate((c) => document.body.classList.contains(c), cls).catch(() => false);
   for (let attempt = 0; attempt < 3; attempt++) {
     await clickIfPresent(page, label, 6000);

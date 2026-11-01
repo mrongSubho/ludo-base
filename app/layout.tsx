@@ -56,11 +56,12 @@ export default async function RootLayout({
   const theme = cookieStore.get('ludo-theme')?.value;
   const tokenStyle = cookieStore.get('token-style')?.value;
 
-  // Two themes: Retro-Futurism (default, dark) and Daybreak (soft-UI light).
+  // Three themes: Retro-Futurism (dark), Daybreak (soft-UI light), and 3077 (cyber-tactical HUD).
   // Legacy 'dark'/'ui' cookies migrate to Retro-Futurism; legacy 'porcelain'
   // cookies migrate to Daybreak.
   let themeClass = 'theme-retro-futurism'; // Default
-  if (theme === 'light' || theme === 'porcelain') themeClass = 'theme-daybreak';
+  if (theme === '3077') themeClass = 'theme-3077';
+  else if (theme === 'light' || theme === 'porcelain') themeClass = 'theme-daybreak';
 
   // Orb is the DEFAULT token style: the class must be on <body> at first
   // paint, or `board.css`'s `body.token-style-orb .ludo-token svg` never hides
