@@ -29,7 +29,7 @@ export function CdpAuthProvider({ children }: { children: ReactNode }) {
             // auth is disabled. Keep the context mounted in local development;
             // the placeholder is never used for login or wallet creation.
             projectId: projectId || "local-development",
-            appName: "Ludo Base",
+            appName: "Ludo 3077",
             disableAnalytics: true,
             ...(enabled
                 ? {

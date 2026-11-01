@@ -1,6 +1,6 @@
-# Ludo Base
+# Ludo 3077: The Onchain Arena
 
-Ludo Base is a Next.js 16 App Router game with wallet authentication, offline
+Ludo 3077 is a Next.js 16 App Router game with wallet authentication, offline
 bot matches, team play, Supabase-backed multiplayer, PeerJS handshakes, and
 Farcaster-ready presentation. The lobby, board, and spectator views are
 states of the single-page shell in `app/page.tsx`.

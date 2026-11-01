@@ -3,9 +3,9 @@ import type { MetadataRoute } from "next";
 /** R5 — PWA manifest (SMART_WALLET_PLANNING). Base-only wallet + game shell. */
 export default function manifest(): MetadataRoute.Manifest {
     return {
-        name: "Ludo Base — The Onchain Arena",
-        short_name: "Ludo Base",
-        description: "Play Ludo and manage your Base wallet",
+        name: "Ludo 3077 — The Onchain Arena",
+        short_name: "Ludo 3077",
+        description: "Play Ludo 3077 and manage your Base wallet",
         start_url: "/",
         display: "standalone",
         // Rotation lock for installed PWA: the OS keeps the app portrait.

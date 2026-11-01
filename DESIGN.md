@@ -1,4 +1,4 @@
-# DESIGN.md — Ludo Base design system
+# DESIGN.md — Ludo 3077 design system
 
 **What this file is.** The implemented design system: the tokens, components, scales, and rules
 that are actually in force in this codebase, with the file that owns each one. Where a rule is

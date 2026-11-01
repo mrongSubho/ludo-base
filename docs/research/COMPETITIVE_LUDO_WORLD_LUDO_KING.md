@@ -1,10 +1,10 @@
-# Competitive Deep-Dive: Ludo World vs Ludo King vs Ludo Base
+# Competitive Deep-Dive: Ludo World vs Ludo King vs Ludo 3077
 
 | Field | Value |
 | --- | --- |
-| **Project** | Ludo Base |
+| **Project** | Ludo 3077 |
 | **Document type** | Competitive research + build recommendations |
-| **Subjects** | Ludo World (Tencent, `com.tencent.ludosuperstar` v2.1.10) · Ludo King (Gametion, `com.ludo.king` v10.1.0.388) · Ludo Base (this repo) |
+| **Subjects** | Ludo World (Tencent, `com.tencent.ludosuperstar` v2.1.10) · Ludo King (Gametion, `com.ludo.king` v10.1.0.388) · Ludo 3077 (this repo) |
 | **Evidence roots** | `ludo-apkresearch/research/apk-analysis/ludo-world` · `ludo-apkresearch/research/apk-analysis/ludo-king` |
 | **Companion plan** | `docs/tokenomics/CHIPS_PLANNING.md` (v4.3 — read in full for this report) |
 | **Related docs** | `ENGINE_LOGIC.md` (rules spec) · `AGENTS.md` (security invariants) · `docs/gdd/GAME_DESIGN_DOCUMENT.md` · `docs/ops/IMPLEMENTATION_RECORD.md` (engine/gaps first → stable build → then CHIPS/growth) |
@@ -19,7 +19,7 @@
 - [1. Method and scope](#1-method-and-scope)
 - [2. Ludo World — technical profile](#2-ludo-world--technical-profile)
 - [3. Ludo King — technical profile](#3-ludo-king--technical-profile)
-- [4. Ludo Base (ours) — where we stand](#4-ludo-base-ours--where-we-stand)
+- [4. Ludo 3077 (ours) — where we stand](#4-ludo-3077-ours--where-we-stand)
 - [5. Head-to-head comparison](#5-head-to-head-comparison)
 - [6. Recommendations — what to take from each](#6-recommendations--what-to-take-from-each)
 - [7. Tech shopping list](#7-tech-shopping-list)
@@ -34,7 +34,7 @@
 
 ## 0. TL;DR
 
-| | **Ludo World** (Tencent) | **Ludo King** (Gametion) | **Ludo Base** (ours) |
+| | **Ludo World** (Tencent) | **Ludo King** (Gametion) | **Ludo 3077** (ours) |
 | --- | --- | --- | --- |
 | Package / version | `com.tencent.ludosuperstar`, v2.1.10 (code 300007) | `com.ludo.king`, v10.1.0.388 | Web app (Next.js), no APK; Farcaster-ready |
 | Engine | **Cocos Creator 2.4.15**, JSB (V8 + C++ GLES) | **Unity 6000.0.63f1**, IL2CPP | **Web**: React 19 + Next 16, GSAP/FLIP board animation |
@@ -145,7 +145,7 @@ Identity: `AndroidManifest.xml` → `package=com.ludo.king`, `compileSdk 36`, `m
 
 ---
 
-## 4. Ludo Base (ours) — where we stand
+## 4. Ludo 3077 (ours) — where we stand
 
 Stack (`package.json`): **Next.js 16.1.6 App Router + React 19.2.4 + Tailwind 4.2.1** (`app/page.tsx` lobby↔board↔spectate); 54 files in `app/components/` (`Board.tsx`, `BoardTokens.tsx`, `ChessTokens.tsx`, `LudoDice.tsx`, `GameLobby.tsx`); chain `wagmi 2.19.5 + viem 2.56.8 + onchainkit 1.1.2 + farcaster frame/miniapp SDKs` (`app/Providers.tsx`: `base` + `baseSepolia`); backend `supabase-js 2.98` (`lib/supabase.ts`), 7 migrations, Deno Edge Functions `roll-dice` / `move-auth` / `resolve-bet` + `_shared/{engine,networkBoundary,walletVerify}`; realtime **PeerJS 1.5.5** + Supabase Realtime `game-room-<roomCode>`; anim `gsap 3.15` (GSAP-only FLIP 1.3s hops) + framer-motion + canvas-confetti; audio only in `app/hooks/useAudio.ts`, `useSoundEffects.ts`.
 
@@ -159,7 +159,7 @@ CHIPS plan (v4.3 Strix-audited, **planned — not implemented**): **Chips/CHIPS,
 
 ## 5. Head-to-head comparison
 
-| Concern | Ludo World | Ludo King | Ludo Base + CHIPS plan |
+| Concern | Ludo World | Ludo King | Ludo 3077 + CHIPS plan |
 | --- | --- | --- | --- |
 | Rendering | Cocos GLES, content-addressed bundles, tiny wrapper | Unity IL2CPP, GLES3, PAD splits | Web GSAP FLIP (smooth, no native) — weakest on low-end mobile |
 | Netcode resilience | TSDK heartbeat/reconnect/TCP counters (best) | Ktor websockets + Cronet | Dual-path intents (good) but no in-match heartbeat ladder yet |
@@ -370,7 +370,7 @@ Backlog grouped by delivery band. Every row preserves `AGENTS.md` invariants. "D
 
 Condensed principles the two APKs teach. Inline "Lesson for us" notes in section section 2–3 remain the evidence trail; this section is the rulebook.
 
-| # | Lesson | Evidence | Rule for Ludo Base |
+| # | Lesson | Evidence | Rule for Ludo 3077 |
 | --- | --- | --- | --- |
 | **L1** | **Netcode ops are a product feature, not plumbing.** | World's TSDK embeds heartbeat, reconnect, TCP-fallback counters *in the game script* (29 refs) | Name and graph our reconnect ladder like TSDK; expose connection state in-match UX (not only console). Dual-path intents fix *delivery* — they do not fix *observability*. |
 | **L2** | **Server-driven config beats deploys for live risk.** | World `LudoUrlCfg.json`; King RemoteConfig | Any tier, fee cap, RPC, or kill-switch that ops must change under fire goes in signed Edge config (A2), still enforced on-chain. |

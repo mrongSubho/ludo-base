@@ -1,6 +1,6 @@
-# Ludo Base Game Design Document
+# Ludo 3077 Game Design Document
 
-**Project:** Ludo Base
+**Project:** Ludo 3077: The Onchain Arena
 **Document Type:** Game Design Document (GDD)
 **Document Status:** Working Draft
 **Product State:** Playable prototype with competitive teamup, social, and backend integration work
@@ -25,7 +25,7 @@
 
 ## 1. Executive Summary
 
-Ludo Base is a mobile-first competitive social board game platform built around modernized Ludo and Snakes & Ladders play. The product combines classic turn-based board mechanics with competitive teamup featuring sub-20ms matchmaking, private lobbies, wallet-linked identity, social discovery, persistent profiles, and a stylized game dashboard.
+Ludo 3077 is a mobile-first competitive social board game platform built around modernized Ludo and Snakes & Ladders play. The product combines classic turn-based board mechanics with competitive teamup featuring sub-20ms matchmaking, private lobbies, wallet-linked identity, social discovery, persistent profiles, and a stylized game dashboard.
 
 The current implementation supports a playable core loop, alternate board modes, AI opponents, competitive matchmaking with server-validated integrity, real-time lobby flow, profile sync, and a large portion of the supporting UI shell. The system uses a hybrid WebRTC UDP + PeerJS architecture that provides competitive integrity while maintaining reliable gameplay through a modular architecture with extracted game rules, board layout helpers, teamup context, and shared data layers.
 
@@ -294,7 +294,7 @@ Social systems are a major part of the product identity. The repo already includ
 - message conversations, unread counts, and realtime message updates;
 - invite notifications that can interrupt the app shell.
 
-These systems are not fully finished, but the product direction is clear: Ludo Base is being built as a social board-game platform, not only a match screen.
+These systems are not fully finished, but the product direction is clear: Ludo 3077 is being built as a social board-game platform, not only a match screen.
 
 ## 8. Player Identity and Progression
 

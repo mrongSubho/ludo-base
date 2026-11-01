@@ -7,11 +7,11 @@ import { cookies } from 'next/headers';
 const APP_URL = 'https://ludo-base.vercel.app';
 
 export const metadata: Metadata = {
-  title: 'Ludo Base : The Onchain Arena',
-  description: 'A Ludo game built on Base',
+  title: 'Ludo 3077 : The Onchain Arena',
+  description: 'A futuristic onchain Ludo arena built on Base',
   openGraph: {
-    title: 'Ludo Base : The Onchain Arena',
-    description: 'A Ludo game built on Base',
+    title: 'Ludo 3077 : The Onchain Arena',
+    description: 'A futuristic onchain Ludo arena built on Base',
     images: [`${APP_URL}/og-image.png`],
   },
   other: {
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
         title: "Play Ludo",
         action: {
           type: "launch_frame",
-          name: "Ludo Base : The Onchain Arena",
+          name: "Ludo 3077 : The Onchain Arena",
           url: APP_URL,
           splashImageUrl: `${APP_URL}/og-image.png`,
           splashBackgroundColor: "#F8FAFC",

@@ -98,7 +98,7 @@ const SplashScreen = () => (
       </div>
 
       <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-200 to-teal-200 tracking-tight mb-2 drop-shadow-sm text-center">
-        LUDO BASE
+        LUDO 3077
       </h1>
       <p className="text-cyan-400 font-black tracking-[0.4em] uppercase text-ludo-xs mb-12 text-center drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
         The Onchain Arena

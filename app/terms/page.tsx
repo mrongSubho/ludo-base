@@ -2,8 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 
 export const metadata = {
-    title: 'Terms of Service · Ludo Base',
-    description: 'Terms of Service for the Ludo Base onchain arena.',
+    title: 'Terms of Service · Ludo 3077',
+    description: 'Terms of Service for the Ludo 3077 onchain arena.',
 };
 
 // ─── Terms of Service (concise, plain-language) ──────────────────────────────
@@ -12,7 +12,7 @@ export default function TermsPage() {
         <main className="min-h-[100dvh] flex items-start sm:items-center justify-center px-4 py-10 bg-black">
             <article className="w-full max-w-[560px] rounded-[28px] border border-white/10 bg-[#0d0d15]/95 px-6 py-8 sm:px-9 shadow-2xl">
                 <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300">
-                    Ludo Base · Arena Entrance
+                    Ludo 3077 · Arena Entrance
                 </p>
                 <h1 className="mt-2 text-2xl font-black text-white uppercase tracking-tight">
                     Terms of Service
@@ -25,7 +25,7 @@ export default function TermsPage() {
                     <section>
                         <h2 className="text-sm font-black text-white uppercase tracking-widest">1. The game</h2>
                         <p className="mt-1">
-                            Ludo Base is a skill-and-chance board arena. Matches run on provably-fair
+                            Ludo 3077 is a skill-and-chance board arena. Matches run on provably-fair
                             dice. Free and offline/AI tables have no stake. Paid online tables use{' '}
                             <strong>CHIPS</strong> — a utility token on Base (B20) — locked into a
                             visible Match Pool and claimed after settlement. CHIPS is not money, not

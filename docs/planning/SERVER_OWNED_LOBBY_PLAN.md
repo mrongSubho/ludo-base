@@ -1,4 +1,4 @@
-# Ludo Base — Server-Owned Lobby: retiring host/guest
+# Ludo 3077 — Server-Owned Lobby: retiring host/guest
 
 **Rev 2 · 2026-10-22 · status: approved — all four decisions accepted (§11), implementation begins at S0**
 

@@ -2,7 +2,7 @@
 
 > **Server Authority Migration — Local Dev Story (P0 Deliverable per §4.13)**
 
-In production, Ludo Base match rooms run as Cloudflare Durable Objects routed through `src/worker.ts`.
+In production, Ludo 3077 match rooms run as Cloudflare Durable Objects routed through `src/worker.ts`.
 However, `npm run dev` runs Next.js (Turbopack) on `http://localhost:3000`, which has no knowledge of workerd or Durable Objects.
 
 To prevent 404s when connecting to `/api/room/:matchId/ws` in local development, three modes are supported:

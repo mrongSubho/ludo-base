@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Ludo Base — a Next.js 16 (App Router) on-chain Ludo game (Farcaster-ready, wagmi/OnchainKit, Supabase, PeerJS). Single-page app: dashboard lobby ↔ game board ↔ spectating are all states of `app/page.tsx`.
+Ludo 3077 — a Next.js 16 (App Router) on-chain Ludo game (Farcaster-ready, wagmi/OnchainKit, Supabase, PeerJS). Single-page app: dashboard lobby ↔ game board ↔ spectating are all states of `app/page.tsx`.
 
 ## Commands
 

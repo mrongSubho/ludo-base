@@ -20,7 +20,7 @@ export interface RankTierIconProps {
 }
 
 /**
- * Tactical CODM-style Vector Insignia for Ludo Base Rank Tiers.
+ * Tactical CODM-style Vector Insignia for Ludo 3077 Rank Tiers.
  * 
  * Insignia Hierarchy:
  * - Bronze: Heavy notched combat shield with single copper chevron.

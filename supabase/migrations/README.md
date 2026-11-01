@@ -1,6 +1,6 @@
 # Canonical migration chain
 
-`00000000000000_baseline.sql` is the fresh-install authority for Ludo Base. It
+`00000000000000_baseline.sql` is the fresh-install authority for Ludo 3077. It
 creates the dependency-ordered schema foundation for the current application,
 including compatibility columns for wallet identity, sessions, live play,
 missions, tournaments, and server-authoritative game state.

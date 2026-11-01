@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Project** | Ludo Base |
+| **Project** | Ludo 3077 |
 | **Document type** | Product + implementation plan — **the** wallet plan |
 | **Consolidates** | `SMART_WALLET_PLAN.md` (CDP/auth technical notes) · `DUAL_PATH_WALLET_PLAN.md` (modes W0–W5) · `REAL_WALLET_PLAN.md` (wallet product R0–R5) — merged **2026-09-28** after all three recommendation tracks landed |
 | **Status** | **Implemented** (W0–W5 + R0–R5 + hard QA 2026-09-28). Residual work in §12 |
@@ -66,7 +66,7 @@ One goal: **a real Web3 wallet that also plays Ludo** — see assets → send/re
 
 ```text
 ┌─────────────────────────────────────┐
-│  Ludo Base · Arena Entrance         │
+│  Ludo 3077 · Arena Entrance         │
 │  [ Continue with Base ]     ← A     │
 │  [ MetaMask ] [ Phantom ]   ← A     │
 │  ── or ──                           │

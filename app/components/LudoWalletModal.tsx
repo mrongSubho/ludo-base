@@ -229,7 +229,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                     Sign in
                                 </p>
                                 <h3 style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 700, color: 'var(--modal-ink, #ffffff)', textTransform: 'none', lineHeight: 1.25 }}>
-                                    Ludo Base · Onchain Arena
+                                    Ludo 3077 · Onchain Arena
                                 </h3>
                             </div>
                             <button

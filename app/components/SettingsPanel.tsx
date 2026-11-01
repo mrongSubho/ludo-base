@@ -371,15 +371,15 @@ function FeedbackView() {
     );
 }
 
-// ─── About Ludo Base ────────────────────────────────────────────────────────
+// ─── About Ludo 3077 ────────────────────────────────────────────────────────
 function AboutView() {
     const openDoc = (path: string) => window.open(path, '_blank', 'noopener');
     return (
         <section className="flex flex-col gap-3">
-            <SectionLabel>About Ludo Base</SectionLabel>
+            <SectionLabel>About Ludo 3077</SectionLabel>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 flex flex-col gap-2">
                 <p className="text-sm font-black text-white uppercase tracking-wide">
-                    Ludo Base · Onchain Arena
+                    Ludo 3077 · Onchain Arena
                 </p>
                 <p className="text-ludo-md font-medium leading-relaxed text-white/60">
                     Classic Ludo, rebuilt for the onchain era: provably-fair dice, Power-mode
@@ -770,7 +770,7 @@ export function SettingsPanel({
                             <section>
                                 <SectionLabel>About</SectionLabel>
                                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
-                                    <NavRow icon={<InfoIcon />} tint="bg-cyan-500/15 text-cyan-300" label="About Ludo Base" onClick={() => setView('about')} />
+                                    <NavRow icon={<InfoIcon />} tint="bg-cyan-500/15 text-cyan-300" label="About Ludo 3077" onClick={() => setView('about')} />
                                     <NavRow icon={<FileTextIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Terms of Service" onClick={() => openDoc('/terms')} />
                                     <NavRow icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Privacy Policy" last onClick={() => openDoc('/privacy')} />
                                 </div>
@@ -838,7 +838,7 @@ export function SettingsPanel({
                             {/* Version footer: always last, lobby + in-match */}
                             <div className="flex flex-col items-center gap-0.5 pt-1 pb-1">
                                 <p className="text-ludo-xs font-black uppercase tracking-[0.2em] text-white/30">
-                                    Ludo Base · Onchain Arena
+                                    Ludo 3077 · Onchain Arena
                                 </p>
                                 <p className="text-ludo-xs text-white/25 font-mono">
                                     {APP_VERSION} · build {APP_BUILD_HASH}

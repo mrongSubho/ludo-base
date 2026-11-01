@@ -1,5 +1,5 @@
 /**
- * Ludo Base: Game Constants
+ * Ludo 3077: Game Constants
  * Global source of truth for board indices, game rules, and AI weights.
  */
 

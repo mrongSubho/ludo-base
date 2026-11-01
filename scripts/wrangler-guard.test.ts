@@ -72,16 +72,16 @@ test('wrangler-guard: rejects keys with secret/private keywords even with NEXT_P
 });
 
 test('wrangler-guard: rejects 64-hex EVM private keys in value', () => {
-  // With 0x prefix (66 chars total)
-  const pk1 = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+  // With 0x prefix (66 chars total) - anvil test key
+  const pk1 = '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'; // anvil test key
   const errs1 = inspectVar('NEXT_PUBLIC_TEST_VAR', pk1);
   assert.ok(
     errs1.some((e) => e.includes('64-hex EVM private key signature')),
     `Expected EVM private key to be rejected: ${errs1.join(', ')}`
   );
 
-  // Without 0x prefix (64 hex chars)
-  const pk2 = 'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+  // Without 0x prefix (64 hex chars) - anvil test key
+  const pk2 = 'ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80'; // anvil test key
   const errs2 = inspectVar('NEXT_PUBLIC_TEST_VAR', pk2);
   assert.ok(
     errs2.some((e) => e.includes('64-hex EVM private key signature')),

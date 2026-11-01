@@ -1,6 +1,6 @@
-# Ludo Base: Project Brain & Engine Logic
+# Ludo 3077: Project Brain & Engine Logic
 
-This document serves as the primary technical reference for all core systems, game rules, and architectural decisions implemented in the Ludo Base project. **Consider this the definitive "Source of Truth" for engine logic.**
+This document serves as the primary technical reference for all core systems, game rules, and architectural decisions implemented in the Ludo 3077 project. **Consider this the definitive "Source of Truth" for engine logic.**
 
 ---
 
@@ -292,4 +292,4 @@ If the original Host disconnects or goes AFK, the system performs an **Authority
 `ENGINE_STATE` signals may include a `stateOverride` key for low-latency animation and recovery hints. Guests may apply these hints only when their sequence is behind the payload sequence; the persisted `match_states` row remains authoritative. On a stale action response, the returned `{ seq, state }` snapshot is the preferred reconciliation path.
 
 ---
-*Created by Antigravity AI for Ludo Base.*
+*Created by Antigravity AI for Ludo 3077.*

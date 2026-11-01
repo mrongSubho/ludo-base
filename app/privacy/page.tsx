@@ -2,8 +2,8 @@ import React from 'react';
 import Link from 'next/link';
 
 export const metadata = {
-    title: 'Privacy Policy · Ludo Base',
-    description: 'Privacy Policy for the Ludo Base onchain arena.',
+    title: 'Privacy Policy · Ludo 3077',
+    description: 'Privacy Policy for the Ludo 3077 onchain arena.',
 };
 
 // ─── Privacy Policy (concise, plain-language) ────────────────────────────────
@@ -12,7 +12,7 @@ export default function PrivacyPage() {
         <main className="min-h-[100dvh] flex items-start sm:items-center justify-center px-4 py-10 bg-black">
             <article className="w-full max-w-[560px] rounded-[28px] border border-white/10 bg-[#0d0d15]/95 px-6 py-8 sm:px-9 shadow-2xl">
                 <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300">
-                    Ludo Base · Arena Entrance
+                    Ludo 3077 · Arena Entrance
                 </p>
                 <h1 className="mt-2 text-2xl font-black text-white uppercase tracking-tight">
                     Privacy Policy

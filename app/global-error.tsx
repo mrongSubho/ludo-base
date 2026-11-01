@@ -87,7 +87,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
                 }}
             >
                 <div style={CARD}>
-                    <p style={KICKER}>Ludo Base · Something broke</p>
+                    <p style={KICKER}>Ludo 3077 · Something broke</p>
                     <h1 style={HEADING}>The app hit an error</h1>
                     <p style={COPY}>
                         Your match is not affected — nothing was sent to the chain. Try

@@ -11,8 +11,8 @@ import { WalletKit } from "@reown/walletkit";
 import { Core } from "@walletconnect/core";
 
 export const WC_WALLET_METADATA = {
-    name: "Ludo Base",
-    description: "Ludo Base — The Onchain Arena",
+    name: "Ludo 3077",
+    description: "Ludo 3077 — The Onchain Arena",
     url: typeof window !== "undefined" ? window.location.origin : "https://ludo-base.vercel.app",
     icons: [typeof window !== "undefined" ? `${window.location.origin}/ludo-base-logo.svg` : ""],
 };

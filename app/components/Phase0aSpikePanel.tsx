@@ -283,7 +283,7 @@ export default function Phase0aSpikePanel() {
                     </button>
                     <p className="text-white/40 text-xs">
                         Signs in with your Base Account (keys.coinbase.com / Base app). Same address in
-                        Ludo Base and the Base app.
+                        Ludo 3077 and the Base app.
                     </p>
                 </div>
             ) : (

@@ -1,4 +1,4 @@
-# Ludo Base — Server Authority Migration (FULLY IMPLEMENTED)
+# Ludo 3077 — Server Authority Migration (FULLY IMPLEMENTED)
 
 **Migration from host-centric auth + PeerJS + Edge Functions to full server-based auth and a server-authoritative match room — FULLY IMPLEMENTED (P0–P6 COMPLETED 2026-10-18).**
 

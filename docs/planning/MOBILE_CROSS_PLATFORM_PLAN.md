@@ -1,4 +1,4 @@
-# Ludo Base — Cross-Platform Mobile Application Plan (iOS + Android)
+# Ludo 3077 — Cross-Platform Mobile Application Plan (iOS + Android)
 
 **A planning document for a native-feeling mobile client over the existing web/edge/Supabase system.**
 

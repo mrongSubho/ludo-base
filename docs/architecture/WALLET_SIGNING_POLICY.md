@@ -1,13 +1,13 @@
 # Wallet Signing & Authentication Policy
 
-> **Authoritative Specification:** Single source of truth for all wallet signing triggers, prompt cadences, biometric gates, and authentication boundaries across Ludo Base.
+> **Authoritative Specification:** Single source of truth for all wallet signing triggers, prompt cadences, biometric gates, and authentication boundaries across Ludo 3077.
 > References: [AGENTS.md](../../AGENTS.md), [`ENGINE_LOGIC.md`](../../ENGINE_LOGIC.md), [`lib/appSessionGuard.ts`](../../lib/appSessionGuard.ts), and [`hooks/useSecurityPrefs.ts`](../../hooks/useSecurityPrefs.ts).
 
 ---
 
 ## 1. Core Architecture & Wallet Separation Boundary
 
-Ludo Base strictly bifurcates wallet authentication based on signer type. The single runtime authority for this boundary is [`useWalletMode()`](../../hooks/usePlayerSigner.ts).
+Ludo 3077 strictly bifurcates wallet authentication based on signer type. The single runtime authority for this boundary is [`useWalletMode()`](../../hooks/usePlayerSigner.ts).
 
 ```
                       ┌───────────────────────────────┐

@@ -36,7 +36,7 @@ const socketMeta = new WeakMap<WebSocket, RoomSocketMeta>();
 
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Ludo Base Dev Match Room Sidecar running.\n');
+  res.end('Ludo 3077 Dev Match Room Sidecar running.\n');
 });
 
 const wss = new WebSocket.Server({ noServer: true });

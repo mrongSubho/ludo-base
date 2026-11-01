@@ -7,7 +7,7 @@
 | **Extraction** | `research/ludo-world/extracted/` (145 MB) + `research/ludo-world/modules/` (420 recovered JS modules) |
 | **Method** | Static only. No execution, no traffic capture, no dynamic instrumentation. |
 | **Companions** | `docs/research/COMPETITIVE_LUDO_WORLD_LUDO_KING.md` (comparative baseline) · `research/ludo-world/ANALYSIS.md` (first-pass findings) |
-| **Status** | Architecture / protocol / schema teardown + Ludo Base gap analysis |
+| **Status** | Architecture / protocol / schema teardown + Ludo 3077 gap analysis |
 | **Date** | 2026-10-25 |
 
 ---
@@ -41,12 +41,12 @@
   - [5.1 Constants [V]](#51-constants-v)
   - [5.2 Board geometry per mode [V]](#52-board-geometry-per-mode-v)
   - [5.3 Special points (safe squares) [V]](#53-special-points-safe-squares-v)
-  - [5.4 Mechanics that differ from Ludo Base](#54-mechanics-that-differ-from-ludo-base)
+  - [5.4 Mechanics that differ from Ludo 3077](#54-mechanics-that-differ-from-ludo-base)
 - [6. Dice, fairness, and what the APK actually contains](#6-dice-fairness-and-what-the-apk-actually-contains)
   - [6.1 The mechanism [V]](#61-the-mechanism-v)
   - [6.2 The AI can aim at captures [V]](#62-the-ai-can-aim-at-captures-v)
   - [6.3 The tables are not in the APK — this is the key correction [V]](#63-the-tables-are-not-in-the-apk--this-is-the-key-correction-v)
-  - [6.4 Why this matters for Ludo Base](#64-why-this-matters-for-ludo-base)
+  - [6.4 Why this matters for Ludo 3077](#64-why-this-matters-for-ludo-base)
 - [7. Economy and monetisation](#7-economy-and-monetisation)
   - [7.1 Currencies and goods [V]](#71-currencies-and-goods-v)
   - [7.2 Props — four, carry three [V]](#72-props--four-carry-three-v)
@@ -57,9 +57,9 @@
   - [8.2 The compliance suite is the most under-appreciated part [V]](#82-the-compliance-suite-is-the-most-under-appreciated-part-v)
   - [8.3 Turn lifecycle and AFK [V]](#83-turn-lifecycle-and-afk-v)
   - [8.4 Session lifecycle [V]](#84-session-lifecycle-v)
-- [9. Ludo Base comparison, axis by axis](#9-ludo-base-comparison-axis-by-axis)
+- [9. Ludo 3077 comparison, axis by axis](#9-ludo-base-comparison-axis-by-axis)
   - [9.1 The three things that actually matter](#91-the-three-things-that-actually-matter)
-- [10. Recommended technology for Ludo Base](#10-recommended-technology-for-ludo-base)
+- [10. Recommended technology for Ludo 3077](#10-recommended-technology-for-ludo-base)
   - [10.1 Copy the resilience ladder — highest leverage, lowest cost](#101-copy-the-resilience-ladder--highest-leverage-lowest-cost)
   - [10.2 Make the turn clock server-owned](#102-make-the-turn-clock-server-owned)
   - [10.3 Adopt a typed rejection surface](#103-adopt-a-typed-rejection-surface)
@@ -78,7 +78,7 @@
   - [10.16 Operational telemetry & connection state machine](#1016-operational-telemetry--connection-state-machine)
 - [11. Corrections to prior documents](#11-corrections-to-prior-documents)
 - [12. Limits of this analysis](#12-limits-of-this-analysis)
-- [13. Architectural Decision Records (ADRs for Ludo Base)](#13-architectural-decision-records-adrs-for-ludo-base)
+- [13. Architectural Decision Records (ADRs for Ludo 3077)](#13-architectural-decision-records-adrs-for-ludo-base)
   - [ADR-01: Server-authoritative match lifecycle via DO alarms](#adr-01-server-authoritative-match-lifecycle-via-do-alarms)
   - [ADR-02: Strict mode partitioning (Ranked DO vs. Offline Local)](#adr-02-strict-mode-partitioning-ranked-do-vs-offline-local)
   - [ADR-03: Typed wire contract & rejection surface (`RoomError`)](#adr-03-typed-wire-contract--rejection-surface-roomerror)
@@ -205,7 +205,7 @@ The client contains **two complete game drivers**:
 | AI | server-side virtual match (§3.8) | `ComputerManager` + `CManager` |
 
 They share the same view layer and the same `GameInfoModel`. The controller is selected by
-`GameCtrlFactory` from `gameType`. This is a clean separation and the direct analogue of Ludo Base's
+`GameCtrlFactory` from `gameType`. This is a clean separation and the direct analogue of Ludo 3077's
 "one authority per match, chosen by the transport" — except Ludo World switches on **game mode**, not
 on **connection liveness**, which is a materially simpler rule.
 
@@ -272,7 +272,7 @@ implementation is not in the JS (native), so the key schedule is [X].
 Auth login types: `LoginTypeWeixin 1`, `QQ_OpenId 2`, `WeixinGuest 3`, `QQ_PC 4`.
 `DialogIDType`: `NONE -1`, `WX/QQ_Openid/WX_Guest -3`, `QQ_Pc -4`.
 
-**Read this against Ludo Base:** your room protocol is JSON over a WebSocket, carrying
+**Read this against Ludo 3077:** your room protocol is JSON over a WebSocket, carrying
 `{t:'intent_ack', intentId, data:{state, seq}}`. You have `seq` but no length framing, no version
 field, and no per-packet `Uin` (auth is out-of-band via the session ticket). That is *fine* at
 4-player scale — but it means your protocol has no cheap way to reject a desynchronised peer early,
@@ -290,7 +290,7 @@ The client asks the router to **reserve a sticky route** to a specific `(SvrType
 opens a WebSocket directly to that game server. This is Tencent's standard "预分配路由" pattern.
 
 **This is architecturally identical to Cloudflare Durable Objects.** `SvrID` ↔ `idFromName(matchId)`;
-the router ↔ the platform's placement layer; the sticky route ↔ DO affinity. Ludo Base already has
+the router ↔ the platform's placement layer; the sticky route ↔ DO affinity. Ludo 3077 already has
 the better primitive and is not using it fully — `MatchRoom` is instantiated per match, but nothing
 in the client reserves or *reports* which instance it landed on. See §10.4.
 
@@ -327,12 +327,12 @@ Three things stand out:
 
 1. **Seat lifecycle is a first-class protocol concern** — `SITDOWN`, `STANDUP`, `CHANGE_SEAT`,
    `VIEW_SEAT`, `SITDOWN_FROM_VIEW`, `VIEW_FROM_SITDOWN`. Seats and spectators are the same state
-   machine with a transition verb. Ludo Base has no seat model at all: players are just connected
+   machine with a transition verb. Ludo 3077 has no seat model at all: players are just connected
    peers, and spectating is a separate read-only sync path.
 2. **`S2C_HG_WRAPPER_MESSAGE`** — a nested-envelope verb. The server can ship arbitrary inner
    messages, which is how they extend the protocol without a new top-level ID. [I]
 3. **`C2S_HG_ADDON_REBUY`** — mid-match rebuy. That is a gambling-adjacent economy feature with no
-   Ludo Base analogue (and probably no regulatory analogue for you either).
+   Ludo 3077 analogue (and probably no regulatory analogue for you either).
 
 ### 3.5 Auth and login [V]
 
@@ -349,7 +349,7 @@ client-side to a server-held key before the CGI call.
 Then the socket layer authenticates again via `MSGID_C2S_HG_LOGIN` with `SIGType { HLGAME: 1 }`, and
 `LotusAuthLoginType` (Weixin/QQ) — i.e. **two auth hops**: CGI for identity, socket login for session.
 
-**Compare:** Ludo Base uses SIWE + a `sessions` table with SHA-256 tokens, and passes the session in a
+**Compare:** Ludo 3077 uses SIWE + a `sessions` table with SHA-256 tokens, and passes the session in a
 header (never the query string — a good invariant). Ludo World's RSA-CGI hop is solving the same
 problem (don't send a bearer token in cleartext) with a heavier primitive. Your approach is better.
 
@@ -416,7 +416,7 @@ attribute (`attrUpLoad`), so the counters reach analytics — not just the log.
 re-auth → re-enter. So: *socket* reconnect is 3 s × 10 with a reason code; *identity* reconnect is a
 silent re-login. Two ladders, two failure modes, both named.
 
-**This is the single most transferable thing in the APK.** Ludo Base has no in-match ladder at all:
+**This is the single most transferable thing in the APK.** Ludo 3077 has no in-match ladder at all:
 `useAFKManager` lacks an `isLobbyConnected` guard, nothing reads `state.deadlineAt`, and the turn clock
 never ticks in a room match. Ludo World's ladder is 15 lines of constants plus an enum.
 
@@ -431,10 +431,10 @@ bot's score feeds the same pipeline as a human's. Combined with §6 (weighted di
 `getRobotData(playerNum, level)`), this is a **tuned, server-authoritative opponent** — not a
 simulation.
 
-This is the most consequential product difference from Ludo Base, and it is an *economy* difference,
+This is the most consequential product difference from Ludo 3077, and it is an *economy* difference,
 not a technical one: bots let them guarantee a full table at any hour, which lets them guarantee
 short queue times, which is the retention driver. The cost is that a real player cannot distinguish
-a bot from a human, and the dice are tuned in the house's favour to some degree. Ludo Base's
+a bot from a human, and the dice are tuned in the house's favour to some degree. Ludo 3077's
 `useProvablyFairDice` forecloses that option permanently.
 
 ### 3.9 Region config [V]
@@ -478,7 +478,7 @@ Two design notes worth stealing:
 
 - **`1014 = RoomCfg_1.6.7`** — they version a config bucket by *app version*, so an old client keeps
   reading its own schema while new clients read the new one. That is schema migration without a
-  migration: cheap, and it works because the client asks for a bucket it understands. Ludo Base has
+  migration: cheap, and it works because the client asks for a bucket it understands. Ludo 3077 has
   hardcoded pool tiers; this is the concrete pattern to replace them with.
 - **`1018 = CgiUrlCfg`** — the service map itself is remotely configurable. You can move a region
   without shipping.
@@ -496,7 +496,7 @@ PrposDiceCount  LastPrposDiceCount  PropsLuckyPoint  PlayerStatusInGame  GMDiceC
 ```
 
 Note `teamCodes: [1,2,1,2]` — seats 0+2 are team 1, seats 1+3 are team 2. **That is diagonal
-teammates, i.e. exactly Ludo Base's `TEAM_PAIRINGS` (Green+Blue vs Red+Yellow).** Two independent
+teammates, i.e. exactly Ludo 3077's `TEAM_PAIRINGS` (Green+Blue vs Red+Yellow).** Two independent
 implementations converged on the same seating rule. Useful as external validation. [V]
 
 `PlayerInfoModel` adds the per-seat runtime:
@@ -529,7 +529,7 @@ Plus ad-cadence counters (`AdShowCount`, `AdGameCount`, `AdConfirmAlertCount`, `
 history are server-only. On Facebook Instant, the same role is played by `FBInstant.player.setDataAsync`
 / `getDataAsync` (cloud save, with a 3-attempt retry).
 
-The lesson for Ludo Base: your `RoomClient.pendingIntents` is an **optimistic queue with a 10 s
+The lesson for Ludo 3077: your `RoomClient.pendingIntents` is an **optimistic queue with a 10 s
 timeout** — a design Ludo World deliberately avoids by making every intent fire-and-forget and every
 result server-pushed. Your approach is more responsive; theirs is simpler to reason about. If your
 intent timeouts keep biting, this is the alternative.
@@ -550,7 +550,7 @@ Semantics worth noting: `ERR_PLAYER_CAST_TOO_FAST` (14) is **rate limiting as a 
 `ERR_PLAYER_CAST_TOO_FAST`/`ERR_RECAST_USE_UP` imply re-cast is server-counted. `ERR_DIAMOND_NOT_ENOUGH`
 (17) proves diamonds are a server-checked currency.
 
-**Ludo Base gap:** `RoomClient` collapses every rejection into `ROOM_INTENT_FAILED`
+**Ludo 3077 gap:** `RoomClient` collapses every rejection into `ROOM_INTENT_FAILED`
 (`reject(new Error('[CODE] …'))`), so `code === 'POWER_ARMED'` in `useGameActions` is dead code. Their
 design — a typed error enum the client can branch on — is the fix.
 
@@ -619,9 +619,9 @@ Classic `[0, 8, 13, 21, 26, 34, 39, 47]`; Five adds `52, 60`; Six adds `65, 73`.
 start (0, 13, 26, 39…) plus start+8 — i.e. **two safe cells per quadrant**, entry and a star 8 ahead.
 `SpecialMapPoint: 8` for the 4-player board.
 
-### 5.4 Mechanics that differ from Ludo Base
+### 5.4 Mechanics that differ from Ludo 3077
 
-| Mechanic | Ludo World | Ludo Base today |
+| Mechanic | Ludo World | Ludo 3077 today |
 | --- | --- | --- |
 | Take-off | exactly a 6 | 6 to leave base |
 | Three sixes | forfeit turn after N consecutive (`ContinuousTime >= 3 → nextPlayer()`) | 3×six skip |
@@ -630,7 +630,7 @@ start (0, 13, 26, 39…) plus start+8 — i.e. **two safe cells per quadrant**, 
 | Re-cast / recall | **paid**, `MaxReCastCount` + `ReCastItemPrice` + `ReCastDiamondPrice` + `waitRecallCD` | none |
 | Undo | seat 0 only, gated by `IsShowUndoEntrance()` | none |
 
-The **recall economy** is the most interesting mechanic Ludo Base lacks: you can take back a bad roll,
+The **recall economy** is the most interesting mechanic Ludo 3077 lacks: you can take back a bad roll,
 it costs gold (and diamonds when gold runs out), it has a cooldown (`waitRecallCD`), and the price
 escalates (`nextRecallPrice`). That is a monetised *dopamine repair* — selling relief from a bad
 outcome. It pairs exactly with §6's weighted dice: the die can hurt you, and relief is purchasable.
@@ -707,7 +707,7 @@ So: **4 player-counts × 3 difficulty levels × 3 table types**, all server-side
 percentages is fabricating them. What is provable is the *shape* — pity, weighting, finish-assist,
 capture-aiming — and the fact that the tuning is remotely adjustable without a release.
 
-### 6.4 Why this matters for Ludo Base
+### 6.4 Why this matters for Ludo 3077
 
 Your `useProvablyFairDice` + Edge `roll-dice` receipts + `match_rolls` table make the roll verifiable
 after the fact. Ludo World's model is the inverse: the roll is *unverifiable by design* and used as a
@@ -744,7 +744,7 @@ per-player (`diceSkinId`) with animated atlases (`getAnimatedName()`), rendered 
 
 `PropsItemNum: 3` carry limit; `PropsType.TypeMax: 5`.
 
-**Compare with Ludo Base's Power v3** (5 hidden tiles + timed inventory). Ludo World's props are
+**Compare with Ludo 3077's Power v3** (5 hidden tiles + timed inventory). Ludo World's props are
 *pre-roll modifiers* (change the die, protect the token); yours are *board-space pickups*. Theirs are
 purchasable inventory, yours are positional. Both are valid; theirs monetises better because the
 purchase decision happens at the moment of anxiety.
@@ -761,7 +761,7 @@ purchase decision happens at the moment of anxiety.
 - **Relief funds** (`CReqGetReliefFunds`) — bankruptcy bailout, a retention floor
 
 That is **twelve distinct retention/monetisation loops**, each with its own config bucket and CGI.
-Ludo Base's CHIPS plan has missions + seasons + a marketplace; it does not yet have a relief fund, a
+Ludo 3077's CHIPS plan has missions + seasons + a marketplace; it does not yet have a relief fund, a
 lottery, a tournament, or a charm/gifting loop.
 
 ### 7.4 Ads [V]
@@ -803,14 +803,14 @@ Twelve boot/compliance windows before the lobby, including an **age gate** (`Cho
 panel (`DataDEAPanel`). Plus `RegionPanel` and `AlertForABtest`.
 
 For a children-adjacent casual game shipping into the EU, that is the minimum credible posture, and
-it took 12 windows. Ludo Base has none of this and is planning paid pools with real value — the
+it took 12 windows. Ludo 3077 has none of this and is planning paid pools with real value — the
 competitive doc's "legal issue-spot before Phase-1" item (A7) is under-scoped if this is the bar.
 
 ### 8.3 Turn lifecycle and AFK [V]
 
 Server-supplied per-match timers: `CastSecond` (dice window), `MoveSecond` (token selection),
 `MaxDullSecond` (inactivity watchdog), `LeftSecond`/`OnTurn` (live countdown). All default to 0 in the
-model and are filled from the server — so the **client cannot invent a clock**. Compare Ludo Base,
+model and are filled from the server — so the **client cannot invent a clock**. Compare Ludo 3077,
 where `useGameTimer` mints `Date.now()+15s` locally and nothing reads `state.deadlineAt`.
 
 AFK takeover is a **server command**, not a client bot:
@@ -824,7 +824,7 @@ t.requestTrust = function(e) {
 ```
 
 `TrustState` (托管) → `CMD_REQUEST_TRUST` → the server plays the seat. The client does not simulate
-turns on the player's behalf. This is the correct design and the one Ludo Base should copy: your
+turns on the player's behalf. This is the correct design and the one Ludo 3077 should copy: your
 `useAFKManager` currently has no lobby guard and no server authority, so an AFK player's seat is
 undefined.
 
@@ -841,9 +841,9 @@ Reconnect is orthogonal at every stage: socket ladder (3 s × 10, reason-coded) 
 
 ---
 
-## 9. Ludo Base comparison, axis by axis
+## 9. Ludo 3077 comparison, axis by axis
 
-| Axis | Ludo World 2.1.10 | Ludo Base (today) | Verdict |
+| Axis | Ludo World 2.1.10 | Ludo 3077 (today) | Verdict |
 | --- | --- | --- | --- |
 | **Client** | Cocos 2.x, 96 panels, 62 models, global string bus | Next 16 / React 19, GSAP, typed hooks | Different constraints; theirs scales screens, yours scales surfaces |
 | **Wire protocol** | binary TDR + `CSHead` (len/ver/seq/uin), TEA | JSON over WS, `seq` only, header auth | **Yours is simpler and safer.** No need for TDR at 4 seats |
@@ -875,7 +875,7 @@ Reconnect is orthogonal at every stage: socket ladder (3 s × 10, reason-coded) 
 
 ---
 
-## 10. Recommended technology for Ludo Base
+## 10. Recommended technology for Ludo 3077
 
 Ordered by leverage. Each item names the artifact to touch.
 
@@ -960,12 +960,12 @@ it is something they cannot copy, because their settlement is invisible.
 
 ### 10.9 Board kinematics & animation timing overhaul
 
-Ludo Base currently animates token hops via GSAP FLIP over a sluggish ~1.3 s budget in `BoardTokens.tsx`,
+Ludo 3077 currently animates token hops via GSAP FLIP over a sluggish ~1.3 s budget in `BoardTokens.tsx`,
 leading to perceived input lag on web and low-end mobile. Ludo World's exact timing parameters
 (extracted from `Checkerboard.js:350-356` and `Dice.js:143-149`) establish the standard for a snappy,
 tactile arcade cadence:
 
-| Action | Exact Ludo World Sequence | Net Time | Action for Ludo Base |
+| Action | Exact Ludo World Sequence | Net Time | Action for Ludo 3077 |
 | :--- | :--- | :--- | :--- |
 | **Cell Hop (Per Step)** | `delay(0.02s) -> moveTo(0.12s) -> delay(0.02s)` | **0.16 s** / cell | Replace monolithic 1.3 s tween with **0.16 s per hop** stepped tweens; trigger jump sound per hop. |
 | **Capture Rewind** | Cell-by-cell backward rewind at `moveTo(0.01s)` + final yard drop `moveTo(0.16s)` | **~0.3–0.6 s** total | Instead of instant snap, animate captured token rapidly retracing path backward into base, spawning crying face (`daku`). |
@@ -1020,7 +1020,7 @@ projectiles (`EmojiModel.js:95-115`, `GiftAnimManager.js`).
   - `xiaogui` (Ghost) — floats to target avatar and haunts.
   - `qiqiu` (Water Balloon) — flies and pops over target seat (6 s animation).
   - `dangao` (Cake/Pie) — splatters directly across opponent's profile picture.
-- **Architectural fit for Ludo Base:**
+- **Architectural fit for Ludo 3077:**
   - Transport already exists: the public Supabase Realtime broadcast topic `game-room-<roomCode>` carries
     non-authoritative intents, chat, and emotes (`AGENTS.md` Rule 3).
   - Emote and gift projectiles require **zero blockchain state or transaction fees**, running purely as
@@ -1043,7 +1043,7 @@ authoritative **discrete action events** (`MoveResult.events` containing `EventK
 to its local `GameInfoModel`. Full state payloads (`MsgID_RconnectInfo`) are strictly reserved for initial
 join and reconnection rehydration.
 
-**Application for Ludo Base:**
+**Application for Ludo 3077:**
 Currently, `src/room/MatchRoom.ts` serializes and broadcasts the entire `GameState` object (~3–5 KB JSON)
 across WebSockets on every dice roll and token move. As turn frequency increases, this introduces avoidable
 serialization overhead and JSON parsing jank on mobile.
@@ -1063,7 +1063,7 @@ FIFO buffer. Once the 0.16 s hop sequence concludes and `MsgID_MoveChessEnd` fir
 MessageCenter.setGlobalCacheMessage(false);
 ```
 
-**Application for Ludo Base:**
+**Application for Ludo 3077:**
 In `BoardTokens.tsx`, rapid network intents or high-latency packets currently risk triggering a state
 update while GSAP FLIP is mid-hop, causing visible position snapping or desynchronized highlight rings.
 Implementing an explicit **Animation Barrier** in `useGameEngine.ts` / `BoardTokens.tsx` ensures:
@@ -1074,7 +1074,7 @@ Implementing an explicit **Animation Barrier** in `useGameEngine.ts` / `BoardTok
 ### 10.16 Operational telemetry & connection state machine
 
 Ludo World's `OFFLINE_REASON` enum (codes 3000–3005) categorizes transport dropouts and logs them via
-`attrUpLoad`. To achieve parity in Ludo Base, we define a closed reason taxonomy in `lib/roomCodes.ts`
+`attrUpLoad`. To achieve parity in Ludo 3077, we define a closed reason taxonomy in `lib/roomCodes.ts`
 wired to Sentry and PostHog:
 
 ```typescript
@@ -1121,10 +1121,10 @@ worker restarts.
 
 ---
 
-## 13. Architectural Decision Records (ADRs for Ludo Base)
+## 13. Architectural Decision Records (ADRs for Ludo 3077)
 
 These records formalize the architectural adaptations derived from this teardown, mapping them
-directly to Ludo Base's invariants in `AGENTS.md` and `ENGINE_LOGIC.md`.
+directly to Ludo 3077's invariants in `AGENTS.md` and `ENGINE_LOGIC.md`.
 
 ### ADR-01: Server-authoritative match lifecycle via DO alarms
 

@@ -4,7 +4,7 @@
 Accepted
 
 ## Context
-Spectators in Ludo Base need a way to place bets on live game outcomes (e.g., dice rolls, match winners) in a "GambleFi" setting. 
+Spectators in Ludo 3077 need a way to place bets on live game outcomes (e.g., dice rolls, match winners) in a "GambleFi" setting. 
 - **The Problem**: A significant gap exists between the time a player (Host) generates a result and the time spectators see it. Without a protocol, spectators could potentially "front-run" the result if they receive the data faster than the UI reveals it, or if the Host reveals it prematurely.
 - **Constraints**: 
   - Low latency for players is a priority.

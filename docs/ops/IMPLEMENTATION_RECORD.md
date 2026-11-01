@@ -1,4 +1,4 @@
-# Implementation record — Ludo Base
+# Implementation record — Ludo 3077
 
 | Field | Value |
 | --- | --- |
@@ -2724,7 +2724,7 @@ Following the initial server authority rollout, comprehensive diagnostic auditin
 ## Part V: Boot-Gated Authentication & Universal Session Recovery (2026-10-24)
 
 ### 1. Problem Statement & Architecture Alignment
-In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys / initial wallet connection). There is no mid-game login form, username/password modal, or standalone "Sign In" screen. However, several sub-systems and error handlers previously presented users with dead-end copy (e.g. *"Your session expired. Sign in again to keep chatting"* or *"Sign in to load messages"*) without providing any mechanism or interactive button to re-authenticate or restore their session. Furthermore:
+In Ludo 3077, authentication is strictly gated at boot (`BootLock.tsx` passkeys / initial wallet connection). There is no mid-game login form, username/password modal, or standalone "Sign In" screen. However, several sub-systems and error handlers previously presented users with dead-end copy (e.g. *"Your session expired. Sign in again to keep chatting"* or *"Sign in to load messages"*) without providing any mechanism or interactive button to re-authenticate or restore their session. Furthermore:
 1. `GameDataContext.tsx` derived player address via Wagmi's `useAccount().address`, which returns `undefined` for CDP in-game smart accounts. This broke DM sending and encryption registration for in-game wallets while the live broadcast chat (which read `useCurrentUser()`) functioned normally.
 2. In `MessagesPanel.tsx`, `retrySend` checked `if (cooldownTime > 0) return;`. Since a failed send initiated a 10s typing cooldown, tapping `"· tap to retry"` was silently dropped.
 3. Sub-panels (`MessagesPanel`, `MissionPanel`, `OnboardingPanel`) displayed static text empty states advising the user to "sign in, then reopen this tab" without providing an action to authenticate.
@@ -3039,7 +3039,7 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
    - Every on-chain transaction (`eth_sendTransaction`, `wallet_sendCalls`) is dry-run simulated against Base Sepolia RPC before/during wallet prompt confirmation, providing immediate tactical preview with zero emojis (pure SVG iconography and terminal-glass design).
 2. **Implementation** — [`lib/txSimulator.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/txSimulator.ts), [`hooks/useAuthPrompt.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useAuthPrompt.ts), [`app/components/SignWaitModal.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/SignWaitModal.tsx), [`lib/walletGuard.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/lib/walletGuard.ts):
    - **Pre-Flight Simulator Engine**:
-     - Decodes calldata across all Ludo Base contracts: `MissionSystem`, `CHIPS`, `MatchPool`, `ClaimHub`, `MissionClaim`, `SeasonClaim`, and native ETH transfers.
+     - Decodes calldata across all Ludo 3077 contracts: `MissionSystem`, `CHIPS`, `MatchPool`, `ClaimHub`, `MissionClaim`, `SeasonClaim`, and native ETH transfers.
      - Detects and resolves target contracts with `Verified Core` security badges.
      - Runs parallel `estimateGas` and dry-run execution (`eth_call`) on Base Sepolia (`84532`).
      - Decodes asset movements into structured "You Send (Outflow)" and "You Receive (Inflow)" cards.
@@ -3082,7 +3082,7 @@ In Ludo Base, authentication is strictly gated at boot (`BootLock.tsx` passkeys 
 
 ### 18. Automatic External Wallet Network Switching (2026-10-29)
 1. **Architectural Invariant**:
-   - Ludo Base runs strictly on Base Sepolia (`84532`, `DEFAULT_CHAIN_ID`).
+   - Ludo 3077 runs strictly on Base Sepolia (`84532`, `DEFAULT_CHAIN_ID`).
    - External wallets (MetaMask, Base Account, etc.) on an off-allowlist chain (such as chain ID `784`, `1`, etc.) automatically trigger an immediate network switch on connect and on network change without crashing or manual intervention.
    - Pre-flight alignment: All on-chain transaction actions (`joinPool`, `approve`, `claim`, `sync`, `send`) verify that the active wallet network matches Base Sepolia before invoking `writeContractAsync`, preventing Wagmi `ChainMismatchError` exceptions.
 2. **Implementation** — [`app/components/NetworkAutoSwitcher.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/NetworkAutoSwitcher.tsx), [`app/Providers.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/Providers.tsx), [`app/components/LudoWalletModal.tsx`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/app/components/LudoWalletModal.tsx), [`hooks/useChipsAllowance.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useChipsAllowance.ts), [`hooks/useChipsPool.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useChipsPool.ts), [`hooks/useMerkleClaim.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useMerkleClaim.ts), [`hooks/useMissionVoucher.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useMissionVoucher.ts), [`hooks/useSendToken.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useSendToken.ts), [`hooks/useSendNative.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useSendNative.ts), [`hooks/useSettlePool.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useSettlePool.ts), [`hooks/useUnsyncedMatches.ts`](file:///Users/mrongsubho/Documents/Termninal/ludo-base/hooks/useUnsyncedMatches.ts):

@@ -1,6 +1,6 @@
 # Canonical Supabase Schema & Migration Directory
 
-**Authoritative schema inventory, security model, and migration register for Ludo Base.**
+**Authoritative schema inventory, security model, and migration register for Ludo 3077.**
 
 - **Canonical migration count:** 36 migrations (`supabase/migrations/`)
 - **Total managed tables:** 49 tables (48 in `public`, 1 in `realtime`)

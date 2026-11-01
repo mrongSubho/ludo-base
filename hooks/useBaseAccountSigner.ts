@@ -16,7 +16,7 @@ import type { WalletSigner } from "@/lib/walletSigner";
  * (browsers block popups outside a user gesture).
  */
 
-const APP_NAME = "Ludo Base";
+const APP_NAME = "Ludo 3077";
 
 function appLogoUrl(): string | null {
     if (typeof window === "undefined") return null;

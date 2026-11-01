@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
             );
         }
         const result = await sendPushToWallet(wallet, {
-            title: "Ludo Base",
+            title: "Ludo 3077",
             body: "Push is working. You'll get turn and claim nudges here.",
             url: "/",
             tag: "push-test",

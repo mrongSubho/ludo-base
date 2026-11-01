@@ -36,14 +36,14 @@ const config = createConfig({
         // Primary — Sign in with Base (keys.coinbase.com popup).
         // appName + appLogoUrl show on connect, sign, and tx approve screens.
         baseAccount({
-            appName: "Ludo Base",
+            appName: "Ludo 3077",
             appLogoUrl:
                 typeof window !== "undefined"
                     ? `${window.location.origin}/ludo-base-logo.svg`
                     : "/ludo-base-logo.svg",
         }),
         coinbaseWallet({
-            appName: "Ludo Base",
+            appName: "Ludo 3077",
             preference: "smartWalletOnly",
             appLogoUrl:
                 typeof window !== "undefined"
