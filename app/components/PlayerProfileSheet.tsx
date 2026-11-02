@@ -91,7 +91,7 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                 {/* Name + level */}
                 <div className="pp-identity">
                     {Boolean(player.clanTag || player.clan_tag) && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                        <span className="px-1.5 py-0.5 rounded text-ludo-xs font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                             [{player.clanTag || player.clan_tag}]
                         </span>
                     )}

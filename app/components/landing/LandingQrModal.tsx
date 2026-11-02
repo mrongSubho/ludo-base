@@ -91,7 +91,7 @@ export default function LandingQrModal({ isOpen, onClose }: LandingQrModalProps)
         <button
           type="button"
           onClick={handleCopyLink}
-          className="w-full py-2.5 px-4 rounded-xl text-ludo-sm uppercase font-black tracking-wider bg-accent text-surface-page hover:brightness-110 active:scale-95 transition-all"
+          className="w-full py-2.5 px-4 rounded-xl text-ludo-sm uppercase font-bold tracking-wider bg-accent text-surface-page hover:brightness-110 active:scale-95 transition-all"
         >
           {copied ? '✓ Link Copied to Clipboard' : 'Copy Arena URL'}
         </button>

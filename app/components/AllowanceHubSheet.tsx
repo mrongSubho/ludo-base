@@ -358,6 +358,10 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                             <div className="flex items-center gap-1.5">
                                 <input
                                     type="number"
+                                    autoComplete="off"
+                                    autoCorrect="off"
+                                    autoCapitalize="none"
+                                    spellCheck={false}
                                     min="1"
                                     step={isChips ? "1000" : "1"}
                                     placeholder={isChips ? "e.g. 50000" : "e.g. 15"}

@@ -46,6 +46,9 @@ const ClanPanel = dynamic(() => import('./components/ClanPanel').then(m => m.Cla
 const PublicProfileModal = dynamic(() => import('./components/PublicProfileModal'));
 const SpectatorHUD = dynamic(() => import('./components/SpectatorHUD').then(m => m.SpectatorHUD));
 const HostMigrationPanel = dynamic(() => import('./components/HostMigrationPanel').then(m => m.HostMigrationPanel));
+const DesktopLandingPage = dynamic(() => import('./components/landing/DesktopLandingPage'), { ssr: false });
+import { useDesktopLandingGate, ArenaLaunchConfig } from '@/hooks/useDesktopLandingGate';
+import { usePreferences } from '@/hooks/usePreferences';
 import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
 import { useWalletMode } from '@/hooks/useWalletMode';
 import { showAuthPrompt } from '@/hooks/useAuthPrompt';
@@ -711,6 +714,30 @@ export default function Page() {
     handlePlayNow(!!isBot);
   }, [handlePlayNow]);
 
+  const { preferences } = usePreferences();
+
+  const handleApplyLaunchConfig = useCallback((config: ArenaLaunchConfig) => {
+    if (config.gameMode) {
+      setSelectedMode(config.gameMode);
+    }
+    if (config.matchType) {
+      setPlayerCount(config.matchType === '2v2' ? '2v2' : config.matchType === 4 ? '4P' : '1v1');
+    }
+    if (config.joinRoomCode && typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('room', config.joinRoomCode);
+      window.history.replaceState({}, '', url.toString());
+    }
+    if (config.startBotMatch) {
+      handlePlayNow(false);
+    }
+  }, [handlePlayNow]);
+
+  const { showLanding, enterArena, returnToLanding } = useDesktopLandingGate({
+    appState,
+    onApplyLaunchConfig: handleApplyLaunchConfig,
+  });
+
   return (
     <>
       {showSplash && <SplashScreen />}
@@ -735,7 +762,13 @@ export default function Page() {
         <div className="boot-dot !w-[180px] !h-[180px] bottom-[15%] right-[5%] opacity-[0.015]" />
       </div>
 
-      {showSplash ? null : !isConnected ? (
+      {showSplash ? null : showLanding ? (
+        <DesktopLandingPage
+          onEnterArena={enterArena}
+          theme={preferences.theme}
+          tokenStyle={preferences.tokenStyle === 'pawn' ? 'chess' : 'orb'}
+        />
+      ) : !isConnected ? (
         <div className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center">
           <WalletConnectCard onGuest={() => enterGuest()} />
         </div>
@@ -747,6 +780,17 @@ export default function Page() {
           {/* ── Dashboard State ── */}
           {appState === 'dashboard' && (
             <div className="dashboard-container relative h-full">
+              {/* Desktop-only Overview breadcrumb */}
+              <div className="hidden lg:flex items-center justify-start px-safe pt-2">
+                <button
+                  type="button"
+                  onClick={returnToLanding}
+                  className="text-ludo-xs uppercase tracking-wider text-ink-muted hover:text-accent flex items-center gap-1 font-mono transition-colors cursor-pointer"
+                >
+                  <span>←</span>
+                  <span>Arena Overview</span>
+                </button>
+              </div>
               {/* Cosmic Orbs (Rendered behind content) */}
 
 

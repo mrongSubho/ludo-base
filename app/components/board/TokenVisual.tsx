@@ -371,8 +371,7 @@ const RunHomeGhost = ({ color, fromPos, cc, counterRotationDeg, onDone }: {
                     >
                         <ChessPiece color={color} size="board" />
                         <span
-                            className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-1 py-0.2 text-[9px] font-mono font-bold rounded bg-black/85 text-cyan-400 border border-cyan-500/50 shadow-sm pointer-events-none animate-bounce"
-                            style={{ fontSize: '9px', lineHeight: '11px' }}
+                            className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-1 py-0.2 text-ludo-xs font-mono font-bold rounded bg-surface-panel text-accent border border-line-soft shadow-sm pointer-events-none animate-bounce"
                         >
                             (T_T)
                         </span>

@@ -22,7 +22,7 @@ export default function LandingNavbar({ onEnterArena, onOpenQrModal }: LandingNa
   };
 
   const cycleTokenStyle = () => {
-    const nextStyle = preferences.tokenStyle === 'orb' ? 'chess' : 'orb';
+    const nextStyle = preferences.tokenStyle === 'pawn' ? 'orb' : 'pawn';
     updatePreference('token-style', nextStyle);
   };
 

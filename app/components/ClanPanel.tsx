@@ -249,6 +249,10 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                             <div className="relative flex-1">
                                 <input
                                     type="text"
+                                    autoComplete="off"
+                                    autoCorrect="off"
+                                    autoCapitalize="none"
+                                    spellCheck={false}
                                     placeholder="Search clans by name or tag..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -389,7 +393,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                                     <div key={msg.id} className="text-xs font-mono space-y-0.5">
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-cyan-400 font-bold">{msg.sender_name}</span>
-                                                            <span className="text-white/30 text-[10px]">
+                                                            <span className="text-white/30 text-ludo-xs">
                                                                 {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                             </span>
                                                         </div>
@@ -404,6 +408,10 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                         <form onSubmit={handleSendMessage} className="mt-4 flex gap-2 pt-3 border-t border-white/10">
                                             <input
                                                 type="text"
+                                                autoComplete="off"
+                                                autoCorrect="off"
+                                                autoCapitalize="none"
+                                                spellCheck={false}
                                                 placeholder="Type live tactical message (max 280 chars)..."
                                                 value={chatInput}
                                                 onChange={(e) => setChatInput(e.target.value)}
@@ -645,7 +653,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                                     </div>
                                                     <div>
                                                         <div className="font-bold text-white">{clan.leader_wallet.slice(0, 8)}...</div>
-                                                        <div className="text-cyan-400 text-[10px]">COMMANDER</div>
+                                                        <div className="text-cyan-400 text-ludo-xs">COMMANDER</div>
                                                     </div>
                                                 </div>
                                                 <span className="text-white/40">Leader</span>
@@ -662,7 +670,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                                         </div>
                                                         <div>
                                                             <div className="font-bold text-white">{m.wallet_address.slice(0, 8)}...</div>
-                                                            <div className="text-cyan-400 text-[10px] uppercase">{m.role}</div>
+                                                            <div className="text-cyan-400 text-ludo-xs uppercase">{m.role}</div>
                                                         </div>
                                                     </div>
 
@@ -714,6 +722,10 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                     <label className="text-white/60 block mb-1">Clan Name (3-24 chars)</label>
                                     <input
                                         type="text"
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        autoCapitalize="none"
+                                        spellCheck={false}
                                         required
                                         minLength={3}
                                         maxLength={24}
@@ -728,6 +740,10 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                     <label className="text-white/60 block mb-1">Clan Tag (2-5 uppercase chars)</label>
                                     <input
                                         type="text"
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        autoCapitalize="none"
+                                        spellCheck={false}
                                         required
                                         minLength={2}
                                         maxLength={5}
@@ -742,6 +758,10 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                     <label className="text-white/60 block mb-1">Motto / Bio (optional)</label>
                                     <input
                                         type="text"
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        autoCapitalize="none"
+                                        spellCheck={false}
                                         maxLength={200}
                                         value={createBio}
                                         onChange={(e) => setCreateBio(e.target.value)}
@@ -805,6 +825,10 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                     <label className="text-white/60 block mb-1">Member Entry Fee (CHIPS)</label>
                                     <input
                                         type="number"
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        autoCapitalize="none"
+                                        spellCheck={false}
                                         min={500}
                                         step={500}
                                         value={noticeFee}
