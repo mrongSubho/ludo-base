@@ -140,6 +140,8 @@ export interface GameState {
     winners: string[];
     captureMessage: string | null;
     timeLeft: number;
+    /** Server-authoritative turn deadline epoch timestamp (ms). */
+    deadlineAt?: number | null;
     strikes: Record<PlayerColor, number>;
     /** Authority keeps `type`; wire/sanitized copies may omit it. */
     powerTiles: (PowerTile | PowerTilePublic)[];

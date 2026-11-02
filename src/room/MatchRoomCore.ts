@@ -501,12 +501,16 @@ export class MatchRoomCore {
         await this.scheduleTimer(this.matchId, kind, delay);
       }
 
+      const earliestDeadline = this.getEarliestDeadline();
+      this.state.deadlineAt = earliestDeadline;
+      await this.ctx.storage.put('state', this.state);
+
       const seedBroadcast = JSON.stringify({
         t: 'state',
         seq: this.seq,
         state: this.state,
         source: 'room_seed',
-        deadlineAt: this.getEarliestDeadline(),
+        deadlineAt: earliestDeadline,
       });
       for (const sock of this.ctx.getWebSockets()) {
         try {
@@ -1167,6 +1171,8 @@ export class MatchRoomCore {
     }
 
     const deadlineAt = this.getEarliestDeadline();
+    this.state.deadlineAt = deadlineAt;
+    await this.ctx.storage.put('state', this.state);
 
     const broadcastPayload = JSON.stringify({
       t: 'state',
@@ -1367,14 +1373,13 @@ export class MatchRoomCore {
         const strikes = { ...this.state.strikes };
         const afk = { ...this.state.afkStats };
         strikes[cur] = (strikes[cur] || 0) + 1;
-        if (afk[cur]) {
-          afk[cur] = {
-            ...afk[cur],
-            consecutiveTurns: (afk[cur].consecutiveTurns || 0) + 1,
-            totalTriggers: (afk[cur].totalTriggers || 0) + 1,
-            isAutoPlaying: strikes[cur] >= 3 ? true : afk[cur].isAutoPlaying,
-          };
-        }
+        const currentAfk = afk[cur] || { consecutiveTurns: 0, totalTriggers: 0, isAutoPlaying: false, isKicked: false };
+        afk[cur] = {
+          ...currentAfk,
+          consecutiveTurns: (currentAfk.consecutiveTurns || 0) + 1,
+          totalTriggers: (currentAfk.totalTriggers || 0) + 1,
+          isAutoPlaying: strikes[cur] >= 1 ? true : currentAfk.isAutoPlaying,
+        };
         const cc = this.state.initialBoardConfig?.colorCorner;
         const nextPlayer = getNextPlayer(cur, this.state.playerCount, this.getActiveColors(), cc);
         const nextState: GameState = {

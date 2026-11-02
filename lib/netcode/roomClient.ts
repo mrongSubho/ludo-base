@@ -240,7 +240,11 @@ export class RoomClient {
       const serverSeq = typeof msg.seq === 'number' ? msg.seq : 0;
       if (serverSeq >= this.knownSeq && msg.state) {
         this.knownSeq = serverSeq;
-        this.callbacks.onState(msg.state as GameState, serverSeq);
+        const state = msg.state as GameState;
+        if (typeof msg.deadlineAt === 'number' || msg.deadlineAt === null) {
+          state.deadlineAt = msg.deadlineAt as number | null;
+        }
+        this.callbacks.onState(state, serverSeq);
       }
       return;
     }
@@ -250,7 +254,11 @@ export class RoomClient {
       if (seq >= this.knownSeq && msg.state) {
         this.knownSeq = seq;
         const lastIntentId = typeof msg.lastIntentId === 'string' ? msg.lastIntentId : undefined;
-        this.callbacks.onState(msg.state as GameState, seq, lastIntentId);
+        const state = msg.state as GameState;
+        if (typeof msg.deadlineAt === 'number' || msg.deadlineAt === null) {
+          state.deadlineAt = msg.deadlineAt as number | null;
+        }
+        this.callbacks.onState(state, seq, lastIntentId);
       }
       return;
     }

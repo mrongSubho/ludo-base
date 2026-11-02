@@ -48,11 +48,21 @@ export function useGameTimer({
         })) return;
 
         const turnKey = `${localGameState.currentPlayer}|${localGameState.gamePhase}|${localGameState.diceValue}|${localGameState.lastUpdate}`;
+        const authoritativeAt = typeof localGameState.deadlineAt === 'number' && localGameState.deadlineAt > 0
+            ? localGameState.deadlineAt
+            : Date.now() + DEFAULT_TURN_TIMER_SECS * 1000;
+
         if (!deadlineRef.current || deadlineRef.current.key !== turnKey) {
             deadlineRef.current = {
                 key: turnKey,
-                at: Date.now() + DEFAULT_TURN_TIMER_SECS * 1000,
+                at: authoritativeAt,
             };
+        } else if (
+            typeof localGameState.deadlineAt === 'number' &&
+            localGameState.deadlineAt > 0 &&
+            deadlineRef.current.at !== localGameState.deadlineAt
+        ) {
+            deadlineRef.current.at = localGameState.deadlineAt;
         }
 
         const interval = setInterval(() => {
@@ -105,5 +115,5 @@ export function useGameTimer({
             clearInterval(interval);
             document.removeEventListener('visibilitychange', resync);
         };
-    }, [localGameState.winner, localGameState.currentPlayer, localGameState.gamePhase, localGameState.diceValue, localGameState.lastUpdate, setLocalGameState, matchConnectionStatus, isNetworked, hasAuthoritativeSnapshot]);
+    }, [localGameState.winner, localGameState.currentPlayer, localGameState.gamePhase, localGameState.diceValue, localGameState.lastUpdate, localGameState.deadlineAt, setLocalGameState, matchConnectionStatus, isNetworked, hasAuthoritativeSnapshot]);
 }
