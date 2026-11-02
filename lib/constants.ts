@@ -64,15 +64,17 @@ export const MAX_DM_CONTENT_LEN = 4000;
 export const MAX_CHAT_LEN = 500;
 // --- AI Heuristics & Scoring ---
 export const AI_SCORES = {
+  REACH_FINISH: 1500,
+  CAPTURE_TOKEN: 1000, // Stage 1: eatChess (Capture Priority)
+  THREAT_AVOIDANCE: 600, // Stage 2: collideChessBack (Threat Avoidance)
+  ENTER_SAFE_ZONE: 400, // Stage 3: missGrid (Safe-Star Seeking)
+  PURSUIT_POSITION: 250, // Stage 4: collideChessBefore (Pursuit Positioning)
   PROMOTION: 150, // Entering home lane (Queen)
-  REACH_FINISH: 150,
   POWER_TILE_HUNT: 120,
-  CAPTURE_TOKEN: 100,
+  EXIT_BASE: 80,
   REINFORCE_ALLY: 60,
-  ENTER_SAFE_ZONE: 50,
-  EXIT_BASE: 40,
   ENTER_HOME_LANE: 25,
-  PROGRESSION_MULTIPLIER: 1, // Points per step forward
+  PROGRESSION_MULTIPLIER: 2, // Stage 5: getBestMoveIndex (Points per step forward)
 };
 
 // --- Animations & Delays ---

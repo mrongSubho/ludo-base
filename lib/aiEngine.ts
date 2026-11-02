@@ -84,6 +84,81 @@ export function getBestMove(
     return { color: actingColorTyped, tokenIndex: bestTokenIdx };
 }
 
+/**
+ * Ludo World Heuristic 2: collideChessBack (Threat Avoidance)
+ * Checks if a token at `pos` is currently within 1..6 roll distance of an opponent token on an unsafe tile.
+ */
+export function isThreatenedAtPosition(
+    pos: number,
+    color: PlayerColor,
+    positions: Record<PlayerColor, number[]>,
+    colorCorner: ColorCorner,
+    playerCount: string
+): boolean {
+    if (pos < 0 || pos >= HOME_LANE_START_INDEX) return false;
+    const myPoint = getBoardCoordinate(pos, color, colorCorner);
+    if (!myPoint) return false;
+    // Safe squares are immune to capture
+    if (GLOBAL_SAFE_POINTS.some((p: Point) => p.r === myPoint.r && p.c === myPoint.c)) return false;
+
+    const oppColors: PlayerColor[] = (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).filter(
+        c => c !== color && (playerCount !== '2v2' || c !== getTeammateColor(color, playerCount))
+    );
+
+    for (const oppColor of oppColors) {
+        const oppTokens = positions[oppColor] || [];
+        for (let oppIdx = 0; oppIdx < oppTokens.length; oppIdx++) {
+            const oppPos = oppTokens[oppIdx];
+            if (oppPos < 0 || oppPos >= HOME_LANE_START_INDEX) continue;
+            for (let roll = 1; roll <= DICE_MAX; roll++) {
+                const nextOppPos = calculateNextPosition(oppPos, roll, oppColor, colorCorner);
+                if (nextOppPos === oppPos || nextOppPos >= HOME_LANE_START_INDEX) continue;
+                const oppPt = getBoardCoordinate(nextOppPos, oppColor, colorCorner);
+                if (oppPt && oppPt.r === myPoint.r && oppPt.c === myPoint.c) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Ludo World Heuristic 4: collideChessBefore (Pursuit Positioning)
+ * Checks if moving to `targetPos` places us 1..6 cells behind an opponent token on an unsafe tile.
+ */
+export function isPursuitPosition(
+    targetPos: number,
+    color: PlayerColor,
+    positions: Record<PlayerColor, number[]>,
+    colorCorner: ColorCorner,
+    playerCount: string
+): boolean {
+    if (targetPos < 0 || targetPos >= HOME_LANE_START_INDEX) return false;
+    const oppColors: PlayerColor[] = (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).filter(
+        c => c !== color && (playerCount !== '2v2' || c !== getTeammateColor(color, playerCount))
+    );
+
+    for (let futureRoll = 1; futureRoll <= DICE_MAX; futureRoll++) {
+        const futurePos = calculateNextPosition(targetPos, futureRoll, color, colorCorner);
+        if (futurePos === targetPos || futurePos >= HOME_LANE_START_INDEX) continue;
+        const futurePt = getBoardCoordinate(futurePos, color, colorCorner);
+        if (!futurePt) continue;
+        if (GLOBAL_SAFE_POINTS.some((p: Point) => p.r === futurePt.r && p.c === futurePt.c)) continue;
+
+        for (const oppColor of oppColors) {
+            for (const oppPos of positions[oppColor] || []) {
+                if (oppPos < 0 || oppPos >= HOME_LANE_START_INDEX) continue;
+                const oppPt = getBoardCoordinate(oppPos, oppColor, colorCorner);
+                if (oppPt && oppPt.r === futurePt.r && oppPt.c === futurePt.c) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
 export function calculateMoveScore(
     tokenIdx: number,
     positions: Record<PlayerColor, number[]>,
@@ -99,7 +174,7 @@ export function calculateMoveScore(
     const nextPos = calculateNextPosition(currentPos, roll, actingColor, colorCorner);
     let score = 0;
 
-    // Reach Finish Zone (+150) - The ultimate objective
+    // Reach Finish Zone (+1500) - The ultimate objective
     if (nextPos === BOARD_FINISH_INDEX) {
         score += AI_SCORES.REACH_FINISH;
     }
@@ -109,7 +184,7 @@ export function calculateMoveScore(
         score += AI_SCORES.ENTER_HOME_LANE + AI_SCORES.PROMOTION;
     }
 
-    // Move out of Home (+40) - Getting a new piece on the board
+    // Move out of Home (+80) - Getting a new piece on the board
     if (currentPos === BASE_INDEX) {
         score += AI_SCORES.EXIT_BASE;
     }
@@ -123,9 +198,10 @@ export function calculateMoveScore(
         }
     }
 
-    // Capturing / Safe Zones Logic
+    // Capturing / Safe Zones Logic (Ludo World 5-Stage Cascade)
+    const isSafeSquare = targetPoint ? GLOBAL_SAFE_POINTS.some(p => p.r === targetPoint.r && p.c === targetPoint.c) : false;
+
     if (nextPos < HOME_LANE_START_INDEX && targetPoint) {
-        const isSafeSquare = GLOBAL_SAFE_POINTS.some(p => p.r === targetPoint.r && p.c === targetPoint.c);
         // ENG-08: force comparison through engine math on the RESOLVED board
         // (post-move positions), not a pre-move local reimplementation. The
         // capture verdict itself comes from checkMultiCapture below, which
@@ -153,22 +229,46 @@ export function calculateMoveScore(
             }
         });
 
-        if (isSafeSquare) {
-            score += AI_SCORES.ENTER_SAFE_ZONE;
-        } else if (actingForce > 1 && actingForce > maxOppForce) {
+        if (actingForce > 1 && actingForce > maxOppForce) {
             score += AI_SCORES.REINFORCE_ALLY;
         } else if (maxOppForce > 0 && actingForce < maxOppForce) {
             score += 30; // Truce state - relatively safe
         }
 
-        // Check for Captures (+100 per token × difficulty weight)
+        // Stage 1: eatChess (Capture Priority: +1000 per token × difficulty weight)
         const dummyState = state || { positions, activeShields: [], activeTraps: [] } as any;
         const captures = checkMultiCapture(actingColor, nextPos, dummyState, colorCorner, playerCount);
-        score += captures.length * AI_SCORES.CAPTURE_TOKEN * DIFFICULTY_PARAMS[difficulty].capture;
+        if (captures.length > 0) {
+            score += captures.length * AI_SCORES.CAPTURE_TOKEN * DIFFICULTY_PARAMS[difficulty].capture;
+        }
     }
 
-    // ENG-09: distance-to-finish, not the global track index. A token six
-    // cells from home must outscore a fresh token of a late-start color.
+    // Stage 2: collideChessBack (Threat Avoidance: +600)
+    // If currently threatened on the track and next move evades to safety or out of reach
+    if (currentPos >= 0 && currentPos < HOME_LANE_START_INDEX) {
+        const currentlyThreatened = isThreatenedAtPosition(currentPos, actingColor, positions, colorCorner, playerCount);
+        if (currentlyThreatened) {
+            const nextThreatened = nextPos < HOME_LANE_START_INDEX && !isSafeSquare
+                ? isThreatenedAtPosition(nextPos, actingColor, positions, colorCorner, playerCount)
+                : false;
+            if (!nextThreatened) {
+                score += AI_SCORES.THREAT_AVOIDANCE * DIFFICULTY_PARAMS[difficulty].capture;
+            }
+        }
+    }
+
+    // Stage 3: missGrid (Safe-Star Seeking: +400)
+    if (isSafeSquare || (nextPos >= HOME_LANE_START_INDEX && currentPos < HOME_LANE_START_INDEX)) {
+        score += AI_SCORES.ENTER_SAFE_ZONE;
+    }
+
+    // Stage 4: collideChessBefore (Pursuit Positioning: +250)
+    if (nextPos < HOME_LANE_START_INDEX && isPursuitPosition(nextPos, actingColor, positions, colorCorner, playerCount)) {
+        score += AI_SCORES.PURSUIT_POSITION;
+    }
+
+    // Stage 5: getBestMoveIndex (Endgame Push)
+    // Advance token furthest along path (highest travel distance)
     score += travelDistance(nextPos, actingColor, colorCorner) * AI_SCORES.PROGRESSION_MULTIPLIER;
 
     // Rookie noise: misjudges positions by up to ±40%.
