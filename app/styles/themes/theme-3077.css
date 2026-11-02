@@ -1,49 +1,54 @@
 /* ─── Ludo 3077: The Flagship Cyber-Tactical Theme ───
-   Matte Carbon Titanium substrate, high-density mechanical HUD,
+   Matte Carbon Titanium substrate (#05070A), high-density mechanical HUD,
    hyper-cyan laser accents (#00E5FF), tactical hazard alerts (#F59E0B),
-   and high-lux combat team insignias (zero generic purple). */
+   precision targeting reticles, and high-lux combat team insignias. */
 
 body.theme-3077 {
-  --ludo-bg: #07080b;
-  --ludo-card: #0c1017;
+  --ludo-bg: #05070a;
+  --ludo-card: #090c13;
   --ludo-text: #f1f5f9;
   --ludo-muted: rgba(241, 245, 249, 0.65);
   --ludo-faint: rgba(241, 245, 249, 0.35);
-  --ludo-slate: #0b0e14;
-  --ludo-border: rgba(0, 229, 255, 0.22);
+  --ludo-slate: #080b10;
+  --ludo-border: rgba(0, 229, 255, 0.28);
   
   /* High-Tech Technical Grid Backdrop */
   --ludo-bg-image:
-    linear-gradient(rgba(0, 229, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 229, 255, 0.035) 1px, transparent 1px),
-    radial-gradient(circle at 50% 15%, rgba(0, 229, 255, 0.09) 0%, transparent 65%),
-    radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.05) 0%, transparent 55%);
-  --ludo-bg-rgb: 7, 8, 11;
+    linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px),
+    radial-gradient(circle at 50% 15%, rgba(0, 229, 255, 0.12) 0%, transparent 65%),
+    radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.06) 0%, transparent 55%);
+  --ludo-bg-rgb: 5, 7, 10;
 
-  --panel-bg: rgba(11, 14, 20, 0.95);
+  --panel-bg: rgba(9, 12, 19, 0.96);
   --panel-bg-image: 
-    linear-gradient(180deg, rgba(14, 20, 30, 0.65) 0%, rgba(7, 8, 11, 0.95) 100%),
-    linear-gradient(rgba(0, 229, 255, 0.02) 1px, transparent 1px);
-  --shadow-card: 0 16px 45px -10px rgba(0, 0, 0, 0.85), 0 0 20px -3px rgba(0, 229, 255, 0.12);
+    linear-gradient(180deg, rgba(14, 20, 32, 0.75) 0%, rgba(5, 7, 10, 0.98) 100%),
+    linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+  --shadow-card: 0 20px 50px -10px rgba(0, 0, 0, 0.92), 0 0 24px -3px rgba(0, 229, 255, 0.18);
+  /* Font Overrides: Aerospace HUD & Mecha Geometric Sans */
+  --font-sans: var(--font-chakra), sans-serif;
+  --font-body: var(--font-chakra), sans-serif;
+  --font-heading: var(--font-chakra), sans-serif;
+
   color: var(--ludo-text);
   background-color: var(--ludo-bg);
-  background-size: 36px 36px, 36px 36px, 100% 100%, 100% 100%;
+  background-size: 32px 32px, 32px 32px, 100% 100%, 100% 100%;
 
   /* ─── Semantic UI Tokens (3077 Cyber-Tactical) ─── */
-  --surface-page: #07080b;
-  --surface-panel: rgba(11, 14, 20, 0.95);
-  --surface-recessed: rgba(0, 229, 255, 0.04);
-  --surface-hover: rgba(0, 229, 255, 0.08);
-  --surface-active: rgba(0, 229, 255, 0.16);
+  --surface-page: #05070a;
+  --surface-panel: rgba(9, 12, 19, 0.96);
+  --surface-recessed: rgba(0, 229, 255, 0.05);
+  --surface-hover: rgba(0, 229, 255, 0.10);
+  --surface-active: rgba(0, 229, 255, 0.20);
   --ink-strong: #ffffff;
-  --ink-muted: rgba(241, 245, 249, 0.70);
-  --ink-faint: rgba(241, 245, 249, 0.40);
-  --line-soft: rgba(0, 229, 255, 0.14);
-  --line-strong: rgba(0, 229, 255, 0.35);
+  --ink-muted: rgba(241, 245, 249, 0.75);
+  --ink-faint: rgba(241, 245, 249, 0.45);
+  --line-soft: rgba(0, 229, 255, 0.16);
+  --line-strong: rgba(0, 229, 255, 0.45);
 
   --accent: #00e5ff;
-  --accent-soft: rgba(0, 229, 255, 0.14);
-  --accent-ink: #041014;
+  --accent-soft: rgba(0, 229, 255, 0.16);
+  --accent-ink: #02090d;
   --warn: #f59e0b;
   --positive: #00ff66;
   --negative: #ff0055;
@@ -60,107 +65,205 @@ body.theme-3077 {
 
   /* ─── Marketplace Category Rail Tokens ─── */
   --market-chip-icon: #00e5ff;
-  --market-chip-count-bg: rgba(0, 229, 255, 0.08);
-  --market-chip-count-ink: rgba(0, 229, 255, 0.75);
-  --market-chip-count-bg-active: rgba(0, 229, 255, 0.22);
-  --market-chip-count-ink-active: #cffafe;
+  --market-chip-count-bg: rgba(0, 229, 255, 0.12);
+  --market-chip-count-ink: #cffafe;
+  --market-chip-count-bg-active: rgba(0, 229, 255, 0.3);
+  --market-chip-count-ink-active: #ffffff;
 
   /* ─── Geometry & Shadow Tokens ─── */
-  --radius-card: 14px;
-  --radius-chip: 8px;
-  --panel-border: rgba(0, 229, 255, 0.24);
-  --panel-shadow: 0 24px 60px -10px rgba(0, 0, 0, 0.9), 0 0 30px -5px rgba(0, 229, 255, 0.18);
+  --radius-card: 10px;
+  --radius-chip: 6px;
+  --panel-border: rgba(0, 229, 255, 0.35);
+  --panel-shadow: 0 25px 70px -10px rgba(0, 0, 0, 0.95), 0 0 35px -5px rgba(0, 229, 255, 0.22);
 
   /* ─── Tactical Claiming Overlay Tokens ─── */
-  --claiming-overlay-bg: rgba(7, 8, 11, 0.95);
-  --claiming-overlay-border: rgba(0, 229, 255, 0.60);
-  --claiming-overlay-shadow: 0 0 45px rgba(0, 229, 255, 0.35);
-  --claiming-overlay-radar: rgba(0, 229, 255, 0.55);
-  --claiming-overlay-ring-1: rgba(0, 229, 255, 0.30);
-  --claiming-overlay-ring-2: rgba(0, 229, 255, 0.18);
-  --claiming-overlay-pulse-border: rgba(0, 229, 255, 0.50);
-  --claiming-overlay-pulse-bg: rgba(0, 229, 255, 0.12);
+  --claiming-overlay-bg: rgba(5, 7, 10, 0.97);
+  --claiming-overlay-border: rgba(0, 229, 255, 0.70);
+  --claiming-overlay-shadow: 0 0 50px rgba(0, 229, 255, 0.40);
+  --claiming-overlay-radar: rgba(0, 229, 255, 0.65);
+  --claiming-overlay-ring-1: rgba(0, 229, 255, 0.35);
+  --claiming-overlay-ring-2: rgba(0, 229, 255, 0.20);
+  --claiming-overlay-pulse-border: rgba(0, 229, 255, 0.60);
+  --claiming-overlay-pulse-bg: rgba(0, 229, 255, 0.16);
   --claiming-overlay-title: #00e5ff;
-  --claiming-overlay-subtitle: rgba(241, 245, 249, 0.70);
+  --claiming-overlay-subtitle: rgba(241, 245, 249, 0.80);
   --claiming-overlay-laser: #00e5ff;
-  --claiming-overlay-laser-shadow: 0 0 12px #00e5ff;
+  --claiming-overlay-laser-shadow: 0 0 16px #00e5ff;
 
   /* ─── Error Boundary Tokens ─── */
-  --err-backdrop: #030406;
-  --err-card-bg: rgba(14, 7, 10, 0.96);
-  --err-card-border: rgba(255, 0, 85, 0.40);
-  --err-card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 0, 85, 0.25);
+  --err-backdrop: #020305;
+  --err-card-bg: rgba(14, 6, 9, 0.98);
+  --err-card-border: rgba(255, 0, 85, 0.50);
+  --err-card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9), 0 0 25px rgba(255, 0, 85, 0.35);
   --err-ink: #ffffff;
-  --err-ink-muted: rgba(255, 255, 255, 0.60);
+  --err-ink-muted: rgba(255, 255, 255, 0.70);
   --err-kicker: #ff0055;
-  --err-stack-bg: rgba(0, 0, 0, 0.70);
-  --err-stack-border: rgba(255, 0, 85, 0.20);
-  --err-stack-ink: rgba(255, 255, 255, 0.85);
+  --err-stack-bg: rgba(0, 0, 0, 0.85);
+  --err-stack-border: rgba(255, 0, 85, 0.30);
+  --err-stack-ink: rgba(255, 255, 255, 0.90);
   --err-cta-bg: #ff0055;
   --err-cta-ink: #ffffff;
   --err-cta-border: #ff0055;
-  --err-ghost-bg: rgba(255, 255, 255, 0.08);
+  --err-ghost-bg: rgba(255, 255, 255, 0.10);
   --err-ghost-ink: #ffffff;
-  --err-ghost-border: rgba(255, 255, 255, 0.20);
+  --err-ghost-border: rgba(255, 255, 255, 0.25);
 }
 
-/* ─── 3077 Lobby & Chassis Custom Overrides ─── */
+/* ─── Typography: Aerospace HUD & Mecha Geometric Sans ─── */
+body.theme-3077 h1,
+body.theme-3077 h2,
+body.theme-3077 h3,
+body.theme-3077 .header-title,
+body.theme-3077 .section-label {
+  font-family: var(--font-chakra), sans-serif !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ─── 1. Backdrop: Pure Tactical Holographic Grid (No 80s photo, No cosmic orbs) ─── */
+body.theme-3077 .lobby-backdrop {
+  --lobby-photo: none !important;
+  background-image: 
+    radial-gradient(circle at 50% 20%, rgba(0, 229, 255, 0.12) 0%, transparent 60%),
+    radial-gradient(circle at 80% 80%, rgba(245, 158, 11, 0.08) 0%, transparent 45%),
+    linear-gradient(rgba(0, 229, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 229, 255, 0.06) 1px, transparent 1px),
+    radial-gradient(circle at 50% 30%, transparent 120px, rgba(0, 229, 255, 0.05) 121px, transparent 122px),
+    radial-gradient(circle at 50% 30%, transparent 240px, rgba(0, 229, 255, 0.04) 241px, transparent 242px),
+    radial-gradient(circle at 50% 30%, transparent 360px, rgba(0, 229, 255, 0.03) 361px, transparent 362px),
+    linear-gradient(180deg, #05070a 0%, #080b12 55%, #020305 100%) !important;
+  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px, 100% 100%, 100% 100%, 100% 100%, 100% 100% !important;
+  opacity: 1 !important;
+}
+
+body.theme-3077 .cosmic-orb,
+body.theme-3077 .boot-dot {
+  display: none !important;
+}
+
+/* ─── 2. Safe Cells & Arrow Markers: Military Reticle Transformations ─── */
+body.theme-3077 .star-standard {
+  display: none !important;
+}
+body.theme-3077 .star-3077 {
+  display: block !important;
+}
+body.theme-3077 .arrow-standard {
+  display: none !important;
+}
+body.theme-3077 .arrow-3077 {
+  display: block !important;
+}
+
+/* ─── 3. Finish Junction: High-Energy Quantum Core ─── */
+body.theme-3077 .finish-outer-bezel {
+  background: radial-gradient(circle, #0e1520 0%, #05070a 100%) !important;
+  border: 2px solid rgba(0, 229, 255, 0.6) !important;
+  box-shadow: 0 0 35px rgba(0, 229, 255, 0.35), inset 0 0 15px rgba(0, 229, 255, 0.25) !important;
+}
+body.theme-3077 .finish-trench {
+  border: 1px dashed rgba(0, 229, 255, 0.45) !important;
+  box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.2) !important;
+}
+body.theme-3077 .finish-core {
+  background: #020305 !important;
+  border: 2px solid #00e5ff !important;
+  box-shadow: 0 0 30px #00e5ff, inset 0 0 15px rgba(0, 229, 255, 0.5) !important;
+}
+
+/* ─── 4. 3077 Lobby Controls & Chamfered Avionics ─── */
 body.theme-3077 .ludo-lobby-scope {
   backdrop-filter: blur(28px);
 }
 
-body.theme-3077 .ludo-lobby-scope .rounded-3xl {
-  border-radius: 14px;
-  border-color: rgba(0, 229, 255, 0.22);
+body.theme-3077 .ludo-lobby-scope button.rounded-full {
+  border-radius: 6px !important;
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px);
+}
+
+body.theme-3077 .glass-panel {
+  background: rgba(9, 13, 20, 0.90) !important;
+  border-color: rgba(0, 229, 255, 0.3) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(0, 229, 255, 0.25) !important;
+}
+
+body.theme-3077 .porcelain-holo-tick {
+  background: #00e5ff !important;
+  box-shadow: 0 0 15px #00e5ff, 0 0 30px rgba(0, 229, 255, 0.6) !important;
+  border-radius: 2px !important;
+  transform: translate(-50%, -50%) rotate(45deg) !important;
+}
+body.theme-3077 .porcelain-holo-tick svg {
+  transform: rotate(-45deg) !important;
 }
 
 body.theme-3077 .ludo-ticker-scope > div {
-  background: rgba(11, 14, 20, 0.92);
-  border-color: rgba(0, 229, 255, 0.22);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(0, 229, 255, 0.2);
+  background: rgba(9, 13, 20, 0.94);
+  border-color: rgba(0, 229, 255, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(0, 229, 255, 0.3);
+  border-radius: 8px;
 }
 
 body.theme-3077 .ludo-ticker-scope > div:hover {
-  border-color: rgba(0, 229, 255, 0.5);
-  box-shadow: 0 10px 36px rgba(0, 229, 255, 0.2), inset 0 1px 0 rgba(0, 229, 255, 0.4);
+  border-color: #00e5ff;
+  box-shadow: 0 0 30px rgba(0, 229, 255, 0.35), inset 0 1px 0 rgba(0, 229, 255, 0.5);
 }
 
 body.theme-3077 .footer-nav {
-  background: rgba(7, 8, 11, 0.95) !important;
-  border-top: 1px solid rgba(0, 229, 255, 0.2);
-  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.7);
+  background: rgba(5, 7, 10, 0.98) !important;
+  border-top: 1.5px solid rgba(0, 229, 255, 0.35);
+  box-shadow: 0 -10px 35px rgba(0, 0, 0, 0.85), 0 0 20px rgba(0, 229, 255, 0.12);
 }
 
 body.theme-3077 .game-top-bar {
-  background: rgba(11, 14, 20, 0.88);
-  border-color: rgba(0, 229, 255, 0.2);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  background: rgba(9, 13, 20, 0.94);
+  border-color: rgba(0, 229, 255, 0.3);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
 }
 
-/* ─── 3077 Tactical Panel Scope Borders & Glows ─── */
+/* ─── 5. Board Compact Header: Avionics Target Lock Bar ─── */
+body.theme-3077 .board-header-shell {
+  background: rgba(5, 7, 10, 0.96) !important;
+  border: 1.5px solid rgba(0, 229, 255, 0.5) !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.9), 0 0 25px rgba(0, 229, 255, 0.25), inset 0 1px 0 rgba(0, 229, 255, 0.4) !important;
+  border-radius: 10px !important;
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
+}
+
+/* ─── 6. Tactical Panel Scope Borders & Glows ─── */
 body.theme-3077 :is(
-  .ludo-market-scope.border-white\/10,
-  .ludo-settings-scope.border-white\/10,
-  .ludo-rankings-scope.border-white\/10,
-  .ludo-friends-scope.border-white\/10,
-  .ludo-messages-scope.border-white\/10,
-  .ludo-arena-scope.border-white\/10,
-  .ludo-profile-scope.border-white\/10,
-  .ludo-offline-scope.border-white\/10,
-  .ludo-migrate-scope.border-white\/10,
-  .ludo-teamup-scope.border-white\/10,
-  .ludo-quick-scope.border-white\/10,
-  .ludo-pubprofile-scope.border-white\/10,
-  .ludo-livearena-scope.border-white\/10,
-  .ludo-leaderboard-scope.border-white\/10,
-  .ludo-invite-scope.border-white\/10,
+  .ludo-market-scope,
+  .ludo-settings-scope,
+  .ludo-rankings-scope,
+  .ludo-friends-scope,
+  .ludo-messages-scope,
+  .ludo-arena-scope,
+  .ludo-profile-scope,
+  .ludo-offline-scope,
+  .ludo-migrate-scope,
+  .ludo-teamup-scope,
+  .ludo-quick-scope,
+  .ludo-pubprofile-scope,
+  .ludo-livearena-scope,
+  .ludo-leaderboard-scope,
+  .ludo-invite-scope,
   .ludo-wallet-scope,
-  .ludo-burn-scope.border-white\/10,
-  .ludo-wall-scope.border-white\/10,
-  .ludo-authwait-scope.border-white\/10,
-  .ludo-quit-scope.border-white\/10,
-  .ludo-broadcast-scope.border-white\/10
+  .ludo-burn-scope,
+  .ludo-wall-scope,
+  .ludo-authwait-scope,
+  .ludo-quit-scope,
+  .ludo-broadcast-scope,
+  .ludo-clan-scope
 ) {
-  border-color: rgba(0, 229, 255, 0.32);
-  box-shadow: 0 0 24px rgba(0, 229, 255, 0.15), 0 24px 60px rgba(0, 0, 0, 0.75);
+  border-radius: 12px !important;
+  border: 1.5px solid rgba(0, 229, 255, 0.38) !important;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.95), 0 0 35px rgba(0, 229, 255, 0.20) !important;
+}
+
+/* ─── 7. ActionDice & LudoDice Pedestal ─── */
+body.theme-3077 .lobby-dice-cube {
+  filter: drop-shadow(0 0 25px rgba(0, 229, 255, 0.45));
+}
+body.theme-3077 .dice-tier {
+  background: radial-gradient(circle at center, rgba(0, 229, 255, 0.12) 0%, transparent 70%);
 }

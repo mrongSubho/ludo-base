@@ -1177,33 +1177,113 @@ body.theme-daybreak .board-grid::before { box-shadow: inset 0 0 40px rgba(23, 23
 body.theme-daybreak .star-cell { border-color: rgba(23, 23, 23, 0.10); }
 body.theme-daybreak .junction-timer-track-css { border-color: rgba(23, 23, 23, 0.10); }
 
-/* ─── 3077 Cyber-Tactical Board: neon matrix courts, carbon path, laser pads ─── */
+/* ─── 3077 Cyber-Tactical Board: Matte Carbon Titanium bays, laser boundary perimeters, levitation pads ─── */
 body.theme-3077 {
   --ludo-base-green: #00ff66;
   --ludo-base-red: #ff0055;
   --ludo-base-yellow: #ffd000;
   --ludo-base-blue: #0099ff;
-  --ludo-path-bg: #0c1017;
-  --ludo-pad-bg: rgba(7, 8, 11, 0.75);
+  --ludo-path-bg: #07090e;
+  --ludo-pad-bg: rgba(6, 8, 12, 0.94);
 }
 body.theme-3077 .board-home {
-  box-shadow: 0 0 35px rgba(0, 0, 0, 0.75);
-  border: 1px solid rgba(0, 229, 255, 0.2);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.9), inset 0 0 30px rgba(0, 0, 0, 0.8);
+  border: 2px solid rgba(0, 229, 255, 0.25);
+  position: relative;
+  overflow: hidden;
 }
-body.theme-3077 .board-home.green { background: #00ff66; }
-body.theme-3077 .board-home.red { background: #ff0055; }
-body.theme-3077 .board-home.yellow { background: #ffd000; }
-body.theme-3077 .board-home.blue { background: #0099ff; }
+body.theme-3077 .board-home::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 14px 14px;
+  pointer-events: none;
+}
+body.theme-3077 .board-home.green {
+  border-color: rgba(0, 255, 102, 0.55);
+  background:
+    radial-gradient(circle at center, rgba(0, 255, 102, 0.18) 0%, transparent 68%),
+    linear-gradient(rgba(0, 255, 102, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 102, 0.04) 1px, transparent 1px),
+    #060a08;
+  background-size: 100% 100%, 14px 14px, 14px 14px, 100% 100%;
+  box-shadow: inset 0 0 30px rgba(0, 255, 102, 0.2), 0 0 25px rgba(0, 255, 102, 0.15);
+}
+body.theme-3077 .board-home.red {
+  border-color: rgba(255, 0, 85, 0.55);
+  background:
+    radial-gradient(circle at center, rgba(255, 0, 85, 0.18) 0%, transparent 68%),
+    linear-gradient(rgba(255, 0, 85, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 0, 85, 0.04) 1px, transparent 1px),
+    #0c0608;
+  background-size: 100% 100%, 14px 14px, 14px 14px, 100% 100%;
+  box-shadow: inset 0 0 30px rgba(255, 0, 85, 0.2), 0 0 25px rgba(255, 0, 85, 0.15);
+}
+body.theme-3077 .board-home.yellow {
+  border-color: rgba(255, 208, 0, 0.55);
+  background:
+    radial-gradient(circle at center, rgba(255, 208, 0, 0.18) 0%, transparent 68%),
+    linear-gradient(rgba(255, 208, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 208, 0, 0.04) 1px, transparent 1px),
+    #0c0b05;
+  background-size: 100% 100%, 14px 14px, 14px 14px, 100% 100%;
+  box-shadow: inset 0 0 30px rgba(255, 208, 0, 0.2), 0 0 25px rgba(255, 208, 0, 0.15);
+}
+body.theme-3077 .board-home.blue {
+  border-color: rgba(0, 153, 255, 0.55);
+  background:
+    radial-gradient(circle at center, rgba(0, 153, 255, 0.18) 0%, transparent 68%),
+    linear-gradient(rgba(0, 153, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 153, 255, 0.04) 1px, transparent 1px),
+    #05080c;
+  background-size: 100% 100%, 14px 14px, 14px 14px, 100% 100%;
+  box-shadow: inset 0 0 30px rgba(0, 153, 255, 0.2), 0 0 25px rgba(0, 153, 255, 0.15);
+}
 body.theme-3077 .board-grid {
-  border-color: rgba(0, 229, 255, 0.25);
-  box-shadow: 0 24px 60px -10px rgba(0, 0, 0, 0.9), 0 0 25px -5px rgba(0, 229, 255, 0.2);
+  border-color: rgba(0, 229, 255, 0.35);
+  box-shadow: 0 30px 80px -10px rgba(0, 0, 0, 0.95), 0 0 35px -5px rgba(0, 229, 255, 0.25);
+  background: #05070a;
 }
-body.theme-3077 .star-cell { border-color: rgba(0, 229, 255, 0.2); }
-body.theme-3077 .junction-timer-track-css { border-color: rgba(0, 229, 255, 0.25); }
+body.theme-3077 .board-cell {
+  background: #080c12;
+  border: 1px solid rgba(0, 229, 255, 0.10);
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.7);
+}
+body.theme-3077 .star-cell {
+  border-color: rgba(0, 229, 255, 0.35) !important;
+  background: rgba(0, 229, 255, 0.04) !important;
+  box-shadow: inset 0 0 12px rgba(0, 229, 255, 0.15) !important;
+}
+body.theme-3077 .lane-green {
+  background: linear-gradient(180deg, rgba(0, 255, 102, 0.35) 0%, rgba(0, 255, 102, 0.15) 100%), #070e0a !important;
+  border-color: rgba(0, 255, 102, 0.4) !important;
+  box-shadow: inset 0 0 10px rgba(0, 255, 102, 0.25) !important;
+}
+body.theme-3077 .lane-red {
+  background: linear-gradient(180deg, rgba(255, 0, 85, 0.35) 0%, rgba(255, 0, 85, 0.15) 100%), #0e0708 !important;
+  border-color: rgba(255, 0, 85, 0.4) !important;
+  box-shadow: inset 0 0 10px rgba(255, 0, 85, 0.25) !important;
+}
+body.theme-3077 .lane-yellow {
+  background: linear-gradient(180deg, rgba(255, 208, 0, 0.35) 0%, rgba(255, 208, 0, 0.15) 100%), #0e0d06 !important;
+  border-color: rgba(255, 208, 0, 0.4) !important;
+  box-shadow: inset 0 0 10px rgba(255, 208, 0, 0.25) !important;
+}
+body.theme-3077 .lane-blue {
+  background: linear-gradient(180deg, rgba(0, 153, 255, 0.35) 0%, rgba(0, 153, 255, 0.15) 100%), #06090e !important;
+  border-color: rgba(0, 153, 255, 0.4) !important;
+  box-shadow: inset 0 0 10px rgba(0, 153, 255, 0.25) !important;
+}
+body.theme-3077 .junction-timer-track-css { border-color: rgba(0, 229, 255, 0.35); }
 body.theme-3077 .home-pad {
-  background: rgba(7, 8, 11, 0.75);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 229, 255, 0.18);
+  background: rgba(5, 7, 10, 0.94) !important;
+  backdrop-filter: blur(14px);
+  border: 1.5px solid rgba(0, 229, 255, 0.4) !important;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9), 0 8px 24px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 229, 255, 0.15) !important;
+  border-radius: 14px !important;
 }
 
 body.theme-retro-futurism .home-pad {
@@ -1592,17 +1672,31 @@ body.theme-3077 .ludo-token {
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  filter: drop-shadow(0 0 8px currentColor);
+  filter: drop-shadow(0 0 10px currentColor) drop-shadow(0 0 3px #ffffff);
 }
 body.theme-3077 .green-token { color: #00FF66; }
 body.theme-3077 .red-token { color: #FF0055; }
 body.theme-3077 .yellow-token { color: #FFD000; }
 body.theme-3077 .blue-token { color: #0099FF; }
 body.theme-3077 .token-count-badge {
-  background: #07080B;
-  border-color: rgba(0, 229, 255, 0.4);
-  color: #00E5FF;
-  box-shadow: 0 0 12px rgba(0, 229, 255, 0.35);
+  background: #05070a;
+  border-color: #00e5ff;
+  color: #00e5ff;
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.5);
+}
+
+@keyframes pulse-draggable-3077 {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+  50% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 22px currentColor) drop-shadow(0 0 8px #00e5ff);
+  }
+}
+body.theme-3077 .ludo-token-pulse {
+  animation: pulse-draggable-3077 1.4s infinite ease-in-out !important;
 }
 
 /* ─── Stacked Tokens & Blockades ─── */
@@ -2519,6 +2613,50 @@ body.token-style-orb .blue-token::after {
   filter: drop-shadow(0 0 4px #60a5fa) drop-shadow(0 0 2px #60a5fa);
 }
 
+/* 🧬 3077 Cyber-Tactical Photonic Plasma Orbs (Orb Style) */
+body.theme-3077.token-style-orb .ludo-token {
+  width: 84%;
+  height: 84%;
+  border-radius: 50%;
+  border: 2px solid currentColor !important;
+  box-shadow:
+    0 0 16px currentColor,
+    inset 0 0 10px currentColor,
+    0 4px 12px rgba(0, 0, 0, 0.9) !important;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+body.theme-3077.token-style-orb .ludo-token::before {
+  background: linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.45) 30%, transparent 70%);
+}
+body.theme-3077.token-style-orb .ludo-token::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='8' fill='none' stroke='%23ffffff' stroke-width='1.5' stroke-dasharray='3 2'/%3E%3Ccircle cx='12' cy='12' r='3.5' fill='%23ffffff'/%3E%3Cline x1='12' y1='1' x2='12' y2='5' stroke='%23ffffff' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='12' y1='19' x2='12' y2='23' stroke='%23ffffff' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='1' y1='12' x2='5' y2='12' stroke='%23ffffff' stroke-width='2' stroke-linecap='round'/%3E%3Cline x1='19' y1='12' x2='23' y2='12' stroke='%23ffffff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+  filter: drop-shadow(0 0 4px #ffffff);
+}
+body.theme-3077.token-style-orb .green-token {
+  background: radial-gradient(circle at 35% 30%, #a7f3d0 0%, #00ff66 40%, #05502a 80%, #021a0d 100%) !important;
+}
+body.theme-3077.token-style-orb .green-token::after {
+  filter: drop-shadow(0 0 5px #00ff66) drop-shadow(0 0 2px #ffffff);
+}
+body.theme-3077.token-style-orb .red-token {
+  background: radial-gradient(circle at 35% 30%, #fecdd3 0%, #ff0055 40%, #60021b 80%, #200008 100%) !important;
+}
+body.theme-3077.token-style-orb .red-token::after {
+  filter: drop-shadow(0 0 5px #ff0055) drop-shadow(0 0 2px #ffffff);
+}
+body.theme-3077.token-style-orb .yellow-token {
+  background: radial-gradient(circle at 35% 30%, #fef08a 0%, #ffd000 40%, #664d00 80%, #221800 100%) !important;
+}
+body.theme-3077.token-style-orb .yellow-token::after {
+  filter: drop-shadow(0 0 5px #ffd000) drop-shadow(0 0 2px #ffffff);
+}
+body.theme-3077.token-style-orb .blue-token {
+  background: radial-gradient(circle at 35% 30%, #bae6fd 0%, #0099ff 40%, #003666 80%, #001222 100%) !important;
+}
+body.theme-3077.token-style-orb .blue-token::after {
+  filter: drop-shadow(0 0 5px #0099ff) drop-shadow(0 0 2px #ffffff);
+}
+
 /* ─── Valid Move Highlight ─── */
 .token-valid {
   z-index: 12 !important;
@@ -2531,6 +2669,20 @@ body.token-style-orb .blue-token::after {
   border-radius: 50%;
   border: 2.5px solid;
   pointer-events: none;
+}
+
+@keyframes rotate-valid-3077 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+body.theme-3077 .token-valid-ring {
+  border-width: 2px !important;
+  border-style: dashed !important;
+  box-shadow: 0 0 12px currentColor, inset 0 0 8px currentColor !important;
+  animation: rotate-valid-3077 4s linear infinite !important;
+}
+body.theme-3077 .token-valid-arrow {
+  filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 3px #00e5ff) !important;
 }
 
 .token-valid-arrow {

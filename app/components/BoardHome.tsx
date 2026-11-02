@@ -7,28 +7,55 @@ import { Token } from './BoardTokens';
 import { Corner, ColorCorner, CORNER_SLOTS } from '@/lib/boardLayout';
 
 export const StarMarker = ({ color }: { color?: string }) => (
-    <svg className="star-svg" viewBox="0 0 24 24" fill="currentColor" style={{ color }}>
-        <path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
-    </svg>
+    <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
+        <svg className="star-svg star-standard" viewBox="0 0 24 24" fill="currentColor" style={{ color }}>
+            <path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
+        </svg>
+        <svg className="star-svg star-3077 hidden" viewBox="0 0 24 24" style={{ width: '95%', height: '95%' }}>
+            <circle cx="12" cy="12" r="9" fill="none" stroke={color || '#00e5ff'} strokeWidth="1.2" strokeDasharray="3 2" opacity="0.8" />
+            <circle cx="12" cy="12" r="4.5" fill={`${color || '#00e5ff'}33`} stroke={color || '#00e5ff'} strokeWidth="1.5" />
+            <circle cx="12" cy="12" r="1.5" fill={color || '#00e5ff'} />
+            <line x1="12" y1="1" x2="12" y2="5" stroke={color || '#00e5ff'} strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="12" y1="19" x2="12" y2="23" stroke={color || '#00e5ff'} strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="1" y1="12" x2="5" y2="12" stroke={color || '#00e5ff'} strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="19" y1="12" x2="23" y2="12" stroke={color || '#00e5ff'} strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+    </div>
 );
 
 export const ColoredStarMarker = ({ zoneColor }: { zoneColor: string }) => (
-    <svg className="star-svg" viewBox="0 0 24 24" fill="currentColor" style={{ color: zoneColor }}>
-        <path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
-    </svg>
+    <div className="relative w-full h-full flex items-center justify-center pointer-events-none">
+        <svg className="star-svg star-standard" viewBox="0 0 24 24" fill="currentColor" style={{ color: zoneColor }}>
+            <path d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
+        </svg>
+        <svg className="star-svg star-3077 hidden" viewBox="0 0 24 24" style={{ width: '95%', height: '95%' }}>
+            <circle cx="12" cy="12" r="9" fill="none" stroke={zoneColor} strokeWidth="1.2" strokeDasharray="3 2" opacity="0.8" />
+            <circle cx="12" cy="12" r="4.5" fill={`${zoneColor}33`} stroke={zoneColor} strokeWidth="1.5" />
+            <circle cx="12" cy="12" r="1.5" fill={zoneColor} />
+            <line x1="12" y1="1" x2="12" y2="5" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="12" y1="19" x2="12" y2="23" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="1" y1="12" x2="5" y2="12" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="19" y1="12" x2="23" y2="12" stroke={zoneColor} strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+    </div>
 );
 
 export const ArrowMarker = ({ dir }: { dir: 'up' | 'down' | 'left' | 'right' }) => {
     const rotation = { right: 0, down: 90, left: 180, up: 270 }[dir];
     return (
-        <svg
-            className="home-arrow-svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            style={{ transform: `rotate(${rotation}deg)` }}
-        >
-            <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
-        </svg>
+        <div className="arrow-container flex items-center justify-center" style={{ transform: `rotate(${rotation}deg)` }}>
+            <svg
+                className="home-arrow-svg arrow-standard"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+            >
+                <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+            </svg>
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 arrow-3077 hidden" style={{ filter: 'drop-shadow(0 0 4px #00e5ff)' }}>
+                <polyline points="7 4 15 12 7 20" fill="none" stroke="#00e5ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="13 4 21 12 13 20" fill="none" stroke="#00e5ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
+            </svg>
+        </div>
     );
 };
 

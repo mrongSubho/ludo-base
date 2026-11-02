@@ -29,9 +29,22 @@ const ZONE_HEX: Record<string, string> = {
 };
 
 const StarMarker = ({ color = "#eab308", counterRotationDeg = 0 }: { color?: string; counterRotationDeg?: number }) => (
-    <svg viewBox="0 0 24 24" style={{ width: '96%', height: '96%', transform: `rotate(${counterRotationDeg}deg)` }}>
-        <path fill={color} d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
-    </svg>
+    <div className="relative w-full h-full flex items-center justify-center pointer-events-none" style={{ transform: `rotate(${counterRotationDeg}deg)` }}>
+        {/* Classic / Daybreak 5-Point Star */}
+        <svg className="star-svg star-standard" viewBox="0 0 24 24" style={{ width: '92%', height: '92%' }}>
+            <path fill={color} d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
+        </svg>
+        {/* 3077 Cyber-Tactical Reticle Shield */}
+        <svg className="star-svg star-3077 hidden" viewBox="0 0 24 24" style={{ width: '95%', height: '95%' }}>
+            <circle cx="12" cy="12" r="9" fill="none" stroke={color} strokeWidth="1.2" strokeDasharray="3 2" opacity="0.8" />
+            <circle cx="12" cy="12" r="4.5" fill={`${color}33`} stroke={color} strokeWidth="1.5" />
+            <circle cx="12" cy="12" r="1.5" fill={color} />
+            <line x1="12" y1="1" x2="12" y2="5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="12" y1="19" x2="12" y2="23" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="1" y1="12" x2="5" y2="12" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+            <line x1="19" y1="12" x2="23" y2="12" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+    </div>
 );
 
 function getZoneColorForSafeCell(r: number, c: number, cc: ColorCorner): string {
@@ -51,9 +64,13 @@ function getZoneColorForSafeCell(r: number, c: number, cc: ColorCorner): string 
 const ArrowMarker = ({ dir, color = "#ffffff" }: { dir: 'up' | 'down' | 'left' | 'right', color?: string }) => {
     const rotation = { right: 0, down: 90, left: 180, up: 270 }[dir];
     return (
-        <motion.div style={{ rotate: rotation }}>
-            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>
+        <motion.div style={{ rotate: rotation }} className="arrow-container flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 arrow-standard" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>
                 <path fill={color} d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
+            </svg>
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 arrow-3077 hidden" style={{ filter: 'drop-shadow(0 0 4px #00e5ff)' }}>
+                <polyline points="7 4 15 12 7 20" fill="none" stroke="#00e5ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="13 4 21 12 13 20" fill="none" stroke="#00e5ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
             </svg>
         </motion.div>
     );
@@ -205,7 +222,7 @@ export function BoardGrid({
                 />
 
                 {/* 2. Outer Ceramic Bezel (Layer 2) */}
-                <div style={{
+                <div className="finish-outer-bezel" style={{
                     position: 'absolute',
                     inset: '-5%',
                     borderRadius: '50%',
@@ -216,7 +233,7 @@ export function BoardGrid({
                 }} />
 
                 {/* 3. The "Trench" - Glassmorphic Inset (Layer 3) */}
-                <div style={{
+                <div className="finish-trench" style={{
                     position: 'absolute',
                     inset: '5%',
                     borderRadius: '50%',
@@ -269,7 +286,7 @@ export function BoardGrid({
                 )}
 
                 {/* 5. Vacuum Core - The deepest void (Layer 5) */}
-                <div style={{
+                <div className="finish-core" style={{
                     position: 'absolute',
                     inset: '22%',
                     borderRadius: '50%',
@@ -309,10 +326,16 @@ export function BoardGrid({
                              <motion.div
                                  animate={{ scale: [1, 1.1, 1] }}
                                  transition={{ repeat: Infinity, duration: 2 }}
-                                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}
                              >
-                                 <svg viewBox="0 0 24 24" style={{ width: '55%', height: '55%' }}>
+                                 <svg className="star-standard" viewBox="0 0 24 24" style={{ width: '55%', height: '55%' }}>
                                      <path fill={COLOR_MAP[activeColor as string] || '#eab308'} d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
+                                 </svg>
+                                 <svg className="star-3077" viewBox="0 0 24 24" style={{ width: '68%', height: '68%', display: 'none' }}>
+                                     <circle cx="12" cy="12" r="9" fill="none" stroke={COLOR_MAP[activeColor as string] || '#00e5ff'} strokeWidth="1.2" strokeDasharray="3 2" />
+                                     <circle cx="12" cy="12" r="5" fill={COLOR_MAP[activeColor as string] || '#00e5ff'} fillOpacity="0.25" stroke={COLOR_MAP[activeColor as string] || '#00e5ff'} strokeWidth="1.5" />
+                                     <circle cx="12" cy="12" r="2" fill={COLOR_MAP[activeColor as string] || '#00e5ff'} />
+                                     <path d="M12 1v4M12 19v4M1 12h4M19 12h4" stroke={COLOR_MAP[activeColor as string] || '#00e5ff'} strokeWidth="1.5" strokeLinecap="round" />
                                  </svg>
                              </motion.div>
                          )}
