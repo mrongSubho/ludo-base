@@ -83,7 +83,7 @@ export default function LudoDice({
             playDiceRoll();
             triggerHaptic(40);
 
-            // Start a long, fast tumble
+            // Start a fast tumble (Ludo World benchmark: 300ms roll spin)
             const spinsX = Math.floor(Math.random() * 2) + 2;
             const spinsY = Math.floor(Math.random() * 2) + 2;
             const targetX = rotationRef.current.x + (360 * spinsX);
@@ -93,7 +93,7 @@ export default function LudoDice({
                 rotateX: targetX,
                 rotateY: targetY,
                 rotateZ: 0,
-                transition: { duration: 1.2, ease: "linear" }
+                transition: { duration: 0.30, ease: "linear" }
             });
 
             rotationRef.current = { x: targetX, y: targetY };
@@ -106,7 +106,7 @@ export default function LudoDice({
         wasExternalRolling.current = isRolling;
     }, [isRolling, controls, playDiceRoll, playDiceLand, triggerHaptic]);
 
-    // Handle landing on specific value
+    // Handle landing on specific value (snappy spring snap)
     useEffect(() => {
         if (!isRolling && currentValue) {
             const head = getRotationForValue(currentValue);
@@ -118,7 +118,7 @@ export default function LudoDice({
                 rotateX: targetX,
                 rotateY: targetY,
                 rotateZ: 0,
-                transition: { type: 'spring', stiffness: 200, damping: 25 }
+                transition: { type: 'spring', stiffness: 320, damping: 24 }
             });
             
             rotationRef.current = { x: targetX, y: targetY };

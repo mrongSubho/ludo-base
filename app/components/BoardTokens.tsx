@@ -139,12 +139,13 @@ export function BoardTokens({
                         });
                         const myStackIdx = sorted.findIndex(s => s.color === color && s.index === index);
                         stackZ = myStackIdx;
-                        stackScale = 0.88;
-                        // Grid offsets per stack size (back → front order)
+                        // Ludo World benchmark: scale down stacked tokens (0.45 for 4-token 2x2 cluster)
+                        stackScale = sorted.length === 2 ? 0.60 : sorted.length === 3 ? 0.50 : 0.45;
+                        // 2x2 quadrant layout: tokens stay legible without obscuring star patterns
                         const grids: Record<number, { x: number; y: number }[]> = {
-                            2: [{ x: -9, y: -4 }, { x: 9, y: 6 }],
-                            3: [{ x: -10, y: -8 }, { x: 10, y: -8 }, { x: 0, y: 10 }],
-                            4: [{ x: -9, y: -9 }, { x: 9, y: -9 }, { x: -9, y: 9 }, { x: 9, y: 9 }],
+                            2: [{ x: -12, y: -6 }, { x: 12, y: 6 }],
+                            3: [{ x: -12, y: 8 }, { x: 12, y: 8 }, { x: 0, y: -10 }],
+                            4: [{ x: -12, y: -9 }, { x: 12, y: -9 }, { x: -12, y: 9 }, { x: 12, y: 9 }],
                         };
                         const pts = grids[sorted.length] || sorted.map((_, i) => {
                             const ang = (i * (360 / sorted.length)) * (Math.PI / 180);

@@ -164,8 +164,15 @@ export function TokenPiece({
         }
 
         // Teleport cases: BASE -> Board or Board -> BASE (Capture)
-        if (Number(oldPos) === BASE_INDEX || Number(pos) === BASE_INDEX) {
-            console.log('[move-debug]', c, Number(pos) === BASE_INDEX ? 'captured -> base' : 'base-exit', `${oldPos} -> ${pos}`);
+        if (Number(oldPos) === BASE_INDEX && Number(pos) >= 0) {
+            console.log('[move-debug]', c, 'base-exit', `${oldPos} -> ${pos}`);
+            setVisualPt(tp);
+            playSpawn();
+            return;
+        }
+
+        if (Number(pos) === BASE_INDEX) {
+            console.log('[move-debug]', c, 'captured -> base', `${oldPos} -> ${pos}`);
             setVisualPt(tp);
             playLanding();
             return;
@@ -188,9 +195,11 @@ export function TokenPiece({
                 }
                 const final = all[all.length - 1];
                 const n = all.length - 1; // number of cells travelled
-                // Uniform total time: every move (1..6) takes the same wall time
-                const TOTAL = 1.3;
-                const cellDur = TOTAL / n;
+                // Ludo World benchmark: constant-velocity stepped hops at 0.16s per cell
+                const cellDur = 0.16;
+                const LEAP = 0.12;
+                const UP = 0.045;
+                const DOWN = 0.075;
 
                 // Waypoint offsets relative to the final cell (single snap).
                 // The element's grid slot IS the final cell, so the offset for
@@ -230,22 +239,18 @@ export function TokenPiece({
                 tlRef.current = tl;
 
                 const glide = glideRef.current, hop = hopRef.current, shadow = shadowRef.current;
-                const LEAP = cellDur * 0.79;   // airborne travel per cell
-                const _BEAT = cellDur * 0.21;   // grounded pause between cells
-                const UP = cellDur * 0.32;
-                const DOWN = cellDur * 0.47;
 
                 setIsMoving(true);
                 for (let i = 0; i < n; i++) {
                     const t0 = i * cellDur;
-                    // constant-velocity travel: no decel/re-accel pulse at corners
-                    tl.to(glide, { x: xs[i + 1], y: ys[i + 1], duration: LEAP, ease: 'none' }, t0);
+                    // constant-velocity travel: 0.12s leap with 0.02s grounded cushion
+                    tl.to(glide, { x: xs[i + 1], y: ys[i + 1], duration: LEAP, ease: 'none' }, t0 + 0.02);
                     // leap up, then fall (vertical only — no lateral wobble)
-                    tl.to(hop, { y: -18, duration: UP, ease: 'power2.out' }, t0)
-                      .to(hop, { y: 0, duration: DOWN, ease: 'power2.in' }, t0 + UP);
+                    tl.to(hop, { y: -18, duration: UP, ease: 'power2.out' }, t0 + 0.02)
+                      .to(hop, { y: 0, duration: DOWN, ease: 'power2.in' }, t0 + 0.02 + UP);
                     // shadow dims while airborne, restores on touchdown
-                    tl.to(shadow, { opacity: 0.5, duration: UP, ease: 'power2.out' }, t0)
-                      .to(shadow, { opacity: 0.9, duration: DOWN, ease: 'power2.in' }, t0 + UP);
+                    tl.to(shadow, { opacity: 0.5, duration: UP, ease: 'power2.out' }, t0 + 0.02)
+                      .to(shadow, { opacity: 0.9, duration: DOWN, ease: 'power2.in' }, t0 + 0.02 + UP);
                 }
                 }).then((m) => recordHopSample(m));
             } else {
@@ -264,7 +269,7 @@ export function TokenPiece({
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{
                 opacity: 1,
-                scale: stackScale,
+                scale: isMoving ? 1 : stackScale,
                 x: offset.x,
                 y: offset.y,
             }}

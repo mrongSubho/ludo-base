@@ -319,7 +319,8 @@ const RunHomeGhost = ({ color, fromPos, cc, counterRotationDeg, onDone }: {
         const xP = cells.map(p => (p.c - startPt.c) * 100);
         const yP = cells.map(p => (p.r - startPt.r) * 100);
         const m = cells.length - 1;
-        const step = Math.min(0.09, 2.2 / m); // fast run, bounded total time
+        // Ludo World benchmark: rapid constant-velocity rewind capped at 0.45s
+        const step = Math.min(0.025, 0.45 / m);
 
         gsap.set(travelRef.current, { xPercent: xP[0], yPercent: yP[0] });
 
@@ -337,11 +338,11 @@ const RunHomeGhost = ({ color, fromPos, cc, counterRotationDeg, onDone }: {
         for (let i = 0; i < m; i++) {
             const t0 = i * step;
             tl.to(travelRef.current, { xPercent: xP[i + 1], yPercent: yP[i + 1], duration: step, ease: 'none' }, t0);
-            tl.to(hopRef.current, { y: -12, duration: step * 0.4, ease: 'power2.out' }, t0)
+            tl.to(hopRef.current, { y: -10, duration: step * 0.4, ease: 'power2.out' }, t0)
               .to(hopRef.current, { y: 0, duration: step * 0.6, ease: 'power2.in' }, t0 + step * 0.4);
         }
-        // dive into the base pad
-        tl.to(hopRef.current, { opacity: 0, scale: 0.35, duration: 0.2, ease: 'power2.in' }, '>-=0.02');
+        // dive into the base pad over 0.16s (Ludo World benchmark)
+        tl.to(hopRef.current, { opacity: 0, scale: 0.35, duration: 0.16, ease: 'power2.in' }, '>-=0.02');
         return () => { tl.kill(); };
     }, [color, fromPos, cc]);
 
@@ -365,10 +366,16 @@ const RunHomeGhost = ({ color, fromPos, cc, counterRotationDeg, onDone }: {
                 >
                     <div
                         ref={hopRef}
-                        className={`ludo-token ${color}-token`}
+                        className={`ludo-token ${color}-token relative`}
                         style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
                         <ChessPiece color={color} size="board" />
+                        <span
+                            className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-1 py-0.2 text-[9px] font-mono font-bold rounded bg-black/85 text-cyan-400 border border-cyan-500/50 shadow-sm pointer-events-none animate-bounce"
+                            style={{ fontSize: '9px', lineHeight: '11px' }}
+                        >
+                            (T_T)
+                        </span>
                     </div>
                 </div>
             </div>
