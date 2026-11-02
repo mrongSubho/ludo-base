@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="diamond-glow" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#E0FFFF"/>
+      <stop offset="45%" stop-color="#00E5FF"/>
+      <stop offset="85%" stop-color="#005577"/>
+      <stop offset="100%" stop-color="#001824"/>
+    </radialGradient>
+    <linearGradient id="facet" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#00E5FF" stop-opacity="0.1"/>
+    </linearGradient>
+  </defs>
+  <!-- Prismatic Sparkles outside -->
+  <polygon points="24,24 27,16 30,24 38,27 30,30 27,38 24,30 16,27" fill="#00E5FF"/>
+  <polygon points="104,24 107,18 110,24 116,27 110,30 107,36 104,30 98,27" fill="#00FFFF"/>
+  <!-- Diamond Shaped Faceted Shell -->
+  <circle cx="64" cy="64" r="50" fill="url(#diamond-glow)" stroke="#00E5FF" stroke-width="2.5"/>
+  <!-- Facet Polygon Lines -->
+  <polygon points="64,20 98,44 64,68 30,44" fill="url(#facet)" stroke="#FFFFFF" stroke-width="1.5"/>
+  <polygon points="30,44 64,68 64,108 24,84" fill="#00E5FF" fill-opacity="0.2" stroke="#00E5FF" stroke-width="1.5"/>
+  <polygon points="98,44 64,68 64,108 104,84" fill="#00E5FF" fill-opacity="0.3" stroke="#00E5FF" stroke-width="1.5"/>
+  <!-- Diamond Sparkle Eyes (Star shapes) -->
+  <polygon points="46,50 49,42 52,50 60,53 52,56 49,64 46,56 38,53" fill="#FFFFFF"/>
+  <polygon points="76,50 79,42 82,50 90,53 82,56 79,64 76,56 68,53" fill="#FFFFFF"/>
+  <!-- Shiny Gleam Smile -->
+  <path d="M52 82 Q64 92 76 82" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Tag -->
+  <rect x="36" y="98" width="56" height="14" rx="4" fill="#000" stroke="#00E5FF" stroke-width="1.5"/>
+  <text x="64" y="109" fill="#00E5FF" font-family="monospace" font-size="9" font-weight="bold" text-anchor="middle">DIAMOND HODL</text>
+</svg>

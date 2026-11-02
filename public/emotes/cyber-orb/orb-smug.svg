@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="smug-gold" cx="40%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#00FFAA"/>
+      <stop offset="60%" stop-color="#006655"/>
+      <stop offset="100%" stop-color="#05120e"/>
+    </radialGradient>
+    <linearGradient id="lens" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#111111"/>
+      <stop offset="45%" stop-color="#222222"/>
+      <stop offset="50%" stop-color="#00FFFF"/>
+      <stop offset="55%" stop-color="#222222"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </linearGradient>
+  </defs>
+  <!-- Main Orb -->
+  <circle cx="64" cy="64" r="50" fill="url(#smug-gold)" stroke="#00FFAA" stroke-width="2.5"/>
+  <!-- Holographic Cyber Shades -->
+  <!-- Left lens -->
+  <polygon points="32,48 58,48 54,66 36,66" fill="url(#lens)" stroke="#00FFAA" stroke-width="2"/>
+  <!-- Right lens -->
+  <polygon points="70,48 96,48 92,66 74,66" fill="url(#lens)" stroke="#00FFAA" stroke-width="2"/>
+  <!-- Bridge -->
+  <line x1="58" y1="52" x2="70" y2="52" stroke="#00FFAA" stroke-width="2.5"/>
+  <!-- Lens Flare Sparkle -->
+  <polygon points="40,54 44,52 48,54 44,56" fill="#FFFFFF"/>
+  <polygon points="78,54 82,52 86,54 82,56" fill="#FFFFFF"/>
+  <!-- Smug Half-Smirk -->
+  <path d="M52 82 Q64 82 78 76" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Cheek Blushes -->
+  <circle cx="34" cy="74" r="4" fill="#00FFAA" opacity="0.6"/>
+  <circle cx="94" cy="74" r="4" fill="#00FFAA" opacity="0.6"/>
+  <!-- Label -->
+  <rect x="38" y="98" width="52" height="14" rx="4" fill="#000" stroke="#00FFAA" stroke-width="1.5"/>
+  <text x="64" y="109" fill="#00FFAA" font-family="monospace" font-size="9" font-weight="bold" text-anchor="middle">CALCULATED</text>
+</svg>

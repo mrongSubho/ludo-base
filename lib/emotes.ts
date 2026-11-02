@@ -69,10 +69,26 @@ export interface EmojiPack {
     items: readonly EmojiEmote[];
 }
 
-export const EMOJI_PACKS: readonly EmojiPack[] = [];
+export const CYBER_ORB_PACK: EmojiPack = {
+    id: 'cyber-orb',
+    name: 'Cyber-Orbs 3077',
+    tabGlyph: '🌐',
+    items: [
+        { id: 'cyber-orb-glitch', label: 'Glitch', glyph: '⚡', assetUrl: '/emotes/cyber-orb/orb-glitch.svg' },
+        { id: 'cyber-orb-overheat', label: 'Overheat', glyph: '🔥', assetUrl: '/emotes/cyber-orb/orb-overheat.svg' },
+        { id: 'cyber-orb-laser-eyes', label: 'Laser Eyes', glyph: '💥', assetUrl: '/emotes/cyber-orb/orb-laser-eyes.svg' },
+        { id: 'cyber-orb-smug', label: 'Smug', glyph: '😎', assetUrl: '/emotes/cyber-orb/orb-smug.svg' },
+        { id: 'cyber-orb-bounce', label: 'Bounce', glyph: '✨', assetUrl: '/emotes/cyber-orb/orb-bounce.svg' },
+        { id: 'cyber-orb-blue-screen', label: 'Crash', glyph: '💻', assetUrl: '/emotes/cyber-orb/orb-blue-screen.svg' },
+        { id: 'cyber-orb-diamond', label: 'Diamond', glyph: '💎', assetUrl: '/emotes/cyber-orb/orb-diamond.svg' },
+        { id: 'cyber-orb-wave', label: 'Sonar', glyph: '📡', assetUrl: '/emotes/cyber-orb/orb-wave.svg' },
+    ],
+};
+
+export const EMOJI_PACKS: readonly EmojiPack[] = [CYBER_ORB_PACK];
 
 /** Backwards-compatible alias for callers that use the original list. */
-export const EMOJI_EMOTES: readonly EmojiEmote[] = [];
+export const EMOJI_EMOTES: readonly EmojiEmote[] = CYBER_ORB_PACK.items;
 
 const CHAT_EMOTE_TOKEN = /\[\[ludo-emote:([^|\]]+)\|([^|\]]*)\]\]/g;
 

@@ -7,6 +7,7 @@ import { getEmoteGlyph } from './EmoteTray';
 import { chatTtlMs } from '@/lib/chat';
 import { getTeam } from '@/lib/gameLogic';
 import { ChatContent } from './EmojiPicker';
+import { CyberSticker } from './emotes/CyberStickers';
 import Button from './Button';
 
 interface StatusNotificationProps {
@@ -215,7 +216,9 @@ export function NameOverlay({ uiSlots, players, getDisplayName, counterRotationD
                         aria-label={label}
                         role="status"
                     >
-                        {event.assetUrl ? (
+                        {event.assetUrl?.includes('/cyber-orb/') ? (
+                            <CyberSticker id={event.assetUrl} size={64} alt={label} />
+                        ) : event.assetUrl ? (
                             <img className="emote-float-media" src={event.assetUrl} alt={label} width={64} height={64} />
                         ) : (
                             <>

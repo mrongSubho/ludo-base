@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="bounce-cyan" cx="45%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FF00AA"/>
+      <stop offset="60%" stop-color="#990066"/>
+      <stop offset="100%" stop-color="#180010"/>
+    </radialGradient>
+  </defs>
+  <!-- Soundwave Rings -->
+  <circle cx="64" cy="58" r="54" fill="none" stroke="#FF00AA" stroke-width="1.5" stroke-dasharray="4 4" opacity="0.6"/>
+  <!-- Squashed Joyful Orb Body -->
+  <ellipse cx="64" cy="62" rx="50" ry="44" fill="url(#bounce-cyan)" stroke="#FF55CC" stroke-width="3"/>
+  <!-- Musical notes -->
+  <path d="M26 30 L32 28 L32 38 M28 38 A4 3 0 1 1 24 35 A4 3 0 0 1 28 38" fill="#FF55CC"/>
+  <path d="M98 26 L104 24 L104 34 M100 34 A4 3 0 1 1 96 31 A4 3 0 0 1 100 34" fill="#FF55CC"/>
+  <!-- Big Happy Anime Eyes (arcs) -->
+  <path d="M40 52 Q50 42 60 52" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round"/>
+  <path d="M68 52 Q78 42 88 52" fill="none" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- Open Happy Mouth -->
+  <path d="M52 68 Q64 84 76 68 Z" fill="#FF0066" stroke="#FFFFFF" stroke-width="2.5"/>
+  <!-- Tongue -->
+  <path d="M58 74 Q64 82 70 74 Z" fill="#FFAACC"/>
+  <!-- Spring bounce lines underneath -->
+  <path d="M50 110 Q64 116 78 110" fill="none" stroke="#FF00AA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M54 116 Q64 122 74 116" fill="none" stroke="#FF00AA" stroke-width="2" stroke-linecap="round"/>
+  <!-- Tag -->
+  <rect x="42" y="94" width="44" height="13" rx="4" fill="#000" stroke="#FF00AA" stroke-width="1.5"/>
+  <text x="64" y="104" fill="#FF55CC" font-family="monospace" font-size="8.5" font-weight="bold" text-anchor="middle">BOUNCE!</text>
+</svg>

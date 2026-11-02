@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="bsod-bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0033CC"/>
+      <stop offset="80%" stop-color="#001166"/>
+      <stop offset="100%" stop-color="#000833"/>
+    </radialGradient>
+  </defs>
+  <!-- Main Orb BSOD Screen -->
+  <circle cx="64" cy="64" r="50" fill="url(#bsod-bg)" stroke="#3366FF" stroke-width="2.5"/>
+  <!-- CRT Scanlines -->
+  <line x1="24" y1="40" x2="104" y2="40" stroke="#0044FF" stroke-width="1" opacity="0.6"/>
+  <line x1="20" y1="56" x2="108" y2="56" stroke="#0044FF" stroke-width="1" opacity="0.6"/>
+  <line x1="20" y1="72" x2="108" y2="72" stroke="#0044FF" stroke-width="1" opacity="0.6"/>
+  <line x1="24" y1="88" x2="104" y2="88" stroke="#0044FF" stroke-width="1" opacity="0.6"/>
+  <!-- Classic Sad Face :( -->
+  <text x="64" y="60" fill="#FFFFFF" font-family="monospace" font-size="24" font-weight="bold" text-anchor="middle">:(</text>
+  <!-- Panic Text -->
+  <text x="64" y="76" fill="#AACCFF" font-family="monospace" font-size="8" font-weight="bold" text-anchor="middle">SYSTEM_HALT</text>
+  <text x="64" y="86" fill="#6699FF" font-family="monospace" font-size="7" text-anchor="middle">0x000000F4</text>
+  <!-- Static Glitch Line -->
+  <rect x="30" y="62" width="68" height="2" fill="#FFFFFF" opacity="0.4"/>
+  <!-- Tag -->
+  <rect x="36" y="98" width="56" height="14" rx="4" fill="#000" stroke="#3366FF" stroke-width="1.5"/>
+  <text x="64" y="109" fill="#66AAFF" font-family="monospace" font-size="9" font-weight="bold" text-anchor="middle">KERNEL CRASH</text>
+</svg>

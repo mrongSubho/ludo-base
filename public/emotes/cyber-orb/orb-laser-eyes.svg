@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="laser-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00FFFF"/>
+      <stop offset="50%" stop-color="#0088FF"/>
+      <stop offset="100%" stop-color="#040b19"/>
+    </radialGradient>
+    <linearGradient id="beam" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="40%" stop-color="#00FFFF"/>
+      <stop offset="100%" stop-color="#0055FF" stop-opacity="0.2"/>
+    </linearGradient>
+  </defs>
+  <!-- Main Orb -->
+  <circle cx="64" cy="64" r="50" fill="url(#laser-glow)" stroke="#00FFFF" stroke-width="2.5"/>
+  <!-- Target Reticle Grid -->
+  <circle cx="64" cy="64" r="32" fill="none" stroke="#00FFFF" stroke-width="1" stroke-dasharray="3 3" opacity="0.4"/>
+  <!-- Laser Beams Erupting from Eyes -->
+  <polygon points="46,56 0,40 0,68" fill="url(#beam)" opacity="0.85"/>
+  <polygon points="82,56 128,40 128,68" fill="url(#beam)" opacity="0.85"/>
+  <!-- Bright Laser Eye Orifices -->
+  <circle cx="48" cy="56" r="8" fill="#FFFFFF"/>
+  <circle cx="48" cy="56" r="5" fill="#00FFFF"/>
+  <circle cx="80" cy="56" r="8" fill="#FFFFFF"/>
+  <circle cx="80" cy="56" r="5" fill="#00FFFF"/>
+  <!-- Focused Determination Visor -->
+  <path d="M38 46 L64 52 L90 46" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Confident Smile -->
+  <path d="M50 78 Q64 88 78 78" fill="none" stroke="#00FFFF" stroke-width="3" stroke-linecap="round"/>
+  <!-- Badge -->
+  <rect x="36" y="98" width="56" height="14" rx="4" fill="#000" stroke="#00FFFF" stroke-width="1.5"/>
+  <text x="64" y="109" fill="#00FFFF" font-family="monospace" font-size="9" font-weight="bold" text-anchor="middle">LOCKED ON</text>
+</svg>

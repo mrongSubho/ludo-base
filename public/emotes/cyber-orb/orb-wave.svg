@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="sonar-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00FFAA"/>
+      <stop offset="60%" stop-color="#008877"/>
+      <stop offset="100%" stop-color="#041210"/>
+    </radialGradient>
+  </defs>
+  <!-- Concentric Sonar Waves -->
+  <circle cx="64" cy="64" r="60" fill="none" stroke="#00FFAA" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.4"/>
+  <circle cx="64" cy="64" r="54" fill="none" stroke="#00FFAA" stroke-width="2" stroke-dasharray="4 2" opacity="0.7"/>
+  <!-- Central Orb -->
+  <circle cx="64" cy="64" r="46" fill="url(#sonar-glow)" stroke="#00FFAA" stroke-width="2.5"/>
+  <!-- Antenna / Broadcast Beacon on Top -->
+  <line x1="64" y1="18" x2="64" y2="6" stroke="#00FFAA" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="64" cy="6" r="4" fill="#FFFFFF" stroke="#00FFAA" stroke-width="1.5"/>
+  <!-- Holographic Wi-Fi / Sonar arcs -->
+  <path d="M50 42 Q64 34 78 42" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M44 36 Q64 24 84 36" fill="none" stroke="#00FFAA" stroke-width="2" stroke-linecap="round"/>
+  <!-- Friendly Greeting Eyes (Open circles with reflection) -->
+  <circle cx="48" cy="58" r="7" fill="#041210" stroke="#FFFFFF" stroke-width="2"/>
+  <circle cx="50" cy="56" r="2.5" fill="#FFFFFF"/>
+  <circle cx="80" cy="58" r="7" fill="#041210" stroke="#FFFFFF" stroke-width="2"/>
+  <circle cx="82" cy="56" r="2.5" fill="#FFFFFF"/>
+  <!-- Waving Mouth -->
+  <path d="M52 76 Q64 86 76 76" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+  <!-- Tag -->
+  <rect x="36" y="98" width="56" height="14" rx="4" fill="#000" stroke="#00FFAA" stroke-width="1.5"/>
+  <text x="64" y="109" fill="#00FFAA" font-family="monospace" font-size="9" font-weight="bold" text-anchor="middle">PING: 12ms (GG)</text>
+</svg>
