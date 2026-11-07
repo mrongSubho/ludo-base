@@ -330,11 +330,9 @@ const DiceFace = ({ face, transform, onClick, isActive, isRolling }: { face: any
                         e.stopPropagation();
                         onClick();
                     }}
-                    className="relative mt-1 rounded-full border transition-all duration-300 glass-panel flex flex-col items-center justify-center w-[96%] min-h-[44px] px-2 py-2 backdrop-blur-[1px] z-10
-                        border-cyan-400/80 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95 cursor-pointer
-                    "
+                    className="relative mt-1 chamfer-3077 border transition-[border-color,background-color] duration-150 ease-out flex flex-col items-center justify-center w-[96%] min-h-[44px] px-2 py-2 backdrop-blur-[1px] z-10 border-line-accent bg-accent text-accent-ink hover:brightness-110 cursor-pointer"
                 >
-                    <span className="block text-ludo-lg md:text-base lg:text-lg font-black italic tracking-tighter leading-[1] whitespace-normal text-center drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-cyan-400">
+                    <span className="block text-ludo-lg md:text-base lg:text-lg font-black uppercase tracking-tight leading-[1] whitespace-normal text-center text-accent-ink">
                         {face.label}
                     </span>
                 </button>

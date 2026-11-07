@@ -59,24 +59,18 @@ export const SignWaitModal: React.FC<SignWaitModalProps> = ({
             >
                 {/* Visual Radar / Signature Beacon */}
                 <div className="relative w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center mt-1 shrink-0">
-                    {/* Glowing pulse ring */}
-                    <div
-                        className={`absolute inset-0 rounded-full border ${
-                            isReverted ? 'border-rose-500/50' : 'border-cyan-400/40'
-                        } animate-ping opacity-30`}
-                    />
-                    {/* Spinning outer ring */}
+                    {/* Outer ring */}
                     <div
                         className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 ${
                             isReverted
-                                ? 'border-rose-500/20 border-t-rose-400'
-                                : 'border-cyan-500/20 border-t-cyan-400'
+                                ? 'border-sig-danger/20 border-t-sig-danger'
+                                : 'border-line-accent/20 border-t-accent'
                         } animate-spin`}
                     />
                     {/* Center icon / dynamic orb */}
                     <div className="absolute inset-0 flex items-center justify-center">
                         {isReverted ? (
-                            <div className="text-rose-400 drop-shadow-[0_0_10px_rgba(244,63,94,0.7)]">
+                            <div className="text-sig-danger">
                                 <svg
                                     viewBox="0 0 24 24"
                                     fill="none"
@@ -94,7 +88,7 @@ export const SignWaitModal: React.FC<SignWaitModalProps> = ({
                         ) : isTx ? (
                             <ThinkingOrb state="solving" size={32} tone="accent" />
                         ) : (
-                            <div className="text-cyan-400 drop-shadow-[0_0_8px_rgba(0,229,255,0.6)]">
+                            <div className="text-accent">
                                 <svg
                                     viewBox="0 0 24 24"
                                     fill="none"
@@ -114,20 +108,20 @@ export const SignWaitModal: React.FC<SignWaitModalProps> = ({
 
                 {/* Badge */}
                 <div
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-ludo-xs font-black uppercase tracking-widest shadow-sm ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-ludo-xs font-mono font-bold uppercase tracking-widest ${
                         isReverted
-                            ? 'bg-rose-500/10 border border-rose-500/30 text-rose-400'
-                            : 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400'
+                            ? 'bg-sig-danger/10 border border-sig-danger/30 text-sig-danger'
+                            : 'bg-accent/10 border border-line-accent text-accent'
                     }`}
                 >
                     <span
                         className={`w-1.5 h-1.5 rounded-full ${
                             isReverted
-                                ? 'bg-rose-400 animate-ping'
+                                ? 'bg-sig-danger'
                                 : isConfirming
-                                ? 'bg-amber-400'
-                                : 'bg-cyan-400'
-                        } animate-pulse`}
+                                ? 'bg-sig-warn'
+                                : 'bg-accent'
+                        }`}
                     />
                     {isReverted ? 'Pre-Flight Warning' : badgeText}
                 </div>
@@ -168,22 +162,22 @@ export const SignWaitModal: React.FC<SignWaitModalProps> = ({
                             {/* Status Pill */}
                             <div className="text-ludo-xs font-mono font-bold uppercase tracking-wider">
                                 {isReverted ? (
-                                    <span className="inline-flex items-center gap-1 text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
-                                        <span className="w-1 h-1 rounded-full bg-rose-400 animate-ping" />
+                                    <span className="inline-flex items-center gap-1 text-sig-danger bg-sig-danger/10 px-2 py-0.5 rounded border border-sig-danger/20">
+                                        <span className="w-1 h-1 rounded-full bg-sig-danger" />
                                         Will Revert
                                     </span>
                                 ) : isPassed ? (
-                                    <span className="inline-flex items-center gap-1 text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                                        <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                                    <span className="inline-flex items-center gap-1 text-sig-ok bg-sig-ok/10 px-2 py-0.5 rounded border border-sig-ok/20">
+                                        <span className="w-1 h-1 rounded-full bg-sig-ok" />
                                         Simulation Passed
                                     </span>
                                 ) : isSimulating ? (
-                                    <span className="inline-flex items-center gap-1 text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
-                                        <span className="w-1 h-1 rounded-full bg-cyan-400 animate-ping" />
+                                    <span className="inline-flex items-center gap-1 text-sig-info bg-sig-info/10 px-2 py-0.5 rounded border border-sig-info/20">
+                                        <span className="w-1 h-1 rounded-full bg-sig-info" />
                                         Simulating...
                                     </span>
                                 ) : (
-                                    <span className="text-white/40">Telemetry Ready</span>
+                                    <span className="text-ink-faint">Telemetry Ready</span>
                                 )}
                             </div>
                         </div>

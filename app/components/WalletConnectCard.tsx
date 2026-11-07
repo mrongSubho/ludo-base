@@ -50,14 +50,13 @@ export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectC
             className="ludo-wallet-scope w-[calc(100%-32px)] max-w-[420px] rounded-[32px] border border-white/10 px-8 py-10 flex flex-col items-center gap-8 relative overflow-hidden group shadow-2xl"
             style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
         >
-            {/* Animated Flare Decorators to match Lobby */}
-            <div className="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/20 blur-[60px] rounded-full animate-pulse" />
-            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-white/5 blur-[60px] rounded-full animate-pulse transition-all duration-1000 group-hover:bg-cyan-600/30" />
+            {/* Flare Decorators to match Lobby */}
+            <div className="absolute -top-24 -left-24 w-48 h-48 bg-accent/10 blur-[60px] rounded-full pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-line-soft blur-[60px] rounded-full pointer-events-none" />
 
             {/* Dice Header Area */}
             <div className="relative flex flex-col items-center">
-                <div className="absolute inset-x-0 inset-y-0 bg-white/20 blur-3xl rounded-full scale-150 animate-pulse" />
-                <div className="w-24 h-24 rounded-[28px] bg-gradient-to-br from-black/50 to-black/35 flex items-center justify-center border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.2)] relative z-10 overflow-hidden group-hover:scale-105 transition-transform duration-500">
+                <div className="w-24 h-24 rounded-[28px] bg-gradient-to-br from-surface-1 to-surface-2 flex items-center justify-center border border-line-soft relative z-10 overflow-hidden">
                     <DiceMark />
                 </div>
 
@@ -152,7 +151,7 @@ export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectC
                         />
                     </div>
                 ) : (
-                    <div className="w-full h-16 bg-white/5 rounded-2xl animate-pulse border border-white/10" />
+                    <div className="w-full h-16 bg-surface-2 rounded-2xl border border-line-soft" />
                 )}
             </div>
 

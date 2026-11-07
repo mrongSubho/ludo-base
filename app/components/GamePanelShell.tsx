@@ -109,7 +109,7 @@ export function GamePanelShell({
                             )}
                         </div>
 
-                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-4">
+                        <div className="flex-1 min-h-0 overflow-y-auto panel-body-scroller px-5 pt-3 pb-4 relative z-10 flex flex-col gap-4">
                             {children}
                         </div>
                     </div>

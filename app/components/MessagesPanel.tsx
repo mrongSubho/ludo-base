@@ -94,8 +94,8 @@ const Avatar = ({ url, name, box = 'w-11 h-11', dot }: {
                 </div>
             )}
             {dot && (
-                <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#14151f]
-                    ${dot === 'Online' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.9)] animate-pulse' : dot === 'In Match' ? 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse' : 'bg-white/25'}`}
+                <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-surface-1
+                    ${dot === 'Online' ? 'bg-sig-ok ring-1 ring-sig-ok/40' : dot === 'In Match' ? 'bg-sig-warn ring-1 ring-sig-warn/40' : 'bg-ink-faint'}`}
                 />
             )}
         </div>
@@ -506,9 +506,9 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                                                     </span>
                                                 )}
                                                 {isP2PActive && activeChat.status === 'Online' && (
-                                                    <span className="flex items-center gap-1 bg-cyan-500/15 px-1.5 py-px rounded-full border border-cyan-500/30">
-                                                        <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse" />
-                                                        <span className="text-ludo-xs font-black text-cyan-300 tracking-widest uppercase">P2P</span>
+                                                    <span className="flex items-center gap-1 bg-accent/10 px-1.5 py-px rounded-full border border-line-accent">
+                                                        <span className="w-1 h-1 rounded-full bg-accent" />
+                                                        <span className="text-ludo-xs font-mono font-bold text-accent tracking-widest uppercase">P2P</span>
                                                     </span>
                                                 )}
                                             </span>
@@ -548,11 +548,11 @@ export default function MessagesPanel({ onClose, initialChatId, onOpenProfile }:
                             )}
                             {!selectedChatId && notifTab === 'notifications' && (
                                 <div className="flex items-center gap-2 px-0.5">
-                                    <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                    <span className="text-ludo-sm font-mono font-bold text-ink-muted tracking-wide uppercase tabular-nums">
                                         {notifCount} new
                                     </span>
                                     {notifCount > 0 && (
-                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                                        <span className="w-1.5 h-1.5 rounded-full bg-sig-danger" />
                                     )}
                                 </div>
                             )}

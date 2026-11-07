@@ -1534,25 +1534,24 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
         <>
             <div className="ludo-ticker-scope w-full flex justify-center pointer-events-none">
                 <div
-                    className="broadcast-tier pointer-events-auto h-[64px] w-full max-w-[480px] rounded-2xl flex items-center justify-between px-5 relative overflow-hidden transition-all group cursor-pointer border border-cyan-500/20 bg-black/60 backdrop-blur-3xl hover:border-cyan-400/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] active:scale-[0.98]"
+                    className="broadcast-tier pointer-events-auto h-[64px] w-full max-w-[480px] rounded-2xl flex items-center justify-between px-5 relative overflow-hidden transition-colors group cursor-pointer border border-line-soft bg-surface-2 backdrop-blur-3xl hover:border-line-strong"
                     onClick={() => setIsOpen(true)}
                     role="button"
                     aria-label="Open live broadcast"
                 >
                     {/* Cyber grid bg */}
                     <div className="ticker-deco absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.8)_50%)] bg-[length:100%_4px] opacity-20 pointer-events-none" />
-                    <div className="ticker-deco absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
+                    <div className="ticker-deco absolute top-0 right-0 w-32 h-32 bg-accent/10 rounded-full blur-2xl pointer-events-none" />
 
                     <div className="flex items-center gap-3 relative z-10">
-                        <div className="w-10 h-10 rounded-xl border border-cyan-500/30 bg-cyan-950/50 flex items-center justify-center overflow-hidden shadow-[inset_0_0_15px_rgba(34,211,238,0.2)] relative">
-                            <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(34,211,238,0.2)_50%,transparent_100%)] w-[200%] animate-[scan_2s_linear_infinite]" />
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-cyan-300 relative z-10">
+                        <div className="w-10 h-10 rounded-xl border border-line-accent/30 bg-surface-3 flex items-center justify-center overflow-hidden relative">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-accent relative z-10">
                                 <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
                                 <circle cx="12" cy="12" r="3" />
                             </svg>
                         </div>
                         <div className="flex flex-col min-w-0 flex-1">
-                            <span className="text-ludo-xs font-black text-cyan-500/70 uppercase tracking-[0.3em] drop-shadow-[0_0_5px_rgba(34,211,238,0.3)]">Live Broadcast</span>
+                            <span className="text-ludo-xs font-mono font-bold text-accent uppercase tracking-[0.3em]">Live Broadcast</span>
                             {latestRoom ? (
                                 <button
                                     onClick={(e) => {
@@ -1562,10 +1561,10 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
                                         }));
                                     }}
                                     title={`Join ${latestRoom.roomCode}`}
-                                    className="flex items-center gap-2 mt-0.5 rounded-md hover:opacity-80 active:scale-95 transition-all text-left min-w-0"
+                                    className="flex items-center gap-2 mt-0.5 rounded-md hover:opacity-80 transition-colors text-left min-w-0"
                                 >
-                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse shrink-0" />
-                                    <span className="text-ludo-sm font-black text-cyan-300 uppercase tracking-wider leading-none truncate underline underline-offset-2 decoration-cyan-500/50">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-sig-ok shrink-0" />
+                                    <span className="text-ludo-sm font-mono font-bold text-accent uppercase tracking-wider leading-none truncate underline underline-offset-2 decoration-line-accent">
                                         {latestRoom.content}
                                     </span>
                                 </button>
@@ -1573,10 +1572,10 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
                                 <button
                                     onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('open_live_matches')); setIsOpen(true); }}
                                     title="Open live matches"
-                                    className="flex items-center gap-2 mt-0.5 rounded-md hover:opacity-80 active:scale-95 transition-all text-left"
+                                    className="flex items-center gap-2 mt-0.5 rounded-md hover:opacity-80 transition-colors text-left"
                                 >
-                                    <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
-                                    <span className="text-ludo-sm font-black text-cyan-300 uppercase tracking-widest leading-none underline underline-offset-2 decoration-cyan-500/50">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-sig-info" />
+                                    <span className="text-ludo-sm font-mono font-bold text-accent uppercase tracking-widest leading-none underline underline-offset-2 decoration-line-accent">
                                         On air
                                     </span>
                                 </button>

@@ -185,13 +185,13 @@ const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
            onClick={toggleStream}
            disabled={isPending}
            aria-pressed={isStreaming}
-           className={`flex items-center gap-1.5 rounded-full font-black tracking-widest transition-all ${small ? 'px-2 py-1 text-ludo-xs' : 'px-3 py-1.5 text-ludo-xs'} ${isStreaming ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30 shadow-[0_0_15px_rgba(236,72,153,0.3)]' : 'bg-white/5 text-white/50 border border-white/10 hover:text-white/80'} ${isPending ? 'opacity-70 cursor-wait' : ''}`}
+           className={`flex items-center gap-1.5 rounded-full font-black tracking-widest transition-colors ${small ? 'px-2 py-1 text-ludo-xs' : 'px-3 py-1.5 text-ludo-xs'} ${isStreaming ? 'bg-sig-info/20 text-sig-info border border-sig-info/30' : 'bg-surface-2 text-ink-muted border border-line-soft hover:text-ink-strong'} ${isPending ? 'opacity-70 cursor-wait' : ''}`}
         >
-           <div className={`w-1.5 h-1.5 rounded-full ${isPending ? 'bg-cyan-400 animate-pulse' : isStreaming ? 'bg-pink-400 animate-pulse' : 'bg-white/30'}`} />
+           <div className={`w-1.5 h-1.5 rounded-full ${isPending ? 'bg-sig-warn' : isStreaming ? 'bg-sig-info' : 'bg-ink-faint'}`} />
            {isPending ? (isStreaming ? 'Stopping…' : 'Going live…') : isStreaming ? 'LIVE' : 'Go live'}
         </button>
         {err && (
-          <span className="text-ludo-xs font-bold text-amber-300 max-w-[160px] text-right leading-tight">{err}</span>
+          <span className="text-ludo-xs font-bold text-warn max-w-[160px] text-right leading-tight">{err}</span>
         )}
       </div>
    );
@@ -768,7 +768,7 @@ export default function Page() {
                 />
 
               {/* flex:1 + min-height:0 — never h-full: header + 100% main overflows the shell */}
-              <main className="dash-main pb-safe-footer px-safe">
+              <main className="dash-main shell-main pb-safe-footer px-safe">
                 <NoticeStrip className="mb-2" />
                 <SessionAuthBanner className="mb-2" />
 

@@ -34,24 +34,65 @@ body.theme-3077 {
   background-color: var(--ludo-bg);
   background-size: 32px 32px, 32px 32px, 100% 100%, 100% 100%;
 
-  /* ─── Semantic UI Tokens (3077 Cyber-Tactical) ─── */
-  --surface-page: #05070a;
-  --surface-panel: rgba(9, 12, 19, 0.96);
+  /* ─── §2.1 Color Tokens (3077 Cyber-Tactical) ─── */
+  --surface-0: #05070a;
+  --surface-1: #0a0e14;
+  --surface-2: rgba(14, 19, 27, 0.72);
+  --surface-3: rgba(20, 27, 38, 0.84);
+  --surface-hover: rgba(255, 255, 255, 0.04);
+  --surface-selected: rgba(0, 229, 255, 0.08);
+
+  --surface-page: var(--surface-0);
+  --surface-panel: var(--surface-3);
   --surface-recessed: rgba(0, 229, 255, 0.05);
-  --surface-hover: rgba(0, 229, 255, 0.10);
   --surface-active: rgba(0, 229, 255, 0.20);
-  --ink-strong: #ffffff;
-  --ink-muted: rgba(241, 245, 249, 0.75);
-  --ink-faint: rgba(241, 245, 249, 0.45);
-  --line-soft: rgba(0, 229, 255, 0.16);
-  --line-strong: rgba(0, 229, 255, 0.45);
+
+  --ink-strong: #f1f5f9;
+  --ink-muted: #a3aebd;
+  --ink-faint: #6b7685;
+
+  --line-soft: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --line-accent: rgba(0, 229, 255, 0.56);
 
   --accent: #00e5ff;
   --accent-soft: rgba(0, 229, 255, 0.16);
   --accent-ink: #02090d;
-  --warn: #f59e0b;
-  --positive: #00ff66;
-  --negative: #ff0055;
+
+  --sig-ok: #22c55e;
+  --sig-warn: #f59e0b;
+  --sig-danger: #f43f5e;
+  --sig-info: #38bdf8;
+
+  --warn: var(--sig-warn);
+  --positive: var(--sig-ok);
+  --negative: var(--sig-danger);
+
+  /* ─── §2.4 Spacing: 8pt grid ─── */
+  --space-0: 0px;
+  --space-0_5: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-5: 40px;
+  --space-6: 48px;
+  --space-8: 64px;
+
+  /* ─── §2.5 Radius ─── */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-card: 12px;
+  --radius-chip: 4px;
+
+  /* ─── §2.6 Motion ─── */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1.2);
+  --dur-instant: 100ms;
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-exit: 150ms;
 
   /* ─── Combat Team Palette (3077 Insignia) ─── */
   --ludo-green: #00ff66;
@@ -176,20 +217,21 @@ body.theme-3077 .ludo-lobby-scope {
   backdrop-filter: blur(28px);
 }
 
-body.theme-3077 .ludo-lobby-scope button.rounded-full {
-  border-radius: 6px !important;
+/* §2.5 Signature Chamfer for primary CTAs and selected segmented controls */
+body.theme-3077 .chamfer-3077 {
   clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px);
 }
 
 body.theme-3077 .glass-panel {
-  background: rgba(9, 13, 20, 0.90) !important;
-  border-color: rgba(0, 229, 255, 0.3) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(0, 229, 255, 0.25) !important;
+  background: var(--surface-2) !important;
+  border-color: var(--line-soft) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset !important;
 }
 
 body.theme-3077 .porcelain-holo-tick {
-  background: #00e5ff !important;
-  box-shadow: 0 0 15px #00e5ff, 0 0 30px rgba(0, 229, 255, 0.6) !important;
+  background: var(--accent) !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.6) !important;
   border-radius: 2px !important;
   transform: translate(-50%, -50%) rotate(45deg) !important;
 }
@@ -198,39 +240,39 @@ body.theme-3077 .porcelain-holo-tick svg {
 }
 
 body.theme-3077 .ludo-ticker-scope > div {
-  background: rgba(9, 13, 20, 0.94);
-  border-color: rgba(0, 229, 255, 0.35);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(0, 229, 255, 0.3);
-  border-radius: 8px;
+  background: var(--surface-1);
+  border-color: var(--line-soft);
+  box-shadow: none;
+  border-radius: var(--radius-md);
 }
 
 body.theme-3077 .ludo-ticker-scope > div:hover {
-  border-color: #00e5ff;
-  box-shadow: 0 0 30px rgba(0, 229, 255, 0.35), inset 0 1px 0 rgba(0, 229, 255, 0.5);
+  border-color: var(--line-strong);
+  box-shadow: none;
 }
 
 body.theme-3077 .footer-nav {
-  background: rgba(5, 7, 10, 0.98) !important;
-  border-top: 1.5px solid rgba(0, 229, 255, 0.35);
-  box-shadow: 0 -10px 35px rgba(0, 0, 0, 0.85), 0 0 20px rgba(0, 229, 255, 0.12);
+  background: var(--surface-1) !important;
+  border-top: 1px solid var(--line-soft) !important;
+  box-shadow: none !important;
 }
 
 body.theme-3077 .game-top-bar {
-  background: rgba(9, 13, 20, 0.94);
-  border-color: rgba(0, 229, 255, 0.3);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
+  background: var(--surface-1);
+  border-color: var(--line-soft);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
 /* ─── 5. Board Compact Header: Avionics Target Lock Bar ─── */
 body.theme-3077 .board-header-shell {
-  background: rgba(5, 7, 10, 0.96) !important;
-  border: 1.5px solid rgba(0, 229, 255, 0.5) !important;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.9), 0 0 25px rgba(0, 229, 255, 0.25), inset 0 1px 0 rgba(0, 229, 255, 0.4) !important;
+  background: var(--surface-1) !important;
+  border: 1px solid var(--line-strong) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
   border-radius: 10px !important;
   clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
 }
 
-/* ─── 6. Tactical Panel Scope Borders & Glows ─── */
+/* ─── 6. Tactical Panel Scope Borders & Elevation ─── */
 body.theme-3077 :is(
   .ludo-market-scope,
   .ludo-settings-scope,
@@ -255,15 +297,105 @@ body.theme-3077 :is(
   .ludo-broadcast-scope,
   .ludo-clan-scope
 ) {
-  border-radius: 12px !important;
-  border: 1.5px solid rgba(0, 229, 255, 0.38) !important;
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.95), 0 0 35px rgba(0, 229, 255, 0.20) !important;
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--line-strong) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
 }
 
 /* ─── 7. ActionDice & LudoDice Pedestal ─── */
 body.theme-3077 .lobby-dice-cube {
-  filter: drop-shadow(0 0 25px rgba(0, 229, 255, 0.45));
+  filter: drop-shadow(0 0 16px rgba(0, 229, 255, 0.3));
 }
 body.theme-3077 .dice-tier {
   background: radial-gradient(circle at center, rgba(0, 229, 255, 0.12) 0%, transparent 70%);
 }
+
+/* ─── §4.1 Card Stability Contract ─── */
+body.theme-3077 .card-3077 {
+  position: relative;
+  min-height: var(--card-min, 120px);
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(16px);
+  contain: layout paint;
+  transform: translateZ(0);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out);
+}
+body.theme-3077 .card-3077:hover {
+  border-color: var(--line-strong);
+  background-color: color-mix(in srgb, var(--surface-2), white 4%);
+}
+body.theme-3077 .card-3077[aria-selected="true"],
+body.theme-3077 .card-3077[aria-pressed="true"] {
+  border-color: var(--line-accent);
+  background-color: var(--surface-selected);
+}
+body.theme-3077 .card-3077:active {
+  background-color: color-mix(in srgb, var(--surface-2), white 2%);
+}
+
+/* ─── §3.3 Thin Scrollbars & Scroll Architecture ─── */
+body.theme-3077 .shell-main,
+body.theme-3077 .panel-body-scroller,
+body.theme-3077 .custom-scrollbar,
+body.theme-3077 :is(.ludo-panel-scope, .game-panel, [class*="ludo-"][class*="-scope"]) .overflow-y-auto {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  overscroll-behavior: contain;
+}
+body.theme-3077 .shell-main::-webkit-scrollbar,
+body.theme-3077 .panel-body-scroller::-webkit-scrollbar,
+body.theme-3077 .custom-scrollbar::-webkit-scrollbar,
+body.theme-3077 :is(.ludo-panel-scope, .game-panel, [class*="ludo-"][class*="-scope"]) .overflow-y-auto::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+body.theme-3077 .shell-main::-webkit-scrollbar-track,
+body.theme-3077 .panel-body-scroller::-webkit-scrollbar-track,
+body.theme-3077 .custom-scrollbar::-webkit-scrollbar-track,
+body.theme-3077 :is(.ludo-panel-scope, .game-panel, [class*="ludo-"][class*="-scope"]) .overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+body.theme-3077 .shell-main::-webkit-scrollbar-thumb,
+body.theme-3077 .panel-body-scroller::-webkit-scrollbar-thumb,
+body.theme-3077 .custom-scrollbar::-webkit-scrollbar-thumb,
+body.theme-3077 :is(.ludo-panel-scope, .game-panel, [class*="ludo-"][class*="-scope"]) .overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+}
+
+
+/* ─── §2.6 Matchmaking Progress Rail ─── */
+@keyframes rail-sweep-3077 {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+body.theme-3077 .rail-sweep-3077 {
+  height: 2px;
+  background: var(--accent);
+  animation: rail-sweep-3077 1.6s linear infinite;
+}
+
+/* ─── §1.1 High-Frequency Noise & Infinite Animation Purge in Lobby ─── */
+body.theme-3077 :is(
+  .ludo-lobby-scope,
+  .dash-header,
+  .footer-nav,
+  .ludo-panel-scope,
+  .panel-scroller,
+  .game-panel
+) :is(.animate-pulse, .animate-ping, .animate-bounce) {
+  animation: none !important;
+}
+
+/* ─── Fallback for backdrop-filter (§2.2) ─── */
+@supports not (backdrop-filter: blur(1px)) {
+  body.theme-3077 {
+    --surface-2: rgba(14, 19, 27, 0.96);
+    --surface-3: rgba(20, 27, 38, 0.96);
+  }
+}
+

@@ -139,8 +139,8 @@ const Avatar = ({ url, name, box = 'w-11 h-11', ring = '', dot }: {
             </div>
         )}
         {dot && (
-            <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#14151f]
-                ${dot === 'Online' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.9)] animate-pulse' : dot === 'In Match' ? 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse' : 'bg-white/25'}`}
+            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border border-surface-1
+                ${dot === 'Online' ? 'bg-sig-ok ring-1 ring-sig-ok/40' : dot === 'In Match' ? 'bg-sig-warn ring-1 ring-sig-warn/40' : 'bg-ink-faint'}`}
             />
         )}
     </div>
@@ -160,7 +160,7 @@ const IconBtn = ({ onClick, title, label, tone, children, disabled = false }: {
     const tones: Record<string, string> = {
         ghost: 'bg-surface-recessed text-ink-muted border-line-soft hover:bg-surface-hover hover:text-ink-strong',
         poke: 'bg-surface-recessed text-ink-muted border-line-soft hover:bg-surface-hover hover:text-ink-strong',
-        'poke-back': 'bg-warn text-black border-warn hover:brightness-110 animate-pulse',
+        'poke-back': 'bg-warn text-accent-ink border-warn hover:brightness-110',
         spectate: 'bg-warn/15 text-warn border-warn/40 hover:bg-warn hover:text-black',
         dm: 'bg-accent-soft text-accent border-accent/25 hover:bg-accent hover:text-accent-ink',
         accept: 'bg-positive/15 text-positive border-positive/30 hover:bg-positive hover:text-white',
@@ -767,8 +767,8 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
                                 <span className="flex items-center gap-1.5">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${onlineCount > 0 ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.9)] animate-pulse' : 'bg-white/25'}`} />
-                                    <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase tabular-nums">
+                                    <span className={`w-1.5 h-1.5 rounded-full ${onlineCount > 0 ? 'bg-sig-ok' : 'bg-ink-faint'}`} />
+                                    <span className="text-ludo-sm font-mono font-bold text-ink-muted tracking-wide uppercase tabular-nums">
                                         {onlineCount} online
                                     </span>
                                 </span>
@@ -840,7 +840,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                                 active={onlineOnly}
                                                 onClick={() => setOnlineOnly(v => !v)}
                                                 className="uppercase tracking-widest"
-                                                icon={<span className={`w-1 h-1 rounded-full ${onlineOnly ? 'bg-positive animate-pulse' : 'bg-ink-faint'}`} />}
+                                                icon={<span className={`w-1 h-1 rounded-full ${onlineOnly ? 'bg-positive' : 'bg-ink-faint'}`} />}
                                             >
                                                 Online
                                             </Chip>

@@ -498,15 +498,15 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         <div className="flex justify-end px-5 pt-3 pb-1 relative z-10 w-full shrink-0">
                             {!isFriendValidationLoading && (isFriend || isSelf) && (
                                 <div className="absolute left-5 top-5 flex items-center gap-2">
-                                    <div className={`w-2.5 h-2.5 rounded-full 
-                                        ${(profile?.status === 'Online' && isOnline) ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)] animate-pulse' :
-                                            profile?.status === 'In Match' ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)] animate-pulse' :
-                                                'bg-white/20'}`}
+                                    <div className={`w-2.5 h-2.5 rounded-full border border-surface-1
+                                        ${(profile?.status === 'Online' && isOnline) ? 'bg-sig-ok ring-1 ring-sig-ok/40' :
+                                            profile?.status === 'In Match' ? 'bg-sig-warn ring-1 ring-sig-warn/40' :
+                                                'bg-ink-faint'}`}
                                     />
-                                    <span className={`text-ludo-xs uppercase tracking-widest font-bold 
-                                        ${(profile?.status === 'Online' && isOnline) ? 'text-green-400' :
-                                            profile?.status === 'In Match' ? 'text-orange-400' :
-                                                'text-white/50'}`}>
+                                    <span className={`text-ludo-xs font-mono uppercase tracking-widest font-bold 
+                                        ${(profile?.status === 'Online' && isOnline) ? 'text-sig-ok' :
+                                            profile?.status === 'In Match' ? 'text-sig-warn' :
+                                                'text-ink-faint'}`}>
                                         {(profile?.status === 'Online' && !isOnline) ? 'Offline' : (profile?.status || 'Offline')}
                                     </span>
                                 </div>
@@ -514,7 +514,7 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
 
                             <button
                                 onClick={onClose}
-                                className="w-11 h-11 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
+                                className="w-11 h-11 flex items-center justify-center rounded-full bg-surface-2 hover:bg-surface-hover text-ink-muted hover:text-ink-strong transition-colors ring-1 ring-line-soft shadow-sm"
                             >
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
@@ -524,8 +524,8 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                         <div className="px-5 pt-0 flex flex-col items-center relative z-10 shrink-0">
                             {isProfileLoading ? (
                                 <div className="py-12 flex flex-col items-center justify-center gap-4">
-                                    <div className="w-8 h-8 border-3 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
-                                    <span className="text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">Decrypting Hex...</span>
+                                    <div className="w-8 h-8 border-3 border-line-accent/30 border-t-accent rounded-full animate-spin" />
+                                    <span className="text-ink-muted text-xs font-bold uppercase tracking-widest">Decrypting Hex...</span>
                                 </div>
                             ) : (
                                 <>
@@ -604,9 +604,9 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
                                     {/* Protected Friend Data Area */}
                                     <div className="w-full relative min-h-[140px] flex flex-col justify-end">
                                         {isFriendValidationLoading ? (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center animate-pulse gap-3">
-                                                <div className="w-full h-12 bg-white/5 rounded-2xl" />
-                                                <div className="w-full h-12 bg-white/5 rounded-2xl" />
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                                                <div className="w-full h-12 bg-surface-2 rounded-2xl border border-line-soft" />
+                                                <div className="w-full h-12 bg-surface-2 rounded-2xl border border-line-soft" />
                                             </div>
                                         ) : (
                                             <>

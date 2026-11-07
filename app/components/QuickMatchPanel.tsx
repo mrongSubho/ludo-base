@@ -515,25 +515,21 @@ export const QuickMatchPanel = ({
                                                             </span>
                                                         </>
                                                     ) : !address ? (
-                                                        <div className="animate-pulse">
-                                                            <span className="text-ludo-xs font-black text-amber-500 uppercase tracking-widest leading-none">
+                                                        <div>
+                                                            <span className="text-ludo-xs font-mono font-bold text-sig-warn uppercase tracking-widest leading-none">
                                                                 SYNCING
                                                             </span>
                                                         </div>
                                                     ) : (
                                                         <>
-                                                            <span className="text-3xl md:text-4xl font-mono font-black text-cyan-400 tracking-tighter drop-shadow-[0_0_12px_rgba(34,211,238,0.55)]">
+                                                            <span className="text-3xl md:text-4xl font-mono font-black text-accent tracking-tighter">
                                                                 {searchTime}s
                                                             </span>
-                                                            <div className="flex items-center gap-1 mt-1">
-                                                                <div className="w-1 h-3 bg-cyan-400/20 rounded-full overflow-hidden">
-                                                                    <motion.div 
-                                                                        animate={{ height: ['20%', '100%', '40%'] }}
-                                                                        transition={{ duration: 1, repeat: Infinity }}
-                                                                        className="w-full bg-cyan-400"
-                                                                    />
+                                                            <div className="flex flex-col items-center gap-1.5 mt-1.5 w-full max-w-[140px]">
+                                                                <div className="w-full h-0.5 bg-line-soft rounded-full overflow-hidden relative">
+                                                                    <div className="rail-sweep-3077 w-full h-full" />
                                                                 </div>
-                                                                <span className="text-ludo-xs font-black text-cyan-400/60 tracking-widest uppercase">
+                                                                <span className="text-ludo-xs font-mono font-bold text-ink-muted tracking-widest uppercase">
                                                                     {gameMode} | {matchType}
                                                                 </span>
                                                             </div>
@@ -544,7 +540,7 @@ export const QuickMatchPanel = ({
 
                                             {/* 6. Dynamic Status Display Below Radar */}
                                             <div className="absolute top-[90%] left-1/2 -translate-x-1/2 flex flex-col items-center min-w-[300px]">
-                                                <div className="flex items-center gap-2.5 px-5 py-1.5 rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-md shadow-xl">
+                                                <div className="flex items-center gap-2.5 px-5 py-1.5 rounded-full bg-surface-2 border border-line-soft backdrop-blur-md shadow-xl">
                                                     {isSearching ? (
                                                         /* The visible label below names the state, so the orb is
                                                            decorative here — no second announcement. Theme follows
@@ -552,18 +548,9 @@ export const QuickMatchPanel = ({
                                                            overrides to white, so it is NOT dark-only. */
                                                         <ThinkingOrb state="searching" size={20} />
                                                     ) : (
-                                                        <div className="flex gap-1">
-                                                            {[0, 1, 2].map((dot) => (
-                                                                <motion.div
-                                                                    key={dot}
-                                                                    animate={{ opacity: [0.3, 1, 0.3] }}
-                                                                    transition={{ duration: 1, repeat: Infinity, delay: dot * 0.2 }}
-                                                                    className={`w-1.5 h-1.5 rounded-full ${status === 'error' || status === 'timeout' ? 'bg-red-500' : 'bg-cyan-400'}`}
-                                                                />
-                                                            ))}
-                                                        </div>
+                                                        <div className="w-2 h-2 rounded-full bg-sig-info" />
                                                     )}
-                                                    <span className={`text-ludo-sm uppercase font-black tracking-[0.2em] ${status === 'error' || status === 'timeout' ? 'text-red-400' : 'text-cyan-400/90'}`}>
+                                                    <span className={`text-ludo-sm uppercase font-mono font-bold tracking-[0.2em] ${status === 'error' || status === 'timeout' ? 'text-sig-danger' : 'text-accent'}`}>
                                                         {status === 'error' ? 'FAULT DETECTED' :
                                                          status === 'timeout' ? 'LINK TIMEOUT' :
                                                          showExpansionOptions ? 'WIDEN THE SEARCH' :
@@ -599,8 +586,8 @@ export const QuickMatchPanel = ({
                                         >
                                             <div className="flex justify-between items-center">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                                                    <h3 className="text-ludo-xs font-black text-cyan-300 uppercase tracking-[0.25em]">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-accent" />
+                                                    <h3 className="text-ludo-xs font-mono font-bold text-accent uppercase tracking-[0.25em]">
                                                         Widen the search
                                                     </h3>
                                                 </div>
@@ -720,8 +707,8 @@ export const QuickMatchPanel = ({
                                     className="absolute inset-0 z-[160] backdrop-blur-xl flex flex-col items-center justify-center p-5 text-center pointer-events-auto"
                                     style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))' }}
                                 >
-                                    <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-4 border border-amber-500/20 text-amber-400">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-8 h-8 animate-pulse"><path d="M12 2s-8 11.5-8 16c0 4.4 3.6 8 8 8s8-3.6 8-8c0-4.5-8-16-8-16z"></path></svg>
+                                    <div className="w-20 h-20 bg-sig-warn/10 rounded-full flex items-center justify-center mb-4 border border-sig-warn/20 text-sig-warn">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-8 h-8"><path d="M12 2s-8 11.5-8 16c0 4.4 3.6 8 8 8s8-3.6 8-8c0-4.5-8-16-8-16z"></path></svg>
                                     </div>
 
                                     <h3 className="text-xl font-bold text-white uppercase tracking-wide mb-1">
@@ -804,8 +791,8 @@ export const QuickMatchPanel = ({
                                     backdropFilter: 'blur(40px)'
                                 }}
                             >
-                                {/* Cosmic Orbs for Reveal */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] cosmic-orb opacity-30 animate-pulse-slow pointer-events-none" />
+                                {/* Backdrop Grid Accent */}
+                                <div className="absolute inset-0 bg-surface-0/90 pointer-events-none" />
 
                                 {/* Close Button */}
                                 <Button
@@ -821,18 +808,18 @@ export const QuickMatchPanel = ({
                                 <div className="relative z-10 flex flex-col items-center gap-6 w-full" style={{ pointerEvents: 'auto' }}>
                                     <div className="flex flex-col items-center gap-2">
                                         <div
-                                            className="text-5xl md:text-7xl font-black text-white tracking-tight uppercase drop-shadow-[0_0_40px_rgba(255,255,255,0.28)]"
+                                            className="text-5xl md:text-7xl font-black text-ink-strong tracking-tight uppercase"
                                         >
                                             Match!
                                         </div>
-                                        <div className="px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center gap-2.5 flex-wrap justify-center">
-                                            <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-[0.2em]">{matchType}</span>
-                                            <div className="w-1 h-3 bg-white/10 rounded-full" />
-                                            <span className="text-ludo-xs font-black text-white/60 uppercase tracking-[0.2em]">{gameMode}</span>
-                                            <div className="w-1 h-3 bg-white/10 rounded-full" />
+                                        <div className="px-4 py-1.5 rounded-full bg-accent/10 border border-line-accent flex items-center gap-2.5 flex-wrap justify-center">
+                                            <span className="text-ludo-xs font-mono font-bold text-accent uppercase tracking-[0.2em]">{matchType}</span>
+                                            <div className="w-1 h-3 bg-line-soft rounded-full" />
+                                            <span className="text-ludo-xs font-mono font-bold text-ink-muted uppercase tracking-[0.2em]">{gameMode}</span>
+                                            <div className="w-1 h-3 bg-line-soft rounded-full" />
                                             <div className="flex items-center gap-1">
                                                 <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                                                <span className="text-ludo-xs font-black text-amber-400 tracking-[0.1em]">
+                                                <span className="text-ludo-xs font-mono font-bold text-sig-warn tracking-[0.1em]">
                                                     {wagerRange?.max === undefined && wagerRange?.min === 0
                                                         ? 'Any'
                                                         : feeLabel(activeWager)}
@@ -840,7 +827,7 @@ export const QuickMatchPanel = ({
                                             </div>
                                         </div>
                                         {hookMatchId && (
-                                            <span className="text-ludo-xs font-bold text-white/25 uppercase tracking-[0.2em] tabular-nums">
+                                            <span className="text-ludo-xs font-mono font-bold text-ink-faint uppercase tracking-[0.2em] tabular-nums">
                                                 Match {hookMatchId.slice(0, 8)}
                                             </span>
                                         )}
@@ -850,25 +837,25 @@ export const QuickMatchPanel = ({
                                         {/* Player 1 (You) */}
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="relative">
-                                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-cyan-400/50 flex items-center justify-center p-2">
-                                                    <div className="w-full h-full rounded-2xl overflow-hidden bg-slate-800">
+                                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-surface-2 border-2 border-line-accent flex items-center justify-center p-2">
+                                                    <div className="w-full h-full rounded-2xl overflow-hidden bg-surface-1">
                                                         {profile?.avatar_url ? (
                                                             <img loading="lazy" decoding="async" src={profile.avatar_url} alt="You" className="w-full h-full object-cover" width={96} height={96} />
                                                         ) : (
-                                                            <div className="w-full h-full bg-gradient-to-br from-cyan-500/40 to-blue-600/40 flex items-center justify-center text-3xl font-black text-white/20">
+                                                            <div className="w-full h-full bg-surface-3 flex items-center justify-center text-3xl font-black text-ink-faint">
                                                                 {finalName?.[0] || 'U'}
                                                             </div>
                                                         )}
                                                     </div>
                                                 </div>
-                                                <div className="absolute -inset-1 border border-cyan-400/30 rounded-[28px] animate-pulse pointer-events-none" />
+                                                <div className="absolute -inset-1 border border-line-accent/40 rounded-[28px] pointer-events-none" />
                                             </div>
                                             <div className="flex flex-col items-center">
-                                                <span className="text-lg md:text-xl font-bold text-white tracking-tight">{finalName}</span>
+                                                <span className="text-lg md:text-xl font-bold text-ink-strong tracking-tight">{finalName}</span>
                                                 <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-widest opacity-60">You</span>
-                                                    <div className="w-1 h-1 bg-white/20 rounded-full" />
-                                                    <span className="text-ludo-xs font-black text-amber-500 uppercase tracking-widest">Lv. {getProgression(profile?.lxp || 0, profile?.rxp || 0).level}</span>
+                                                    <span className="text-ludo-xs font-mono font-bold text-accent uppercase tracking-widest opacity-60">You</span>
+                                                    <div className="w-1 h-1 bg-line-soft rounded-full" />
+                                                    <span className="text-ludo-xs font-mono font-bold text-sig-warn uppercase tracking-widest">Lv. {getProgression(profile?.lxp || 0, profile?.rxp || 0).level}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -876,7 +863,7 @@ export const QuickMatchPanel = ({
                                         {/* VS Badge */}
                                         <div className="flex flex-col items-center gap-4">
                                             <div
-                                                className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white text-black flex items-center justify-center text-2xl md:text-3xl font-black shadow-[0_0_40px_white]"
+                                                className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-accent text-accent-ink flex items-center justify-center text-2xl md:text-3xl font-black"
                                             >
                                                 VS
                                             </div>
@@ -885,16 +872,16 @@ export const QuickMatchPanel = ({
                                         {/* Opponent */}
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="relative">
-                                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-purple-400/50 flex items-center justify-center p-2">
-                                                    <div className="w-full h-full rounded-2xl overflow-hidden bg-slate-800 flex items-center justify-center">
+                                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-surface-2 border-2 border-line-accent flex items-center justify-center p-2">
+                                                    <div className="w-full h-full rounded-2xl overflow-hidden bg-surface-1 flex items-center justify-center">
                                                         {isLoadingRival ? (
-                                                            <div className="w-8 h-8 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
+                                                            <div className="w-8 h-8 border-2 border-line-accent/30 border-t-accent rounded-full animate-spin" />
                                                         ) : opponentProfile?.avatar_url ? (
                                                             <img loading="lazy" decoding="async" src={opponentProfile.avatar_url} alt="Rival" className="w-full h-full object-cover" width={96} height={96} />
                                                         ) : (
-                                                            <div className="w-full h-full bg-gradient-to-br from-purple-500/40 to-pink-600/40 flex items-center justify-center">
+                                                            <div className="w-full h-full bg-surface-3 flex items-center justify-center">
                                                                 <svg
-                                                                    className="w-12 h-12 md:w-16 md:h-16 text-white/20"
+                                                                    className="w-12 h-12 md:w-16 md:h-16 text-ink-faint"
                                                                     viewBox="0 0 24 24"
                                                                     fill="none"
                                                                     stroke="currentColor"
@@ -908,23 +895,23 @@ export const QuickMatchPanel = ({
                                                         )}
                                                     </div>
                                                 </div>
-                                                {!isLoadingRival && <div className="absolute -inset-1 border border-purple-400/30 rounded-[28px] animate-pulse pointer-events-none" />}
+                                                {!isLoadingRival && <div className="absolute -inset-1 border border-line-accent/40 rounded-[28px] pointer-events-none" />}
                                             </div>
                                             <div className="flex flex-col items-center">
-                                                <h3 className="text-lg md:text-xl font-bold text-white tracking-tight text-center">
+                                                <h3 className="text-lg md:text-xl font-bold text-ink-strong tracking-tight text-center">
                                                     {isLoadingRival ? 'Scanning...' : (opponentProfile?.username || 'Rival')}
                                                 </h3>
                                                 {opponentProfile && (
                                                     <div className="flex flex-col items-center gap-1.5 mt-2">
-                                                        <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                                                            <span className="text-ludo-xs font-black text-amber-400 uppercase tracking-widest">Lv. {getProgression(opponentProfile.lxp, opponentProfile.rxp).level}</span>
-                                                            <div className="w-1 h-1 bg-white/20 rounded-full" />
-                                                            <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-widest">
+                                                        <div className="flex items-center gap-2 bg-surface-hover px-3 py-1 rounded-full border border-line-soft">
+                                                            <span className="text-ludo-xs font-mono font-bold text-sig-warn uppercase tracking-widest">Lv. {getProgression(opponentProfile.lxp, opponentProfile.rxp).level}</span>
+                                                            <div className="w-1 h-1 bg-line-soft rounded-full" />
+                                                            <span className="text-ludo-xs font-mono font-bold text-accent uppercase tracking-widest">
                                                                 {getProgression(opponentProfile.lxp, opponentProfile.rxp).tier} {getProgression(opponentProfile.lxp, opponentProfile.rxp).subRank}
                                                             </span>
                                                         </div>
-                                                        <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
-                                                            <span className="text-ludo-xs font-black text-green-400 uppercase tracking-[0.2em]">
+                                                        <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-sig-ok/10 border border-sig-ok/20">
+                                                            <span className="text-ludo-xs font-mono font-bold text-sig-ok uppercase tracking-[0.2em]">
                                                                 Win Rate: {Math.round((opponentProfile.total_wins / Math.max(1, opponentProfile.total_games)) * 100)}%
                                                             </span>
                                                         </div>
@@ -940,7 +927,7 @@ export const QuickMatchPanel = ({
                                             <motion.div
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                className="mb-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-ludo-xs font-black text-amber-500 uppercase tracking-widest animate-pulse"
+                                                className="mb-2 px-4 py-1.5 rounded-full bg-sig-warn/10 border border-sig-warn/20 text-ludo-xs font-mono font-bold text-sig-warn uppercase tracking-widest"
                                             >
                                                 {roomStatus === 'failed'
                                                     ? roomError === 'not-deployed'

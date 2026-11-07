@@ -49,6 +49,21 @@ export function canAffordFee(coins: number, fee: number): boolean {
     return fee === 0 || fee <= coins;
 }
 
+const SeatGlyph = ({ type }: { type: '1v1' | '2v2' | '4P' }) => {
+    return (
+        <div className="grid grid-cols-2 gap-1 w-3.5 h-3.5 items-center justify-center pointer-events-none" aria-hidden="true">
+            {/* Top-Left: Green */}
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--ludo-green)' }} />
+            {/* Top-Right: Yellow */}
+            <span className={`w-1.5 h-1.5 rounded-full ${type === '1v1' ? 'opacity-20 border border-line-soft bg-transparent' : ''}`} style={{ backgroundColor: type === '1v1' ? 'transparent' : 'var(--ludo-yellow)' }} />
+            {/* Bottom-Left: Red */}
+            <span className={`w-1.5 h-1.5 rounded-full ${type === '1v1' ? 'opacity-20 border border-line-soft bg-transparent' : ''}`} style={{ backgroundColor: type === '1v1' ? 'transparent' : 'var(--ludo-red)' }} />
+            {/* Bottom-Right: Blue */}
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--ludo-blue)' }} />
+        </div>
+    );
+};
+
 interface GameLobbyProps {
     gameMode: 'classic' | 'power';
     setGameMode: (mode: 'classic' | 'power') => void;
@@ -412,84 +427,90 @@ export default function GameLobby({
                             <div className="flex justify-center w-full mb-2">
                                 <ThemeNudge />
                             </div>
-                            <div className="flex justify-center w-full mb-3">
-                                <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
-                                    <h3 className="text-white/90 text-ludo-xs font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Select Game Mode</h3>
+                            {/* Mode Selector (§4.3 Segmented Control) */}
+                            <div className="flex flex-col items-center w-full gap-2" role="radiogroup" aria-label="Game Mode">
+                                <div className="flex justify-center gap-2">
+                                    {(['classic', 'power'] as const).map(mode => {
+                                        const isSelected = gameMode === mode;
+                                        return (
+                                            <button
+                                                key={mode}
+                                                role="radio"
+                                                aria-checked={isSelected}
+                                                onClick={() => {
+                                                    playSelect();
+                                                    setGameMode(mode);
+                                                }}
+                                                className={`relative w-[160px] h-[48px] rounded-[var(--radius-md)] border flex flex-col items-center justify-center transition-[border-color,background-color] duration-150 ease-out cursor-pointer ${
+                                                    isSelected
+                                                        ? 'chamfer-3077 border-line-accent bg-surface-selected text-accent'
+                                                        : 'border-line-soft bg-surface-2 hover:border-line-strong hover:bg-surface-hover text-ink-strong'
+                                                }`}
+                                            >
+                                                {isSelected && (
+                                                    <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 flex items-center justify-center z-10">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5 text-accent-ink"><polyline points="20 6 9 17 4 12" /></svg>
+                                                    </span>
+                                                )}
+                                                <span className="block text-base font-black uppercase tracking-tight">
+                                                    {mode}
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                            </div>
-                            <div className="flex justify-center gap-3">
-                                {(['classic', 'power'] as const).map(mode => (
-                                    <button
-                                        key={mode}
-                                        onClick={() => {
-                                            playSelect();
-                                            setGameMode(mode);
-                                        }}
-                                        className={`relative w-40 py-1 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center hover:scale-[1.02] active:scale-95 ${gameMode === mode
-                                            ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)] bg-[rgba(0,0,0,0.5)]'
-                                            : 'border-white/20 hover:border-white/40 bg-[rgba(0,0,0,0.5)]'
-                                            }`}
-                                    >
-                                        {gameMode === mode && (
-                                            <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5 text-white"><polyline points="20 6 9 17 4 12" /></svg>
-                                            </span>
-                                        )}
-                                        <div className="relative z-10 text-center">
-                                            <span className={`block text-lg font-black italic tracking-tighter capitalize drop-shadow-md leading-none ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>{mode}</span>
-                                            <div className={`mt-0.5 inline-block px-1.5 py-px rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-[rgba(0,0,0,0.35)] border-cyan-500/30' : 'bg-[rgba(0,0,0,0.35)] border-white/10'}`}>
-                                                <span className={`text-ludo-xs font-black uppercase tracking-[0.16em] whitespace-nowrap ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>{mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}</span>
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
+                                <span className="text-ludo-xs font-mono font-bold uppercase tracking-wider text-ink-muted">
+                                    {gameMode === 'classic' ? 'ORIGINAL RULES · STANDARD PATH' : '6 POWER TILES · BOOSTS ON'}
+                                </span>
                             </div>
                         </div>
 
-                        {/* Match Type Section */}
-                        <div className="flex flex-col items-center w-full">
-                            <div className="flex justify-center w-full mt-1 mb-3">
-                                <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
-                                    <h3 className="text-white/90 text-ludo-xs font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Match Type</h3>
+                        {/* Match Type Section (§4.3 Segmented Control) */}
+                        <div className="flex flex-col items-center w-full mt-2" role="radiogroup" aria-label="Match Type">
+                            <div className="flex justify-center w-full mb-2">
+                                <div className="inline-block px-4 py-1 bg-surface-2 border border-line-soft rounded-full">
+                                    <h3 className="text-ink-strong text-ludo-xs font-mono font-bold uppercase tracking-[0.2em] text-center">Match Type</h3>
                                 </div>
                             </div>
-                            <div className="flex justify-center gap-3">
-                                {(['1v1', '2v2', '4P'] as const).map(type => (
-                                    <button
-                                        key={type}
-                                        onClick={() => {
-                                            playSelect();
-                                            setMatchType(type);
-                                        }}
-                                        className={`w-12 h-12 rounded-full border transition-all duration-200 ease-out glass-panel flex items-center justify-center hover:scale-110 active:scale-90 relative ${matchType === type
-                                            ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-[rgba(0,0,0,0.5)]'
-                                            : 'border-white/10 hover:border-white/30 bg-[rgba(0,0,0,0.5)]'
+                            <div className="flex justify-center gap-2">
+                                {(['1v1', '2v2', '4P'] as const).map(type => {
+                                    const isSelected = matchType === type;
+                                    return (
+                                        <button
+                                            key={type}
+                                            role="radio"
+                                            aria-checked={isSelected}
+                                            onClick={() => {
+                                                playSelect();
+                                                setMatchType(type);
+                                            }}
+                                            className={`w-[72px] h-[48px] rounded-[var(--radius-md)] border flex flex-col items-center justify-center gap-1 transition-[border-color,background-color] duration-150 ease-out cursor-pointer relative ${
+                                                isSelected
+                                                    ? 'border-line-accent bg-surface-selected text-accent'
+                                                    : 'border-line-soft bg-surface-2 hover:border-line-strong hover:bg-surface-hover text-ink-muted'
                                             }`}
-                                    >
-                                        {matchType === type && (
-                                            <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5 text-white"><polyline points="20 6 9 17 4 12" /></svg>
-                                            </span>
-                                        )}
-                                        <span className={`block text-lg font-black italic tracking-tighter drop-shadow-md ${matchType === type ? 'text-cyan-400' : 'text-white/60'}`}>{type}</span>
-                                    </button>
-                                ))}
+                                        >
+                                            <SeatGlyph type={type} />
+                                            <span className="block text-xs font-mono font-bold tracking-widest">{type}</span>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
 
                     {/* 2. ENTRY FEE — collapsed by default. Presets gated by balance. */}
-                    <div className="fee-tier rounded-[20px] glass-panel flex flex-col items-center shadow-2xl border-t border-white/20 border-x border-white/5 border-b border-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
+                    <div className="fee-tier rounded-[var(--radius-lg)] glass-panel flex flex-col items-center shadow-xl border border-line-soft">
                         <button
                             type="button"
                             onClick={() => { playSelect(); setShowFee(v => !v); }}
                             aria-expanded={showFee}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-[18px] hover:bg-white/5 active:scale-[0.99] transition-all"
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-[var(--radius-md)] hover:bg-surface-hover transition-colors"
                         >
-                            <span className="text-ludo-xs font-black uppercase tracking-[0.2em] text-white/90 drop-shadow-md">
+                            <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.2em] text-ink-muted">
                                 Entry Fee
                             </span>
-                            <span className={`text-ludo-sm font-black tracking-wide ${wager > 0 ? 'text-cyan-300' : 'text-white/50'}`}>
+                            <span className={`text-ludo-sm font-mono font-bold tracking-wide ${wager > 0 ? 'text-accent' : 'text-ink-faint'}`}>
                                 {formatEntryFee(wager)}
                             </span>
                         </button>
@@ -499,7 +520,7 @@ export default function GameLobby({
                                     <button
                                         onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }}
                                         aria-label="Decrease entry fee"
-                                        className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200"
+                                        className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-[var(--radius-md)] bg-surface-2 border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover hover:border-line-strong transition-colors"
                                     >
                                         <LuMinus className="w-5 h-5 stroke-[3px]" />
                                     </button>
@@ -517,9 +538,9 @@ export default function GameLobby({
                                                 const next = Math.max(0, parseInt(digits || '0', 10) || 0);
                                                 setWager(Math.min(next, coins));
                                             }}
-                                            className="w-full bg-transparent text-center text-xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-xl"
+                                            className="w-full bg-transparent text-center text-xl font-mono font-bold text-ink-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-line-accent rounded-[var(--radius-md)]"
                                         />
-                                        <span className="text-ludo-xs font-bold text-white/35 uppercase tracking-wider mt-0.5">
+                                        <span className="text-ludo-xs font-mono font-bold text-ink-faint uppercase tracking-wider mt-0.5">
                                             Balance {formatEntryFee(coins)}
                                         </span>
                                     </div>
@@ -527,7 +548,7 @@ export default function GameLobby({
                                         onClick={() => { playCoin(); setWager(Math.min(coins, wager + (wager >= 1000 ? 1000 : 100))); }}
                                         aria-label="Increase entry fee"
                                         disabled={wager >= coins}
-                                        className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                        className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-[var(--radius-md)] bg-surface-2 border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover hover:border-line-strong transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                                     >
                                         <LuPlus className="w-5 h-5 stroke-[3px]" />
                                     </button>
@@ -541,11 +562,11 @@ export default function GameLobby({
                                                 disabled={!affordable}
                                                 title={affordable ? undefined : 'Not enough coins'}
                                                 onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
-                                                className={`px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-black ${wager === val
-                                                    ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]'
+                                                className={`px-3 min-h-[40px] inline-flex items-center justify-center rounded-[var(--radius-md)] border transition-colors text-ludo-sm font-mono font-bold ${wager === val
+                                                    ? 'border-line-accent bg-surface-selected text-accent'
                                                     : affordable
-                                                        ? 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 hover:scale-105 active:scale-95 border-white/10 text-white/90'
-                                                        : 'bg-[rgba(0,0,0,0.2)] border-white/5 text-white/25 cursor-not-allowed'
+                                                        ? 'bg-surface-2 hover:bg-surface-hover hover:border-line-strong border-line-soft text-ink-strong'
+                                                        : 'bg-surface-2/40 border-line-soft/40 text-ink-faint cursor-not-allowed'
                                                 }`}
                                             >
                                                 {formatEntryFee(val)}

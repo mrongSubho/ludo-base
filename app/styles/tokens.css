@@ -58,6 +58,16 @@
   --color-line-soft: var(--line-soft);
   --color-line-strong: var(--line-strong);
   --color-accent: var(--accent);
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-selected: var(--surface-selected);
+  --color-line-accent: var(--line-accent);
+  --color-sig-ok: var(--sig-ok);
+  --color-sig-warn: var(--sig-warn);
+  --color-sig-danger: var(--sig-danger);
+  --color-sig-info: var(--sig-info);
   --color-accent-soft: var(--accent-soft);
   --color-accent-ink: var(--accent-ink);
   --color-warn: var(--warn);
@@ -66,6 +76,17 @@
 }
 
 :root {
+  /* ── Semantic token fallbacks for default/retro ── */
+  --surface-0: #f8fafc;
+  --surface-1: #ffffff;
+  --surface-2: #ffffff;
+  --surface-3: #ffffff;
+  --surface-selected: rgba(14, 116, 144, 0.08);
+  --line-accent: rgba(14, 116, 144, 0.4);
+  --sig-ok: #16a34a;
+  --sig-warn: #d97706;
+  --sig-danger: #dc2626;
+  --sig-info: #0284c7;
   /* ─── 1. Vibrant Ludo Palette (From Mockup) ─── */
   --ludo-emerald: #22c55e;
   --ludo-red-vibrant: #ef4444;
