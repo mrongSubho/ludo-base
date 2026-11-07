@@ -47,8 +47,12 @@ const PublicProfileModal = dynamic(() => import('./components/PublicProfileModal
 const SpectatorHUD = dynamic(() => import('./components/SpectatorHUD').then(m => m.SpectatorHUD));
 const HostMigrationPanel = dynamic(() => import('./components/HostMigrationPanel').then(m => m.HostMigrationPanel));
 const DesktopLandingPage = dynamic(() => import('./components/landing/DesktopLandingPage'), { ssr: false });
+import DesktopLobbyHub from './components/desktop/DesktopLobbyHub';
+import CommandDeckShell from './components/desktop/CommandDeckShell';
 import { useDesktopLandingGate, ArenaLaunchConfig } from '@/hooks/useDesktopLandingGate';
 import { usePreferences } from '@/hooks/usePreferences';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
+import { INITIAL_GAME_STATE } from '@/lib/gameLogic';
 import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
 import { useWalletMode } from '@/hooks/useWalletMode';
 import { showAuthPrompt } from '@/hooks/useAuthPrompt';
@@ -715,6 +719,7 @@ export default function Page() {
   }, [handlePlayNow]);
 
   const { preferences } = usePreferences();
+  const isDesktop = useIsDesktop();
 
   const handleApplyLaunchConfig = useCallback((config: ArenaLaunchConfig) => {
     if (config.gameMode) {
@@ -780,20 +785,6 @@ export default function Page() {
           {/* ── Dashboard State ── */}
           {appState === 'dashboard' && (
             <div className="dashboard-container relative h-full">
-              {/* Desktop-only Overview breadcrumb */}
-              <div className="hidden lg:flex items-center justify-start px-safe pt-2">
-                <button
-                  type="button"
-                  onClick={returnToLanding}
-                  className="text-ludo-xs uppercase tracking-wider text-ink-muted hover:text-accent flex items-center gap-1 font-mono transition-colors cursor-pointer"
-                >
-                  <span>←</span>
-                  <span>Arena Overview</span>
-                </button>
-              </div>
-              {/* Cosmic Orbs (Rendered behind content) */}
-
-
               {/* Header */}
                 <HeaderNavPanel
                     finalAvatar={profile?.avatar_url || null}
@@ -816,18 +807,20 @@ export default function Page() {
                 <NoticeStrip className="mb-2" />
                 <SessionAuthBanner className="mb-2" />
 
-                <GameLobby
-                  gameMode={selectedMode as any}
-                  setGameMode={setSelectedMode as any}
-                  matchType={playerCount as any}
-                  setMatchType={setPlayerCount as any}
-                  wager={betAmount}
-                  setWager={setBetAmount}
-                  onStartGame={onStartGame}
-                  onStartPassAndPlay={() => onStartGame(false)}
-                  onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
-                  onBroadcastOpenChange={setBroadcastOpen}
-                />
+                <DesktopLobbyHub onReturnToLanding={returnToLanding}>
+                  <GameLobby
+                    gameMode={selectedMode as any}
+                    setGameMode={setSelectedMode as any}
+                    matchType={playerCount as any}
+                    setMatchType={setPlayerCount as any}
+                    wager={betAmount}
+                    setWager={setBetAmount}
+                    onStartGame={onStartGame}
+                    onStartPassAndPlay={() => onStartGame(false)}
+                    onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                    onBroadcastOpenChange={setBroadcastOpen}
+                  />
+                </DesktopLobbyHub>
               </main>
 
               {/* Footer Nav & Modals */}
@@ -1037,63 +1030,120 @@ export default function Page() {
           {/* ── Game State ── */}
           {appState === 'game' && (
             <>
-              {/* Rotation failsafe: covers the portrait-built board in landscape */}
-              <LandscapeGuard onExitMatch={handleBackToSubMenu} />
-              <HeaderNavPanel
-                finalAvatar={profile?.avatar_url || null}
-                finalName={finalName}
-                level={level}
-                tier={tier}
-                coins={profile?.coins || 0}
-                unreadCount={totalUnreadCount}
-                hasNotifications={notifCount > 0}
-                onMessagesClick={() => toggle('messages')}
-                onSettingsClick={() => toggle('settings')}
-                onOpenWallet={() => toggle('wallet')}
-                onOpenProfile={() => toggle('profile')}
-                onRevealMatchStatus={() => setMatchStatusReveal(value => value + 1)}
-              />
-              <MatchStatusStrip
-                modeLabel={`${selectedMode === 'power' ? 'Power' : 'Classic'} · ${playerCount} · ${betAmount === 0 ? 'Free' : betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
-                spectators={liveSpectators}
-                matchConnectionStatus={matchConnectionStatus}
-                revealToken={matchStatusReveal}
-                streamNode={<StreamToggle
-                  matchId={gameState?.matchId}
+              {isDesktop ? (
+                <CommandDeckShell
+                  players={boardSeed?.players ?? gameState?.initialBoardConfig?.players ?? []}
+                  colorCorner={boardSeed?.colorCorner ?? gameState?.initialBoardConfig?.colorCorner ?? assignCornersForShape(playerCount as any)}
+                  localGameState={gameState ?? INITIAL_GAME_STATE}
+                  myPlayer={(boardSeed?.players ?? gameState?.initialBoardConfig?.players ?? []).find(p => p.walletAddress === address) ?? (boardSeed?.players ?? gameState?.initialBoardConfig?.players ?? [])[0]}
+                  playerCount={playerCount}
+                  gameMode={selectedMode}
                   roomCode={lobbyState?.roomCode || roomId || null}
-                  hostAddress={address}
-                  isHost={isHost}
-                  small
-                />}
-              />
-              <main className="board-main has-top-back">
-                {(
-                  <Board
-                    playerCount={playerCount}
-                    gameMode={selectedMode as any}
-                    isBotMatch={boardSeed?.isBotMatch ?? (gameState?.initialBoardConfig?.players?.length ? gameState.isBotMatch : isBotMatch)}
-                    onOpenProfile={(addr) => setSelectedProfileAddress(addr)}
-                    initialPlayers={boardSeed?.players ?? gameState?.initialBoardConfig?.players}
-                    initialColorCorner={boardSeed?.colorCorner ?? gameState?.initialBoardConfig?.colorCorner}
-                    wager={betAmount}
-                    poolId={
-                      matchPoolAddress() && roomId
-                        ? derivePoolId({
-                            chainId:
-                              parseChainId(
-                                (typeof window !== 'undefined' ? (window as any).__ludoChainId : null),
-                              ) ?? DEFAULT_CHAIN_ID,
-                            matchId: roomId,
-                            roomCode: roomId,
-                          })
-                        : null
-                    }
-                    botDifficulty={botDifficulty}
-                    onExitMatch={handleBackToSubMenu}
-                    onOpenChat={() => toggle('messages')}
+                  matchId={gameState?.matchId}
+                  wager={betAmount}
+                  spectators={liveSpectators}
+                  matchConnectionStatus={matchConnectionStatus}
+                  onExitMatch={handleBackToSubMenu}
+                  onReturnToLanding={returnToLanding}
+                  onOpenSettings={() => toggle('settings')}
+                  streamNode={
+                    <StreamToggle
+                      matchId={gameState?.matchId}
+                      roomCode={lobbyState?.roomCode || roomId || null}
+                      hostAddress={address}
+                      isHost={isHost}
+                      small
+                    />
+                  }
+                >
+                  <main className="board-main has-top-back">
+                    <Board
+                      playerCount={playerCount}
+                      gameMode={selectedMode as any}
+                      isBotMatch={boardSeed?.isBotMatch ?? (gameState?.initialBoardConfig?.players?.length ? gameState.isBotMatch : isBotMatch)}
+                      onOpenProfile={(addr) => setSelectedProfileAddress(addr)}
+                      initialPlayers={boardSeed?.players ?? gameState?.initialBoardConfig?.players}
+                      initialColorCorner={boardSeed?.colorCorner ?? gameState?.initialBoardConfig?.colorCorner}
+                      wager={betAmount}
+                      poolId={
+                        matchPoolAddress() && roomId
+                          ? derivePoolId({
+                              chainId:
+                                parseChainId(
+                                  (typeof window !== 'undefined' ? (window as any).__ludoChainId : null),
+                                ) ?? DEFAULT_CHAIN_ID,
+                              matchId: roomId,
+                              roomCode: roomId,
+                            })
+                          : null
+                      }
+                      botDifficulty={botDifficulty}
+                      onExitMatch={handleBackToSubMenu}
+                      onOpenChat={() => toggle('messages')}
+                    />
+                  </main>
+                </CommandDeckShell>
+              ) : (
+                <>
+                  {/* Rotation failsafe: covers the portrait-built board in landscape */}
+                  <LandscapeGuard onExitMatch={handleBackToSubMenu} />
+                  <HeaderNavPanel
+                    finalAvatar={profile?.avatar_url || null}
+                    finalName={finalName}
+                    level={level}
+                    tier={tier}
+                    coins={profile?.coins || 0}
+                    unreadCount={totalUnreadCount}
+                    hasNotifications={notifCount > 0}
+                    onMessagesClick={() => toggle('messages')}
+                    onSettingsClick={() => toggle('settings')}
+                    onOpenWallet={() => toggle('wallet')}
+                    onOpenProfile={() => toggle('profile')}
+                    onRevealMatchStatus={() => setMatchStatusReveal(value => value + 1)}
                   />
-                )}
-              </main>
+                  <MatchStatusStrip
+                    modeLabel={`${selectedMode === 'power' ? 'Power' : 'Classic'} · ${playerCount} · ${betAmount === 0 ? 'Free' : betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
+                    spectators={liveSpectators}
+                    matchConnectionStatus={matchConnectionStatus}
+                    revealToken={matchStatusReveal}
+                    streamNode={<StreamToggle
+                      matchId={gameState?.matchId}
+                      roomCode={lobbyState?.roomCode || roomId || null}
+                      hostAddress={address}
+                      isHost={isHost}
+                      small
+                    />}
+                  />
+                  <main className="board-main has-top-back">
+                    {(
+                      <Board
+                        playerCount={playerCount}
+                        gameMode={selectedMode as any}
+                        isBotMatch={boardSeed?.isBotMatch ?? (gameState?.initialBoardConfig?.players?.length ? gameState.isBotMatch : isBotMatch)}
+                        onOpenProfile={(addr) => setSelectedProfileAddress(addr)}
+                        initialPlayers={boardSeed?.players ?? gameState?.initialBoardConfig?.players}
+                        initialColorCorner={boardSeed?.colorCorner ?? gameState?.initialBoardConfig?.colorCorner}
+                        wager={betAmount}
+                        poolId={
+                          matchPoolAddress() && roomId
+                            ? derivePoolId({
+                                chainId:
+                                  parseChainId(
+                                    (typeof window !== 'undefined' ? (window as any).__ludoChainId : null),
+                                  ) ?? DEFAULT_CHAIN_ID,
+                                matchId: roomId,
+                                roomCode: roomId,
+                              })
+                            : null
+                        }
+                        botDifficulty={botDifficulty}
+                        onExitMatch={handleBackToSubMenu}
+                        onOpenChat={() => toggle('messages')}
+                      />
+                    )}
+                  </main>
+                </>
+              )}
 
               {/* ── In-game overlays: DM + settings work mid-match; settings
                     carries the Leave Match exit (header strip stays pure status) ── */}

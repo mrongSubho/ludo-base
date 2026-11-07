@@ -123,6 +123,12 @@ export function TokenPiece({
         setIsMoving(false);
     }, []);
 
+    // Snap in-flight pawn hops immediately on viewport resize to prevent coordinate drift
+    React.useEffect(() => {
+        window.addEventListener('resize', finishNow);
+        return () => window.removeEventListener('resize', finishNow);
+    }, [finishNow]);
+
     // REA-19: unmount drains every pending timeout and tween registered above.
     React.useEffect(() => () => {
         for (const fn of cleanupsRef.current) {

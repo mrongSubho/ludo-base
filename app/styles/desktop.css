@@ -1,0 +1,150 @@
+/* ─── Ludo 3077 Desktop Command Deck Styles ───
+   Widescreen 3-column cockpit layout and tactical HUD components.
+   Strictly complies with DESIGN.md §9 and CSS_LAYOUT_ANIMATION_PLAN §3. */
+
+@media (min-width: 1024px) {
+  /* Widescreen App Shell */
+  .app-shell {
+    max-width: 100vw !important;
+    width: 100vw !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Widescreen Command Deck Root */
+  .command-deck-root {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--surface-page);
+    color: var(--ink-strong);
+    overflow: hidden;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+  }
+
+  /* Command Deck Header */
+  .command-deck-header {
+    height: 56px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 1.5rem;
+    background-color: var(--surface-panel);
+    border-bottom: 1px solid var(--line-soft);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+
+  /* Command Deck 3-Column Cockpit Grid */
+  .command-deck-grid {
+    flex: 1;
+    display: flex;
+    width: 100%;
+    height: calc(100% - 56px);
+    overflow: hidden;
+    padding: 1rem 1.5rem;
+    gap: 1.25rem;
+  }
+
+  /* Left Wing: Player & Team Telemetry Deck */
+  .command-deck-wing-left {
+    width: 320px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  /* Center Stage: Scalable Arena Board + Action Console */
+  .command-deck-stage {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Fluid Board Sizing on Desktop */
+  .command-deck-stage .board-main {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+  }
+
+  .command-deck-stage .board-outer {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    gap: 6px !important;
+    padding-bottom: 0 !important;
+  }
+
+  /* Right Wing: Tactical Comms, Emotes & Match Log */
+  .command-deck-wing-right {
+    width: 340px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--surface-panel);
+    border: 1px solid var(--line-soft);
+    border-radius: 14px;
+    overflow: hidden;
+    height: 100%;
+  }
+
+  /* Keycap Hotkey Badge */
+  .keycap-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+    font-family: var(--font-mono), monospace;
+    font-size: var(--text-ludo-xs, 11px);
+    font-weight: 700;
+    background-color: var(--surface-recessed);
+    color: var(--accent);
+    border: 1px solid var(--line-strong);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+    letter-spacing: 0.05em;
+  }
+
+  /* Desktop Dashboard Lobby Hub (2-column expansion) */
+  .desktop-lobby-hub {
+    display: flex;
+    width: 100%;
+    max-width: 1140px;
+    margin: 0 auto;
+    height: 100%;
+    gap: 1.5rem;
+    padding: 1rem 1.5rem 4rem;
+    overflow-y: auto;
+  }
+
+  .desktop-lobby-hub-left {
+    width: 480px;
+    flex-shrink: 0;
+  }
+
+  .desktop-lobby-hub-right {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+}
