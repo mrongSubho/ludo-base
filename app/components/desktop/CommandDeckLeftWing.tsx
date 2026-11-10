@@ -3,18 +3,20 @@
 import React from 'react';
 import { Player } from '@/hooks/useGameEngine';
 import { GameState, PowerType, PowerItem, BoardPlayer } from '@/lib/types';
-import { ColorCorner } from '@/lib/boardLayout';
+import { ColorCorner, Corner } from '@/lib/boardLayout';
 import { PlayerColor } from '@/lib/engine/core';
 
 interface CommandDeckLeftWingProps {
   players: (Player | BoardPlayer)[];
   colorCorner: ColorCorner;
+  uiSlots?: Partial<Record<Corner, PlayerColor | null>>;
   localGameState: GameState;
   myPlayer?: Player | BoardPlayer | null;
   playerCount: string | number;
   gameMode?: string;
   onUsePower?: (type: PowerType) => void;
   canUsePowers?: boolean;
+  targetingType?: PowerType | null;
 }
 
 const COLOR_ACCENTS: Record<PlayerColor, { text: string; bg: string; border: string; name: string }> = {
@@ -24,30 +26,49 @@ const COLOR_ACCENTS: Record<PlayerColor, { text: string; bg: string; border: str
   yellow: { text: 'text-warn', bg: 'bg-warn/10', border: 'border-warn/40', name: 'YELLOW' },
 };
 
+const POWER_SLOTS: { type: PowerType; keycap: string; icon: string }[] = [
+  { type: 'boost', keycap: 'Q', icon: '⚡' },
+  { type: 'shield', keycap: 'W', icon: '🛡️' },
+  { type: 'teleport', keycap: 'E', icon: '🌀' },
+  { type: 'nuke', keycap: 'R', icon: '💣' },
+];
+
 export default function CommandDeckLeftWing({
   players,
   colorCorner,
+  uiSlots,
   localGameState,
   myPlayer,
   playerCount,
   gameMode = 'classic',
   onUsePower,
   canUsePowers = false,
+  targetingType = null,
 }: CommandDeckLeftWingProps) {
   const is2v2 = playerCount === '2v2';
   const ownColor = myPlayer?.color;
   const activeColor = localGameState.currentPlayer as PlayerColor;
+  const timeLeft = typeof localGameState.timeLeft === 'number' ? Math.max(0, Math.ceil(localGameState.timeLeft)) : 15;
 
-  // Power Inventory items for local player
+  const visualCornerFor = (c: PlayerColor): string => {
+    if (uiSlots) {
+      const match = (Object.entries(uiSlots) as [Corner, PlayerColor | null | undefined][]).find(
+        ([, val]) => val === c,
+      );
+      if (match) return match[0];
+    }
+    return colorCorner[c] || 'BL';
+  };
+
   const myPowers: PowerItem[] =
     gameMode === 'power' && ownColor
       ? (localGameState.playerPowers?.[ownColor] || []).filter((p) => p.expiresAt > Date.now())
       : [];
 
-  const renderPlayerCard = (player: Player) => {
+  const renderPlayerCard = (player: Player | BoardPlayer) => {
     const color = player.color as PlayerColor;
-    const isTurn = activeColor === color;
-    const corner = colorCorner[color] || 'BL';
+    const isTurn = activeColor === color && !localGameState.winner;
+    const corner = visualCornerFor(color);
     const positions = (localGameState.positions?.[color] as number[]) || [-1, -1, -1, -1];
 
     const inYard = positions.filter((p) => Number(p) === -1).length;
@@ -66,11 +87,11 @@ export default function CommandDeckLeftWing({
             : 'bg-surface-recessed/70 border-line-soft'
         }`}
       >
-        {/* Header: Name, Corner & Turn Indicator */}
+        {/* Header: Name, Corner & Turn Clock */}
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-2 min-w-0">
             <span className={`w-2.5 h-2.5 rounded-full ${isTurn ? 'animate-ping' : ''} ${styling.bg} border ${styling.border}`} />
-            <span className="font-bold text-ludo-xs text-ink-strong truncate">
+            <span className={`font-bold text-ludo-xs truncate ${styling.text}`}>
               {player.name}
             </span>
             {isMe && (
@@ -90,14 +111,14 @@ export default function CommandDeckLeftWing({
               {corner}
             </span>
             {isTurn && (
-              <span className="px-2 py-0.5 rounded text-ludo-xs font-mono font-bold bg-accent text-surface-page animate-pulse">
-                TURN
+              <span className={`px-2 py-0.5 rounded text-ludo-xs font-mono font-bold ${timeLeft <= 5 ? 'bg-warn text-surface-page animate-pulse' : 'bg-accent text-surface-page'}`}>
+                {timeLeft}s
               </span>
             )}
           </div>
         </div>
 
-        {/* Token Counts & Progress Bar */}
+        {/* Token Counts */}
         <div className="grid grid-cols-3 gap-1.5 text-center text-ludo-xs font-mono pt-1 border-t border-line-soft">
           <div className="bg-surface-panel/80 p-1 rounded border border-line-soft">
             <span className="text-ink-faint block">YARD</span>
@@ -116,20 +137,25 @@ export default function CommandDeckLeftWing({
     );
   };
 
-  // Group by Teams in 2v2 (GB vs RY)
   const teamAlphaPlayers = players.filter((p) => p.color === 'green' || p.color === 'blue');
   const teamOmegaPlayers = players.filter((p) => p.color === 'red' || p.color === 'yellow');
 
-  // Compute 2v2 Home Counts
-  const teamAlphaHome = teamAlphaPlayers.reduce((acc, p) => {
-    const pos = (localGameState.positions?.[p.color as PlayerColor] as number[]) || [];
-    return acc + pos.filter((x) => Number(x) === 57).length;
-  }, 0);
+  const countHomeFor = (group: (Player | BoardPlayer)[]) =>
+    group.reduce((acc, p) => {
+      const pos = (localGameState.positions?.[p.color as PlayerColor] as number[]) || [];
+      return acc + pos.filter((x) => Number(x) === 57).length;
+    }, 0);
 
-  const teamOmegaHome = teamOmegaPlayers.reduce((acc, p) => {
-    const pos = (localGameState.positions?.[p.color as PlayerColor] as number[]) || [];
-    return acc + pos.filter((x) => Number(x) === 57).length;
-  }, 0);
+  const teamAlphaHome = countHomeFor(teamAlphaPlayers);
+  const teamOmegaHome = countHomeFor(teamOmegaPlayers);
+
+  const alphaAssistReady = teamAlphaPlayers.some((p) =>
+    ((localGameState.positions?.[p.color as PlayerColor] as number[]) || []).every((x) => Number(x) === 57),
+  ) && teamAlphaHome < 8;
+
+  const omegaAssistReady = teamOmegaPlayers.some((p) =>
+    ((localGameState.positions?.[p.color as PlayerColor] as number[]) || []).every((x) => Number(x) === 57),
+  ) && teamOmegaHome < 8;
 
   return (
     <aside className="command-deck-wing-left">
@@ -155,8 +181,10 @@ export default function CommandDeckLeftWing({
             </div>
 
             <div className="flex items-center justify-between text-ludo-xs text-ink-muted pt-1 border-t border-line-soft font-mono">
-              <span>TRAP TRUCE:</span>
-              <span className="text-positive font-semibold">ACTIVE</span>
+              <span>{alphaAssistReady ? 'TEAM ASSIST:' : 'TRAP TRUCE:'}</span>
+              <span className="text-positive font-semibold">
+                {alphaAssistReady ? 'ASSIST ACTIVE' : 'IMMUNE'}
+              </span>
             </div>
           </div>
 
@@ -177,6 +205,13 @@ export default function CommandDeckLeftWing({
             <div className="flex flex-col gap-2">
               {teamOmegaPlayers.map(renderPlayerCard)}
             </div>
+
+            {omegaAssistReady && (
+              <div className="flex items-center justify-between text-ludo-xs text-ink-muted pt-1 border-t border-line-soft font-mono">
+                <span>TEAM ASSIST:</span>
+                <span className="text-positive font-semibold">ASSIST ACTIVE</span>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -208,35 +243,39 @@ export default function CommandDeckLeftWing({
               </span>
             </div>
             <span className="text-ludo-xs font-mono text-accent">
-              {myPowers.length}/3 IN HAND
+              {targetingType ? `TARGET ${targetingType.toUpperCase()}` : `${myPowers.length} HELD`}
             </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            {(['boost', 'shield', 'teleport'] as PowerType[]).map((type, idx) => {
-              const keycap = idx === 0 ? 'Q' : idx === 1 ? 'W' : 'E';
-              const hasCard = myPowers.some((p) => p.type === type);
+          <div className="grid grid-cols-2 gap-2">
+            {POWER_SLOTS.map(({ type, keycap, icon }) => {
+              const count = myPowers.filter((p) => p.type === type).length;
+              const isArmed = targetingType === type;
+              const hasCard = count > 0;
               return (
                 <button
                   key={type}
                   type="button"
                   disabled={!hasCard || !canUsePowers}
                   onClick={() => onUsePower?.(type)}
-                  className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all ${
-                    hasCard && canUsePowers
-                      ? 'bg-surface-recessed border-accent hover:brightness-110 active:scale-95 cursor-pointer shadow-sm'
-                      : 'bg-surface-recessed/40 border-line-soft opacity-40 cursor-not-allowed'
+                  className={`p-2 rounded-xl border flex items-center justify-between gap-2 transition-all ${
+                    isArmed
+                      ? 'bg-warn/20 border-warn shadow-[0_0_12px_rgba(255,170,0,0.3)] cursor-pointer'
+                      : hasCard && canUsePowers
+                        ? 'bg-surface-recessed border-accent hover:brightness-110 active:scale-95 cursor-pointer shadow-sm'
+                        : 'bg-surface-recessed/40 border-line-soft opacity-40 cursor-not-allowed'
                   }`}
                 >
-                  <span className="text-base">
-                    {type === 'boost' ? '⚡' : type === 'shield' ? '🛡️' : '🌀'}
-                  </span>
-                  <span className="text-ludo-xs font-bold uppercase text-ink-strong">
-                    {type}
-                  </span>
-                  <span className="keycap-badge">
-                    {keycap}
-                  </span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-sm">{icon}</span>
+                    <div className="flex flex-col items-start min-w-0">
+                      <span className="text-ludo-xs font-bold uppercase text-ink-strong truncate">
+                        {type}
+                      </span>
+                      <span className="text-ludo-xs font-mono text-ink-faint">x{count}</span>
+                    </div>
+                  </div>
+                  <span className="keycap-badge shrink-0">{keycap}</span>
                 </button>
               );
             })}

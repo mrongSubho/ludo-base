@@ -89,8 +89,53 @@
   .command-deck-stage .board-outer {
     max-width: 100% !important;
     max-height: 100% !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
     gap: 6px !important;
     padding-bottom: 0 !important;
+  }
+
+  /* Release mobile IME height-lock on desktop so window resize scales board fluidly */
+  .command-deck-stage .board-area,
+  .command-deck-stage .board-area.is-locked {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    width: 100% !important;
+  }
+
+  .command-deck-stage .board-grid {
+    max-height: 100% !important;
+  }
+
+  /* Desktop cockpit moves mobile footer social bar & turn banner into Wings + Console */
+  .command-deck-stage .match-footer,
+  .command-deck-stage .board-turn-status {
+    display: none !important;
+  }
+
+  /* Desktop Token Keycap Hotkey Badge [1]..[4] */
+  .token-hotkey-badge {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    border-radius: 4px;
+    background-color: var(--surface-page);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    font-family: var(--font-mono), monospace;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 30;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
   }
 
   /* Right Wing: Tactical Comms, Emotes & Match Log */
@@ -111,40 +156,48 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.1rem 0.35rem;
-    border-radius: 4px;
+    padding: 0.1rem 0.4rem;
+    border-radius: 5px;
     font-family: var(--font-mono), monospace;
     font-size: var(--text-ludo-xs, 11px);
-    font-weight: 700;
-    background-color: var(--surface-recessed);
+    font-weight: 800;
+    background-color: var(--surface-page);
     color: var(--accent);
-    border: 1px solid var(--line-strong);
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--accent);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
     letter-spacing: 0.05em;
   }
 
   /* Desktop Dashboard Lobby Hub (2-column expansion) */
   .desktop-lobby-hub {
     display: flex;
+    flex-direction: row !important;
     width: 100%;
     max-width: 1140px;
     margin: 0 auto;
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
     gap: 1.5rem;
-    padding: 1rem 1.5rem 4rem;
-    overflow-y: auto;
+    padding: 0.25rem 0 0.5rem;
+    overflow: hidden;
   }
 
   .desktop-lobby-hub-left {
     width: 480px;
-    flex-shrink: 0;
+    flex: 0 0 480px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   .desktop-lobby-hub-right {
     flex: 1;
     min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 1rem;
+    padding-bottom: 1rem;
   }
 }

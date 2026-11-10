@@ -29,6 +29,7 @@ interface TokenPieceProps {
     shielded?: boolean;
     targetable?: boolean;
     boosted?: boolean;
+    hotkeyNumber?: number;
     onClick: () => void;
 }
 
@@ -48,6 +49,7 @@ export function TokenPiece({
     shielded = false,
     targetable = false,
     boosted = false,
+    hotkeyNumber,
     onClick
 }: TokenPieceProps) {
     const [visualPt, setVisualPt] = React.useState<Point | null>(targetPt);
@@ -355,6 +357,7 @@ export function TokenPiece({
                         shielded={shielded}
                         targetable={targetable}
                         boosted={boosted}
+                        hotkeyNumber={hotkeyNumber}
                     />
                 </div>
             </motion.div>

@@ -48,11 +48,9 @@ const SpectatorHUD = dynamic(() => import('./components/SpectatorHUD').then(m =>
 const HostMigrationPanel = dynamic(() => import('./components/HostMigrationPanel').then(m => m.HostMigrationPanel));
 const DesktopLandingPage = dynamic(() => import('./components/landing/DesktopLandingPage'), { ssr: false });
 import DesktopLobbyHub from './components/desktop/DesktopLobbyHub';
-import CommandDeckShell from './components/desktop/CommandDeckShell';
 import { useDesktopLandingGate, ArenaLaunchConfig } from '@/hooks/useDesktopLandingGate';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useIsDesktop } from '@/hooks/useIsDesktop';
-import { INITIAL_GAME_STATE } from '@/lib/gameLogic';
 import { useAccount, useDisconnect, useSignMessage } from 'wagmi';
 import { useWalletMode } from '@/hooks/useWalletMode';
 import { showAuthPrompt } from '@/hooks/useAuthPrompt';
@@ -720,6 +718,10 @@ export default function Page() {
 
   const { preferences } = usePreferences();
   const isDesktop = useIsDesktop();
+  const [pendingLaunchAction, setPendingLaunchAction] = useState<{
+    startBotMatch?: boolean;
+    spectateRoomCode?: string;
+  } | null>(null);
 
   const handleApplyLaunchConfig = useCallback((config: ArenaLaunchConfig) => {
     if (config.gameMode) {
@@ -733,10 +735,33 @@ export default function Page() {
       url.searchParams.set('room', config.joinRoomCode);
       window.history.replaceState({}, '', url.toString());
     }
-    if (config.startBotMatch) {
-      handlePlayNow(false);
+    if (config.spectateRoomCode) {
+      if (isConnected && onboarded) {
+        void handleWatchMatch(config.spectateRoomCode);
+      } else {
+        setPendingLaunchAction({ spectateRoomCode: config.spectateRoomCode });
+      }
+      return;
     }
-  }, [handlePlayNow]);
+    if (config.startBotMatch) {
+      if (isConnected && onboarded) {
+        onStartGame(true);
+      } else {
+        setPendingLaunchAction({ startBotMatch: true });
+      }
+    }
+  }, [isConnected, onboarded, onStartGame, handleWatchMatch]);
+
+  useEffect(() => {
+    if (!pendingLaunchAction || !isConnected || !onboarded) return;
+    const action = pendingLaunchAction;
+    setPendingLaunchAction(null);
+    if (action.spectateRoomCode) {
+      void handleWatchMatch(action.spectateRoomCode);
+    } else if (action.startBotMatch) {
+      onStartGame(true);
+    }
+  }, [pendingLaunchAction, isConnected, onboarded, handleWatchMatch, onStartGame]);
 
   const { showLanding, enterArena, returnToLanding } = useDesktopLandingGate({
     appState,
@@ -943,57 +968,91 @@ export default function Page() {
           {/* ── Spectating State ── */}
           {appState === 'spectating' && spectatingRoomCode && (
             <>
-              {/* Rotation failsafe: covers the portrait-built board in landscape */}
-              <LandscapeGuard onExitMatch={handleLeaveSpectating} />
-              <HeaderNavPanel
-                finalAvatar={profile?.avatar_url || null}
-                finalName={finalName}
-                level={level}
-                tier={tier}
-                coins={profile?.coins || 0}
-                unreadCount={totalUnreadCount}
-                hasNotifications={notifCount > 0}
-                onMessagesClick={() => toggle('messages')}
-                onSettingsClick={() => toggle('settings')}
-                onOpenWallet={() => toggle('wallet')}
-                onOpenProfile={() => toggle('profile')}
-                onRevealMatchStatus={() => setMatchStatusReveal(value => value + 1)}
-              />
-              <MatchStatusStrip
-                modeLabel={`Live #${spectatingRoomCode}`}
-                spectators={spectatorCount}
-                watching
-                matchConnectionStatus={matchConnectionStatus}
-                revealToken={matchStatusReveal}
-              />
+              {isDesktop ? (
+                <div className="relative w-full h-full">
+                  <Board
+                    playerCount={spectatorGameState?.playerCount || "4P"}
+                    gameMode={(spectatorGameState?.powerTiles?.length ?? 0) > 0 ? "power" : "classic"}
+                    isBotMatch={true}
+                    spectatorMode={true}
+                    externalGameState={spectatorGameState ?? undefined}
+                    onExitMatch={handleLeaveSpectating}
+                    desktopDeck={{
+                      roomCode: spectatingRoomCode,
+                      spectators: spectatorCount,
+                      matchConnectionStatus,
+                      onReturnToLanding: returnToLanding,
+                      onOpenSettings: () => toggle('settings'),
+                      externalRightWing: spectatorGameState ? <div aria-hidden="true" /> : undefined,
+                    }}
+                  />
+                  {!spectatorConnected && !spectatorGameState && (
+                    <div className="fixed inset-0 z-30 flex flex-col items-center justify-center gap-3 pointer-events-none">
+                      <ThinkingOrb state="connecting" size={64} />
+                      <span
+                        className="text-ludo-xs font-black uppercase tracking-[0.25em]"
+                        style={{ color: 'var(--ludo-muted)' }}
+                      >
+                        Connecting to live match
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* Rotation failsafe: covers the portrait-built board in landscape */}
+                  <LandscapeGuard onExitMatch={handleLeaveSpectating} />
+                  <HeaderNavPanel
+                    finalAvatar={profile?.avatar_url || null}
+                    finalName={finalName}
+                    level={level}
+                    tier={tier}
+                    coins={profile?.coins || 0}
+                    unreadCount={totalUnreadCount}
+                    hasNotifications={notifCount > 0}
+                    onMessagesClick={() => toggle('messages')}
+                    onSettingsClick={() => toggle('settings')}
+                    onOpenWallet={() => toggle('wallet')}
+                    onOpenProfile={() => toggle('profile')}
+                    onRevealMatchStatus={() => setMatchStatusReveal(value => value + 1)}
+                  />
+                  <MatchStatusStrip
+                    modeLabel={`Live #${spectatingRoomCode}`}
+                    spectators={spectatorCount}
+                    watching
+                    matchConnectionStatus={matchConnectionStatus}
+                    revealToken={matchStatusReveal}
+                  />
 
-              <main className="board-main has-top-back" style={{ position: 'relative', paddingRight: spectatorGameState ? '296px' : undefined }}>
-                <Board
-                  playerCount={spectatorGameState?.playerCount || "4P"}
-                  gameMode={(spectatorGameState?.powerTiles?.length ?? 0) > 0 ? "power" : "classic"}
-                  isBotMatch={true}
-                  spectatorMode={true}
-                  externalGameState={spectatorGameState ?? undefined}
-                />
-                {/* First paint of a spectated match: the board has no state yet
-                    and `isConnected` only flips after the first snapshot (or a
-                    SYNC_STATE broadcast), so this is a real wait, not a flash.
-                    Gated on BOTH flags so a future reconnect can never cover a
-                    board that is already live. */}
-                {!spectatorConnected && !spectatorGameState && (
-                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 pointer-events-none">
-                    <ThinkingOrb state="connecting" size={64} />
-                    {/* Token, not `text-white/45`: the board area is light in
-                        Daybreak (--ludo-bg #e6e8ec), so white ink disappears. */}
-                    <span
-                      className="text-ludo-xs font-black uppercase tracking-[0.25em]"
-                      style={{ color: 'var(--ludo-muted)' }}
-                    >
-                      Connecting to live match
-                    </span>
-                  </div>
-                )}
-              </main>
+                  <main className="board-main has-top-back" style={{ position: 'relative', paddingRight: spectatorGameState ? '296px' : undefined }}>
+                    <Board
+                      playerCount={spectatorGameState?.playerCount || "4P"}
+                      gameMode={(spectatorGameState?.powerTiles?.length ?? 0) > 0 ? "power" : "classic"}
+                      isBotMatch={true}
+                      spectatorMode={true}
+                      externalGameState={spectatorGameState ?? undefined}
+                    />
+                    {/* First paint of a spectated match: the board has no state yet
+                        and `isConnected` only flips after the first snapshot (or a
+                        SYNC_STATE broadcast), so this is a real wait, not a flash.
+                        Gated on BOTH flags so a future reconnect can never cover a
+                        board that is already live. */}
+                    {!spectatorConnected && !spectatorGameState && (
+                      <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 pointer-events-none">
+                        <ThinkingOrb state="connecting" size={64} />
+                        {/* Token, not `text-white/45`: the board area is light in
+                            Daybreak (--ludo-bg #e6e8ec), so white ink disappears. */}
+                        <span
+                          className="text-ludo-xs font-black uppercase tracking-[0.25em]"
+                          style={{ color: 'var(--ludo-muted)' }}
+                        >
+                          Connecting to live match
+                        </span>
+                      </div>
+                    )}
+                  </main>
+                </>
+              )}
 
               {/* SpectatorHUD — positioned on the right */}
               {spectatorGameState && (
@@ -1031,58 +1090,48 @@ export default function Page() {
           {appState === 'game' && (
             <>
               {isDesktop ? (
-                <CommandDeckShell
-                  players={boardSeed?.players ?? gameState?.initialBoardConfig?.players ?? []}
-                  colorCorner={boardSeed?.colorCorner ?? gameState?.initialBoardConfig?.colorCorner ?? assignCornersForShape(playerCount as any)}
-                  localGameState={gameState ?? INITIAL_GAME_STATE}
-                  myPlayer={(boardSeed?.players ?? gameState?.initialBoardConfig?.players ?? []).find(p => p.walletAddress === address) ?? (boardSeed?.players ?? gameState?.initialBoardConfig?.players ?? [])[0]}
+                <Board
                   playerCount={playerCount}
-                  gameMode={selectedMode}
-                  roomCode={lobbyState?.roomCode || roomId || null}
-                  matchId={gameState?.matchId}
+                  gameMode={selectedMode as any}
+                  isBotMatch={boardSeed?.isBotMatch ?? (gameState?.initialBoardConfig?.players?.length ? gameState.isBotMatch : isBotMatch)}
+                  onOpenProfile={(addr) => setSelectedProfileAddress(addr)}
+                  initialPlayers={boardSeed?.players ?? gameState?.initialBoardConfig?.players}
+                  initialColorCorner={boardSeed?.colorCorner ?? gameState?.initialBoardConfig?.colorCorner}
                   wager={betAmount}
-                  spectators={liveSpectators}
-                  matchConnectionStatus={matchConnectionStatus}
-                  onExitMatch={handleBackToSubMenu}
-                  onReturnToLanding={returnToLanding}
-                  onOpenSettings={() => toggle('settings')}
-                  streamNode={
-                    <StreamToggle
-                      matchId={gameState?.matchId}
-                      roomCode={lobbyState?.roomCode || roomId || null}
-                      hostAddress={address}
-                      isHost={isHost}
-                      small
-                    />
+                  poolId={
+                    matchPoolAddress() && roomId
+                      ? derivePoolId({
+                          chainId:
+                            parseChainId(
+                              (typeof window !== 'undefined' ? (window as any).__ludoChainId : null),
+                            ) ?? DEFAULT_CHAIN_ID,
+                          matchId: roomId,
+                          roomCode: roomId,
+                        })
+                      : null
                   }
-                >
-                  <main className="board-main has-top-back">
-                    <Board
-                      playerCount={playerCount}
-                      gameMode={selectedMode as any}
-                      isBotMatch={boardSeed?.isBotMatch ?? (gameState?.initialBoardConfig?.players?.length ? gameState.isBotMatch : isBotMatch)}
-                      onOpenProfile={(addr) => setSelectedProfileAddress(addr)}
-                      initialPlayers={boardSeed?.players ?? gameState?.initialBoardConfig?.players}
-                      initialColorCorner={boardSeed?.colorCorner ?? gameState?.initialBoardConfig?.colorCorner}
-                      wager={betAmount}
-                      poolId={
-                        matchPoolAddress() && roomId
-                          ? derivePoolId({
-                              chainId:
-                                parseChainId(
-                                  (typeof window !== 'undefined' ? (window as any).__ludoChainId : null),
-                                ) ?? DEFAULT_CHAIN_ID,
-                              matchId: roomId,
-                              roomCode: roomId,
-                            })
-                          : null
-                      }
-                      botDifficulty={botDifficulty}
-                      onExitMatch={handleBackToSubMenu}
-                      onOpenChat={() => toggle('messages')}
-                    />
-                  </main>
-                </CommandDeckShell>
+                  botDifficulty={botDifficulty}
+                  onExitMatch={handleBackToSubMenu}
+                  onOpenChat={() => toggle('messages')}
+                  desktopDeck={{
+                    roomCode: lobbyState?.roomCode || roomId || null,
+                    matchId: gameState?.matchId,
+                    spectators: liveSpectators,
+                    matchConnectionStatus,
+                    onReturnToLanding: returnToLanding,
+                    onOpenSettings: () => toggle('settings'),
+                    onRequestExit: () => setShowQuitWarning(true),
+                    streamNode: (
+                      <StreamToggle
+                        matchId={gameState?.matchId}
+                        roomCode={lobbyState?.roomCode || roomId || null}
+                        hostAddress={address}
+                        isHost={isHost}
+                        small
+                      />
+                    ),
+                  }}
+                />
               ) : (
                 <>
                   {/* Rotation failsafe: covers the portrait-built board in landscape */}
@@ -1167,7 +1216,7 @@ export default function Page() {
 
               {/* ── Quit Match Warning Overlay ── */}
               {showQuitWarning && (
-                <div className="absolute inset-0 z-[999] bg-black/60 backdrop-blur-md flex items-center justify-center p-5">
+                <div className="fixed inset-0 z-[999] bg-black/60 backdrop-blur-md flex items-center justify-center p-5">
                   <div
                     className="ludo-quit-scope border border-white/10 rounded-[32px] shadow-2xl max-w-sm w-full text-center p-5"
                     style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}

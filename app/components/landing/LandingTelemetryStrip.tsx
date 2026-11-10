@@ -4,7 +4,9 @@ import React, { useEffect, useState } from 'react';
 
 interface ActivityItem {
   id: string;
+  actor_id?: string;
   type: string;
+  actor?: { username?: string | null; wallet_address?: string } | null;
   metadata?: {
     winner?: string;
     wager?: number;
@@ -14,49 +16,63 @@ interface ActivityItem {
 }
 
 export default function LandingTelemetryStrip() {
-  const [onlineCount, setOnlineCount] = useState<number>(36);
+  const [onlineCount, setOnlineCount] = useState<number | null>(null);
+  const [openQueueCount, setOpenQueueCount] = useState<number | null>(null);
   const [recentActivities, setRecentActivities] = useState<ActivityItem[]>([]);
 
   useEffect(() => {
-    const fetchOnline = async () => {
+    const fetchTelemetry = async () => {
       try {
-        const res = await fetch('/api/presence/online?limit=1', { signal: AbortSignal.timeout(6000) });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.players) && data.players.length > 0) {
-            setOnlineCount(Math.max(28, data.players.length * 8));
+        const [onlineRes, poolsRes, actRes] = await Promise.allSettled([
+          fetch('/api/presence/online?limit=50', { signal: AbortSignal.timeout(6000) }),
+          fetch('/api/matchmaking/pools?gameMode=classic&matchType=2v2', { signal: AbortSignal.timeout(6000) }),
+          fetch('/api/activities', { signal: AbortSignal.timeout(6000) }),
+        ]);
+
+        if (onlineRes.status === 'fulfilled' && onlineRes.value.ok) {
+          const data = await onlineRes.value.json();
+          if (Array.isArray(data.players)) {
+            setOnlineCount(data.players.length);
           }
         }
-      } catch {
-        // Fallback default
-      }
-    };
 
-    const fetchActivities = async () => {
-      try {
-        const res = await fetch('/api/activities', { signal: AbortSignal.timeout(6000) });
-        if (res.ok) {
-          const list = await res.json();
+        if (poolsRes.status === 'fulfilled' && poolsRes.value.ok) {
+          const data = await poolsRes.value.json();
+          if (data?.pools && typeof data.pools === 'object') {
+            const total = Object.values(data.pools as Record<string, number>).reduce(
+              (sum, n) => sum + (Number(n) || 0),
+              0,
+            );
+            setOpenQueueCount(total);
+          }
+        }
+
+        if (actRes.status === 'fulfilled' && actRes.value.ok) {
+          const list = await actRes.value.json();
           if (Array.isArray(list)) {
             setRecentActivities(list.slice(0, 5));
           }
         }
       } catch {
-        // Fallback default
+        // Keep safe initial display on offline error
       }
     };
 
-    void fetchOnline();
-    void fetchActivities();
+    void fetchTelemetry();
 
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
-        void fetchOnline();
+        void fetchTelemetry();
       }
     }, 30000);
 
     return () => clearInterval(interval);
   }, []);
+
+  const latest = recentActivities[0];
+  const latestLabel = latest
+    ? `${latest.actor?.username || (latest.actor_id ? `${latest.actor_id.slice(0, 6)}…` : 'Operator')} • ${latest.type.replace(/_/g, ' ')}`
+    : 'Arena MatchRoom Durable Objects ready • Commit-reveal RNG synced';
 
   return (
     <div className="w-full bg-surface-panel/90 border-y border-line-soft py-3 overflow-hidden">
@@ -65,12 +81,16 @@ export default function LandingTelemetryStrip() {
         <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 sm:gap-6 text-ludo-xs uppercase tracking-wider font-semibold">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-positive animate-pulse" />
-            <span className="text-ink-strong">{onlineCount} PLAYERS ONLINE</span>
+            <span className="text-ink-strong">
+              {onlineCount !== null ? `${onlineCount} PLAYERS ONLINE` : 'PRESENCE SYNCED'}
+            </span>
           </div>
 
           <div className="flex items-center gap-2 text-ink-muted">
             <span className="text-accent">❖</span>
-            <span>18 ACTIVE MATCH ROOMS</span>
+            <span>
+              {openQueueCount !== null ? `${openQueueCount} IN 2v2 QUEUE` : 'MATCHMAKING LIVE'}
+            </span>
           </div>
 
           <div className="flex items-center gap-2 text-ink-muted">
@@ -90,9 +110,7 @@ export default function LandingTelemetryStrip() {
             FEED
           </span>
           <span className="truncate max-w-sm">
-            {recentActivities.length > 0
-              ? 'Victory recorded on Base Sepolia • MatchPool escrow verified'
-              : 'Arena MatchRoom Durable Objects ready • Commit-reveal RNG synced'}
+            {latestLabel}
           </span>
         </div>
       </div>

@@ -80,7 +80,7 @@ export function useDesktopHotkeys({
         }
       }
 
-      // Q, W, E: Power cards
+      // Q, W, E, R: Power cards
       if (!e.repeat && onUsePower) {
         if (e.code === 'KeyQ') {
           e.preventDefault();
@@ -95,6 +95,11 @@ export function useDesktopHotkeys({
         if (e.code === 'KeyE') {
           e.preventDefault();
           onUsePower(2);
+          return;
+        }
+        if (e.code === 'KeyR') {
+          e.preventDefault();
+          onUsePower(3);
           return;
         }
       }

@@ -193,6 +193,7 @@ export function BoardTokens({
                         shielded={shielded}
                         targetable={targetable}
                         boosted={boosted}
+                        hotkeyNumber={isValidMove ? index + 1 : undefined}
                         onClick={() => targetable && onTargetToken ? onTargetToken(color, index) : handleTokenClick(color, index)}
                     />
                 );

@@ -33,14 +33,32 @@ import { encodeChatDraft, insertDraftEmote, retainChatDraftEmotes, type ChatDraf
 import type { EmoteEvent } from '@/lib/emotes';
 import type { ChatEvent } from '@/lib/chat';
 import { parseChatPayload, clampChatText, chatTtlMs } from '@/lib/chat';
-import { EMOTE_TTL_MS } from '@/lib/emotes';
+import { EMOTE_TTL_MS, isEmoteId, type EmoteId } from '@/lib/emotes';
 import type { GameActionPayload } from '@/lib/types';
 import { getHopSamples } from '@/lib/perf/budget';
 import { installPerfDebugHook } from '@/lib/perf/report';
 import { PlayerRow, getDisplayNameHelper } from './PlayerInfoRow';
+import dynamic from 'next/dynamic';
+import type { CombatLogEvent } from './desktop/CommandDeckRightWing';
+import { getLegalTokenIndices } from '@/lib/engine/core';
+
+const CommandDeckShell = dynamic(() => import('./desktop/CommandDeckShell'), { ssr: false });
 
 // Modular Hooks
 import { useBoardLayout } from '@/hooks/useBoardLayout';
+import { useIsDesktop } from '@/hooks/useIsDesktop';
+
+export interface DesktopDeckBridgeProps {
+    roomCode?: string | null;
+    matchId?: string | null;
+    spectators?: number;
+    matchConnectionStatus?: string;
+    onReturnToLanding?: () => void;
+    onOpenSettings?: () => void;
+    onRequestExit?: () => void;
+    streamNode?: React.ReactNode;
+    externalRightWing?: React.ReactNode;
+}
 
 export default function Board({
     showLeaderboard = false,
@@ -58,6 +76,7 @@ export default function Board({
     botDifficulty = 'pro',
     onExitMatch,
     onOpenChat: _onOpenChat,
+    desktopDeck,
 }: {
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
@@ -76,7 +95,9 @@ export default function Board({
     onExitMatch?: () => void;
     /** Open in-match chat / messages. */
     onOpenChat?: () => void;
+    desktopDeck?: DesktopDeckBridgeProps;
 }) {
+    const isDesktop = useIsDesktop();
     // Effective identity (wallet or guest id) so guests resolve as human.
     const { address } = useCurrentUser();
     const { participants, broadcastAction, serverSeq } = useTeamUp();
@@ -310,7 +331,117 @@ export default function Board({
         setTargeting(null);
     };
 
-    return (
+    // ─── Desktop Command Deck Bridge (live game loop ↔ 3-column cockpit) ───
+    const teammateTurn = playerCount === '2v2' ? getTeammateColor(turnColor, '2v2') : null;
+    const selfAllHome = (localGameState.positions?.[turnColor] || []).every((p: number) => Number(p) === 57);
+    const activeControlColor: PlayerColor = selfAllHome && teammateTurn ? teammateTurn : turnColor;
+    const effectiveDeckDice =
+        localGameState.diceValue !== null && localGameState.diceValue !== undefined
+            ? Number(localGameState.diceValue) +
+              (localGameState.activeBoost === turnColor || localGameState.activeBoost === activeControlColor ? 6 : 0)
+            : null;
+    const legalTokenIndices = React.useMemo(() => {
+        if (!isMyTurn || localGameState.gamePhase !== 'moving' || effectiveDeckDice === null) return [];
+        return getLegalTokenIndices(localGameState.positions, activeControlColor, effectiveDeckDice, colorCorner);
+    }, [isMyTurn, localGameState.gamePhase, localGameState.positions, activeControlColor, effectiveDeckDice, colorCorner]);
+
+    const canRollDesktop =
+        isMyTurn &&
+        !myPlayer?.isAi &&
+        !localGameState.afkStats?.[turnColor]?.isKicked &&
+        localGameState.gamePhase === 'rolling' &&
+        localGameState.diceValue === null &&
+        !localGameState.isRolling;
+
+    const [combatEvents, setCombatEvents] = React.useState<CombatLogEvent[]>([
+        { id: 'init', type: 'turn', message: 'Arena match engine initialized', time: Date.now() },
+    ]);
+    const prevLogSnapRef = React.useRef<{ turn?: string; dice?: number | null; capture?: string | null; winner?: string | null }>({});
+
+    React.useEffect(() => {
+        const prev = prevLogSnapRef.current;
+        const nextEntries: CombatLogEvent[] = [];
+        const now = Date.now();
+        if (prev.turn && prev.turn !== localGameState.currentPlayer) {
+            nextEntries.push({
+                id: `turn-${now}-${localGameState.currentPlayer}`,
+                type: 'turn',
+                message: `Turn passed to ${localGameState.currentPlayer.toUpperCase()}`,
+                time: now,
+            });
+        }
+        if (localGameState.diceValue !== null && localGameState.diceValue !== prev.dice) {
+            nextEntries.push({
+                id: `roll-${now}-${localGameState.currentPlayer}-${localGameState.diceValue}`,
+                type: 'roll',
+                message: `${localGameState.currentPlayer.toUpperCase()} rolled ${localGameState.diceValue}`,
+                time: now,
+            });
+        }
+        if (localGameState.captureMessage && localGameState.captureMessage !== prev.capture) {
+            nextEntries.push({
+                id: `cap-${now}`,
+                type: 'capture',
+                message: localGameState.captureMessage,
+                time: now,
+            });
+        }
+        if (localGameState.winner && localGameState.winner !== prev.winner) {
+            nextEntries.push({
+                id: `win-${now}`,
+                type: 'turn',
+                message: `Victory claimed by ${String(localGameState.winner).toUpperCase()}!`,
+                time: now,
+            });
+        }
+        prevLogSnapRef.current = {
+            turn: localGameState.currentPlayer,
+            dice: localGameState.diceValue,
+            capture: localGameState.captureMessage,
+            winner: localGameState.winner,
+        };
+        if (nextEntries.length > 0) {
+            setCombatEvents((list) => [...list.slice(-36), ...nextEntries]);
+        }
+    }, [localGameState.currentPlayer, localGameState.diceValue, localGameState.captureMessage, localGameState.winner]);
+
+    const sendDesktopChat = React.useCallback((rawText: string, audience: 'all' | 'team') => {
+        const text = clampChatText(rawText);
+        if (!text || !ownColor) return;
+        const ev: ChatEvent = { text, color: ownColor, audience, t: Date.now() };
+        setChatBubbles((b) => [...b.slice(-3), ev]);
+        window.dispatchEvent(new CustomEvent('ludo-chat', { detail: ev }));
+        broadcastAction('CHAT', {
+            text,
+            color: ownColor,
+            audience,
+            t: ev.t,
+        } as GameActionPayload<'CHAT'>);
+    }, [ownColor, broadcastAction]);
+
+    const sendDesktopEmote = React.useCallback((rawEmoteId: string, glyph: string, assetUrl?: string) => {
+        if (!ownColor) return;
+        const resolvedId: EmoteId = isEmoteId(rawEmoteId) ? rawEmoteId : 'custom';
+        const t = Date.now();
+        const ev: EmoteEvent = {
+            emoteId: resolvedId,
+            color: ownColor,
+            customText: glyph,
+            assetUrl,
+            t,
+        };
+        setEmoteFloats((f) => [...f.slice(-4), ev]);
+        window.dispatchEvent(new CustomEvent('ludo-emote', { detail: ev }));
+        broadcastAction('EMOTE', {
+            emoteId: resolvedId,
+            color: ownColor,
+            customText: glyph,
+            assetUrl,
+            t,
+        } as GameActionPayload<'EMOTE'>);
+    }, [ownColor, broadcastAction]);
+
+    const boardOuter = (
         <div data-theme="default" className="board-outer board-match-theme-wrapper w-full h-full">
             <PlayerRow
                 corners={['TL', 'TR']}
@@ -402,6 +533,7 @@ export default function Board({
                                     diceValue={effectiveHomeDice}
                                     gamePhase={localGameState.gamePhase}
                                     currentPlayer={isControllableHome ? color : localGameState.currentPlayer}
+                                    showHotkeys={isDesktop && !spectatorMode && isMyTurn && isControllableHome && color === activeControlColor}
                                 />
                             );
                         })}
@@ -613,6 +745,50 @@ export default function Board({
             )}
         </div>
     );
+
+    if (isDesktop && desktopDeck) {
+        return (
+            <CommandDeckShell
+                players={players}
+                colorCorner={colorCorner}
+                uiSlots={uiSlots}
+                localGameState={localGameState}
+                myPlayer={myPlayer}
+                playerCount={playerCount}
+                gameMode={gameMode}
+                roomCode={desktopDeck.roomCode}
+                matchId={desktopDeck.matchId}
+                wager={wager}
+                spectators={desktopDeck.spectators}
+                spectatorMode={spectatorMode}
+                matchConnectionStatus={desktopDeck.matchConnectionStatus}
+                onExitMatch={(localGameState.winner || spectatorMode) ? onExitMatch : (desktopDeck.onRequestExit ?? onExitMatch)}
+                onReturnToLanding={desktopDeck.onReturnToLanding}
+                onOpenSettings={desktopDeck.onOpenSettings}
+                onRollDice={handleRoll}
+                onSelectToken={(tokenIdx) => {
+                    if (!isMyTurn || localGameState.gamePhase !== 'moving') return;
+                    handleTokenClick(activeControlColor, tokenIdx);
+                }}
+                onUsePower={spendPower}
+                onSendChat={sendDesktopChat}
+                onSendEmote={sendDesktopEmote}
+                streamNode={desktopDeck.streamNode}
+                canRoll={canRollDesktop}
+                legalTokenIndices={legalTokenIndices}
+                canUsePowers={canSpend}
+                targetingType={targeting?.type ?? null}
+                combatEvents={combatEvents}
+                externalRightWing={desktopDeck.externalRightWing}
+            >
+                <main className="board-main has-top-back">
+                    {boardOuter}
+                </main>
+            </CommandDeckShell>
+        );
+    }
+
+    return boardOuter;
 }
 
 function BoardTurnStatus({

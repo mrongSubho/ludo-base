@@ -6,6 +6,7 @@ export interface ArenaLaunchConfig {
   matchType?: 2 | 4 | '1v1' | '2v2';
   gameMode?: 'classic' | 'power';
   joinRoomCode?: string;
+  spectateRoomCode?: string;
   startBotMatch?: boolean;
 }
 

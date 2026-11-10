@@ -51,6 +51,10 @@ export default function CommandDeckHeader({
           ? 'POWER ARENA'
           : '4P FFA';
 
+  const statusText = _matchConnectionStatus
+    ? _matchConnectionStatus.toUpperCase()
+    : 'LOCAL ENGINE';
+
   return (
     <header className="command-deck-header">
       {/* Left: Overview Breadcrumb & Brand */}
@@ -92,7 +96,9 @@ export default function CommandDeckHeader({
         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-surface-recessed border border-line-soft">
           <span className="text-ink-muted uppercase">ESCROW POOL:</span>
           <span className="font-bold text-positive">
-            {wager > 0 ? `${(wager * 2).toLocaleString()} CHIPS` : 'FREE PLAY'}
+            {wager > 0
+              ? `${(wager * (playerCount === '1v1' || playerCount === 2 ? 2 : 4)).toLocaleString()} CHIPS`
+              : 'FREE PLAY'}
           </span>
         </div>
 
@@ -100,7 +106,7 @@ export default function CommandDeckHeader({
           <span className="w-2 h-2 rounded-full bg-positive animate-pulse" />
           <span>BASE SEPOLIA 84532</span>
           <span className="text-ink-faint">|</span>
-          <span className="text-accent font-semibold">14ms</span>
+          <span className="text-accent font-semibold">{statusText}</span>
         </div>
 
         {spectators > 0 && (

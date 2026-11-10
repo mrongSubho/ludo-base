@@ -188,6 +188,7 @@ interface HomeBlockProps {
     diceValue?: number | null;
     gamePhase?: string;
     currentPlayer?: string;
+    showHotkeys?: boolean;
 }
 
 export function HomeBlock({
@@ -205,7 +206,8 @@ export function HomeBlock({
     counterRotationDeg = 0,
     diceValue = null,
     gamePhase = 'rolling',
-    currentPlayer = ''
+    currentPlayer = '',
+    showHotkeys = false,
 }: HomeBlockProps) {
     const prevFinishedRef = useRef<number>(finishedTokens.length);
     const padRef = useRef<HTMLDivElement>(null);
@@ -265,6 +267,7 @@ export function HomeBlock({
                                     isValidMove={isValidHome}
                                     counterRotationDeg={counterRotationDeg}
                                     pos={-1}
+                                    hotkeyNumber={showHotkeys && isValidHome ? idx + 1 : undefined}
                                 />
                             )}
                             {isFinished && (

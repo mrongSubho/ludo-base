@@ -78,6 +78,7 @@ interface TokenProps {
     shielded?: boolean;
     targetable?: boolean;
     boosted?: boolean;
+    hotkeyNumber?: number;
 }
 
 export function Token({
@@ -94,6 +95,7 @@ export function Token({
     shielded = false,
     targetable = false,
     boosted = false,
+    hotkeyNumber,
 }: TokenProps) {
     const prevRef = useRef<{ rank: ChessRank; pos: number } | null>(null);
     const [showPromoFX, setShowPromoFX] = React.useState(false);
@@ -173,6 +175,11 @@ export function Token({
             </AnimatePresence>
             </div>
             {isBlockade && <div className="blockade-glow" />}
+            {showValid && hotkeyNumber !== undefined && (
+                <span className="hidden lg:flex token-hotkey-badge" aria-hidden="true">
+                    {hotkeyNumber}
+                </span>
+            )}
         </motion.div>
     );
 }
