@@ -103,7 +103,7 @@ body.theme-retro-futurism .boot-dot { display: block; opacity: 0.1; }
 /* ─── Retro Night signature: violet edge-light on panel shells ───
    Matches the terminal system (--panel-border). Dark themes keep their
    depth; the violet rim is Retro's identity marker. */
-body.theme-retro-futurism :is(.ludo-market-scope.border-white\/10, .ludo-settings-scope.border-white\/10, .ludo-rankings-scope.border-white\/10, .ludo-friends-scope.border-white\/10, .ludo-messages-scope.border-white\/10, .ludo-arena-scope.border-white\/10, .ludo-profile-scope.border-white\/10, .ludo-offline-scope.border-white\/10, .ludo-migrate-scope.border-white\/10, .ludo-teamup-scope.border-white\/10, .ludo-quick-scope.border-white\/10, .ludo-pubprofile-scope.border-white\/10, .ludo-livearena-scope.border-white\/10, .ludo-leaderboard-scope.border-white\/10, .ludo-invite-scope.border-white\/10, .ludo-wallet-scope, .ludo-burn-scope.border-white\/10, .ludo-wall-scope.border-white\/10, .ludo-authwait-scope.border-white\/10, .ludo-quit-scope.border-white\/10, .ludo-broadcast-scope.border-white\/10) { border-color: rgba(124, 58, 237, 0.35); box-shadow: 0 0 24px rgba(124, 58, 237, 0.18), 0 24px 60px rgba(0, 0, 0, 0.55); }
+body.theme-retro-futurism :is(.ludo-market-scope.border-white\/10, .ludo-settings-scope.border-white\/10, .ludo-rankings-scope.border-white\/10, .ludo-friends-scope.border-white\/10, .ludo-messages-scope.border-white\/10, .ludo-arena-scope.border-white\/10, .ludo-profile-scope.border-white\/10, .ludo-offline-scope.border-white\/10, .ludo-migrate-scope.border-white\/10, .ludo-teamup-scope.border-white\/10, .ludo-quick-scope.border-white\/10, .ludo-pubprofile-scope.border-white\/10, .ludo-livearena-scope.border-white\/10, .ludo-leaderboard-scope.border-white\/10, .ludo-invite-scope.border-white\/10, .ludo-wallet-scope, .ludo-burn-scope.border-white\/10, .ludo-wall-scope.border-white\/10, .ludo-authwait-scope.border-white\/10, .ludo-quit-scope.border-white\/10, .ludo-broadcast-scope.border-white\/10, .ludo-clan-scope.border-white\/10) { border-color: rgba(124, 58, 237, 0.35); box-shadow: 0 0 24px rgba(124, 58, 237, 0.18), 0 24px 60px rgba(0, 0, 0, 0.55); }
 
 /* Retro-Futurism Scanline Overlay */
 body.theme-retro-futurism::before {
@@ -2268,7 +2268,8 @@ body.keyboard-open .app-shell {
 .ludo-migrate-scope.absolute,
 .ludo-settings-scope.absolute,
 .ludo-messages-scope.absolute,
-.ludo-broadcast-scope.absolute {
+.ludo-broadcast-scope.absolute,
+.ludo-clan-scope.absolute {
   container-type: inline-size;
   container-name: panel-shell;
   top: calc(64px + env(safe-area-inset-top, 0px)) !important;
@@ -2293,7 +2294,8 @@ body.keyboard-open :is(
   .ludo-migrate-scope.absolute,
   .ludo-settings-scope.absolute,
   .ludo-messages-scope.absolute,
-  .ludo-broadcast-scope.absolute
+  .ludo-broadcast-scope.absolute,
+  .ludo-clan-scope.absolute
 ) {
   bottom: 8px !important;
   max-height: calc(var(--visible-vh, 100dvh) - 64px - 8px) !important;
@@ -2490,7 +2492,8 @@ body.keyboard-open :is(
   .ludo-splash-scope,
   .ludo-guestpill-scope,
   .ludo-onboard-scope,
-  .ludo-idle-scope {
+  .ludo-idle-scope,
+  .ludo-clan-scope {
     /* Blur + animated orbs were the ghosting cost — not the static gradient.
        Keep the cosmic layers (they paint once onto the opaque shell). */
     backdrop-filter: none !important;
@@ -2517,7 +2520,8 @@ body.keyboard-open :is(
   body.theme-daybreak .ludo-migrate-scope,
   body.theme-daybreak .ludo-broadcast-scope,
   body.theme-daybreak .ludo-pubprofile-scope,
-  body.theme-daybreak .ludo-onboard-scope {
+  body.theme-daybreak .ludo-onboard-scope,
+  body.theme-daybreak .ludo-clan-scope {
     background-color: var(--panel-solid, #f2f4f8) !important;
     box-shadow: 0 10px 28px rgba(23, 23, 23, 0.14) !important;
   }
@@ -2542,7 +2546,8 @@ body.keyboard-open :is(
   .ludo-messages-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
   .ludo-settings-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
   .ludo-lobby-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
-  .ludo-onboard-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5) {
+  .ludo-onboard-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5),
+  .ludo-clan-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5) {
     color: rgba(255, 255, 255, 0.42) !important;
   }
 
@@ -2555,7 +2560,8 @@ body.keyboard-open :is(
   .ludo-messages-scope :is(.text-white\/30, .text-white\/35),
   .ludo-settings-scope :is(.text-white\/30, .text-white\/35),
   .ludo-lobby-scope :is(.text-white\/30, .text-white\/35),
-  .ludo-onboard-scope :is(.text-white\/30, .text-white\/35) {
+  .ludo-onboard-scope :is(.text-white\/30, .text-white\/35),
+  .ludo-clan-scope :is(.text-white\/30, .text-white\/35) {
     color: rgba(255, 255, 255, 0.55) !important;
   }
 
@@ -2566,7 +2572,8 @@ body.keyboard-open :is(
   body.theme-daybreak .ludo-arena-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10),
   body.theme-daybreak .ludo-settings-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10),
   body.theme-daybreak .ludo-onboard-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10),
-  body.theme-daybreak .ludo-lobby-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10) {
+  body.theme-daybreak .ludo-lobby-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10),
+  body.theme-daybreak .ludo-clan-scope :is(.text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10) {
     color: rgba(23, 23, 23, 0.45) !important;
   }
 
@@ -2576,7 +2583,8 @@ body.keyboard-open :is(
   body.theme-daybreak .ludo-arena-scope :is(.text-white\/30, .text-white\/35),
   body.theme-daybreak .ludo-settings-scope :is(.text-white\/30, .text-white\/35),
   body.theme-daybreak .ludo-onboard-scope :is(.text-white\/30, .text-white\/35),
-  body.theme-daybreak .ludo-lobby-scope :is(.text-white\/30, .text-white\/35) {
+  body.theme-daybreak .ludo-lobby-scope :is(.text-white\/30, .text-white\/35),
+  body.theme-daybreak .ludo-clan-scope :is(.text-white\/30, .text-white\/35) {
     color: rgba(23, 23, 23, 0.55) !important;
   }
 
@@ -2593,6 +2601,7 @@ body.keyboard-open :is(
   .ludo-quick-scope .cosmic-orb,
   .ludo-offline-scope .cosmic-orb,
   .ludo-migrate-scope .cosmic-orb,
+  .ludo-clan-scope .cosmic-orb,
   .ludo-broadcast-scope .cosmic-orb,
   .ludo-pubprofile-scope .cosmic-orb,
   .ludo-invite-scope .cosmic-orb,
