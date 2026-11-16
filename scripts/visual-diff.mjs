@@ -79,10 +79,13 @@ const ALWAYS_MASK = ['img[src^="http"]', '.animate-pulse', '.animate-spin'];
 const SCENES = [
   { name: 'setup-retro', theme: 'retro', mask: ALWAYS_MASK, drive: driveSetup },
   { name: 'setup-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: driveSetup },
+  { name: 'setup-3077', theme: '3077', mask: ALWAYS_MASK, drive: driveSetup },
   { name: 'lobby-retro', theme: 'retro', mask: [...ALWAYS_MASK, '.broadcast-anchor'], drive: driveLobby },
   { name: 'lobby-daybreak', theme: 'light', mask: [...ALWAYS_MASK, '.broadcast-anchor'], drive: driveLobby },
+  { name: 'lobby-3077', theme: '3077', mask: [...ALWAYS_MASK, '.broadcast-anchor'], drive: driveLobby },
   { name: 'offline-panel-retro', theme: 'retro', mask: ALWAYS_MASK, drive: driveOfflinePanel },
   { name: 'offline-panel-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: driveOfflinePanel },
+  { name: 'offline-panel-3077', theme: '3077', mask: ALWAYS_MASK, drive: driveOfflinePanel },
   // Footer-nav panels — the wallet-free entry to each `.ludo-*-scope` subtree.
   // These exist so UI_DESIGN_AUDIT 1.2 (reset layering / spacing-repair
   // deletion) is provable: 457 panel-scoped spacing re-assertions live in
@@ -108,6 +111,7 @@ const SCENES = [
   // boundary takes over. These two are therefore skipped on a dev server.
   { name: 'board-retro', theme: 'retro', mask: [...ALWAYS_MASK, '.board-turn-status'], drive: driveBoard, requires: 'production' },
   { name: 'board-daybreak', theme: 'light', mask: [...ALWAYS_MASK, '.board-turn-status'], drive: driveBoard, requires: 'production' },
+  { name: 'board-3077', theme: '3077', mask: [...ALWAYS_MASK, '.board-turn-status'], drive: driveBoard, requires: 'production' },
 ];
 
 // ── Scene drivers ─────────────────────────────────────────────────────────
