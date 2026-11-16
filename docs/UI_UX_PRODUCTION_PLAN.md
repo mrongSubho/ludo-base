@@ -10,6 +10,7 @@
 | :--- | :--- | :--- |
 | D1 | **This plan covers the mobile layout only (< 640px, incl. the Farcaster frame).** The desktop layout (264px side rail, §3.1 grid, 640–1023px icon rail) is deferred to a separate desktop plan. | §3.1 and the tablet/desktop rows of §3.2 are **reference only, not in scope**. The Account Dock ships in its mobile form: the avatar slot in `FooterNavPanel` opens a bottom sheet (§5.1, mobile). The desktop dock and popover in §5.2–5.3 define the content and states that the bottom sheet reuses. |
 | D2 | **Shared [global] fixes wait until the 3077 work is done.** That covers the duplicate `@keyframes pulse` in `motion.css` and consolidating `--app-vh` / `--layout-vh` / `--visible-vh`. | They are removed from P1 and P4 and parked in a post-3077 phase (P9). Until then, the 3077 work must not depend on them. Use 3077-scoped keyframe names (e.g. `rail-sweep-3077`) and read the existing `--app-vh` as is. |
+| D3 | **Drop separate mobile Account Dock (`P6`).** On mobile (`< 640px`), `HeaderNavPanel` already exposes `WalletPanel` (top-left pill), `UserProfilePanel` (top-center pill), and `SettingsPanel` (top-right gear). | `FooterNavPanel` stays at 6 tabs on mobile (`AccountDock` / `AccountPopover` removed). §5 remains as reference for any future desktop plan (D1). |
 
 > **Status:** Implemented (Mobile P0–P8 on main). Desktop layout (D1) and post-3077 global fixes (D2/P9) remain deferred.
 
@@ -408,7 +409,7 @@ Data sources reuse existing hooks only (`useWalletMode`, `usePreferences`, wagmi
 | **P3: Hover stability** | Strip `hover:scale` / `transition-all` from the lobby. Introduce `.card-3077` and the state matrix. | `GameLobby.tsx`, list panels in §1.2 | `visual:diff` hover snapshots; zero CLS in a Lighthouse lobby run |
 | **P4: Shell & scroll (mobile)** | Mobile shell: header 56px, main as the single scroll owner, footer 64px, `100dvh` lock, thin scrollbars. Desktop rail is out of scope (D1); `--app-vh` consolidation is deferred (D2). | `page.tsx`, `panels.css`, `GamePanelShell.tsx` | Device pass 320 / 360 / 390 / 430. No double scrollbars, no body scroll behind panels. |
 | **P5: Lobby components** | Segmented mode/match controls, CTA states, and the matchmaking rail. | `GameLobby.tsx`, `QuickMatchPanel.tsx` | `npm test` (lobby-doors, matchmaking-shape), keyboard-only run |
-| **P6: Account Dock (mobile)** | Footer avatar slot opens an `AccountSheet` bottom sheet with the §5.3 sections, the §5.4 reducer and wallet-mode gating. | `app/components/account/*`, `FooterNavPanel.tsx` | Unit tests for the reducer and wallet-mode gating (external wallets get no passkey UI); `scripts/wallet-guard.test.ts` green |
+| **P6: Account Dock (mobile)** | Removed per **D3**: mobile header pills (`HeaderNavPanel`) already own `WalletPanel`, `UserProfilePanel`, and `SettingsPanel`. | — | Superseded by D3 |
 | **P7: Panels** | Apply E3 and the single-scroller rule to the slide-overs (Clan, Messages, Marketplace, Activity first, since they have the most nested scrollers). | §1.3 files | `visual:diff`; scroll audit |
 | **P8: Hardening** | Contrast audit at 0% backdrop, the `@supports` blur fallback, the two-blur-layer budget, and docs (`DESIGN.md` 3077 section). | — | Full CI: `npm test`, `tsc`, `lint`, `check:wrangler-guard`, `check-routes`, `npm run build` |
 

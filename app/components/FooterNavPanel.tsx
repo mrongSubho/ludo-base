@@ -7,8 +7,6 @@ import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
-import { usePreferences } from '@/hooks/usePreferences';
-import { MobileAccountSlot } from './account/AccountDock';
 
 // Tab Type
 type Tab = 'friends' | 'leaderboard' | 'mission' | 'arena' | 'marketplace' | 'settings' | 'messages' | 'wallet' | 'profile' | 'clan' | null;
@@ -87,8 +85,6 @@ export const FooterNavPanel = ({
     // Mobile: no layout spring / backdrop-blur on the active pill — those
     // stall the compositor while sandwich panels are mounting beside it.
     const isMobile = useIsMobileView();
-    const { preferences } = usePreferences();
-    const is3077 = preferences.theme === '3077';
     // Single source of truth for footer clearance: measure the real rendered
     // box (compact vs full breakpoint, font loading — safe-area padding
     // included). Use sites add breathing room ONLY, never env(safe-area…)
@@ -112,15 +108,6 @@ export const FooterNavPanel = ({
     return (
         <>
             <nav className="footer-nav ludo-footer-scope overflow-hidden">
-                {is3077 && (
-                    <MobileAccountSlot
-                        panelOpen={activeTab !== null}
-                        onOpenPanel={(panel) => {
-                            if (activeTab !== panel) onToggleTab(panel);
-                        }}
-                        onCloseActivePanel={onCloseTab}
-                    />
-                )}
                 {[
                     { id: 'friends', icon: UsersIcon, label: 'Friends' },
                     { id: 'leaderboard', icon: TrophyIcon, label: 'Leaderboard' },
