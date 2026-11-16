@@ -691,13 +691,6 @@ body.theme-3077 :is(.ludo-messages-scope .overflow-y-auto, .ludo-clan-scope .cha
 }
 
 /* ─── 10. ActionDice & LudoDice Pedestal ─── */
-body.theme-3077 .dice-swipe-hint {
-  position: static !important;
-  margin-bottom: 22px;
-}
-body.theme-3077 .ludo-lobby-scope .lobby-dice-cube {
-  margin-top: 6px !important;
-}
 body.theme-3077 .lobby-dice-cube {
   filter: none;
 }

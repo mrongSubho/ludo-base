@@ -221,11 +221,11 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
         <div className="relative w-full flex flex-col items-center justify-center py-2" style={{ perspective: '1200px' }}>
             {/* TIER 1: The Camera (Perspective) */}
 
-            <div className="dice-swipe-hint absolute top-0 w-full flex items-center justify-center gap-2">
+            <div className="dice-swipe-hint w-full flex items-center justify-center gap-2 mb-6">
                 <span className="text-white/50 text-ludo-xs uppercase font-bold tracking-[0.3em] drop-shadow-md">Swipe to choose</span>
             </div>
 
-            <div className="lobby-dice-cube relative w-28 h-28 mt-8 mb-3 dice-tier cursor-grab active:cursor-grabbing [--tz:56px] flex items-center justify-center">
+            <div className="lobby-dice-cube relative w-28 h-28 mt-1 mb-3 dice-tier cursor-grab active:cursor-grabbing [--tz:56px] flex items-center justify-center">
                 <motion.div
                     animate={{ x: [-5, 5, -5] }}
                     transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
