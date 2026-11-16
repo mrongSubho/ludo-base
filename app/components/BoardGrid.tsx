@@ -29,13 +29,13 @@ const ZONE_HEX: Record<string, string> = {
 };
 
 const StarMarker = ({ color = "#eab308", counterRotationDeg = 0 }: { color?: string; counterRotationDeg?: number }) => (
-    <div className="relative w-full h-full flex items-center justify-center pointer-events-none" style={{ transform: `rotate(${counterRotationDeg}deg)` }}>
+    <>
         {/* Classic / Daybreak 5-Point Star */}
-        <svg className="star-svg star-standard" viewBox="0 0 24 24" style={{ width: '92%', height: '92%' }}>
+        <svg className="star-standard" viewBox="0 0 24 24" style={{ width: '96%', height: '96%', transform: `rotate(${counterRotationDeg}deg)` }}>
             <path fill={color} d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />
         </svg>
         {/* 3077 Cyber-Tactical Reticle Shield */}
-        <svg className="star-svg star-3077 hidden" viewBox="0 0 24 24" style={{ width: '95%', height: '95%' }}>
+        <svg className="star-svg star-3077 hidden" viewBox="0 0 24 24" style={{ width: '95%', height: '95%', transform: `rotate(${counterRotationDeg}deg)` }}>
             <circle cx="12" cy="12" r="9" fill="none" stroke={color} strokeWidth="1.2" strokeDasharray="3 2" opacity="0.8" />
             <circle cx="12" cy="12" r="4.5" fill={`${color}33`} stroke={color} strokeWidth="1.5" />
             <circle cx="12" cy="12" r="1.5" fill={color} />
@@ -44,7 +44,7 @@ const StarMarker = ({ color = "#eab308", counterRotationDeg = 0 }: { color?: str
             <line x1="1" y1="12" x2="5" y2="12" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
             <line x1="19" y1="12" x2="23" y2="12" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
         </svg>
-    </div>
+    </>
 );
 
 function getZoneColorForSafeCell(r: number, c: number, cc: ColorCorner): string {
@@ -64,7 +64,7 @@ function getZoneColorForSafeCell(r: number, c: number, cc: ColorCorner): string 
 const ArrowMarker = ({ dir, color = "#ffffff" }: { dir: 'up' | 'down' | 'left' | 'right', color?: string }) => {
     const rotation = { right: 0, down: 90, left: 180, up: 270 }[dir];
     return (
-        <motion.div style={{ rotate: rotation }} className="arrow-container flex items-center justify-center">
+        <motion.div style={{ rotate: rotation }}>
             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 arrow-standard" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>
                 <path fill={color} d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
             </svg>
@@ -326,7 +326,7 @@ export function BoardGrid({
                              <motion.div
                                  animate={{ scale: [1, 1.1, 1] }}
                                  transition={{ repeat: Infinity, duration: 2 }}
-                                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}
+                                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                              >
                                  <svg className="star-standard" viewBox="0 0 24 24" style={{ width: '55%', height: '55%' }}>
                                      <path fill={COLOR_MAP[activeColor as string] || '#eab308'} d="M12 2l2.9 6.26L22 9.27l-5 4.87L18.18 22 12 18.27 5.82 22 7 14.14 2 9.27l7.1-1.01L12 2z" />

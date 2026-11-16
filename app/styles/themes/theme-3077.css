@@ -53,6 +53,14 @@ body.theme-3077 {
   --positive: #00ff66;
   --negative: #ff0055;
 
+  /* ─── Legacy Cyber Overrides (scoped strictly to 3077) ─── */
+  --cyber-primary: #00e5ff;
+  --cyber-secondary: #0ea5e9;
+  --cyber-cta: #ff0055;
+  --cyber-bg: #07080b;
+  --cyber-text: #f1f5f9;
+  --cyber-accent: #00e5ff;
+
   /* ─── Combat Team Palette (3077 Insignia) ─── */
   --ludo-green: #00ff66;
   --ludo-red: #ff0055;
