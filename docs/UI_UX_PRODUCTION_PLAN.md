@@ -2,7 +2,7 @@
 
 > **Scope:** the `theme-3077` lobby shell (dashboard state of `app/page.tsx`): `GameLobby.tsx`, `HeaderNavPanel.tsx`, `FooterNavPanel.tsx`, the ticker, the slide-over panels, and a new bottom-left Account Dock.
 > **Out of scope:** Retro and Daybreak keep their current look. Board gameplay motion (GSAP token hops, dice roll) stays as it is, because it carries game information.
-> **Owner:** Product Design / UI Architecture · **Status:** Proposed · **Date:** 2026-11-07
+> **Owner:** Product Design / UI Architecture · **Status:** Implemented (Mobile P0–P8 on main) · **Date:** 2026-11-07
 
 ## 0. Decision Log (2026-11-07)
 
@@ -11,7 +11,7 @@
 | D1 | **This plan covers the mobile layout only (< 640px, incl. the Farcaster frame).** The desktop layout (264px side rail, §3.1 grid, 640–1023px icon rail) is deferred to a separate desktop plan. | §3.1 and the tablet/desktop rows of §3.2 are **reference only, not in scope**. The Account Dock ships in its mobile form: the avatar slot in `FooterNavPanel` opens a bottom sheet (§5.1, mobile). The desktop dock and popover in §5.2–5.3 define the content and states that the bottom sheet reuses. |
 | D2 | **Shared [global] fixes wait until the 3077 work is done.** That covers the duplicate `@keyframes pulse` in `motion.css` and consolidating `--app-vh` / `--layout-vh` / `--visible-vh`. | They are removed from P1 and P4 and parked in a post-3077 phase (P9). Until then, the 3077 work must not depend on them. Use 3077-scoped keyframe names (e.g. `rail-sweep-3077`) and read the existing `--app-vh` as is. |
 
-> **Status:** plan only. Implementation has not started.
+> **Status:** Implemented (Mobile P0–P8 on main). Desktop layout (D1) and post-3077 global fixes (D2/P9) remain deferred.
 
 All rules below are scoped under `body.theme-3077` unless marked **[global]**. Global changes need a visual gate (`npm run visual:diff`) on all three themes.
 

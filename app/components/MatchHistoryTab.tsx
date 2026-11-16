@@ -478,6 +478,8 @@ export function MatchHistoryTab({
                                                                         <img
                                                                             src={p.avatarUrl}
                                                                             alt={p.username || 'Combatant'}
+                                                                            width={28}
+                                                                            height={28}
                                                                             className="w-full h-full object-cover"
                                                                         />
                                                                     ) : (

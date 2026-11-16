@@ -16,3 +16,4 @@
 @import "./styles/panels.css";
 @import "./styles/board.css";
 @import "./styles/motion.css";
+@import "./components/account/account-dock.css";

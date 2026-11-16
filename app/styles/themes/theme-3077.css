@@ -20,11 +20,9 @@ body.theme-3077 {
     radial-gradient(circle at 85% 85%, rgba(245, 158, 11, 0.06) 0%, transparent 55%);
   --ludo-bg-rgb: 5, 7, 10;
 
-  --panel-bg: rgba(9, 12, 19, 0.96);
-  --panel-bg-image: 
-    linear-gradient(180deg, rgba(14, 20, 32, 0.75) 0%, rgba(5, 7, 10, 0.98) 100%),
-    linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px);
-  --shadow-card: 0 20px 50px -10px rgba(0, 0, 0, 0.92), 0 0 24px -3px rgba(0, 229, 255, 0.18);
+  --panel-bg: rgba(14, 19, 27, 0.92);
+  --panel-bg-image: none;
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
   /* Font Overrides: Aerospace HUD & Mecha Geometric Sans */
   --font-sans: var(--font-chakra), sans-serif;
   --font-body: var(--font-chakra), sans-serif;
@@ -34,22 +32,54 @@ body.theme-3077 {
   background-color: var(--ludo-bg);
   background-size: 32px 32px, 32px 32px, 100% 100%, 100% 100%;
 
-  /* ─── Semantic UI Tokens (3077 Cyber-Tactical) ─── */
-  --surface-page: #05070a;
-  --surface-panel: rgba(9, 12, 19, 0.96);
-  --surface-recessed: rgba(0, 229, 255, 0.05);
-  --surface-hover: rgba(0, 229, 255, 0.10);
-  --surface-active: rgba(0, 229, 255, 0.20);
-  --ink-strong: #ffffff;
-  --ink-muted: rgba(241, 245, 249, 0.75);
-  --ink-faint: rgba(241, 245, 249, 0.45);
-  --line-soft: rgba(0, 229, 255, 0.16);
-  --line-strong: rgba(0, 229, 255, 0.45);
+  /* ─── §2.1 Design System Color Tokens (Ludo 3077) ─── */
+  --surface-0: #05070A;
+  --surface-1: #0A0E14;
+  --surface-2: rgba(14, 19, 27, 0.72);
+  --surface-3: rgba(20, 27, 38, 0.84);
+  --surface-hover: rgba(255, 255, 255, 0.04);
+  --surface-selected: rgba(0, 229, 255, 0.08);
+  --ink-strong: #F1F5F9;
+  --ink-muted: #A3AEBD;
+  --ink-faint: #6B7685;
+  --line-soft: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --line-accent: rgba(0, 229, 255, 0.56);
+  --accent: #00E5FF;
+  --accent-soft: rgba(0, 229, 255, 0.12);
+  --accent-ink: #02090D;
+  --sig-ok: #22C55E;
+  --sig-warn: #F59E0B;
+  --sig-danger: #F43F5E;
+  --sig-info: #38BDF8;
 
-  --accent: #00e5ff;
-  --accent-soft: rgba(0, 229, 255, 0.16);
-  --accent-ink: #02090d;
-  --warn: #f59e0b;
+  /* ─── §2.3–§2.6 Typography, Spacing (8pt), Radius & Motion Tokens ─── */
+  --font-mono: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace;
+  --space-0: 0px;
+  --space-0_5: 4px;
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-5: 40px;
+  --space-6: 48px;
+  --space-8: 64px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1.2);
+  --dur-instant: 100ms;
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-exit: 150ms;
+
+  /* ─── Semantic Compatibility Aliases (3077 Cyber-Tactical) ─── */
+  --surface-page: var(--surface-0);
+  --surface-panel: rgba(14, 19, 27, 0.92);
+  --surface-recessed: var(--surface-2);
+  --surface-active: var(--surface-selected);
+  --warn: var(--sig-warn);
   --positive: #00ff66;
   --negative: #ff0055;
 
@@ -79,10 +109,10 @@ body.theme-3077 {
   --market-chip-count-ink-active: #ffffff;
 
   /* ─── Geometry & Shadow Tokens ─── */
-  --radius-card: 10px;
-  --radius-chip: 6px;
-  --panel-border: rgba(0, 229, 255, 0.35);
-  --panel-shadow: 0 25px 70px -10px rgba(0, 0, 0, 0.95), 0 0 35px -5px rgba(0, 229, 255, 0.22);
+  --radius-card: 12px;
+  --radius-chip: 4px;
+  --panel-border: var(--line-strong);
+  --panel-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
 
   /* ─── Tactical Claiming Overlay Tokens ─── */
   --claiming-overlay-bg: rgba(5, 7, 10, 0.97);
@@ -179,25 +209,318 @@ body.theme-3077 .finish-core {
   box-shadow: 0 0 30px #00e5ff, inset 0 0 15px rgba(0, 229, 255, 0.5) !important;
 }
 
-/* ─── 4. 3077 Lobby Controls & Chamfered Avionics ─── */
-body.theme-3077 .ludo-lobby-scope {
-  backdrop-filter: blur(28px);
+/* ─── 4. Backdrop-Filter Fallback (0% Blur Contrast Protection) ─── */
+@supports not (backdrop-filter: blur(1px)) {
+  body.theme-3077 {
+    --surface-2: rgba(14, 19, 27, 0.96);
+    --surface-3: rgba(20, 27, 38, 0.96);
+  }
 }
 
-body.theme-3077 .ludo-lobby-scope button.rounded-full {
-  border-radius: 6px !important;
+/* ─── 5. Mobile Shell, Header, Footer & Single-Scroller Architecture (P4) ─── */
+body.theme-3077 .app-shell.dashboard-shell {
+  height: var(--app-vh, 100dvh);
+  overflow: hidden;
+  background-color: var(--surface-0);
+}
+
+body.theme-3077 .dash-header {
+  min-height: 56px;
+  height: 56px;
+  padding-top: 0;
+  padding-bottom: 0;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+body.theme-3077 .dash-header button {
+  border-color: var(--line-soft) !important;
+  box-shadow: none !important;
+  background: var(--surface-2) !important;
+}
+
+body.theme-3077 .dash-header button:hover {
+  border-color: var(--line-strong) !important;
+}
+
+body.theme-3077 .dash-main {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  container-type: inline-size;
+}
+
+body.theme-3077 .dash-main > .ludo-lobby-scope,
+body.theme-3077 .dash-main > .ludo-lobby-scope > .setup-tier {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+body.theme-3077 .footer-nav {
+  min-height: 64px;
+  background: var(--surface-1) !important;
+  border-top: 1px solid var(--line-soft) !important;
+  box-shadow: none !important;
+}
+
+body.theme-3077 :is(
+  .dash-main,
+  .panel-body-3077,
+  .ludo-messages-scope .overflow-y-auto,
+  .ludo-clan-scope .chat-thread-scroll
+) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  overscroll-behavior: contain;
+}
+
+body.theme-3077 :is(
+  .dash-main,
+  .panel-body-3077,
+  .ludo-messages-scope .overflow-y-auto,
+  .ludo-clan-scope .chat-thread-scroll
+)::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+body.theme-3077 :is(
+  .dash-main,
+  .panel-body-3077,
+  .ludo-messages-scope .overflow-y-auto,
+  .ludo-clan-scope .chat-thread-scroll
+)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+body.theme-3077 :is(
+  .dash-main,
+  .panel-body-3077,
+  .ludo-messages-scope .overflow-y-auto,
+  .ludo-clan-scope .chat-thread-scroll
+)::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+}
+
+/* ─── 6. Motion & Noise Purge (P2: keep board animations & ThinkingOrb intact) ─── */
+body.theme-3077 .dashboard-container :is(.animate-pulse, .animate-ping, .animate-bounce),
+body.theme-3077 :is(
+  .ludo-market-scope,
+  .ludo-settings-scope,
+  .ludo-rankings-scope,
+  .ludo-friends-scope,
+  .ludo-messages-scope,
+  .ludo-arena-scope,
+  .ludo-profile-scope,
+  .ludo-offline-scope,
+  .ludo-migrate-scope,
+  .ludo-teamup-scope,
+  .ludo-quick-scope,
+  .ludo-pubprofile-scope,
+  .ludo-livearena-scope,
+  .ludo-leaderboard-scope,
+  .ludo-invite-scope,
+  .ludo-wallet-scope,
+  .ludo-burn-scope,
+  .ludo-wall-scope,
+  .ludo-authwait-scope,
+  .ludo-quit-scope,
+  .ludo-broadcast-scope,
+  .ludo-clan-scope,
+  .ludo-ticker-scope
+) :is(.animate-pulse, .animate-ping, .animate-bounce) {
+  animation: none !important;
+}
+
+body.theme-3077 .shimmer-effect::after,
+body.theme-3077 .ludo-ticker-scope [class*="animate-"] {
+  animation: none !important;
+}
+
+/* Swap palette-breaking pink stream status for --sig-info (sky blue) */
+body.theme-3077 .stream-toggle-btn[aria-pressed="true"] {
+  background: rgba(56, 189, 248, 0.12) !important;
+  color: var(--sig-info) !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  box-shadow: none !important;
+}
+body.theme-3077 .stream-toggle-dot {
+  animation: none !important;
+  box-shadow: none !important;
+}
+body.theme-3077 .stream-toggle-btn[aria-pressed="true"] .stream-toggle-dot {
+  background-color: var(--sig-info) !important;
+}
+
+/* Ticker E2 glass card + static dot */
+body.theme-3077 .ludo-ticker-scope > div {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--line-soft) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset !important;
+  border-radius: var(--radius-lg) !important;
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  transform: translateZ(0);
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+
+body.theme-3077 .ludo-ticker-scope > div:hover {
+  border-color: var(--line-strong) !important;
+  background-color: rgba(20, 27, 38, 0.84) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset !important;
+}
+
+body.theme-3077 .ludo-ticker-scope .ticker-status-dot {
+  box-shadow: none !important;
+  background-color: var(--sig-info) !important;
+}
+
+body.theme-3077 .ticker-crossfade-3077 {
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+/* ─── 7. Hover Stability & Card Contract (P3: zero geometry shift) ─── */
+body.theme-3077 .card-3077 {
+  position: relative;
+  min-height: var(--card-min, 120px);
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  contain: layout paint;
+  transform: translateZ(0);
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+
+body.theme-3077 .card-3077:hover {
+  border-color: var(--line-strong);
+  background-color: color-mix(in srgb, var(--surface-2), white 4%);
+}
+
+body.theme-3077 .card-3077[aria-selected="true"],
+body.theme-3077 .card-3077[aria-pressed="true"] {
+  border-color: var(--line-accent);
+  background-color: var(--surface-selected);
+}
+
+body.theme-3077 .card-3077:active {
+  background-color: color-mix(in srgb, var(--surface-2), white 2%);
+}
+
+body.theme-3077 :is(
+  .ludo-lobby-scope,
+  .ludo-market-scope,
+  .ludo-friends-scope,
+  .ludo-messages-scope,
+  .ludo-rankings-scope,
+  .ludo-arena-scope,
+  .ludo-clan-scope,
+  .ludo-broadcast-scope
+) :is(button, [role="button"], [role="radio"]) {
+  transition-property: border-color, background-color, color, opacity !important;
+  transition-duration: var(--dur-fast) !important;
+  transition-timing-function: var(--ease-out) !important;
+}
+
+body.theme-3077 :is(
+  .ludo-lobby-scope,
+  .ludo-market-scope,
+  .ludo-friends-scope,
+  .ludo-messages-scope,
+  .ludo-rankings-scope,
+  .ludo-arena-scope,
+  .ludo-clan-scope,
+  .ludo-broadcast-scope
+) :is(button, [role="button"], [role="radio"]):is(:hover, :active) {
+  transform: translateZ(0) !important;
+}
+
+/* ─── 8. 3077 Lobby Controls, Chamfered Segmented Selectors & Matchmaking Rail (P5) ─── */
+body.theme-3077 .ludo-lobby-scope {
+  font-family: var(--font-inter), sans-serif;
+}
+
+body.theme-3077 .lobby-h2-3077 {
+  font-family: var(--font-chakra), sans-serif;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+body.theme-3077 .lobby-mono-3077 {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+body.theme-3077 .seg-wrapper-3077 {
+  border-radius: var(--radius-md);
+}
+
+body.theme-3077 .seg-wrapper-3077:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+body.theme-3077 .seg-btn-3077 {
+  position: relative;
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  color: var(--ink-strong);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  contain: layout paint;
+  transform: translateZ(0);
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+
+body.theme-3077 .seg-btn-3077:hover {
+  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--surface-2), white 4%);
+}
+
+body.theme-3077 .seg-btn-3077[aria-checked="true"] {
+  border-color: var(--line-accent);
+  background: var(--surface-selected);
+  color: var(--accent);
   clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px);
 }
 
+body.theme-3077 .seg-btn-3077[aria-checked="true"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: var(--accent);
+}
+
 body.theme-3077 .glass-panel {
-  background: rgba(9, 13, 20, 0.90) !important;
-  border-color: rgba(0, 229, 255, 0.3) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(0, 229, 255, 0.25) !important;
+  background: var(--surface-2) !important;
+  border-color: var(--line-soft) !important;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset !important;
+  border-radius: var(--radius-lg);
+}
+
+body.theme-3077 .fee-tier {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--line-soft) !important;
 }
 
 body.theme-3077 .porcelain-holo-tick {
-  background: #00e5ff !important;
-  box-shadow: 0 0 15px #00e5ff, 0 0 30px rgba(0, 229, 255, 0.6) !important;
+  background: var(--accent) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--line-accent) !important;
   border-radius: 2px !important;
   transform: translate(-50%, -50%) rotate(45deg) !important;
 }
@@ -205,41 +528,80 @@ body.theme-3077 .porcelain-holo-tick svg {
   transform: rotate(-45deg) !important;
 }
 
-body.theme-3077 .ludo-ticker-scope > div {
-  background: rgba(9, 13, 20, 0.94);
-  border-color: rgba(0, 229, 255, 0.35);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(0, 229, 255, 0.3);
-  border-radius: 8px;
+/* Primary CTA in ActionDice (3077 styling, preserves button semantics & hover stability) */
+body.theme-3077 .dice-tier button:has(span) {
+  min-height: 48px;
+  border-radius: var(--radius-md) !important;
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px);
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  box-shadow: none !important;
+  contain: layout paint;
 }
-
-body.theme-3077 .ludo-ticker-scope > div:hover {
-  border-color: #00e5ff;
-  box-shadow: 0 0 30px rgba(0, 229, 255, 0.35), inset 0 1px 0 rgba(0, 229, 255, 0.5);
+body.theme-3077 .dice-tier button:has(span):hover {
+  background: #33EBFF !important;
 }
-
-body.theme-3077 .footer-nav {
-  background: rgba(5, 7, 10, 0.98) !important;
-  border-top: 1.5px solid rgba(0, 229, 255, 0.35);
-  box-shadow: 0 -10px 35px rgba(0, 0, 0, 0.85), 0 0 20px rgba(0, 229, 255, 0.12);
+body.theme-3077 .dice-tier button:has(span) span {
+  color: var(--accent-ink) !important;
+  font-family: var(--font-chakra), sans-serif;
+  font-style: normal !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  text-shadow: none !important;
 }
 
 body.theme-3077 .game-top-bar {
-  background: rgba(9, 13, 20, 0.94);
-  border-color: rgba(0, 229, 255, 0.3);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
+  background: var(--surface-1);
+  border-color: var(--line-soft);
+  box-shadow: none;
 }
 
-/* ─── 5. Board Compact Header: Avionics Target Lock Bar ─── */
 body.theme-3077 .board-header-shell {
   background: rgba(5, 7, 10, 0.96) !important;
-  border: 1.5px solid rgba(0, 229, 255, 0.5) !important;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.9), 0 0 25px rgba(0, 229, 255, 0.25), inset 0 1px 0 rgba(0, 229, 255, 0.4) !important;
-  border-radius: 10px !important;
+  border: 1px solid var(--line-strong) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+  border-radius: var(--radius-lg) !important;
   clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px);
 }
 
-/* ─── 6. Tactical Panel Scope Borders & Glows ─── */
+/* Matchmaking indeterminate 2px progress rail (only permitted infinite lobby motion) */
+@keyframes rail-sweep-3077 {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+body.theme-3077 .rail-sweep-3077 {
+  display: block !important;
+  position: relative;
+  height: 2px;
+  width: 100%;
+  overflow: hidden;
+  background: var(--line-soft);
+  border-radius: 1px;
+}
+
+body.theme-3077 .rail-sweep-3077::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 50%;
+  background: var(--accent);
+  animation: rail-sweep-3077 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.theme-3077 .rail-sweep-3077::after {
+    animation: none !important;
+    transform: translateX(0);
+    opacity: 0.5;
+  }
+}
+
+/* ─── 9. Slide-Over Panels: E3 Surface & Single-Scroller Rule (P7) ─── */
 body.theme-3077 :is(
+  .panel-shell-3077,
   .ludo-market-scope,
   .ludo-settings-scope,
   .ludo-rankings-scope,
@@ -263,15 +625,35 @@ body.theme-3077 :is(
   .ludo-broadcast-scope,
   .ludo-clan-scope
 ) {
-  border-radius: 12px !important;
-  border: 1.5px solid rgba(0, 229, 255, 0.38) !important;
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.95), 0 0 35px rgba(0, 229, 255, 0.20) !important;
+  background: var(--surface-3) !important;
+  background-image: none !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--line-strong) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
 }
 
-/* ─── 7. ActionDice & LudoDice Pedestal ─── */
+body.theme-3077 :is(
+  .ludo-market-scope,
+  .ludo-friends-scope,
+  .ludo-rankings-scope,
+  .ludo-broadcast-scope,
+  .ludo-arena-scope,
+  .ludo-clan-scope
+) .overflow-y-auto:not(.chat-thread-scroll) .overflow-y-auto:not(.chat-thread-scroll) {
+  overflow-y: visible !important;
+  max-height: none !important;
+}
+
+body.theme-3077 :is(.ludo-messages-scope .overflow-y-auto, .ludo-clan-scope .chat-thread-scroll) {
+  overflow-anchor: auto;
+}
+
+/* ─── 10. ActionDice & LudoDice Pedestal ─── */
 body.theme-3077 .lobby-dice-cube {
-  filter: drop-shadow(0 0 25px rgba(0, 229, 255, 0.45));
+  filter: none;
 }
 body.theme-3077 .dice-tier {
-  background: radial-gradient(circle at center, rgba(0, 229, 255, 0.12) 0%, transparent 70%);
+  background: none;
 }

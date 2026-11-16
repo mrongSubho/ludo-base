@@ -379,7 +379,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
 
                                     {/* Live Plaintext Clan Chat */}
                                     <div className="flex-1 flex flex-col justify-between rounded-2xl bg-white/[0.02] border border-white/10 p-4 min-h-[300px]">
-                                        <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                                        <div className="chat-thread-scroll flex-1 overflow-y-auto space-y-3 pr-2">
                                             {chatMessages.length === 0 ? (
                                                 <div className="h-full flex items-center justify-center text-white/30 font-mono text-xs">
                                                     No messages yet. Send a broadcast to your clan!

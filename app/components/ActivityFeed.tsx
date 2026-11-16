@@ -18,6 +18,8 @@ import { EmojiPickerPopover } from './EmojiPicker';
 import { RichChatField } from './RichChatField';
 import { ChatContent } from './EmojiPicker';
 import { encodeChatDraft, insertDraftEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
+import { usePreferences } from '@/hooks/usePreferences';
+import { prefersReducedMotion } from '@/lib/motion';
 
 interface Activity {
     id: string;
@@ -1457,6 +1459,8 @@ function useJoinableCount() {
     return count;
 }
 export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfile?: (address: string) => void; onOpenChange?: (open: boolean) => void }) => {
+    const { preferences } = usePreferences();
+    const is3077 = preferences.theme === '3077';
     const [isOpen, setIsOpen] = useState(false);
     const joinable = useJoinableCount();
     // Feed data lives here (always mounted) so closing the panel never
@@ -1466,6 +1470,8 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
     // (Classic · 2v2 · Free · 3/4 · join), tap-to-join, ticking live.
     // Session-bounded like the rooms tab — pre-session history stays out.
     const [latestRoom, setLatestRoom] = useState<{ roomCode: string; content: string } | null>(null);
+    const [tickerIdx, setTickerIdx] = useState(0);
+    const [tickerPaused, setTickerPaused] = useState(false);
     const { address: cardAddr } = useAccount();
     const cardMe = (cardAddr || '').toLowerCase();
     const latestRef = useRef<{ roomCode: string; content: string } | null>(null);
@@ -1530,9 +1536,76 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
          
     }, []);
 
+    useEffect(() => {
+        if (!is3077 || tickerPaused || prefersReducedMotion()) return;
+        const id = window.setInterval(() => setTickerIdx((v) => (v + 1) % 2), 6000);
+        return () => window.clearInterval(id);
+    }, [is3077, tickerPaused]);
+
+    const tickerItems = is3077
+        ? [
+              {
+                  key: latestRoom ? `room-${latestRoom.roomCode}` : 'arena-live',
+                  dotColor: latestRoom ? 'var(--sig-ok)' : 'var(--sig-info)',
+                  label: latestRoom ? latestRoom.content : 'ON AIR · LIVE ARENA FEED',
+                  roomCode: latestRoom?.roomCode ?? null,
+              },
+              {
+                  key: `joinable-${joinable}`,
+                  dotColor: joinable > 0 ? 'var(--sig-ok)' : 'var(--sig-info)',
+                  label: `${joinable} JOINABLE ${joinable === 1 ? 'ROOM' : 'ROOMS'}`,
+                  roomCode: null,
+              },
+          ]
+        : [];
+    const activeTicker = tickerItems[tickerIdx % Math.max(1, tickerItems.length)];
+
     return (
         <>
             <div className="ludo-ticker-scope w-full flex justify-center pointer-events-none">
+                {is3077 ? (
+                    <div
+                        className="broadcast-tier pointer-events-auto h-[48px] w-full max-w-[480px] rounded-xl flex items-center justify-between px-4 relative overflow-hidden cursor-pointer border"
+                        style={{ borderColor: 'var(--line-soft)', background: 'var(--surface-2)' }}
+                        onClick={() => setIsOpen(true)}
+                        onMouseEnter={() => setTickerPaused(true)}
+                        onMouseLeave={() => setTickerPaused(false)}
+                        onFocus={() => setTickerPaused(true)}
+                        onBlur={() => setTickerPaused(false)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setIsOpen(true);
+                            }
+                        }}
+                        aria-label="Open live broadcast"
+                    >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <span
+                                className="ticker-status-dot w-2 h-2 rounded-full shrink-0"
+                                style={{ backgroundColor: activeTicker?.dotColor || 'var(--sig-info)' }}
+                                aria-hidden
+                            />
+                            <span
+                                key={activeTicker?.key}
+                                className="ticker-crossfade-3077 font-mono text-xs font-medium uppercase tracking-wider truncate"
+                                style={{ color: 'var(--ink-strong)' }}
+                            >
+                                {activeTicker?.label}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 pl-3 border-l" style={{ borderColor: 'var(--line-soft)' }}>
+                            <span className="font-mono text-xs font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>
+                                {joinable}
+                            </span>
+                            <span className="font-mono text-[10px] uppercase tracking-wider" style={{ color: 'var(--ink-muted)' }}>
+                                Live
+                            </span>
+                        </div>
+                    </div>
+                ) : (
                 <div
                     className="broadcast-tier pointer-events-auto h-[64px] w-full max-w-[480px] rounded-2xl flex items-center justify-between px-5 relative overflow-hidden transition-all group cursor-pointer border border-cyan-500/20 bg-black/60 backdrop-blur-3xl hover:border-cyan-400/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] active:scale-[0.98]"
                     onClick={() => setIsOpen(true)}
@@ -1594,6 +1667,7 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
                         </div>
                     </div>
                 </div>
+                )}
             </div>
 
             {/* ── Full panel ── */}

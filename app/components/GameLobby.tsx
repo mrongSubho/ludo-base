@@ -20,6 +20,9 @@ import { useToast } from './Toast';
 import { PaidPoolJoinButton } from './PaidPoolJoinButton';
 import SecurityLadderChip from './SecurityLadderChip';
 import ThemeNudge from './ThemeNudge';
+import { usePreferences } from '@/hooks/usePreferences';
+import { TEAM_PAIRINGS } from '@/lib/constants';
+import { seatedColorsFor } from '@/lib/engine/core';
 import { derivePoolId, isChipsConfigured } from '@/lib/chips';
 import { DEFAULT_CHAIN_ID, parseChainId } from '@/lib/chains';
 
@@ -99,6 +102,8 @@ export default function GameLobby({
     const toast = useToast();
 
     // Configuration State
+    const { preferences } = usePreferences();
+    const is3077 = preferences.theme === '3077';
     const { playSelect, playCoin } = useSoundEffects();
     const [showTeamUpOptions, setShowTeamUpOptions] = useState(false);
     const [showOfflineOptions, setShowOfflineOptions] = useState(false);
@@ -412,69 +417,151 @@ export default function GameLobby({
                             <div className="flex justify-center w-full mb-2">
                                 <ThemeNudge />
                             </div>
-                            <div className="flex justify-center w-full mb-3">
-                                <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
-                                    <h3 className="text-white/90 text-ludo-xs font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Select Game Mode</h3>
-                                </div>
-                            </div>
-                            <div className="flex justify-center gap-3">
-                                {(['classic', 'power'] as const).map(mode => (
-                                    <button
-                                        key={mode}
-                                        onClick={() => {
-                                            playSelect();
-                                            setGameMode(mode);
-                                        }}
-                                        className={`relative w-40 py-1 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center hover:scale-[1.02] active:scale-95 ${gameMode === mode
-                                            ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)] bg-[rgba(0,0,0,0.5)]'
-                                            : 'border-white/20 hover:border-white/40 bg-[rgba(0,0,0,0.5)]'
-                                            }`}
-                                    >
-                                        {gameMode === mode && (
-                                            <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5 text-white"><polyline points="20 6 9 17 4 12" /></svg>
-                                            </span>
-                                        )}
-                                        <div className="relative z-10 text-center">
-                                            <span className={`block text-lg font-black italic tracking-tighter capitalize drop-shadow-md leading-none ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>{mode}</span>
-                                            <div className={`mt-0.5 inline-block px-1.5 py-px rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-[rgba(0,0,0,0.35)] border-cyan-500/30' : 'bg-[rgba(0,0,0,0.35)] border-white/10'}`}>
-                                                <span className={`text-ludo-xs font-black uppercase tracking-[0.16em] whitespace-nowrap ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>{mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}</span>
-                                            </div>
+                            {is3077 ? (
+                                <>
+                                    <h3 className="lobby-h2-3077 mb-2 text-center">Game Mode</h3>
+                                    <div role="radiogroup" aria-label="Select Game Mode" className="flex justify-center gap-2">
+                                        {(['classic', 'power'] as const).map(mode => {
+                                            const active = gameMode === mode;
+                                            return (
+                                                <div key={mode} className="seg-wrapper-3077">
+                                                    <button
+                                                        type="button"
+                                                        role="radio"
+                                                        aria-checked={active}
+                                                        onClick={() => {
+                                                            playSelect();
+                                                            setGameMode(mode);
+                                                        }}
+                                                        className="seg-btn-3077 w-[160px] h-[48px] flex flex-col items-center justify-center px-3 cursor-pointer"
+                                                    >
+                                                        <span className="font-semibold text-sm uppercase tracking-wider leading-tight">
+                                                            {mode}
+                                                        </span>
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <p className="lobby-mono-3077 mt-1.5 text-[12px] leading-4 text-center" style={{ color: 'var(--ink-muted)' }}>
+                                        {gameMode === 'power' ? '6 POWER TILES · BOOSTS ON' : 'ORIGINAL RULES · NO BOOSTS'}
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex justify-center w-full mb-3">
+                                        <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
+                                            <h3 className="text-white/90 text-ludo-xs font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Select Game Mode</h3>
                                         </div>
-                                    </button>
-                                ))}
-                            </div>
+                                    </div>
+                                    <div className="flex justify-center gap-3">
+                                        {(['classic', 'power'] as const).map(mode => (
+                                            <button
+                                                key={mode}
+                                                onClick={() => {
+                                                    playSelect();
+                                                    setGameMode(mode);
+                                                }}
+                                                className={`relative w-40 py-1 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center hover:scale-[1.02] active:scale-95 ${gameMode === mode
+                                                    ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)] bg-[rgba(0,0,0,0.5)]'
+                                                    : 'border-white/20 hover:border-white/40 bg-[rgba(0,0,0,0.5)]'
+                                                    }`}
+                                            >
+                                                {gameMode === mode && (
+                                                    <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5 text-white"><polyline points="20 6 9 17 4 12" /></svg>
+                                                    </span>
+                                                )}
+                                                <div className="relative z-10 text-center">
+                                                    <span className={`block text-lg font-black italic tracking-tighter capitalize drop-shadow-md leading-none ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>{mode}</span>
+                                                    <div className={`mt-0.5 inline-block px-1.5 py-px rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-[rgba(0,0,0,0.35)] border-cyan-500/30' : 'bg-[rgba(0,0,0,0.35)] border-white/10'}`}>
+                                                        <span className={`text-ludo-xs font-black uppercase tracking-[0.16em] whitespace-nowrap ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>{mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}</span>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         {/* Match Type Section */}
                         <div className="flex flex-col items-center w-full">
-                            <div className="flex justify-center w-full mt-1 mb-3">
-                                <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
-                                    <h3 className="text-white/90 text-ludo-xs font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Match Type</h3>
-                                </div>
-                            </div>
-                            <div className="flex justify-center gap-3">
-                                {(['1v1', '2v2', '4P'] as const).map(type => (
-                                    <button
-                                        key={type}
-                                        onClick={() => {
-                                            playSelect();
-                                            setMatchType(type);
-                                        }}
-                                        className={`w-12 h-12 rounded-full border transition-all duration-200 ease-out glass-panel flex items-center justify-center hover:scale-110 active:scale-90 relative ${matchType === type
-                                            ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-[rgba(0,0,0,0.5)]'
-                                            : 'border-white/10 hover:border-white/30 bg-[rgba(0,0,0,0.5)]'
-                                            }`}
-                                    >
-                                        {matchType === type && (
-                                            <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5 text-white"><polyline points="20 6 9 17 4 12" /></svg>
-                                            </span>
-                                        )}
-                                        <span className={`block text-lg font-black italic tracking-tighter drop-shadow-md ${matchType === type ? 'text-cyan-400' : 'text-white/60'}`}>{type}</span>
-                                    </button>
-                                ))}
-                            </div>
+                            {is3077 ? (
+                                <>
+                                    <h3 className="lobby-h2-3077 mt-1 mb-2 text-center">Match Type</h3>
+                                    <div role="radiogroup" aria-label="Match Type" className="flex justify-center gap-2">
+                                        {(['1v1', '2v2', '4P'] as const).map(type => {
+                                            const active = matchType === type;
+                                            const teamHex: Record<'green' | 'red' | 'blue' | 'yellow', string> = {
+                                                green: '#00FF66',
+                                                red: '#FF0055',
+                                                blue: '#0099FF',
+                                                yellow: '#FFD000',
+                                            };
+                                            const seated = seatedColorsFor(type);
+                                            const tlColor = type === '2v2' ? teamHex.red : seated.includes('blue') ? teamHex.blue : 'rgba(255,255,255,0.16)';
+                                            const trColor = type === '2v2' ? teamHex[TEAM_PAIRINGS.green] : seated.includes('yellow') ? teamHex.yellow : 'rgba(255,255,255,0.16)';
+                                            const blColor = seated.includes('green') ? teamHex.green : 'rgba(255,255,255,0.16)';
+                                            const brColor = type === '2v2' ? teamHex[TEAM_PAIRINGS.red] : seated.includes('red') ? teamHex.red : 'rgba(255,255,255,0.16)';
+                                            return (
+                                                <div key={type} className="seg-wrapper-3077">
+                                                    <button
+                                                        type="button"
+                                                        role="radio"
+                                                        aria-checked={active}
+                                                        onClick={() => {
+                                                            playSelect();
+                                                            setMatchType(type);
+                                                        }}
+                                                        className="seg-btn-3077 w-[72px] h-[48px] flex flex-col items-center justify-center gap-1 cursor-pointer"
+                                                    >
+                                                        <span className="grid grid-cols-2 gap-[2px] w-3 h-3" aria-hidden>
+                                                            <span className="w-[4px] h-[4px] rounded-[1px]" style={{ backgroundColor: tlColor }} />
+                                                            <span className="w-[4px] h-[4px] rounded-[1px]" style={{ backgroundColor: trColor }} />
+                                                            <span className="w-[4px] h-[4px] rounded-[1px]" style={{ backgroundColor: blColor }} />
+                                                            <span className="w-[4px] h-[4px] rounded-[1px]" style={{ backgroundColor: brColor }} />
+                                                        </span>
+                                                        <span className="lobby-mono-3077 text-[12px] font-semibold leading-none">
+                                                            {type}
+                                                        </span>
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex justify-center w-full mt-1 mb-3">
+                                        <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
+                                            <h3 className="text-white/90 text-ludo-xs font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Match Type</h3>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-center gap-3">
+                                        {(['1v1', '2v2', '4P'] as const).map(type => (
+                                            <button
+                                                key={type}
+                                                onClick={() => {
+                                                    playSelect();
+                                                    setMatchType(type);
+                                                }}
+                                                className={`w-12 h-12 rounded-full border transition-all duration-200 ease-out glass-panel flex items-center justify-center hover:scale-110 active:scale-90 relative ${matchType === type
+                                                    ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-[rgba(0,0,0,0.5)]'
+                                                    : 'border-white/10 hover:border-white/30 bg-[rgba(0,0,0,0.5)]'
+                                                    }`}
+                                            >
+                                                {matchType === type && (
+                                                    <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
+                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5 text-white"><polyline points="20 6 9 17 4 12" /></svg>
+                                                    </span>
+                                                )}
+                                                <span className={`block text-lg font-black italic tracking-tighter drop-shadow-md ${matchType === type ? 'text-cyan-400' : 'text-white/60'}`}>{type}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 

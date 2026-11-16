@@ -488,6 +488,13 @@ for (const scene of scenes) {
     // own default and silently overrides a seeded cookie.
     await context.addCookies([{ name: 'ludo-theme', value: scene.theme, url: BASE_URL }]);
     await context.addInitScript(() => {
+      // Deterministic PRNG so board corner diagonals (1v1 BL↔TR vs BR↔TL),
+      // bot identity, and power-tile placement are identical across runs.
+      let seed = 0x5eed01;
+      Math.random = () => {
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+        return seed / 4294967296;
+      };
       // Deterministic identity. Without this, every run mints a fresh guest
       // (`lib/guest.ts` → crypto.getRandomValues) and the profile chip renders a
       // different handle each time — measured at ~5.9% of the frame, pure flake.

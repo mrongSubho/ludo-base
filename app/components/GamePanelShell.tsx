@@ -49,7 +49,7 @@ export function GamePanelShell({
                     style={{ width: "100%", maxWidth: maxWidthPx }}
                 >
                     <div
-                        className={`${scopeClass} pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] rounded-[32px] flex flex-col overflow-hidden`}
+                        className={`${scopeClass} panel-shell-3077 pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] rounded-[32px] flex flex-col overflow-hidden`}
                         style={{
                             background: "var(--panel-bg)",
                             border: "1px solid var(--panel-border)",
@@ -109,7 +109,7 @@ export function GamePanelShell({
                             )}
                         </div>
 
-                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-4">
+                        <div className="panel-body-3077 flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-4">
                             {children}
                         </div>
                     </div>

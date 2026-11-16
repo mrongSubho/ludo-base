@@ -427,6 +427,9 @@ export const QuickMatchPanel = ({
                                     </span>
                                 )}
                             </div>
+                            {isSearching && (
+                                <div className="rail-sweep-3077 hidden mt-3" aria-hidden />
+                            )}
                         </div>
 
                         {/* Dynamic Matchmaking Content */}
