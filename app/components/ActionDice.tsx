@@ -221,7 +221,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
         <div className="relative w-full flex flex-col items-center justify-center py-2" style={{ perspective: '1200px' }}>
             {/* TIER 1: The Camera (Perspective) */}
 
-            <div className="absolute top-0 w-full flex items-center justify-center gap-2">
+            <div className="dice-swipe-hint absolute top-0 w-full flex items-center justify-center gap-2">
                 <span className="text-white/50 text-ludo-xs uppercase font-bold tracking-[0.3em] drop-shadow-md">Swipe to choose</span>
             </div>
 
