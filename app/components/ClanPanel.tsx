@@ -2,6 +2,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useAccount } from "wagmi";
+import { useTeamUpContext } from "@/hooks/TeamUpContext";
 import { useClanData } from "@/hooks/useClanData";
 import { useClanWar } from "@/hooks/useClanWar";
 import { useClanClaims } from "@/hooks/useClanClaims";
@@ -55,9 +57,31 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
         isClaimingAll,
     } = useClanClaims();
 
+    const { address } = useAccount();
+    const { hostGame, joinGame } = useTeamUpContext();
+
     const [activeTab, setActiveTab] = useState<ClanTab>("hall");
     const [chatInput, setChatInput] = useState("");
     const [sendingChat, setSendingChat] = useState(false);
+
+    const handleDeployFixture = (f: any) => {
+        if (!activeWar) return;
+        const roomCode = `cw-${activeWar.id.slice(0, 6)}-${f.fixture_index}`;
+        const myAddr = address?.toLowerCase();
+        const isClanA = (f.clan_a_seats || []).some((s: string) => s.toLowerCase() === myAddr);
+
+        if (typeof window !== "undefined") {
+            sessionStorage.setItem("ludo_active_fixture_id", f.id);
+            sessionStorage.setItem("ludo_active_war_id", activeWar.id);
+        }
+
+        if (isClanA) {
+            hostGame(roomCode);
+        } else {
+            joinGame(roomCode);
+        }
+        onClose();
+    };
 
     // Discovery / Creation modal states
     const [isCreatingClan, setIsCreatingClan] = useState(false);
@@ -573,26 +597,48 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                             <div className="space-y-2">
                                                 <h4 className="text-xs font-mono font-bold text-white/60 uppercase">Scheduled Fixtures</h4>
                                                 <div className="grid grid-cols-1 gap-2.5 max-h-[350px] overflow-y-auto">
-                                                    {fixtures.map((f) => (
-                                                        <div
-                                                            key={f.id}
-                                                            className="p-3 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-between text-xs font-mono"
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="px-1.5 py-0.5 rounded bg-white/5 text-white/40">
-                                                                    #{f.fixture_index}
-                                                                </span>
-                                                                <span className="font-bold text-cyan-400">{f.game_shape}</span>
-                                                                <span className="text-white/60 truncate max-w-[120px]">
-                                                                    {f.clan_a_seats[0]?.slice(0, 6)} vs {f.clan_b_seats[0]?.slice(0, 6)}
-                                                                </span>
-                                                            </div>
+                                                    {fixtures.map((f) => {
+                                                        const myAddr = address?.toLowerCase();
+                                                        const isSeated = myAddr && (
+                                                            (f.clan_a_seats || []).some((s: string) => s.toLowerCase() === myAddr) ||
+                                                            (f.clan_b_seats || []).some((s: string) => s.toLowerCase() === myAddr)
+                                                        );
+                                                        const isClanAHost = myAddr && f.clan_a_seats?.[0]?.toLowerCase() === myAddr;
+                                                        const canPlay = f.status !== "completed" && isSeated;
 
-                                                            <Chip size="sm" status={f.status === "completed" ? "ok" : "off"}>
-                                                                {f.status}
-                                                            </Chip>
-                                                        </div>
-                                                    ))}
+                                                        return (
+                                                            <div
+                                                                key={f.id}
+                                                                className="p-3 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-between text-xs font-mono gap-2"
+                                                            >
+                                                                <div className="flex items-center gap-2 min-w-0">
+                                                                    <span className="px-1.5 py-0.5 rounded bg-white/5 text-white/40 shrink-0">
+                                                                        #{f.fixture_index}
+                                                                    </span>
+                                                                    <span className="font-bold text-cyan-400 shrink-0">{f.game_shape}</span>
+                                                                    <span className="text-white/60 truncate max-w-[120px]">
+                                                                        {f.clan_a_seats[0]?.slice(0, 6)} vs {f.clan_b_seats[0]?.slice(0, 6)}
+                                                                    </span>
+                                                                </div>
+
+                                                                <div className="flex items-center gap-2 shrink-0">
+                                                                    {canPlay ? (
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant={isClanAHost ? "primary" : "secondary"}
+                                                                            onClick={() => handleDeployFixture(f)}
+                                                                        >
+                                                                            {isClanAHost ? "Deploy Battle" : "Join Battle"}
+                                                                        </Button>
+                                                                    ) : (
+                                                                        <Chip size="sm" status={f.status === "completed" ? "ok" : "off"}>
+                                                                            {f.status}
+                                                                        </Chip>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         </div>

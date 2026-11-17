@@ -39,6 +39,9 @@ export async function recordMatchResult(
     try {
         const signature = await signMessage(message);
 
+        const fixtureId = typeof window !== 'undefined' ? sessionStorage.getItem('ludo_active_fixture_id') || undefined : undefined;
+        const warId = typeof window !== 'undefined' ? sessionStorage.getItem('ludo_active_war_id') || undefined : undefined;
+
         const response = await fetch('/api/match/record', {
             method: 'POST',
             headers: {
@@ -55,6 +58,8 @@ export async function recordMatchResult(
                 message,
                 signature,
                 issuedAt,
+                fixtureId,
+                warId,
             }),
         });
 
@@ -63,6 +68,11 @@ export async function recordMatchResult(
         if (!response.ok) {
             console.error('❌ [MatchRecorder] API Error:', data.error);
             return { success: false, error: data.error };
+        }
+
+        if (typeof window !== 'undefined') {
+            sessionStorage.removeItem('ludo_active_fixture_id');
+            sessionStorage.removeItem('ludo_active_war_id');
         }
 
         return { success: true };
