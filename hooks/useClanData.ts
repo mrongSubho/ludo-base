@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAccount } from "wagmi";
 import { useAppSession } from "@/hooks/useAppSession";
+import { supabase } from "@/lib/supabase";
 import type {
     Clan,
     ClanMember,
@@ -99,6 +100,34 @@ export function useClanData() {
     useEffect(() => {
         void refresh();
     }, [refresh]);
+
+    // Realtime broadcast subscription for live chat and clan events
+    useEffect(() => {
+        if (!clan?.id) return;
+        const topic = `clan-${clan.id}`;
+        const channel = supabase.channel(topic, {
+            config: { broadcast: { self: false } },
+        });
+
+        channel
+            .on("broadcast", { event: "clan_chat_message" }, (payload: { payload?: { message?: ClanChatMessage } }) => {
+                if (payload?.payload?.message) {
+                    const msg: ClanChatMessage = payload.payload.message;
+                    setChatMessages((prev) => {
+                        if (prev.some((m) => m.id === msg.id)) return prev;
+                        return [...prev, msg];
+                    });
+                }
+            })
+            .on("broadcast", { event: "clan_updated" }, () => {
+                void refresh();
+            })
+            .subscribe();
+
+        return () => {
+            void supabase.removeChannel(channel);
+        };
+    }, [clan?.id, refresh]);
 
     /**
      * Create a new clan (debited from escrow).

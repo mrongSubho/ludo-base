@@ -121,6 +121,23 @@ export async function finalizeFixtureScore(params: {
         clan_b_score: newScoreB,
     }).eq('id', war.id);
 
+    // Broadcast live fixture completion and updated scores
+    try {
+        await (db as any).channel(`clan-war-${war.id}`).send({
+            type: 'broadcast',
+            event: 'fixture_completed',
+            payload: {
+                warId: war.id,
+                fixtureId: params.fixtureId,
+                winnerClanId: params.winnerClanId,
+                clanAScore: newScoreA,
+                clanBScore: newScoreB,
+            },
+        });
+    } catch (bErr) {
+        console.warn('[clanScorer:broadcast:fixture]', bErr);
+    }
+
     // 5. Check if all fixtures are completed
     const { count: pendingCount } = await (db as any)
         .from('clan_war_fixtures')
@@ -352,4 +369,14 @@ export async function settleClanWar(warId: string): Promise<void> {
         status: 'completed',
         winner_clan_id: winnerClanId,
     }).eq('id', war.id);
+
+    try {
+        await (db as any).channel(`clan-war-${war.id}`).send({
+            type: 'broadcast',
+            event: 'war_settled',
+            payload: { warId: war.id, winnerClanId },
+        });
+    } catch (bErr) {
+        console.warn('[clanScorer:broadcast:settled]', bErr);
+    }
 }

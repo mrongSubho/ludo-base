@@ -110,6 +110,17 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        // Broadcast to realtime channel so all online clan members receive instantly
+        try {
+            await (db as any).channel(`clan-${clanId}`).send({
+                type: 'broadcast',
+                event: 'clan_chat_message',
+                payload: { message: inserted },
+            });
+        } catch (bErr) {
+            console.warn('[clans:chat:broadcast]', bErr);
+        }
+
         return NextResponse.json({ success: true, message: inserted });
     } catch (err: any) {
         console.error('[clans:chat:POST]', err);

@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { useAppSession } from "@/hooks/useAppSession";
+import { supabase } from "@/lib/supabase";
 import type {
     ClanWarCall,
     ClanWarStake,
@@ -77,6 +78,31 @@ export function useClanWar(clanId: string | null | undefined) {
     useEffect(() => {
         void refresh();
     }, [refresh]);
+
+    // Realtime broadcast subscription for live war scoreboard and fixtures
+    useEffect(() => {
+        if (!activeWar?.id) return;
+        const topic = `clan-war-${activeWar.id}`;
+        const channel = supabase.channel(topic, {
+            config: { broadcast: { self: false } },
+        });
+
+        channel
+            .on("broadcast", { event: "fixture_completed" }, () => {
+                void refresh();
+            })
+            .on("broadcast", { event: "war_score_update" }, () => {
+                void refresh();
+            })
+            .on("broadcast", { event: "war_settled" }, () => {
+                void refresh();
+            })
+            .subscribe();
+
+        return () => {
+            void supabase.removeChannel(channel);
+        };
+    }, [activeWar?.id, refresh]);
 
     /**
      * Post a new War Notice (Commander / Officer).
