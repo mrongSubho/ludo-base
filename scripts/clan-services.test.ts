@@ -145,3 +145,24 @@ test('clan creation: 10,000 CHIPS creation fee calculation and deficit logic', (
     const onChainBalance3 = BigInt(500) * (BigInt(10) ** BigInt(18));
     assert.ok(onChainBalance3 < fee, 'Must detect insufficient balance');
 });
+
+test('clan war buy-in: depositWarStake encodes deterministic bytes32 IDs and base units', async () => {
+    const { encodeFunctionData, parseUnits } = await import('viem');
+    const { CLAN_CLAIM_DEPOSIT_ABI } = await import('../lib/chips');
+
+    const warCallId = '11111111-2222-3333-4444-555555555555';
+    const clanId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    const warIdBytes32 = keccak256(toBytes(warCallId));
+    const clanIdBytes32 = keccak256(toBytes(clanId));
+    const stakeBaseUnits = parseUnits('5000', 18);
+
+    const calldata = encodeFunctionData({
+        abi: CLAN_CLAIM_DEPOSIT_ABI,
+        functionName: 'depositWarStake',
+        args: [warIdBytes32, clanIdBytes32, stakeBaseUnits],
+    });
+
+    // depositWarStake selector + 3 * 32-byte args = 4 + 96 bytes -> 2 + 200 hex chars
+    assert.equal(calldata.length, 202);
+    assert.equal(stakeBaseUnits.toString(), '5000000000000000000000');
+});

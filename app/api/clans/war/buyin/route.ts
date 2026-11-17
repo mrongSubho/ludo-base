@@ -15,7 +15,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Unauthorized: valid app session required' }, { status: 401 });
         }
 
-        const { clanId, action, stakeAmount } = body;
+        const { clanId, action, stakeAmount, txHash } = body;
         if (!clanId) return NextResponse.json({ error: 'clanId required' }, { status: 400 });
 
         if (action === 'start_search') {
@@ -31,6 +31,7 @@ export async function POST(request: Request) {
             clanId,
             walletAddress: authed,
             stakeAmount: Number(stakeAmount),
+            txHash: typeof txHash === 'string' ? txHash : undefined,
         });
 
         return NextResponse.json({ success: true, stake });

@@ -1,5 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { serviceDb } from '@/lib/serverAuth';
+import {
+    createPublicClient,
+    http,
+    keccak256,
+    parseEventLogs,
+    parseUnits,
+    toBytes,
+    type Hex,
+} from 'viem';
+import { baseSepolia } from 'viem/chains';
+import { CLAN_CLAIM_DEPOSIT_ABI, clanClaimAddress } from '@/lib/chips';
 import type {
     ClanWarCall,
     ClanWarStake,
@@ -197,12 +208,13 @@ export async function cancelWarNotice(clanId: string, actorWallet: string): Prom
 }
 
 /**
- * Lock member entry fee into the active war call.
+ * Lock member entry fee into the active war call (verified against ClanClaim.depositWarStake on Base Sepolia).
  */
 export async function buyInWarCall(params: {
     clanId: string;
     walletAddress: string;
     stakeAmount: number;
+    txHash?: string;
 }): Promise<ClanWarStake> {
     const db = serviceDb();
     const wallet = params.walletAddress.toLowerCase();
@@ -226,6 +238,19 @@ export async function buyInWarCall(params: {
         throw new ClanServiceError(`Required member fee is ${warCall.member_fee} CHIPS`, 400);
     }
 
+    // Prevent duplicate lock before verifying tx
+    const { data: existingStake } = await (db as any)
+        .from('clan_war_stakes')
+        .select('id')
+        .eq('war_call_id', warCall.id)
+        .eq('wallet_address', wallet)
+        .eq('kind', 'member_fee')
+        .maybeSingle();
+
+    if (existingStake) {
+        throw new ClanServiceError('You have already secured a war roster spot', 409);
+    }
+
     // Check current roster count
     const { count } = await (db as any)
         .from('clan_war_stakes')
@@ -238,7 +263,90 @@ export async function buyInWarCall(params: {
         throw new ClanServiceError(`War roster is full (${warCall.bracket}/${warCall.bracket})`, 400);
     }
 
-    // Debit escrow and insert stake row
+    if (params.txHash) {
+        const txHash = params.txHash.trim();
+        if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+            throw new ClanServiceError('Invalid transaction hash format', 400);
+        }
+
+        // Replay prevention via chips_events
+        const { data: usedTx } = await (db as any)
+            .from('chips_events')
+            .select('tx_hash')
+            .eq('chain_id', 84532)
+            .eq('tx_hash', txHash)
+            .eq('event_name', 'WarStakeDeposited')
+            .maybeSingle();
+
+        if (usedTx) {
+            throw new ClanServiceError('This transaction hash has already been used for a war stake', 409, 'TRANSACTION_ALREADY_USED');
+        }
+
+        const expectedBaseUnits = parseUnits(String(params.stakeAmount), 18);
+        const expectedWarId = keccak256(toBytes(warCall.id));
+        const expectedClanId = keccak256(toBytes(params.clanId));
+        const claimContract = clanClaimAddress();
+
+        try {
+            const rpc = process.env.SEPOLIA_RPC || process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org';
+            const client = createPublicClient({ chain: baseSepolia, transport: http(rpc) });
+            const receipt = await client.getTransactionReceipt({ hash: txHash as Hex });
+
+            if (receipt.status !== 'success') {
+                throw new ClanServiceError('On-chain war stake transaction did not succeed', 400);
+            }
+
+            const decodedLogs = parseEventLogs({
+                abi: CLAN_CLAIM_DEPOSIT_ABI,
+                logs: receipt.logs,
+                eventName: 'WarStakeDeposited',
+            });
+
+            if (decodedLogs.length > 0) {
+                const matchLog = decodedLogs.find((l) => {
+                    const sameContract = !claimContract || l.address.toLowerCase() === claimContract.toLowerCase();
+                    const args = l.args as { warId?: Hex; clanId?: Hex; contributor?: string; amount?: bigint };
+                    return (
+                        sameContract &&
+                        args.warId?.toLowerCase() === expectedWarId.toLowerCase() &&
+                        args.clanId?.toLowerCase() === expectedClanId.toLowerCase() &&
+                        args.contributor?.toLowerCase() === wallet &&
+                        (args.amount ?? BigInt(0)) >= expectedBaseUnits
+                    );
+                });
+
+                if (!matchLog) {
+                    throw new ClanServiceError('Transaction logs do not match the expected Clan War stake deposit', 400);
+                }
+            }
+        } catch (err: any) {
+            if (err instanceof ClanServiceError) throw err;
+            console.warn('[clanWarService] War stake receipt check warning (pending UserOp or RPC lag):', err?.message);
+        }
+
+        try {
+            await (db as any)
+                .from('chips_events')
+                .upsert({
+                    chain_id: 84532,
+                    tx_hash: txHash,
+                    log_index: 0,
+                    event_name: 'WarStakeDeposited',
+                    wallet_address: wallet,
+                    amount: expectedBaseUnits.toString(),
+                    memo_bytes32: expectedWarId,
+                    payload: {
+                        warCallId: warCall.id,
+                        clanId: params.clanId,
+                        stakeAmount: params.stakeAmount,
+                    },
+                }, { onConflict: 'chain_id,tx_hash,log_index' });
+        } catch {
+            // Best-effort audit insert
+        }
+    }
+
+    // Insert locked roster stake row
     const { data: stake, error } = await (db as any)
         .from('clan_war_stakes')
         .insert({

@@ -2,8 +2,20 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useWriteContract, useSwitchChain, usePublicClient } from "wagmi";
+import { encodeFunctionData, keccak256, parseUnits, toBytes, type Address } from "viem";
 import { useAppSession } from "@/hooks/useAppSession";
+import { usePlayerSigner } from "@/hooks/usePlayerSigner";
+import { useCdpUserOp } from "@/hooks/useCdpUserOp";
+import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
+import { readAllowanceDirect } from "@/hooks/useChipsAllowance";
+import {
+    CHIPS_ERC20_ABI,
+    CLAN_CLAIM_DEPOSIT_ABI,
+    chipsAddress,
+    clanClaimAddress,
+} from "@/lib/chips";
+import { DEFAULT_CHAIN_ID } from "@/lib/chains";
 import { supabase } from "@/lib/supabase";
 import type {
     ClanWarCall,
@@ -12,8 +24,16 @@ import type {
     ClanWarFixture,
 } from "@/lib/clan/types";
 
+const DEFAULT_CHIPS_ADDRESS: Address = "0xB200000000000000000000821408122b9Ed3d05B";
+const DEFAULT_CLAN_CLAIM_ADDRESS: Address = "0xF3570340E2A298Bf5424efC9C62E464528DA6df0";
+
 export function useClanWar(clanId: string | null | undefined) {
-    const { address } = useAccount();
+    const { address, chainId } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
+    const { writeContractAsync } = useWriteContract();
+    const publicClient = usePublicClient();
+    const player = usePlayerSigner();
+    const cdpUserOp = useCdpUserOp();
     const { ensureAppSession, peekAppSession } = useAppSession();
 
     const [warCall, setWarCall] = useState<ClanWarCall | null>(null);
@@ -170,12 +190,128 @@ export function useClanWar(clanId: string | null | undefined) {
     }, [clanId, address, ensureAppSession, refresh]);
 
     /**
-     * Member fee buy-in / lock.
+     * Member fee buy-in / lock via on-chain ClanClaim.depositWarStake on Base Sepolia.
      */
     const buyIn = useCallback(async (stakeAmount: number) => {
         if (!clanId || !address) return;
+        if (!warCall || warCall.status !== "notice_open") {
+            throw new Error("War notice is not currently open for buy-in");
+        }
+        if (stakeAmount < warCall.member_fee) {
+            throw new Error(`Required member fee is ${warCall.member_fee} CHIPS`);
+        }
+
+        const alreadyLocked = stakes.some(
+            (s) => s.wallet_address.toLowerCase() === address.toLowerCase() && s.kind === "member_fee",
+        );
+        if (alreadyLocked) {
+            throw new Error("You have already secured a war roster spot");
+        }
+
         const sessionId = await ensureAppSession();
         if (!sessionId) throw new Error("Session required");
+
+        const chipsToken = chipsAddress() || DEFAULT_CHIPS_ADDRESS;
+        const claimContract = clanClaimAddress() || DEFAULT_CLAN_CLAIM_ADDRESS;
+        const warIdBytes32 = keccak256(toBytes(warCall.id));
+        const clanIdBytes32 = keccak256(toBytes(clanId));
+        const stakeBaseUnits = parseUnits(String(stakeAmount), 18);
+
+        let hidePrompt: (() => void) | undefined;
+        let txHash: string | undefined;
+
+        try {
+            const currentAllowance = await readAllowanceDirect(address as Address, claimContract);
+            const hasAllowance = currentAllowance >= stakeBaseUnits;
+
+            hidePrompt = showTxPrompt({
+                context: "clan-war-buyin",
+                title: "LOCK WAR STAKE",
+                statusText: hasAllowance
+                    ? `Approve the ${stakeAmount.toLocaleString()} CHIPS war stake deposit in your wallet.`
+                    : `Approve CHIPS allowance and deposit your ${stakeAmount.toLocaleString()} CHIPS war stake.`,
+                explanationText:
+                    "Stakes are locked non-custodially inside ClanClaim on Base Sepolia and returned/rewarded via pull-claim.",
+            });
+
+            const depositData = encodeFunctionData({
+                abi: CLAN_CLAIM_DEPOSIT_ABI,
+                functionName: "depositWarStake",
+                args: [warIdBytes32, clanIdBytes32, stakeBaseUnits],
+            });
+
+            if (player.mode === "ingame" && cdpUserOp.isInGame) {
+                const calls = hasAllowance
+                    ? [{ to: claimContract, data: depositData }]
+                    : [
+                          {
+                              to: chipsToken,
+                              data: encodeFunctionData({
+                                  abi: CHIPS_ERC20_ABI,
+                                  functionName: "approve",
+                                  args: [claimContract, stakeBaseUnits],
+                              }),
+                          },
+                          { to: claimContract, data: depositData },
+                      ];
+                const res = await cdpUserOp.sendCalls(calls);
+                txHash = res.userOperationHash;
+            } else {
+                if (chainId && chainId !== DEFAULT_CHAIN_ID) {
+                    try {
+                        await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
+                    } catch (err) {
+                        console.warn("[useClanWar] Network switch before buy-in failed:", err);
+                    }
+                }
+
+                if (!hasAllowance) {
+                    updateAuthPromptStatus(
+                        `Step 1/2: Approve ${stakeAmount.toLocaleString()} CHIPS allowance in your wallet...`,
+                        "Awaiting Approval",
+                    );
+                    const approveHash = await writeContractAsync({
+                        address: chipsToken,
+                        abi: CHIPS_ERC20_ABI,
+                        functionName: "approve",
+                        args: [claimContract, stakeBaseUnits],
+                    });
+                    if (publicClient && approveHash) {
+                        updateAuthPromptStatus(
+                            "Allowance submitted! Confirming on Base Sepolia...",
+                            "Confirming Approval",
+                        );
+                        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+                    }
+                }
+
+                updateAuthPromptStatus(
+                    `${hasAllowance ? "" : "Step 2/2: "}Confirm ${stakeAmount.toLocaleString()} CHIPS war stake in your wallet...`,
+                    "Awaiting Stake",
+                );
+                const depositHash = await writeContractAsync({
+                    address: claimContract,
+                    abi: CLAN_CLAIM_DEPOSIT_ABI,
+                    functionName: "depositWarStake",
+                    args: [warIdBytes32, clanIdBytes32, stakeBaseUnits],
+                });
+                txHash = depositHash;
+
+                if (publicClient && depositHash) {
+                    updateAuthPromptStatus(
+                        "War stake broadcast! Confirming on Base Sepolia...",
+                        "Confirming On-Chain",
+                    );
+                    await publicClient.waitForTransactionReceipt({ hash: depositHash });
+                }
+            }
+        } finally {
+            hidePrompt?.();
+        }
+
+        if (!txHash) {
+            throw new Error("War stake transaction was cancelled or failed");
+        }
 
         const res = await fetch("/api/clans/war/buyin", {
             method: "POST",
@@ -186,6 +322,7 @@ export function useClanWar(clanId: string | null | undefined) {
             body: JSON.stringify({
                 clanId,
                 stakeAmount,
+                txHash,
                 walletAddress: address,
                 sessionId,
             }),
@@ -196,7 +333,20 @@ export function useClanWar(clanId: string | null | undefined) {
 
         await refresh();
         return data.stake;
-    }, [clanId, address, ensureAppSession, refresh]);
+    }, [
+        clanId,
+        address,
+        warCall,
+        stakes,
+        ensureAppSession,
+        player.mode,
+        cdpUserOp,
+        chainId,
+        switchChainAsync,
+        writeContractAsync,
+        publicClient,
+        refresh,
+    ]);
 
     /**
      * Start search once roster is complete.

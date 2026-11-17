@@ -105,6 +105,8 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
     const [splitLeader, setSplitLeader] = useState<number>(15);
     const [splitOfficers, setSplitOfficers] = useState<number>(10);
     const [noticeSubmitting, setNoticeSubmitting] = useState(false);
+    const [buyInSubmitting, setBuyInSubmitting] = useState(false);
+    const [buyInError, setBuyInError] = useState<string | null>(null);
 
     // Open War Board modal
     const [showWarBoard, setShowWarBoard] = useState(false);
@@ -185,12 +187,16 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
     };
 
     const handleJoinWarRoster = async () => {
-        if (!warCall) return;
+        if (!warCall || buyInSubmitting) return;
+        setBuyInSubmitting(true);
+        setBuyInError(null);
         try {
             await buyIn(warCall.member_fee);
             await refreshWar();
         } catch (err: any) {
-            alert(err.message || "Buy-in failed");
+            setBuyInError(err.message || "War stake transaction failed");
+        } finally {
+            setBuyInSubmitting(false);
         }
     };
 
@@ -557,22 +563,57 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                                 </div>
 
                                                 {/* Roster Buy-in CTA */}
+                                                {buyInError && (
+                                                    <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-xs font-mono text-red-400">
+                                                        {buyInError}
+                                                    </div>
+                                                )}
                                                 <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                                                     <span className="text-xs font-mono text-white/60">
                                                         Entry fee: <strong className="text-white">{warCall.member_fee} CHIPS</strong>
                                                     </span>
 
-                                                    {stakes.length < warCall.bracket ? (
-                                                        <Button variant="primary" size="md" onClick={handleJoinWarRoster}>
-                                                            Confirm Participation & Lock Fee
-                                                        </Button>
-                                                    ) : isOfficer && warCall.status === "notice_open" ? (
-                                                        <Button variant="primary" size="md" onClick={startSearch}>
-                                                            Roster Full! Start War Search
-                                                        </Button>
-                                                    ) : (
-                                                        <Chip size="sm" status="ok">Waiting for Match</Chip>
-                                                    )}
+                                                    {(() => {
+                                                        const myAddr = address?.toLowerCase();
+                                                        const myStake = myAddr
+                                                            ? stakes.find(
+                                                                  (s) =>
+                                                                      s.wallet_address.toLowerCase() === myAddr &&
+                                                                      s.kind === "member_fee",
+                                                              )
+                                                            : undefined;
+
+                                                        if (stakes.length >= warCall.bracket) {
+                                                            return isOfficer && warCall.status === "notice_open" ? (
+                                                                <Button variant="primary" size="md" onClick={startSearch}>
+                                                                    Roster Full! Start War Search
+                                                                </Button>
+                                                            ) : (
+                                                                <Chip size="sm" status="ok">Waiting for Match</Chip>
+                                                            );
+                                                        }
+
+                                                        if (myStake) {
+                                                            return (
+                                                                <Chip size="sm" status="ok">
+                                                                    ✓ Roster Locked ({myStake.stake_amount} CHIPS)
+                                                                </Chip>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <Button
+                                                                variant="primary"
+                                                                size="md"
+                                                                disabled={buyInSubmitting}
+                                                                onClick={handleJoinWarRoster}
+                                                            >
+                                                                {buyInSubmitting
+                                                                    ? "Approving in Wallet..."
+                                                                    : `Confirm & Lock ${warCall.member_fee} CHIPS`}
+                                                            </Button>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                         </div>

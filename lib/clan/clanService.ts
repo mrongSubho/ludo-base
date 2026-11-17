@@ -353,16 +353,25 @@ export async function createClan(params: {
             throw new ClanServiceError(memberErr.message, 500);
         }
 
-        // Record on-chain fee in chips_escrow_ledger for protocol accounting
-        await (db as any)
-            .from('chips_escrow_ledger')
-            .insert({
-                wallet_address: PROTOCOL_TREASURY_WALLET,
-                delta: CLAN_CREATION_FEE_RAW.toString(),
-                reason: 'clan_create_onchain',
-                ref: `tx:${txHash}`,
-            })
-            .catch(() => {});
+        // Record on-chain fee in chips_events for auditability
+        try {
+            await (db as any)
+                .from('chips_events')
+                .upsert({
+                    chain_id: 84532,
+                    tx_hash: txHash,
+                    log_index: 0,
+                    event_name: 'ClanCreatedOnChain',
+                    wallet_address: leader,
+                    amount: CLAN_CREATION_FEE_RAW.toString(),
+                    payload: {
+                        clanId,
+                        treasury: PROTOCOL_TREASURY_WALLET,
+                    },
+                }, { onConflict: 'chain_id,tx_hash,log_index' });
+        } catch {
+            // Best-effort audit insert
+        }
 
         return { clanId };
     }

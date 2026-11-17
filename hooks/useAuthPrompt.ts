@@ -22,7 +22,8 @@ export type AuthPromptContext =
     | "contract-call"
     | "clan-claim"
     | "clan-batch-claim"
-    | "clan-create";
+    | "clan-create"
+    | "clan-war-buyin";
 
 export type PromptMode = "signature" | "transaction";
 
@@ -246,6 +247,15 @@ export const CONTEXT_PRESETS: Record<
         networkText: "Base Sepolia (84532)",
         explanationText: "10,000 CHIPS creation fee transferred directly to protocol treasury on Base Sepolia.",
         cancelLabel: "Cancel Creation",
+    },
+    "clan-war-buyin": {
+        mode: "transaction",
+        title: "LOCK WAR STAKE",
+        badgeText: "Awaiting Confirmation",
+        statusText: "Approve your CHIPS war stake deposit into ClanClaim escrow on Base Sepolia.",
+        networkText: "Base Sepolia (84532)",
+        explanationText: "Stakes are held non-custodially by ClanClaim and released via pull-claim on win or cancellation.",
+        cancelLabel: "Cancel Stake",
     },
 };
 

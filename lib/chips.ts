@@ -232,6 +232,36 @@ export function seasonClaimAddress(): `0x${string}` | undefined {
     return a && a.startsWith("0x") ? (a as `0x${string}`) : undefined;
 }
 
+export function clanClaimAddress(): `0x${string}` | undefined {
+    const a = process.env.NEXT_PUBLIC_CLAN_CLAIM_ADDRESS;
+    if (!a || !isAddress(a)) return undefined;
+    return getAddress(a);
+}
+
+export const CLAN_CLAIM_DEPOSIT_ABI = [
+    {
+        type: "function",
+        name: "depositWarStake",
+        stateMutability: "nonpayable",
+        inputs: [
+            { name: "warId", type: "bytes32" },
+            { name: "clanId", type: "bytes32" },
+            { name: "amount", type: "uint256" },
+        ],
+        outputs: [],
+    },
+    {
+        type: "event",
+        name: "WarStakeDeposited",
+        inputs: [
+            { name: "warId", type: "bytes32", indexed: true },
+            { name: "clanId", type: "bytes32", indexed: true },
+            { name: "contributor", type: "address", indexed: true },
+            { name: "amount", type: "uint256", indexed: false },
+        ],
+    },
+] as const;
+
 export const LEGACY_CLAIM_ABI = [
     {
         type: "function",
