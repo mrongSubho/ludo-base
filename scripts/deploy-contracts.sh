@@ -3,7 +3,7 @@
 #
 #   ./scripts/deploy-contracts.sh <target|all> [--broadcast] [--rpc <url>] [--account <name>]
 #
-#   targets: missionclaim | matchpool | seasonclaim | legacyclaim | all
+#   targets: missionclaim | matchpool | seasonclaim | legacyclaim | clanclaim | all
 #
 # Dry run by default: without --broadcast forge only simulates and prints what it
 # would do. The deployer account defaults to `mydeployer` (override with
@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 usage() {
-  echo "usage: $0 <missionclaim|matchpool|seasonclaim|legacyclaim|all> [--broadcast] [--rpc <url>]"
+  echo "usage: $0 <missionclaim|matchpool|seasonclaim|legacyclaim|clanclaim|all> [--broadcast] [--rpc <url>]"
   echo "          [--account <name>] [--sepolia|--mainnet] [--yes]"
   exit 2
 }
@@ -130,6 +130,7 @@ script_for() {
     matchpool)    echo "script/DeployMatchPool.s.sol:DeployMatchPool" ;;
     seasonclaim)  echo "script/DeploySeasonClaim.s.sol:DeploySeasonClaim" ;;
     legacyclaim)  echo "script/DeployLegacyClaim.s.sol:DeployLegacyClaim" ;;
+    clanclaim)    echo "script/DeployClanClaim.s.sol:DeployClanClaim" ;;
     *) return 1 ;;
   esac
 }
@@ -143,6 +144,7 @@ run_one() {
     missionclaim) require_env CHIPS_ADDRESS MISSION_OP_KEY ;;
     seasonclaim)  require_env CHIPS_ADDRESS MISSION_OP_KEY ;;
     legacyclaim)  require_env CHIPS_ADDRESS ;;
+    clanclaim)    require_env CHIPS_ADDRESS MISSION_OP_KEY ;;
     *)            require_env CHIPS_ADDRESS ;;
   esac
 

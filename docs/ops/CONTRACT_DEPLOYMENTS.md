@@ -42,6 +42,7 @@ After any deploy (`--broadcast`):
 | ClaimHub | `0x15dF536466Ef58f77e95D7432089DeEBDf276821` | `CLAIM_HUB_ADDRESS`, `NEXT_PUBLIC_CLAIM_HUB_ADDRESS` | existing |
 | MatchPool | `0x4740048bdBAF5A5bbD37c7ce6dce666910993091` | `MATCH_POOL_ADDRESS`, `NEXT_PUBLIC_MATCH_POOL_ADDRESS` | Basescan · Sourcify |
 | MissionClaim | `0x1A3371805ACff5eea1B1A5C9A231a7d9d78Cacd9` | `MISSION_CLAIM_ADDRESS`, `NEXT_PUBLIC_MISSION_CLAIM_ADDRESS` | Basescan · Sourcify |
+| ClanClaim | `0xF3570340E2A298Bf5424efC9C62E464528DA6df0` | `CLAN_CLAIM_ADDRESS`, `NEXT_PUBLIC_CLAN_CLAIM_ADDRESS` | Basescan · Sourcify |
 | SeasonClaim | `0x1A27120eab8638e40ed8eEf60fAe13cC18277bd3` | `SEASON_CLAIM_ADDRESS`, `NEXT_PUBLIC_SEASON_CLAIM_ADDRESS` | Basescan · Sourcify |
 | LegacyClaim | `0x6f9E12D5F9d81132214cdA8369410ab7c187227F` | `LEGACY_CLAIM_ADDRESS`, `NEXT_PUBLIC_LEGACY_CLAIM_ADDRESS` | Basescan · Sourcify |
 
@@ -59,6 +60,7 @@ so `availableReserves` = 0); `opKey` = `0xbcCa5…`; `paused` false.
 | 2026-10-16 | Deploy MatchPool, MissionClaim, SeasonClaim, LegacyClaim | `--broadcast --verify` on 84532; all verified on Basescan + Sourcify |
 | 2026-10-16 | `npm run claim:init` | 23 missions, ceiling 100k, minReserve 500, day+week windows opened |
 | 2026-10-16 | `npm run claim:fund` (500 CHIPS) | `approve` + `fund` landed on 84532 |
+| 2026-11-17 | Deploy ClanClaim (`0xF3570340E2A298Bf5424efC9C62E464528DA6df0`) | Non-custodial war escrow, Clan Treasury sub-ledger & EIP-712 pull claims on 84532 |
 
 ## Tooling conventions (non-obvious — capture so they aren't re-learned)
 
