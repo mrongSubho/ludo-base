@@ -1584,7 +1584,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         if (!isHost) return;
         const cur = lobbyStateRef.current;
         if (!cur) return;
-        const presets = [1_000_000, 100_000, 10_000, 1_000, 0];
+        const presets = [10_000_000, 1_000_000, 500_000, 100_000, 10_000, 1_000, 500, 0];
         const next = presets.find(p => p < cur.entryFee);
         if (next === undefined || next >= cur.entryFee) return;
         const lobby = { ...cur, entryFee: next };

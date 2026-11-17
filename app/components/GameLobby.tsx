@@ -17,27 +17,29 @@ import { useGuestWall } from '@/hooks/GuestWallContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
 import { useToast } from './Toast';
-import { PaidPoolJoinButton } from './PaidPoolJoinButton';
 import SecurityLadderChip from './SecurityLadderChip';
 import ThemeNudge from './ThemeNudge';
 import { usePreferences } from '@/hooks/usePreferences';
 import { TEAM_PAIRINGS } from '@/lib/constants';
 import { seatedColorsFor } from '@/lib/engine/core';
-import { derivePoolId, isChipsConfigured } from '@/lib/chips';
-import { DEFAULT_CHAIN_ID, parseChainId } from '@/lib/chains';
+import { useArenaVault } from '@/hooks/useArenaVault';
+import { useChipsBalance } from '@/hooks/useChipsBalance';
+import { formatUnits } from 'viem';
 
-/** Preset entry fees (Coins). 0 = Free. */
-const FEE_PRESETS = [0, 1000, 10000, 100000, 1000000] as const;
+/** Primary preset entry fees (CHIPS). 0 = Free. */
+const FEE_PRESETS = [0, 500, 1_000, 10_000, 100_000, 500_000] as const;
+/** High-roller presets revealed under the More toggle. */
+const MORE_FEE_PRESETS = [1_000_000, 10_000_000] as const;
 
 /**
- * Suggested default fee from balance (user spec):
- * ≥1k → 1k · ≥100k → 10k · ≥1M → 100k · ≥10M → 1M · else Free
+ * Suggested default fee from balance:
+ * ≥100k → 10k · ≥10k → 1k · ≥1k → 500 · else Free
  */
-export function suggestedEntryFee(coins: number): number {
-    if (coins >= 10_000_000) return 1_000_000;
-    if (coins >= 1_000_000) return 100_000;
-    if (coins >= 100_000) return 10_000;
-    if (coins >= 1_000) return 1_000;
+export function suggestedEntryFee(chips: number): number {
+    if (chips >= 10_000_000) return 100_000;
+    if (chips >= 1_000_000) return 10_000;
+    if (chips >= 100_000) return 1_000;
+    if (chips >= 1_000) return 500;
     return 0;
 }
 
@@ -96,10 +98,19 @@ export default function GameLobby({
     } = useTeamUpContext();
     const { address, profile } = useCurrentUser();
     const coins = profile?.coins ?? 0;
+    const chipsBal = useChipsBalance();
+    const vault = useArenaVault();
+    const walletChips =
+        chipsBal.balance !== undefined ? Math.floor(Number(formatUnits(chipsBal.balance, 18))) : 0;
+    const playableChips =
+        chipsBal.balance !== undefined || vault.availableChips > 0
+            ? walletChips + vault.availableChips
+            : coins;
     // Guests can only enter offline/bot matches — online entry shows the wall.
     const { guard } = useGuestWall();
     const { ensureAppSession } = useAppSession();
     const toast = useToast();
+    const reservedTeamUpRef = useRef<Set<string>>(new Set());
 
     // Configuration State
     const { preferences } = usePreferences();
@@ -159,23 +170,23 @@ export default function GameLobby({
     const [pendingJoin, setPendingJoin] = useState<{ code: string; since: number } | null>(null);
     const [joinError, setJoinError] = useState<string | null>(null);
     const [showFee, setShowFee] = useState(false);
+    const [showMoreFees, setShowMoreFees] = useState(false);
     const lastJoinRef = useRef<{ code: string; seat?: number; secret?: string | null } | null>(null);
     const feeInitRef = useRef(false);
 
-    // Smart default fee from balance; clamp if balance can't cover current stake.
+    // Smart default fee from real CHIPS + Match Vault balance; clamp if balance can't cover current stake.
     useEffect(() => {
-        if (coins <= 0) return;
+        if (playableChips <= 0) return;
         if (!feeInitRef.current) {
             feeInitRef.current = true;
-            const suggested = suggestedEntryFee(coins);
-            if (wager === 0 || wager > coins) setWager(suggested);
+            const suggested = suggestedEntryFee(playableChips);
+            if (wager === 0 || wager > playableChips) setWager(suggested);
             return;
         }
-        if (wager > 0 && wager > coins) {
-            setWager(suggestedEntryFee(coins));
+        if (wager > 0 && wager > playableChips) {
+            setWager(suggestedEntryFee(playableChips));
         }
-         
-    }, [coins]);
+    }, [playableChips]);
     const lobbyRef = useRef(lobbyState);
     lobbyRef.current = lobbyState;
     const joinedCodeRef = useRef<string | null>(null);
@@ -262,8 +273,25 @@ export default function GameLobby({
             setPendingJoin(null);
             setJoinError(null);
             setShowTeamUpOptions(true);
+
+            // Auto-reserve Match Vault fee when joining a paid TeamUp room as guest
+            const roomKey = `room:${lobbyState.roomCode}`;
+            if (lobbyState.entryFee > 0 && !reservedTeamUpRef.current.has(roomKey)) {
+                reservedTeamUpRef.current.add(roomKey);
+                void vault
+                    .ensureVaultAndReserve({
+                        matchKey: roomKey,
+                        entryFeeChips: lobbyState.entryFee,
+                    })
+                    .catch((err: any) => {
+                        reservedTeamUpRef.current.delete(roomKey);
+                        toast(err?.message || 'Match fee approval required to join paid room', 'error');
+                        leaveGame();
+                        setShowTeamUpOptions(false);
+                    });
+            }
         }
-    }, [lobbyState, address, isHost]);
+    }, [lobbyState, address, isHost, vault, leaveGame, toast]);
 
     // Incoming invite links (?room=CODE&seat=N): room-only links fill any
     // open seat — ONE link serves the whole party, no per-seat spam.
@@ -340,11 +368,24 @@ export default function GameLobby({
                 return;
             }
 
-            // Both signatures cleared — now safely engage search party and radar
+            // Step 3: Reserve entry fee from reusable Match Vault (differential top-up if needed; 0 gas if covered)
+            if (wager > 0) {
+                try {
+                    await vault.ensureVaultAndReserve({
+                        matchKey: `qm:${myAddr}`,
+                        entryFeeChips: wager,
+                    });
+                } catch (err: any) {
+                    toast(err?.message || 'Vault deposit cancelled. Match search aborted.', 'error');
+                    return;
+                }
+            }
+
+            // Signatures & stake cleared — engage search radar with 0 post-match stall
             setSearchId(prev => prev + 1);
             setIsQuickMatchActive(true);
         });
-    }, [guard, gameMode, matchType, address, ensureAppSession, createProvisionalSession, toast]);
+    }, [guard, gameMode, matchType, address, ensureAppSession, createProvisionalSession, toast, wager, vault]);
 
     const handleStartTeamUp = useCallback(() => {
         guard('teamup', async () => {
@@ -602,18 +643,18 @@ export default function GameLobby({
                                             onChange={(e) => {
                                                 const digits = e.target.value.replace(/\D/g, '');
                                                 const next = Math.max(0, parseInt(digits || '0', 10) || 0);
-                                                setWager(Math.min(next, coins));
+                                                setWager(Math.min(next, playableChips));
                                             }}
                                             className="w-full bg-transparent text-center text-xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-xl"
                                         />
                                         <span className="text-ludo-xs font-bold text-white/35 uppercase tracking-wider mt-0.5">
-                                            Balance {formatEntryFee(coins)}
+                                            CHIPS · {formatEntryFee(playableChips)} Total
                                         </span>
                                     </div>
                                     <button
-                                        onClick={() => { playCoin(); setWager(Math.min(coins, wager + (wager >= 1000 ? 1000 : 100))); }}
+                                        onClick={() => { playCoin(); setWager(Math.min(playableChips, wager + (wager >= 1000 ? 1000 : 100))); }}
                                         aria-label="Increase entry fee"
-                                        disabled={wager >= coins}
+                                        disabled={wager >= playableChips}
                                         className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
                                     >
                                         <LuPlus className="w-5 h-5 stroke-[3px]" />
@@ -621,12 +662,12 @@ export default function GameLobby({
                                 </div>
                                 <div className="flex gap-1.5 justify-center flex-wrap">
                                     {FEE_PRESETS.map(val => {
-                                        const affordable = canAffordFee(coins, val);
+                                        const affordable = canAffordFee(playableChips, val);
                                         return (
                                             <button
                                                 key={val}
                                                 disabled={!affordable}
-                                                title={affordable ? undefined : 'Not enough coins'}
+                                                title={affordable ? undefined : 'Insufficient CHIPS'}
                                                 onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
                                                 className={`px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-black ${wager === val
                                                     ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]'
@@ -639,30 +680,57 @@ export default function GameLobby({
                                             </button>
                                         );
                                     })}
+                                    <button
+                                        type="button"
+                                        onClick={() => { playSelect(); setShowMoreFees(v => !v); }}
+                                        className={`px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-black ${
+                                            showMoreFees || MORE_FEE_PRESETS.includes(wager as any)
+                                                ? 'border-cyan-400/60 bg-[rgba(0,0,0,0.4)] text-cyan-300'
+                                                : 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-white/75'
+                                        }`}
+                                    >
+                                        {showMoreFees ? 'Less ▴' : 'More ▾'}
+                                    </button>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* CHIPS paid-pool join — MatchPool approve+join when env is live */}
-                        {wager > 0 && isChipsConfigured() && (
-                            <div className="mt-3 px-1">
-                                <PaidPoolJoinButton
-                                    poolId={
-                                        roomId
-                                            ? derivePoolId({
-                                                  chainId:
-                                                      parseChainId(
-                                                          (typeof window !== 'undefined'
-                                                              ? (window as any).__ludoChainId
-                                                              : null),
-                                                      ) ?? DEFAULT_CHAIN_ID,
-                                                  matchId: roomId,
-                                                  roomCode: roomId,
-                                              })
-                                            : null
-                                    }
-                                    entryFee={wager >= 1000 ? wager / 1000 : wager}
-                                />
+                                {showMoreFees && (
+                                    <div className="flex gap-1.5 justify-center flex-wrap pt-1">
+                                        {MORE_FEE_PRESETS.map(val => {
+                                            const affordable = canAffordFee(playableChips, val);
+                                            return (
+                                                <button
+                                                    key={val}
+                                                    disabled={!affordable}
+                                                    title={affordable ? undefined : 'Insufficient CHIPS'}
+                                                    onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
+                                                    className={`px-3.5 min-h-[40px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-black ${wager === val
+                                                        ? 'border-amber-400 bg-[rgba(0,0,0,0.45)] text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                                                        : affordable
+                                                            ? 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-amber-200/90'
+                                                            : 'bg-[rgba(0,0,0,0.2)] border-white/5 text-white/25 cursor-not-allowed'
+                                                    }`}
+                                                >
+                                                    {formatEntryFee(val)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                {(vault.availableChips > 0 || wager > 0) && (
+                                    <div className="w-full mt-1.5 px-3 py-1.5 rounded-xl bg-black/30 border border-cyan-500/20 flex items-center justify-between gap-2 text-ludo-xs font-mono">
+                                        <span className="text-cyan-300 font-bold">
+                                            Vault: {formatEntryFee(vault.availableChips)} CHIPS
+                                        </span>
+                                        <span className="text-white/60 truncate">
+                                            {wager === 0
+                                                ? 'Safe for next paid match'
+                                                : vault.availableChips >= wager
+                                                  ? '✓ Covered (0 gas entry)'
+                                                  : vault.availableChips > 0
+                                                    ? `Top up ${formatEntryFee(wager - vault.availableChips)} diff`
+                                                    : '1-step top-up on start'}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -759,11 +827,37 @@ export default function GameLobby({
                 <TeamUpMatchPanel
                     key="teamup"
                     onClose={() => {
+                        const closingCode = lobbyState?.roomCode || roomId;
+                        if (closingCode && reservedTeamUpRef.current.has(`room:${closingCode}`)) {
+                            const key = `room:${closingCode}`;
+                            reservedTeamUpRef.current.delete(key);
+                            void vault.releaseMatchStake(key).then((released) => {
+                                if (released > 0) {
+                                    toast(
+                                        `${released.toLocaleString()} CHIPS returned to your Match Vault for your next match (0 gas).`,
+                                        'info',
+                                    );
+                                }
+                            });
+                        }
                         leaveGame();
                         setShowTeamUpOptions(false);
                     }}
                     onJoin={(code: string, secret?: string) => startPartyJoin(code, undefined, secret || null)}
-                    onHost={() => hostQuickLobby(matchType, gameMode, wager)}
+                    onHost={() => {
+                        const code = hostQuickLobby(matchType, gameMode, wager);
+                        if (wager > 0 && code) {
+                            const key = `room:${code}`;
+                            reservedTeamUpRef.current.add(key);
+                            void vault
+                                .ensureVaultAndReserve({ matchKey: key, entryFeeChips: wager })
+                                .catch((err: any) => {
+                                    reservedTeamUpRef.current.delete(key);
+                                    toast(err?.message || 'Match fee approval required to host a paid room.', 'error');
+                                    leaveGame();
+                                });
+                        }
+                    }}
                     currentRoomId={roomId}
                     isHost={isHost}
                     isLobbyConnected={isLobbyConnected}
@@ -776,7 +870,24 @@ export default function GameLobby({
                     onKickPlayer={kickPlayer}
                     onSendInvite={sendInvite}
                     onQuickMatch={handleFillWithQuickMatch}
-                    onLowerFee={lowerEntryFee}
+                    onLowerFee={() => {
+                        lowerEntryFee();
+                        const activeCode = lobbyState?.roomCode || roomId;
+                        const feeOrder = [10_000_000, 1_000_000, 500_000, 100_000, 10_000, 1_000, 500, 0];
+                        const cur = lobbyState?.entryFee ?? wager;
+                        const next = feeOrder.find(p => p < cur);
+                        if (activeCode && next !== undefined) {
+                            const key = `room:${activeCode}`;
+                            if (next === 0) {
+                                reservedTeamUpRef.current.delete(key);
+                                void vault.releaseMatchStake(key).then((rel) => {
+                                    if (rel > 0) toast(`${rel.toLocaleString()} CHIPS returned to your Match Vault (0 gas).`, 'info');
+                                });
+                            } else {
+                                void vault.ensureVaultAndReserve({ matchKey: key, entryFeeChips: next });
+                            }
+                        }
+                    }}
                     hunting={embeddedHunt}
                     huntExpired={huntExpired}
                     huntTimeoutS={HUNT_TIMEOUT_S}

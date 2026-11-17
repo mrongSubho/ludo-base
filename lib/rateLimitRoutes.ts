@@ -85,6 +85,7 @@ export const RATE_LIMITS: Record<string, LimitRule> = {
     'clans/claims': { limit: 20, windowMs: 60_000, methods: ['POST'] },
     'clans/war/buyin': { limit: 20, windowMs: 60_000, methods: ['POST'] },
     'clans/war/board': { limit: 20, windowMs: 60_000, methods: ['POST'] },
+    'vault': { limit: 30, windowMs: 60_000, methods: ['POST'] },
 };
 
 /**
@@ -158,6 +159,7 @@ export const SESSION_GATED = new Set([
     'missions/voucher',
     'onboarding/claim',
     'onboarding/progress',
+    'vault',
     'onboarding/referral',
     'profile/ecdh',
     'push/subscribe',

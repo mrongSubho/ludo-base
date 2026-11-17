@@ -148,6 +148,9 @@ const MATRIX = {
     'clans/war/buyin':        { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
     'clans/war/fixture':      { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
     'clans/war/notice':       { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
+
+    // ── Arena Match Vault & Claims ─────────────────────────────────────────
+    'vault':                  { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
 };
 
 /**

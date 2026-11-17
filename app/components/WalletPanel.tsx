@@ -523,8 +523,8 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                             <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
                                         </svg>
                                     }
-                                    title="Claim Hub"
-                                    hint="Match pool prizes, season airdrops & rewards"
+                                    title="Vault & Claim Hub"
+                                    hint="Top up match vault, withdraw & claim prizes"
                                     onClick={() => setScreen("claims")}
                                 />
                                 <MoreRow

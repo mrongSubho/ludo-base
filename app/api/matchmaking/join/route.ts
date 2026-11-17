@@ -123,6 +123,18 @@ export async function POST(request: Request) {
             console.log('✅ [Matchmaking] Hybrid RPC Result:', data);
             const hybridResult = await withCallerToken(supabase, playerId, data);
             if (hybridResult?.status === 'matched') {
+                if (hybridResult.match_id && Array.isArray(hybridResult.participants)) {
+                    try {
+                        const { commitMatchStakes } = await import('@/lib/arenaVaultService');
+                        const keys = [
+                            ...(hybridResult.room_code ? [`room:${hybridResult.room_code}`] : []),
+                            ...hybridResult.participants.map((p: string) => `qm:${String(p || '').toLowerCase()}`),
+                        ];
+                        await commitMatchStakes({ matchKeys: keys, matchId: String(hybridResult.match_id) });
+                    } catch (e) {
+                        console.warn('⚠️ [Matchmaking] Vault commit warning:', e);
+                    }
+                }
                 const guest = String(hybridResult.guest_id || '').toLowerCase();
                 if (guest) {
                     void supabase.channel(`matchm-player-${guest}`).send({
@@ -153,6 +165,18 @@ export async function POST(request: Request) {
         console.log('✅ [Matchmaking] RPC Result:', data);
         const resultData = await withCallerToken(supabase, playerId, data);
         if (resultData?.status === 'matched' && Array.isArray(resultData.participants)) {
+            if (resultData.match_id) {
+                try {
+                    const { commitMatchStakes } = await import('@/lib/arenaVaultService');
+                    const keys = [
+                        ...(resultData.room_code ? [`room:${resultData.room_code}`] : []),
+                        ...resultData.participants.map((p: string) => `qm:${String(p || '').toLowerCase()}`),
+                    ];
+                    await commitMatchStakes({ matchKeys: keys, matchId: String(resultData.match_id) });
+                } catch (e) {
+                    console.warn('⚠️ [Matchmaking] Vault commit warning:', e);
+                }
+            }
             for (const p of resultData.participants) {
                 const addr = String(p || '').toLowerCase();
                 if (addr && addr !== playerId.toLowerCase()) {

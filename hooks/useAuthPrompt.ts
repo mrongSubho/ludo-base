@@ -23,7 +23,9 @@ export type AuthPromptContext =
     | "clan-claim"
     | "clan-batch-claim"
     | "clan-create"
-    | "clan-war-buyin";
+    | "clan-war-buyin"
+    | "vault-deposit"
+    | "vault-claim";
 
 export type PromptMode = "signature" | "transaction";
 
@@ -256,6 +258,24 @@ export const CONTEXT_PRESETS: Record<
         networkText: "Base Sepolia (84532)",
         explanationText: "Stakes are held non-custodially by ClanClaim and released via pull-claim on win or cancellation.",
         cancelLabel: "Cancel Stake",
+    },
+    "vault-deposit": {
+        mode: "transaction",
+        title: "TOP UP MATCH VAULT",
+        badgeText: "Awaiting Confirmation",
+        statusText: "Approve CHIPS deposit into your reusable Arena Match Vault on Base Sepolia.",
+        networkText: "Base Sepolia (84532)",
+        explanationText: "Funds stay in your Match Vault across cancelled searches & rooms with 0 repeat gas.",
+        cancelLabel: "Cancel Top-Up",
+    },
+    "vault-claim": {
+        mode: "transaction",
+        title: "CLAIM / WITHDRAW CHIPS",
+        badgeText: "Awaiting Confirmation",
+        statusText: "Approve the transaction in your wallet to withdraw CHIPS from ArenaVault.",
+        networkText: "Base Sepolia (84532)",
+        explanationText: "Non-custodial EIP-712 pull claim directly to your wallet. User pays Base Sepolia gas.",
+        cancelLabel: "Cancel Claim",
     },
 };
 

@@ -183,6 +183,20 @@ export async function POST(request: Request) {
                 }
             }
 
+            if (data.id && data.host_proven) {
+                try {
+                    const { commitMatchStakes } = await import('@/lib/arenaVaultService');
+                    const realAddresses = mergedRoster.filter((p: string) => ADDRESS_RE.test(p));
+                    const keys = [
+                        `room:${roomCode}`,
+                        ...realAddresses.map((a: string) => `qm:${a}`),
+                    ];
+                    await commitMatchStakes({ matchKeys: keys, matchId: String(data.id) });
+                } catch (e) {
+                    console.warn('⚠️ [API] Vault commit on reused match start warning:', e);
+                }
+            }
+
             return NextResponse.json({
                 success: true,
                 matchId: data.id,
@@ -219,6 +233,19 @@ export async function POST(request: Request) {
                 await assignAndPersistSeats(data.id, matchShape, roster);
             } catch (e) {
                 console.warn('⚠️ [API] Seat assignment on insert warning:', e);
+            }
+        }
+
+        if (data.id && hostProven && addresses.length > 0) {
+            try {
+                const { commitMatchStakes } = await import('@/lib/arenaVaultService');
+                const keys = [
+                    `room:${roomCode}`,
+                    ...addresses.map((a) => `qm:${a}`),
+                ];
+                await commitMatchStakes({ matchKeys: keys, matchId: String(data.id) });
+            } catch (e) {
+                console.warn('⚠️ [API] Vault commit on match start warning:', e);
             }
         }
 

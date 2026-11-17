@@ -630,6 +630,42 @@ export async function POST(request: Request) {
             }
         }
 
+        // ── Arena Match Vault Settlement: distribute net pot to winners' Claim Hub ──
+        if (matchId && winnerLower) {
+            try {
+                const [{ data: mRow }, { data: msRow }] = await Promise.all([
+                    supabase.from('matches').select('match_shape').eq('id', matchId).maybeSingle(),
+                    supabase.from('match_states').select('state, player_seats').eq('match_id', matchId).maybeSingle(),
+                ]);
+
+                let winnersToPay: string[] = [winnerLower];
+                const matchShape = mRow?.match_shape as string | null | undefined;
+
+                if (matchShape === '2v2' && msRow?.state && msRow?.player_seats) {
+                    const stateObj = msRow.state as { winner?: string };
+                    const seatsObj = msRow.player_seats as Record<string, { wallet?: string }>;
+                    const winColor = stateObj.winner;
+                    if (winColor && ['green', 'red', 'yellow', 'blue'].includes(winColor)) {
+                        const { getTeammateColor } = await import('@/lib/gameLogic');
+                        const allyColor = getTeammateColor(winColor as 'green' | 'red' | 'yellow' | 'blue', '2v2');
+                        const allyWallet = allyColor ? seatsObj[allyColor]?.wallet?.toLowerCase() : undefined;
+                        if (allyWallet && allyWallet !== winnerLower) {
+                            winnersToPay = [winnerLower, allyWallet];
+                        }
+                    }
+                }
+
+                const { settleArenaMatchPayouts } = await import('@/lib/arenaVaultService');
+                await settleArenaMatchPayouts({
+                    matchId: String(matchId),
+                    matchShape,
+                    winnerWallets: winnersToPay,
+                });
+            } catch (vaultErr) {
+                console.warn('⚠️ [API] Arena Vault payout warning:', vaultErr);
+            }
+        }
+
         return NextResponse.json({ success: true });
     } catch (err: any) {
         console.error('❌ [API] Unexpected error:', err);

@@ -262,6 +262,82 @@ export const CLAN_CLAIM_DEPOSIT_ABI = [
     },
 ] as const;
 
+export function arenaVaultAddress(): `0x${string}` | undefined {
+    const a = process.env.NEXT_PUBLIC_ARENA_VAULT_ADDRESS || "0x603754F0Dd62702a6DCd19F4049393151618a713";
+    if (!a || !isAddress(a)) return undefined;
+    return getAddress(a);
+}
+
+export const ARENA_VAULT_ABI = [
+    {
+        type: "function",
+        name: "depositVault",
+        stateMutability: "nonpayable",
+        inputs: [{ name: "amount", type: "uint256" }],
+        outputs: [],
+    },
+    {
+        type: "function",
+        name: "claimReward",
+        stateMutability: "nonpayable",
+        inputs: [
+            {
+                name: "voucher",
+                type: "tuple",
+                components: [
+                    { name: "claimId", type: "bytes32" },
+                    { name: "recipient", type: "address" },
+                    { name: "amount", type: "uint256" },
+                    { name: "claimType", type: "uint8" },
+                    { name: "nonce", type: "uint256" },
+                    { name: "deadline", type: "uint64" },
+                ],
+            },
+            { name: "signature", type: "bytes" },
+        ],
+        outputs: [],
+    },
+    {
+        type: "function",
+        name: "claimBatch",
+        stateMutability: "nonpayable",
+        inputs: [
+            {
+                name: "vouchers",
+                type: "tuple[]",
+                components: [
+                    { name: "claimId", type: "bytes32" },
+                    { name: "recipient", type: "address" },
+                    { name: "amount", type: "uint256" },
+                    { name: "claimType", type: "uint8" },
+                    { name: "nonce", type: "uint256" },
+                    { name: "deadline", type: "uint64" },
+                ],
+            },
+            { name: "signatures", type: "bytes[]" },
+        ],
+        outputs: [],
+    },
+    {
+        type: "event",
+        name: "VaultDeposited",
+        inputs: [
+            { name: "player", type: "address", indexed: true },
+            { name: "amount", type: "uint256", indexed: false },
+        ],
+    },
+    {
+        type: "event",
+        name: "VaultClaimed",
+        inputs: [
+            { name: "claimId", type: "bytes32", indexed: true },
+            { name: "recipient", type: "address", indexed: true },
+            { name: "amount", type: "uint256", indexed: false },
+            { name: "claimType", type: "uint8", indexed: false },
+        ],
+    },
+] as const;
+
 export const LEGACY_CLAIM_ABI = [
     {
         type: "function",

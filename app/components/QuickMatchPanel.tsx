@@ -12,6 +12,8 @@ import { getProgression } from '@/lib/progression';
 import { Button } from './Button';
 import { Chip } from './Chip';
 import { ThinkingOrb } from './ThinkingOrb';
+import { useArenaVault } from '@/hooks/useArenaVault';
+import { useToast } from './Toast';
 
 const PRO_TIPS = [
     "Safe zones protect you from capture!",
@@ -23,7 +25,7 @@ const PRO_TIPS = [
 ];
 
 /** Matchmaking snaps to the same fee ladders as the lobby. */
-const FEE_PRESETS = [0, 1_000, 10_000, 100_000, 1_000_000] as const;
+const FEE_PRESETS = [0, 500, 1_000, 10_000, 100_000, 500_000, 1_000_000, 10_000_000] as const;
 
 function snapFee(n: number): number {
     return FEE_PRESETS.reduce((best, p) => (Math.abs(p - n) < Math.abs(best - n) ? p : best), FEE_PRESETS[0]);
@@ -108,6 +110,8 @@ export const QuickMatchPanel = ({
 }: QuickMatchPanelProps) => {
     const { address, profile, displayName: finalName } = useCurrentUser();
     const normalizedAddress = address?.toLowerCase() || '';
+    const vault = useArenaVault();
+    const toast = useToast();
 
     const {
         status,
@@ -301,18 +305,37 @@ export const QuickMatchPanel = ({
         return () => { cancelled = true; };
     }, [normalizedAddress, isHybrid, roomCode, slotsNeeded, matchType, gameMode, createProvisionalSession, startSearch, startHybridSearch]);
 
+    const releaseVaultIfSearching = useCallback(() => {
+        if (normalizedAddress && activeWager > 0 && status !== 'matched') {
+            void vault.releaseMatchStake(`qm:${normalizedAddress}`).then((released) => {
+                if (released > 0) {
+                    toast(
+                        `${released.toLocaleString()} CHIPS kept in Match Vault for your next match (0 gas).`,
+                        'info',
+                    );
+                }
+            });
+        }
+    }, [normalizedAddress, activeWager, status, vault, toast]);
+
     const handleBackToLobby = () => {
+        releaseVaultIfSearching();
         cancelSearch();
         onCancel();
     };
 
     const handleForceBotMatch = () => {
+        releaseVaultIfSearching();
         leaveGame(); // 🧹 Clear any stale network state (ROOM_ID, connections, etc.)
         cancelSearch();
         onStartGame(true);
     };
 
     const handleCancelAndClose = () => {
+        if (status === 'matched' && activeWager > 0 && !isStalled) {
+            return;
+        }
+        releaseVaultIfSearching();
         cancelSearch();
         onCancel();
     };
@@ -331,10 +354,26 @@ export const QuickMatchPanel = ({
 
         // Exact preset only — no ±20/±50 bands.
         const fee = snapFee(param);
-        setActiveWager(fee);
-        setWagerRange({ min: fee, max: fee });
-        console.log(`[Matchmaking] Expanding search to preset ${fee}`);
-        startSearch(fee, fee);
+        const runExpand = async () => {
+            if (normalizedAddress) {
+                if (fee === 0) {
+                    const rel = await vault.releaseMatchStake(`qm:${normalizedAddress}`);
+                    if (rel > 0) toast(`${rel.toLocaleString()} CHIPS returned to your Match Vault (0 gas).`, 'info');
+                } else {
+                    await vault.ensureVaultAndReserve({
+                        matchKey: `qm:${normalizedAddress}`,
+                        entryFeeChips: fee,
+                    });
+                }
+            }
+            setActiveWager(fee);
+            setWagerRange({ min: fee, max: fee });
+            console.log(`[Matchmaking] Expanding search to preset ${fee}`);
+            startSearch(fee, fee);
+        };
+        void runExpand().catch((err: any) => {
+            toast(err?.message || 'Could not adjust Match Vault fee.', 'error');
+        });
     };
 
     const handleStayHere = () => {
@@ -810,16 +849,18 @@ export const QuickMatchPanel = ({
                                 {/* Cosmic Orbs for Reveal */}
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] cosmic-orb opacity-30 animate-pulse-slow pointer-events-none" />
 
-                                {/* Close Button */}
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={handleCancelAndClose}
-                                    aria-label="Close match found"
-                                    className="absolute right-8 top-8 z-[210] border border-line-soft bg-surface-hover"
-                                >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                </Button>
+                                {/* Close Button — disabled once a paid match is locked */}
+                                {(activeWager <= 0 || isStalled) && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={handleCancelAndClose}
+                                        aria-label="Close match found"
+                                        className="absolute right-8 top-8 z-[210] border border-line-soft bg-surface-hover"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    </Button>
+                                )}
 
                                 <div className="relative z-10 flex flex-col items-center gap-6 w-full" style={{ pointerEvents: 'auto' }}>
                                     <div className="flex flex-col items-center gap-2">
@@ -998,16 +1039,20 @@ export const QuickMatchPanel = ({
                                             </div>
                                         )}
 
-                                        <Button
-                                            variant="secondary"
-                                            onClick={handleCancelAndClose}
-                                            className="px-8 uppercase tracking-[0.2em]"
-                                        >
-                                            Cancel Match
-                                        </Button>
-                                        
-                                        <p className="max-w-[280px] text-ludo-xs text-white/20 leading-relaxed">
-                                            Safe Exit: No coins will be lost before the game board loads. If the match fails to sync, you will be returned to the lobby.
+                                        {activeWager <= 0 || isStalled ? (
+                                            <Button
+                                                variant="secondary"
+                                                onClick={handleCancelAndClose}
+                                                className="px-8 uppercase tracking-[0.2em]"
+                                            >
+                                                Cancel Match
+                                            </Button>
+                                        ) : null}
+
+                                        <p className={`max-w-[300px] text-ludo-xs leading-relaxed ${activeWager > 0 ? 'text-amber-300/80 font-mono' : 'text-white/20'}`}>
+                                            {activeWager > 0
+                                                ? `Match Locked · Leaving or disconnecting forfeits your ${activeWager.toLocaleString()} CHIPS stake and counts as a loss.`
+                                                : 'Safe Exit: No coins will be lost before the game board loads. If the match fails to sync, you will be returned to the lobby.'}
                                         </p>
                                     </div>
                                 </div>
