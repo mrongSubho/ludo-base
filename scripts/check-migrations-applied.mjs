@@ -76,16 +76,40 @@ try {
   process.exit(1);
 }
 
-// Rows look like:  `202610220001`   | `202610220001`   | `202610220001`
-//                  `202610220001`   | ` `              | `202610220001`
-// Columns: local | remote | time. An empty remote column means "not applied".
+// Rows can be JSON from newer CLI versions or pipe-delimited table:
+// JSON: {"migrations":[{"local":"...","remote":"..."}, ...]}
+// Table: `202610220001` | `202610220001` | `202610220001`
 const pending = [];
+
+let jsonParsed = false;
 for (const line of out.split('\n')) {
-  if (!line.includes('|')) continue;
-  const cols = line.split('|').map((c) => c.replace(/`/g, '').trim());
-  const [local, remote] = cols;
-  if (!local || !/^\d{6,}$/.test(local)) continue;
-  if (!remote) pending.push(local);
+  const trimmed = line.trim();
+  if (trimmed.startsWith('{') && trimmed.includes('"migrations"')) {
+    try {
+      const data = JSON.parse(trimmed);
+      if (Array.isArray(data.migrations)) {
+        for (const m of data.migrations) {
+          if (m.local && (!m.remote || !m.remote.trim())) {
+            pending.push(String(m.local));
+          }
+        }
+        jsonParsed = true;
+        break;
+      }
+    } catch {
+      // fallback to line parsing
+    }
+  }
+}
+
+if (!jsonParsed) {
+  for (const line of out.split('\n')) {
+    if (!line.includes('|')) continue;
+    const cols = line.split('|').map((c) => c.replace(/`/g, '').trim());
+    const [local, remote] = cols;
+    if (!local || !/^\d{6,}$/.test(local)) continue;
+    if (!remote) pending.push(local);
+  }
 }
 
 const local = localMigrations();
