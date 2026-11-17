@@ -506,6 +506,130 @@ export async function POST(request: Request) {
             console.error('[onboarding] match writers failed:', onbErr);
         }
 
+        // Clan Progression Bridge:
+        // Any match played awards Member CXP (+50 win / +15 loss) and Clan CXP (+100 win / +30 loss).
+        try {
+            const db = supabase as any;
+            const { data: clanMemberships } = await db
+                .from('clan_members')
+                .select('clan_id, wallet_address')
+                .in('wallet_address', lowerParts);
+
+            if (clanMemberships && clanMemberships.length > 0) {
+                for (const cm of clanMemberships) {
+                    const isWinner = winnerLower !== null && cm.wallet_address.toLowerCase() === winnerLower;
+                    const memberCxp = isWinner ? 50 : 15;
+                    const clanCxp = isWinner ? 100 : 30;
+
+                    // Increment member stats
+                    const { data: curMem } = await db
+                        .from('clan_members')
+                        .select('weekly_cxp, total_cxp')
+                        .eq('clan_id', cm.clan_id)
+                        .eq('wallet_address', cm.wallet_address)
+                        .maybeSingle();
+
+                    if (curMem) {
+                        await db
+                            .from('clan_members')
+                            .update({
+                                weekly_cxp: (curMem.weekly_cxp || 0) + memberCxp,
+                                total_cxp: (curMem.total_cxp || 0) + memberCxp,
+                            })
+                            .eq('clan_id', cm.clan_id)
+                            .eq('wallet_address', cm.wallet_address);
+                    }
+
+                    // Increment clan CXP and check level up
+                    const { data: curClan } = await db
+                        .from('clans')
+                        .select('cxp, level')
+                        .eq('id', cm.clan_id)
+                        .maybeSingle();
+
+                    if (curClan) {
+                        const newCxp = (curClan.cxp || 0) + clanCxp;
+                        const { data: nextLevel } = await db
+                            .from('clan_level_config')
+                            .select('level, cxp_required')
+                            .gt('level', curClan.level)
+                            .lte('cxp_required', newCxp)
+                            .order('level', { ascending: false })
+                            .limit(1)
+                            .maybeSingle();
+
+                        const newLevel = nextLevel ? nextLevel.level : curClan.level;
+                        await db
+                            .from('clans')
+                            .update({
+                                cxp: newCxp,
+                                level: newLevel,
+                            })
+                            .eq('id', cm.clan_id);
+                    }
+                }
+            }
+        } catch (clanCxpErr) {
+            console.error('[clans] progression bridge error:', clanCxpErr);
+        }
+
+        // War Fixture Scoring Bridge:
+        // If match is associated with a clan war fixture, award War Points and update fixture state.
+        const fixtureId = body.fixtureId || body.fixture_id;
+        if (fixtureId && winnerLower) {
+            try {
+                const db = supabase as any;
+                const { data: fixture } = await db
+                    .from('clan_war_fixtures')
+                    .select('id, war_id, clan_a_seats, clan_b_seats, game_shape, status')
+                    .eq('id', fixtureId)
+                    .maybeSingle();
+
+                if (fixture && fixture.status !== 'completed') {
+                    const { data: war } = await db
+                        .from('clan_wars')
+                        .select('id, clan_a_id, clan_b_id')
+                        .eq('id', fixture.war_id)
+                        .single();
+
+                    if (war) {
+                        const lowerA = fixture.clan_a_seats.map((s: string) => s.toLowerCase());
+                        const lowerB = fixture.clan_b_seats.map((s: string) => s.toLowerCase());
+                        const isClanAWinner = lowerA.includes(winnerLower);
+
+                        const winnerClanId = isClanAWinner ? war.clan_a_id : war.clan_b_id;
+                        const losingClanId = isClanAWinner ? war.clan_b_id : war.clan_a_id;
+                        const winnerWallets = isClanAWinner ? lowerA : lowerB;
+                        const losingWallets = isClanAWinner ? lowerB : lowerA;
+
+                        const { finalizeFixtureScore } = await import('@/lib/clan/clanScorer');
+                        await finalizeFixtureScore({
+                            matchId: String(matchId),
+                            warId: String(war.id),
+                            fixtureId: String(fixture.id),
+                            winnerClanId: String(winnerClanId),
+                            losingClanId: String(losingClanId),
+                            winnerWallets,
+                            losingWallets,
+                            gameShape: fixture.game_shape,
+                        });
+
+                        await db.from('clan_score_queue').insert({
+                            match_id: String(matchId),
+                            war_id: war.id,
+                            fixture_id: fixture.id,
+                            winner_clan_id: winnerClanId,
+                            losing_clan_id: losingClanId,
+                            status: 'processed',
+                            processed_at: new Date().toISOString(),
+                        });
+                    }
+                }
+            } catch (fixErr) {
+                console.error('[clans] war fixture scoring bridge error:', fixErr);
+            }
+        }
+
         return NextResponse.json({ success: true });
     } catch (err: any) {
         console.error('❌ [API] Unexpected error:', err);
