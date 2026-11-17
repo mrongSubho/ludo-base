@@ -227,20 +227,35 @@ export async function createClan(params: {
         secondary: '#0D1117',
     };
 
-    const { data: clanId, error } = await (db as any).rpc('clan_create_with_escrow', {
+    const requestId = crypto.randomUUID();
+    const { data, error } = await (db as any).rpc('clan_create_with_escrow', {
         p_leader_wallet: leader,
         p_name: name,
         p_tag: tag,
         p_bio: params.bio?.trim() || null,
         p_crest: crestJson,
+        p_request_id: requestId,
     });
 
     if (error) {
-        if (error.message.includes('insufficient_escrow')) {
+        const msg = String(error.message || '');
+        if (msg.includes('INSUFFICIENT_ESCROW') || msg.includes('insufficient_escrow')) {
             throw new ClanServiceError('Insufficient CHIPS in escrow (10,000 CHIPS required to create a clan)', 402, 'INSUFFICIENT_ESCROW');
         }
-        if (error.message.includes('already in a clan')) {
+        if (msg.includes('ALREADY_IN_CLAN') || msg.includes('already in a clan')) {
             throw new ClanServiceError('You are already a member of a clan', 409);
+        }
+        if (msg.includes('BAD_NAME')) {
+            throw new ClanServiceError('Clan name must be between 3 and 24 characters', 400);
+        }
+        if (msg.includes('BAD_TAG')) {
+            throw new ClanServiceError('Clan tag must be between 2 and 5 characters', 400);
+        }
+        if (msg.includes('PLAYER_NOT_FOUND')) {
+            throw new ClanServiceError('Player profile not found. Please connect your wallet first.', 404);
+        }
+        if (msg.includes('ESCROW_DISABLED')) {
+            throw new ClanServiceError('Escrow deposits are currently paused.', 503);
         }
         if (error.code === '23505') {
             throw new ClanServiceError('A clan with this name or tag already exists', 409, 'NAME_OR_TAG_TAKEN');
@@ -248,6 +263,7 @@ export async function createClan(params: {
         throw new ClanServiceError(error.message, 500);
     }
 
+    const clanId = data?.clan_id || data;
     return { clanId };
 }
 
