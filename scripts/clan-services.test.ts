@@ -5,46 +5,82 @@ import {
     clanOraclePrivateKey,
     CLAN_CLAIM_TYPES,
 } from '../lib/clan/clanClaimVoucher';
-import { privateKeyToAccount } from 'viem/accounts';
-import { recoverAddress, keccak256, toBytes } from 'viem';
+import { verifyWarStakeDepositLog } from '../lib/clan/clanWarService';
+import { verifyErc20TransferLog } from '../lib/onchainReceipt';
+import { CHIPS_ERC20_ABI, CLAN_CLAIM_DEPOSIT_ABI } from '../lib/chips';
+import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
+import {
+    encodeAbiParameters,
+    encodeEventTopics,
+    parseUnits,
+    recoverAddress,
+    keccak256,
+    toBytes,
+    type Log,
+} from 'viem';
+
+test('clan claim: clanOraclePrivateKey fails closed when signing key is unconfigured', () => {
+    const prev = {
+        s: process.env.SETTLEMENT_OP_KEY,
+        m: process.env.MISSION_OP_PRIVATE_KEY,
+        e: process.env.EDGE_SETTLE_PRIVATE_KEY,
+    };
+    delete process.env.SETTLEMENT_OP_KEY;
+    delete process.env.MISSION_OP_PRIVATE_KEY;
+    delete process.env.EDGE_SETTLE_PRIVATE_KEY;
+    try {
+        assert.throws(() => clanOraclePrivateKey(), /not configured/i);
+    } finally {
+        if (prev.s !== undefined) process.env.SETTLEMENT_OP_KEY = prev.s;
+        if (prev.m !== undefined) process.env.MISSION_OP_PRIVATE_KEY = prev.m;
+        if (prev.e !== undefined) process.env.EDGE_SETTLE_PRIVATE_KEY = prev.e;
+    }
+});
 
 test('clan claim: voucher digest and signature recovery match ClanClaim.sol EIP-712', async () => {
     const claimContract = '0x1234567890123456789012345678901234567890';
     const chainId = 84532;
-    const oraclePk = clanOraclePrivateKey();
-    const oracleAccount = privateKeyToAccount(oraclePk);
+    const prev = process.env.SETTLEMENT_OP_KEY;
+    process.env.SETTLEMENT_OP_KEY = generatePrivateKey();
+    try {
+        const oraclePk = clanOraclePrivateKey();
+        const oracleAccount = privateKeyToAccount(oraclePk);
 
-    const claimId = keccak256(toBytes('claim-uuid-test-1234'));
-    const clanId = keccak256(toBytes('clan-uuid-test-5678'));
-    const recipient = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as `0x${string}`;
-    const amount = BigInt('5000000000000000000000'); // 5000 CHIPS
-    const claimType = CLAN_CLAIM_TYPES.war_principal;
-    const nonce = BigInt(1730500000);
-    const deadline = BigInt(1733000000);
+        const claimId = keccak256(toBytes('claim-uuid-test-1234'));
+        const clanId = keccak256(toBytes('clan-uuid-test-5678'));
+        const recipient = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as `0x${string}`;
+        const amount = BigInt('5000000000000000000000'); // 5000 CHIPS
+        const claimType = CLAN_CLAIM_TYPES.war_principal;
+        const nonce = BigInt(1730500000);
+        const deadline = BigInt(1733000000);
 
-    const voucherData = {
-        claimId,
-        clanId,
-        recipient,
-        amount,
-        claimType,
-        nonce,
-        deadline,
-    };
+        const voucherData = {
+            claimId,
+            clanId,
+            recipient,
+            amount,
+            claimType,
+            nonce,
+            deadline,
+        };
 
-    const digest = buildClanClaimDigest(voucherData, claimContract, chainId);
-    const signature = await oracleAccount.sign({ hash: digest });
+        const digest = buildClanClaimDigest(voucherData, claimContract, chainId);
+        const signature = await oracleAccount.sign({ hash: digest });
 
-    const recovered = await recoverAddress({
-        hash: digest,
-        signature,
-    });
+        const recovered = await recoverAddress({
+            hash: digest,
+            signature,
+        });
 
-    assert.equal(
-        recovered.toLowerCase(),
-        oracleAccount.address.toLowerCase(),
-        'Recovered signer must equal settlement oracle address',
-    );
+        assert.equal(
+            recovered.toLowerCase(),
+            oracleAccount.address.toLowerCase(),
+            'Recovered signer must equal settlement oracle address',
+        );
+    } finally {
+        if (prev === undefined) delete process.env.SETTLEMENT_OP_KEY;
+        else process.env.SETTLEMENT_OP_KEY = prev;
+    }
 });
 
 test('clan wars: 3N fixtures matrix calculation conforms to spec', () => {
@@ -165,4 +201,119 @@ test('clan war buy-in: depositWarStake encodes deterministic bytes32 IDs and bas
     // depositWarStake selector + 3 * 32-byte args = 4 + 96 bytes -> 2 + 200 hex chars
     assert.equal(calldata.length, 202);
     assert.equal(stakeBaseUnits.toString(), '5000000000000000000000');
+});
+
+test('clan war buy-in: verifyWarStakeDepositLog fails closed on missing/mismatched logs and passes on exact match', () => {
+    const claimContract = '0xF3570340E2A298Bf5424efC9C62E464528DA6df0' as const;
+    const warId = keccak256(toBytes('11111111-2222-3333-4444-555555555555'));
+    const clanId = keccak256(toBytes('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'));
+    const contributor = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as const;
+    const minAmountWei = parseUnits('5000', 18);
+
+    assert.throws(
+        () =>
+            verifyWarStakeDepositLog({
+                logs: [],
+                claimContract,
+                warId,
+                clanId,
+                contributor,
+                minAmountWei,
+            }),
+        /do not match/,
+    );
+
+    const topics = encodeEventTopics({
+        abi: CLAN_CLAIM_DEPOSIT_ABI,
+        eventName: 'WarStakeDeposited',
+        args: { warId, clanId, contributor },
+    });
+    const underpaid = {
+        address: claimContract,
+        topics,
+        data: encodeAbiParameters([{ type: 'uint256' }], [parseUnits('4999', 18)]),
+    } as unknown as Log;
+
+    assert.throws(
+        () =>
+            verifyWarStakeDepositLog({
+                logs: [underpaid],
+                claimContract,
+                warId,
+                clanId,
+                contributor,
+                minAmountWei,
+            }),
+        /do not match/,
+    );
+
+    const valid = {
+        address: claimContract,
+        topics,
+        data: encodeAbiParameters([{ type: 'uint256' }], [minAmountWei]),
+    } as unknown as Log;
+
+    verifyWarStakeDepositLog({
+        logs: [valid],
+        claimContract,
+        warId,
+        clanId,
+        contributor,
+        minAmountWei,
+    });
+});
+
+test('clan creation: verifyErc20TransferLog requires exact token, sender, treasury, and 10,000 CHIPS value', () => {
+    const token = '0xB200000000000000000000821408122b9Ed3d05B' as const;
+    const from = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as const;
+    const treasury = '0xbcCa5DcBF293D98A627fD3814D5AE8249bB1DFaF' as const;
+    const minAmountWei = parseUnits('10000', 18);
+    const makeErr = (m: string) => new Error(m);
+
+    const topics = encodeEventTopics({
+        abi: CHIPS_ERC20_ABI,
+        eventName: 'Transfer',
+        args: { from, to: treasury },
+    });
+
+    const wrongRecipientTopics = encodeEventTopics({
+        abi: CHIPS_ERC20_ABI,
+        eventName: 'Transfer',
+        args: { from, to: from },
+    });
+
+    assert.throws(
+        () =>
+            verifyErc20TransferLog({
+                logs: [
+                    {
+                        address: token,
+                        topics: wrongRecipientTopics,
+                        data: encodeAbiParameters([{ type: 'uint256' }], [minAmountWei]),
+                    } as unknown as Log,
+                ],
+                tokenContract: token,
+                expectedFrom: from,
+                expectedTo: treasury,
+                minAmountWei,
+                makeError: makeErr,
+            }),
+        /CHIPS transfer/,
+    );
+
+    const matched = verifyErc20TransferLog({
+        logs: [
+            {
+                address: token,
+                topics,
+                data: encodeAbiParameters([{ type: 'uint256' }], [minAmountWei]),
+            } as unknown as Log,
+        ],
+        tokenContract: token,
+        expectedFrom: from,
+        expectedTo: treasury,
+        minAmountWei,
+        makeError: makeErr,
+    });
+    assert.equal(matched, minAmountWei);
 });

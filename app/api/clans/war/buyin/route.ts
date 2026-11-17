@@ -26,12 +26,15 @@ export async function POST(request: Request) {
         if (!stakeAmount || Number(stakeAmount) <= 0) {
             return NextResponse.json({ error: 'Positive stakeAmount required' }, { status: 400 });
         }
+        if (typeof txHash !== 'string' || !txHash.trim()) {
+            return NextResponse.json({ error: 'On-chain transaction hash (txHash) required' }, { status: 400 });
+        }
 
         const stake = await buyInWarCall({
             clanId,
             walletAddress: authed,
             stakeAmount: Number(stakeAmount),
-            txHash: typeof txHash === 'string' ? txHash : undefined,
+            txHash: txHash.trim(),
         });
 
         return NextResponse.json({ success: true, stake });

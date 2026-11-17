@@ -3,6 +3,7 @@ import { serviceDb } from '@/lib/serverAuth';
 import { createPublicClient, http, type Address } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { CHIPS_ERC20_ABI, chipsAddress } from '@/lib/chips';
+import { verifyErc20TransferLog, waitForConfirmedReceipt } from '@/lib/onchainReceipt';
 import type {
     Clan,
     ClanMember,
@@ -18,30 +19,6 @@ export const PROTOCOL_TREASURY_WALLET: Address =
     (process.env.NEXT_PUBLIC_TREASURY_WALLET as Address) ||
     '0xbcCa5DcBF293D98A627fD3814D5AE8249bB1DFaF';
 const CLAN_CREATION_FEE_RAW = BigInt(10_000) * (BigInt(10) ** BigInt(18)); // 10,000 CHIPS in 1e18
-
-function parseNumericBase(val: unknown): bigint {
-    if (val === null || val === undefined) return BigInt(0);
-    if (typeof val === 'bigint') return val;
-    if (typeof val === 'number') {
-        if (!Number.isFinite(val) || val <= 0) return BigInt(0);
-        const s = val.toLocaleString('fullwide', { useGrouping: false });
-        const intPart = s.split('.')[0] || '0';
-        return BigInt(intPart);
-    }
-    if (typeof val === 'string') {
-        const trimmed = val.trim();
-        if (!trimmed) return BigInt(0);
-        if (trimmed.includes('e') || trimmed.includes('E')) {
-            const num = Number(trimmed);
-            if (!Number.isFinite(num) || num <= 0) return BigInt(0);
-            const s = num.toLocaleString('fullwide', { useGrouping: false });
-            return BigInt(s.split('.')[0] || '0');
-        }
-        const intPart = trimmed.split('.')[0] || '0';
-        return BigInt(intPart || '0');
-    }
-    return BigInt(0);
-}
 
 /**
  * Read a player's on-chain CHIPS ERC-20 balance on Base Sepolia.
@@ -282,36 +259,46 @@ export async function createClan(params: {
         secondary: '#0D1117',
     };
 
-    // If an on-chain transaction hash is provided, register directly with on-chain proof
+    // If an on-chain transaction hash is provided, verify the confirmed CHIPS transfer strictly.
     if (params.txHash) {
         const txHash = params.txHash.trim();
         if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
             throw new ClanServiceError('Invalid transaction hash format', 400);
         }
 
-        // Replay prevention: check if this txHash was already used
-        const { data: existingTx } = await (db as any)
-            .from('clans')
-            .select('id')
-            .contains('crest', { txHash })
-            .maybeSingle();
+        // Replay prevention across both clans.crest and chips_events
+        const [{ data: existingTx }, { data: existingEvent }] = await Promise.all([
+            (db as any)
+                .from('clans')
+                .select('id')
+                .contains('crest', { txHash })
+                .maybeSingle(),
+            (db as any)
+                .from('chips_events')
+                .select('tx_hash')
+                .eq('chain_id', 84532)
+                .eq('tx_hash', txHash)
+                .eq('event_name', 'ClanCreatedOnChain')
+                .maybeSingle(),
+        ]);
 
-        if (existingTx) {
+        if (existingTx || existingEvent) {
             throw new ClanServiceError('This transaction hash has already been used to create a clan', 409, 'TRANSACTION_ALREADY_USED');
         }
 
-        // Verify receipt on Base Sepolia
-        try {
-            const rpc = process.env.SEPOLIA_RPC || process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org';
-            const client = createPublicClient({ chain: baseSepolia, transport: http(rpc) });
-            const receipt = await client.getTransactionReceipt({ hash: txHash as `0x${string}` });
-            if (receipt && receipt.status !== 'success') {
-                throw new ClanServiceError('On-chain transaction did not succeed', 400);
-            }
-        } catch (err: any) {
-            if (err instanceof ClanServiceError) throw err;
-            console.warn('[clanService] Transaction receipt check warning:', err.message);
-        }
+        const tokenContract = chipsAddress() || DEFAULT_CHIPS_CONTRACT;
+        const receipt = await waitForConfirmedReceipt(
+            txHash,
+            (msg, status = 400) => new ClanServiceError(msg, status),
+        );
+        verifyErc20TransferLog({
+            logs: receipt.logs,
+            tokenContract,
+            expectedFrom: leader,
+            expectedTo: PROTOCOL_TREASURY_WALLET,
+            minAmountWei: CLAN_CREATION_FEE_RAW,
+            makeError: (msg, status = 400) => new ClanServiceError(msg, status),
+        });
 
         const crestWithTx = {
             ...crestJson,
@@ -378,40 +365,8 @@ export async function createClan(params: {
 
     const requestId = crypto.randomUUID();
 
-    // Ensure escrow account has at least 10,000 CHIPS (1e18).
-    // If not, query player's on-chain CHIPS balance and automatically bridge
-    // the deficit into their escrow account before executing the atomic creation RPC.
-    const { data: escrowRow } = await (db as any)
-        .from('chips_escrow_accounts')
-        .select('balance')
-        .eq('wallet_address', leader)
-        .maybeSingle();
-
-    const currentEscrow = parseNumericBase(escrowRow?.balance);
-
-    if (currentEscrow < CLAN_CREATION_FEE_RAW) {
-        const deficit = CLAN_CREATION_FEE_RAW - currentEscrow;
-        const onChainBal = await getOnChainChipsBalance(leader);
-
-        if (onChainBal >= deficit) {
-            const { error: depErr } = await (db as any).rpc('chips_escrow_deposit', {
-                p_wallet: leader,
-                p_amount: deficit.toString(),
-                p_ref: `clan_create_bridge:${requestId}`,
-            });
-            if (depErr) {
-                console.error('[clanService] Failed to bridge on-chain balance to escrow:', depErr);
-                throw new ClanServiceError('Failed to prepare CHIPS balance for clan creation', 500);
-            }
-        } else {
-            throw new ClanServiceError(
-                'Insufficient CHIPS balance (10,000 CHIPS required to create a clan)',
-                402,
-                'INSUFFICIENT_CHIPS',
-            );
-        }
-    }
-
+    // Legacy fallback (no txHash): debit from genuinely funded DB escrow only.
+    // Unbacked on-chain-to-escrow minting is disallowed; on-chain creation requires txHash proof.
     const { data, error } = await (db as any).rpc('clan_create_with_escrow', {
         p_leader_wallet: leader,
         p_name: name,

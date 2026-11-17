@@ -179,8 +179,7 @@ export function useClanData() {
             });
 
             if (player.mode === "ingame" && cdpUserOp.isInGame) {
-                const res = await cdpUserOp.sendCalls([{ to: tokenAddress, data }]);
-                txHash = res.userOperationHash;
+                txHash = await cdpUserOp.sendCallsAndWait([{ to: tokenAddress, data }]);
             } else {
                 if (chainId && chainId !== DEFAULT_CHAIN_ID) {
                     try {

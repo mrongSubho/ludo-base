@@ -150,8 +150,7 @@ export function useArenaVault() {
                               },
                               { to: vaultContract, data: depositData },
                           ];
-                    const res = await cdpUserOp.sendCalls(calls);
-                    txHash = res.userOperationHash;
+                    txHash = await cdpUserOp.sendCallsAndWait(calls);
                 } else {
                     if (chainId && chainId !== DEFAULT_CHAIN_ID) {
                         try {

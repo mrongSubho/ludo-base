@@ -7,10 +7,12 @@
  */
 
 import { useCallback } from "react";
+import { getUserOperation } from "@coinbase/cdp-core";
 import { useSendUserOperation } from "@coinbase/cdp-hooks";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { DATA_SUFFIX } from "@/lib/builderCode";
 import { guardAsyncTransaction } from "@/lib/walletGuard";
+import { updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
 
 export type UserOpCall = {
     to: `0x${string}`;
@@ -55,8 +57,47 @@ export function useCdpUserOp(defaultChainId = 84532) {
         [player.mode, player.address, sendUserOperation, defaultChainId],
     );
 
+    const sendCallsAndWait = useCallback(
+        async (calls: UserOpCall[], chainId = defaultChainId, timeoutMs = 45_000): Promise<`0x${string}`> => {
+            const res = await sendCalls(calls, chainId);
+            const smartAccount = player.address as `0x${string}`;
+            const network = networkFor(chainId);
+            const deadline = Date.now() + timeoutMs;
+
+            updateAuthPromptStatus("UserOp submitted! Waiting for on-chain confirmation...", "Confirming On-Chain");
+
+            while (Date.now() < deadline) {
+                const op = await getUserOperation({
+                    userOperationHash: res.userOperationHash,
+                    evmSmartAccount: smartAccount,
+                    network,
+                });
+
+                if (op.status === "complete") {
+                    if (!op.transactionHash) {
+                        throw new Error("User operation completed without a transaction hash");
+                    }
+                    return op.transactionHash as `0x${string}`;
+                }
+                if (op.status === "failed") {
+                    const revertMsg = op.receipts?.[0]?.revert?.message;
+                    throw new Error(revertMsg || "In-game user operation failed on-chain");
+                }
+                if (op.status === "dropped") {
+                    throw new Error("In-game user operation was dropped before confirmation");
+                }
+
+                await new Promise((r) => setTimeout(r, 1_500));
+            }
+
+            throw new Error("Timed out waiting for in-game transaction confirmation");
+        },
+        [sendCalls, player.address, defaultChainId],
+    );
+
     return {
         sendCalls,
+        sendCallsAndWait,
         isInGame: player.mode === "ingame",
         smartAccount: player.address,
         status,

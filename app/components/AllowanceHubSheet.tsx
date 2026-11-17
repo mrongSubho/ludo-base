@@ -363,6 +363,10 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                                     placeholder={isChips ? "e.g. 50000" : "e.g. 15"}
                                     value={customAmount}
                                     onChange={(e) => setCustomAmount(e.target.value)}
+                                    autoComplete="off"
+                                    autoCorrect="off"
+                                    autoCapitalize="none"
+                                    spellCheck={false}
                                     className="w-24 px-2 py-1 rounded bg-black/40 border border-white/20 text-white text-ludo-xs font-mono outline-none focus:border-cyan-400"
                                     onClick={(e) => e.stopPropagation()}
                                 />

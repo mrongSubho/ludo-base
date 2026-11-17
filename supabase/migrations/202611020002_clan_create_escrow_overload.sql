@@ -5,6 +5,8 @@
 -- 3. Adjusts tag validation to between 2 and 5 chars (matching UI "Clan Tag 2-5 chars")
 -- 4. Grants execute to authenticated and service_role
 
+begin;
+
 create or replace function public.clan_create_with_escrow(
   p_leader_wallet text,
   p_name          text,
@@ -101,3 +103,5 @@ $$;
 
 revoke all on function public.clan_create_with_escrow(text, text, text, text, jsonb, text, numeric) from public;
 grant execute on function public.clan_create_with_escrow(text, text, text, text, jsonb, text, numeric) to authenticated, service_role;
+
+commit;

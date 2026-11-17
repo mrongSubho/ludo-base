@@ -28,8 +28,10 @@ export function vaultOraclePrivateKey(): Hex {
     const pk =
         process.env.MISSION_OP_PRIVATE_KEY ||
         process.env.SETTLEMENT_OP_KEY ||
-        process.env.EDGE_SETTLE_PRIVATE_KEY ||
-        '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+        process.env.EDGE_SETTLE_PRIVATE_KEY;
+    if (!pk) {
+        throw new Error('ArenaVault oracle signing key is not configured');
+    }
     return (pk.startsWith('0x') ? pk : `0x${pk}`) as Hex;
 }
 

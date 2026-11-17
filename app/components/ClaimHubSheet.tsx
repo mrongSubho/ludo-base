@@ -208,6 +208,10 @@ export default function ClaimHubSheet({
                                     value={vaultInput}
                                     onChange={(e) => setVaultInput(e.target.value)}
                                     placeholder="CHIPS amount"
+                                    autoComplete="off"
+                                    autoCorrect="off"
+                                    autoCapitalize="none"
+                                    spellCheck={false}
                                     className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-cyan-400"
                                 />
                                 {vaultMode === "withdraw" && (

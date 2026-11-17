@@ -311,6 +311,10 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                             placeholder="Search clans by name or tag..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
+                                            autoComplete="off"
+                                            autoCorrect="off"
+                                            autoCapitalize="none"
+                                            spellCheck={false}
                                             className="w-full px-4 py-3 rounded-2xl bg-white/[0.04] border border-white/10 text-white placeholder:text-white/25 text-sm focus:outline-none focus:border-cyan-400 font-mono transition-colors"
                                         />
                                     </div>
@@ -467,6 +471,10 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                                 value={chatInput}
                                                 onChange={(e) => setChatInput(e.target.value)}
                                                 maxLength={280}
+                                                autoComplete="off"
+                                                autoCorrect="off"
+                                                autoCapitalize="none"
+                                                spellCheck={false}
                                                 className="flex-1 min-w-0 px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-white placeholder:text-white/25 text-xs font-mono focus:outline-none focus:border-cyan-400"
                                             />
                                             <Button variant="primary" size="sm" type="submit" disabled={sendingChat || !chatInput.trim()} className="shrink-0">
@@ -846,6 +854,10 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                     value={createName}
                                     onChange={(e) => setCreateName(e.target.value)}
                                     placeholder="e.g. Cyber Vanguard"
+                                    autoComplete="off"
+                                    autoCorrect="off"
+                                    autoCapitalize="none"
+                                    spellCheck={false}
                                     className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/25 focus:outline-none focus:border-cyan-400"
                                 />
                             </div>
@@ -860,6 +872,10 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                     value={createTag}
                                     onChange={(e) => setCreateTag(e.target.value.toUpperCase())}
                                     placeholder="e.g. CYBER"
+                                    autoComplete="off"
+                                    autoCorrect="off"
+                                    autoCapitalize="none"
+                                    spellCheck={false}
                                     className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/25 focus:outline-none focus:border-cyan-400 uppercase"
                                 />
                             </div>
@@ -872,6 +888,10 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                     value={createBio}
                                     onChange={(e) => setCreateBio(e.target.value)}
                                     placeholder="Tactical supremacy on Base Sepolia"
+                                    autoComplete="off"
+                                    autoCorrect="off"
+                                    autoCapitalize="none"
+                                    spellCheck={false}
                                     className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-white/25 focus:outline-none focus:border-cyan-400"
                                 />
                             </div>
@@ -942,6 +962,10 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                     step={500}
                                     value={noticeFee}
                                     onChange={(e) => setNoticeFee(Number(e.target.value))}
+                                    autoComplete="off"
+                                    autoCorrect="off"
+                                    autoCapitalize="none"
+                                    spellCheck={false}
                                     className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
                                 />
                             </div>

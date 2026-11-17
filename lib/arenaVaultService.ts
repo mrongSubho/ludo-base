@@ -1,15 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
-    createPublicClient,
     formatUnits,
-    http,
     parseEventLogs,
-    type Hex,
+    type Log,
 } from 'viem';
-import { baseSepolia } from 'viem/chains';
 import { serviceDb } from '@/lib/serverAuth';
 import { ARENA_VAULT_ABI, arenaVaultAddress } from '@/lib/chips';
 import { issueVaultVoucher, type IssuedVaultVoucher } from '@/lib/arenaVaultVoucher';
+import { waitForConfirmedReceipt } from '@/lib/onchainReceipt';
 
 export interface ArenaVaultClaimItem {
     id: string;
@@ -80,6 +78,48 @@ export async function getVaultSummary(walletAddress: string): Promise<ArenaVault
     };
 }
 
+/**
+ * Extract and verify the deposited CHIPS amount for `wallet` from ArenaVault logs.
+ * Exported for unit testing.
+ */
+export function extractVerifiedVaultDepositChips(params: {
+    logs: Log[];
+    vaultContract: string;
+    walletAddress: string;
+}): number {
+    const decoded = parseEventLogs({
+        abi: ARENA_VAULT_ABI,
+        logs: params.logs,
+        eventName: 'VaultDeposited',
+    });
+
+    const targetVault = params.vaultContract.toLowerCase();
+    const targetWallet = params.walletAddress.toLowerCase();
+
+    const matchingLogs = decoded.filter((l) => {
+        const sameContract = l.address.toLowerCase() === targetVault;
+        const args = l.args as { player?: string; amount?: bigint };
+        return sameContract && args.player?.toLowerCase() === targetWallet;
+    });
+
+    if (matchingLogs.length === 0) {
+        throw new ArenaVaultError(
+            'No matching VaultDeposited event found for this wallet on ArenaVault',
+            400,
+        );
+    }
+
+    const totalWei = matchingLogs.reduce(
+        (sum, l) => sum + ((l.args as { amount?: bigint }).amount ?? BigInt(0)),
+        BigInt(0),
+    );
+    const creditedChips = Math.floor(Number(formatUnits(totalWei, 18)));
+    if (!Number.isFinite(creditedChips) || creditedChips <= 0) {
+        throw new ArenaVaultError('Deposit amount must be positive', 400);
+    }
+    return creditedChips;
+}
+
 export async function creditVaultDeposit(params: {
     walletAddress: string;
     txHash: string;
@@ -89,49 +129,21 @@ export async function creditVaultDeposit(params: {
     const wallet = params.walletAddress.toLowerCase();
     const txHash = params.txHash.trim();
 
-    if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
-        throw new ArenaVaultError('Invalid transaction hash format', 400);
-    }
-
     const vaultAddr = arenaVaultAddress();
-    let creditedChips = Number(params.expectedAmountChips ?? 0);
-
-    try {
-        const rpc = process.env.SEPOLIA_RPC || process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org';
-        const client = createPublicClient({ chain: baseSepolia, transport: http(rpc) });
-        const receipt = await client.getTransactionReceipt({ hash: txHash as Hex });
-
-        if (receipt.status !== 'success') {
-            throw new ArenaVaultError('On-chain vault deposit transaction failed', 400);
-        }
-
-        const decoded = parseEventLogs({
-            abi: ARENA_VAULT_ABI,
-            logs: receipt.logs,
-            eventName: 'VaultDeposited',
-        });
-
-        if (decoded.length > 0) {
-            const matchLog = decoded.find((l) => {
-                const sameContract = !vaultAddr || l.address.toLowerCase() === vaultAddr.toLowerCase();
-                const args = l.args as { player?: string; amount?: bigint };
-                return sameContract && args.player?.toLowerCase() === wallet;
-            });
-
-            if (!matchLog) {
-                throw new ArenaVaultError('Deposit log does not match connected wallet or ArenaVault contract', 400);
-            }
-            const amountWei = (matchLog.args as { amount?: bigint }).amount ?? BigInt(0);
-            creditedChips = Math.floor(Number(formatUnits(amountWei, 18)));
-        }
-    } catch (err: any) {
-        if (err instanceof ArenaVaultError) throw err;
-        console.warn('[arenaVaultService] Receipt check warning (UserOp/RPC lag):', err?.message);
+    if (!vaultAddr) {
+        throw new ArenaVaultError('ArenaVault contract address is not configured', 500);
     }
 
-    if (!Number.isFinite(creditedChips) || creditedChips <= 0) {
-        throw new ArenaVaultError('Deposit amount must be positive', 400);
-    }
+    const receipt = await waitForConfirmedReceipt(
+        txHash,
+        (msg, status = 400) => new ArenaVaultError(msg, status),
+    );
+
+    const creditedChips = extractVerifiedVaultDepositChips({
+        logs: receipt.logs,
+        vaultContract: vaultAddr,
+        walletAddress: wallet,
+    });
 
     const { data, error } = await db.rpc('arena_vault_credit_deposit', {
         p_wallet: wallet,
