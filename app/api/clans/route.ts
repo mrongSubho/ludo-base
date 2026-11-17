@@ -58,7 +58,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Unauthorized: valid app session required' }, { status: 401 });
         }
 
-        const { name, tag, bio, crest } = body;
+        const { name, tag, bio, crest, txHash } = body;
         if (!name || !tag) {
             return NextResponse.json({ error: 'Clan name and tag are required' }, { status: 400 });
         }
@@ -69,6 +69,7 @@ export async function POST(request: Request) {
             tag,
             bio,
             crest,
+            txHash,
         });
 
         return NextResponse.json({ success: true, clanId });

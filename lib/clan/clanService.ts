@@ -14,6 +14,9 @@ import type {
 } from './types';
 
 const DEFAULT_CHIPS_CONTRACT: Address = '0xB200000000000000000000821408122b9Ed3d05B';
+export const PROTOCOL_TREASURY_WALLET: Address =
+    (process.env.NEXT_PUBLIC_TREASURY_WALLET as Address) ||
+    '0xbcCa5DcBF293D98A627fD3814D5AE8249bB1DFaF';
 const CLAN_CREATION_FEE_RAW = BigInt(10_000) * (BigInt(10) ** BigInt(18)); // 10,000 CHIPS in 1e18
 
 function parseNumericBase(val: unknown): bigint {
@@ -250,6 +253,7 @@ export async function createClan(params: {
     tag: string;
     bio?: string;
     crest?: ClanCrest;
+    txHash?: string;
 }): Promise<{ clanId: string }> {
     const db = serviceDb();
     const leader = params.leaderWallet.toLowerCase();
@@ -277,6 +281,91 @@ export async function createClan(params: {
         primary: '#00E5FF',
         secondary: '#0D1117',
     };
+
+    // If an on-chain transaction hash is provided, register directly with on-chain proof
+    if (params.txHash) {
+        const txHash = params.txHash.trim();
+        if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+            throw new ClanServiceError('Invalid transaction hash format', 400);
+        }
+
+        // Replay prevention: check if this txHash was already used
+        const { data: existingTx } = await (db as any)
+            .from('clans')
+            .select('id')
+            .contains('crest', { txHash })
+            .maybeSingle();
+
+        if (existingTx) {
+            throw new ClanServiceError('This transaction hash has already been used to create a clan', 409, 'TRANSACTION_ALREADY_USED');
+        }
+
+        // Verify receipt on Base Sepolia
+        try {
+            const rpc = process.env.SEPOLIA_RPC || process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org';
+            const client = createPublicClient({ chain: baseSepolia, transport: http(rpc) });
+            const receipt = await client.getTransactionReceipt({ hash: txHash as `0x${string}` });
+            if (receipt && receipt.status !== 'success') {
+                throw new ClanServiceError('On-chain transaction did not succeed', 400);
+            }
+        } catch (err: any) {
+            if (err instanceof ClanServiceError) throw err;
+            console.warn('[clanService] Transaction receipt check warning:', err.message);
+        }
+
+        const crestWithTx = {
+            ...crestJson,
+            txHash,
+        };
+
+        const { data: clanData, error: clanErr } = await (db as any)
+            .from('clans')
+            .insert({
+                name,
+                tag,
+                bio: params.bio?.trim() || null,
+                crest: crestWithTx,
+                leader_wallet: leader,
+                level: 1,
+                member_count: 1,
+            })
+            .select('id')
+            .single();
+
+        if (clanErr) {
+            if (clanErr.code === '23505') {
+                throw new ClanServiceError('A clan with this name or tag already exists', 409, 'NAME_OR_TAG_TAKEN');
+            }
+            throw new ClanServiceError(clanErr.message, 500);
+        }
+
+        const clanId = clanData.id;
+
+        const { error: memberErr } = await (db as any)
+            .from('clan_members')
+            .insert({
+                clan_id: clanId,
+                wallet_address: leader,
+                role: 'commander',
+            });
+
+        if (memberErr) {
+            throw new ClanServiceError(memberErr.message, 500);
+        }
+
+        // Record on-chain fee in chips_escrow_ledger for protocol accounting
+        await (db as any)
+            .from('chips_escrow_ledger')
+            .insert({
+                wallet_address: PROTOCOL_TREASURY_WALLET,
+                delta: CLAN_CREATION_FEE_RAW.toString(),
+                reason: 'clan_create_onchain',
+                ref: `tx:${txHash}`,
+            })
+            .catch(() => {});
+
+        return { clanId };
+    }
 
     const requestId = crypto.randomUUID();
 

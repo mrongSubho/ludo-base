@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useWriteContract, useSwitchChain, usePublicClient } from "wagmi";
+import { encodeFunctionData, parseUnits, type Address } from "viem";
+import { usePlayerSigner } from "@/hooks/usePlayerSigner";
+import { useCdpUserOp } from "@/hooks/useCdpUserOp";
+import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
+import { CHIPS_ERC20_ABI, chipsAddress } from "@/lib/chips";
+import { DEFAULT_CHAIN_ID } from "@/lib/chains";
 import { useAppSession } from "@/hooks/useAppSession";
 import { supabase } from "@/lib/supabase";
 import type {
@@ -15,8 +21,17 @@ import type {
     ClanCrest,
 } from "@/lib/clan/types";
 
+const PROTOCOL_TREASURY_WALLET: Address =
+    (process.env.NEXT_PUBLIC_TREASURY_WALLET as Address) ||
+    "0xbcCa5DcBF293D98A627fD3814D5AE8249bB1DFaF";
+
 export function useClanData() {
-    const { address } = useAccount();
+    const { address, chainId } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
+    const { writeContractAsync } = useWriteContract();
+    const publicClient = usePublicClient();
+    const player = usePlayerSigner();
+    const cdpUserOp = useCdpUserOp();
     const { ensureAppSession, peekAppSession } = useAppSession();
 
     const [clan, setClan] = useState<Clan | null>(null);
@@ -130,7 +145,7 @@ export function useClanData() {
     }, [clan?.id, refresh]);
 
     /**
-     * Create a new clan (debited from escrow).
+     * Create a new clan by executing on-chain 10,000 CHIPS creation fee to Protocol Treasury.
      */
     const createClan = useCallback(async (params: {
         name: string;
@@ -142,6 +157,58 @@ export function useClanData() {
         const sessionId = await ensureAppSession();
         if (!sessionId) throw new Error("Session required to create clan");
 
+        const tokenAddress = chipsAddress() || ("0xB200000000000000000000821408122b9Ed3d05B" as Address);
+        const treasuryAddress = PROTOCOL_TREASURY_WALLET;
+        const feeAmount = parseUnits("10000", 18);
+
+        let hidePrompt: (() => void) | undefined;
+        let txHash: string | undefined;
+
+        try {
+            hidePrompt = showTxPrompt({
+                context: "clan-create",
+                title: "FORGE CLAN",
+                statusText: "Please approve the 10,000 CHIPS creation fee transfer in your wallet.",
+                explanationText: "10,000 CHIPS one-time fee transferred directly to protocol treasury on Base Sepolia.",
+            });
+
+            const data = encodeFunctionData({
+                abi: CHIPS_ERC20_ABI,
+                functionName: "transfer",
+                args: [treasuryAddress, feeAmount],
+            });
+
+            if (player.mode === "ingame" && cdpUserOp.isInGame) {
+                const res = await cdpUserOp.sendCalls([{ to: tokenAddress, data }]);
+                txHash = res.userOperationHash;
+            } else {
+                if (chainId && chainId !== DEFAULT_CHAIN_ID) {
+                    try {
+                        await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
+                    } catch (err) {
+                        console.warn("[useClanData] Network switch failed:", err);
+                    }
+                }
+                const hash = await writeContractAsync({
+                    address: tokenAddress,
+                    abi: CHIPS_ERC20_ABI,
+                    functionName: "transfer",
+                    args: [treasuryAddress, feeAmount],
+                });
+                txHash = hash;
+                if (publicClient && hash) {
+                    updateAuthPromptStatus("Transfer broadcast! Confirming on-chain...", "Confirming On-Chain");
+                    await publicClient.waitForTransactionReceipt({ hash });
+                }
+            }
+        } finally {
+            hidePrompt?.();
+        }
+
+        if (!txHash) {
+            throw new Error("Transaction was cancelled or failed");
+        }
+
         const res = await fetch("/api/clans", {
             method: "POST",
             headers: {
@@ -151,6 +218,7 @@ export function useClanData() {
             body: JSON.stringify({
                 walletAddress: address,
                 sessionId,
+                txHash,
                 ...params,
             }),
         });
@@ -162,7 +230,7 @@ export function useClanData() {
 
         await refresh();
         return data;
-    }, [address, ensureAppSession, refresh]);
+    }, [address, chainId, cdpUserOp, ensureAppSession, player.mode, publicClient, refresh, switchChainAsync, writeContractAsync]);
 
     /**
      * Send message in clan chat.

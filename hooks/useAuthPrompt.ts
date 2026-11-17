@@ -21,7 +21,8 @@ export type AuthPromptContext =
     | "merkle-claim"
     | "contract-call"
     | "clan-claim"
-    | "clan-batch-claim";
+    | "clan-batch-claim"
+    | "clan-create";
 
 export type PromptMode = "signature" | "transaction";
 
@@ -236,6 +237,15 @@ export const CONTEXT_PRESETS: Record<
         networkText: "Base Sepolia (84532)",
         explanationText: "Calling claimBatch on ClanClaim contract. Gas optimized pull claim.",
         cancelLabel: "Cancel Claims",
+    },
+    "clan-create": {
+        mode: "transaction",
+        title: "FORGE CLAN",
+        badgeText: "Awaiting Confirmation",
+        statusText: "Approve the 10,000 CHIPS creation fee transfer in your wallet to forge your clan.",
+        networkText: "Base Sepolia (84532)",
+        explanationText: "10,000 CHIPS creation fee transferred directly to protocol treasury on Base Sepolia.",
+        cancelLabel: "Cancel Creation",
     },
 };
 

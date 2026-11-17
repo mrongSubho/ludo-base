@@ -785,7 +785,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                     >
                         <h3 className="text-lg font-black text-white">Create Tactical Clan</h3>
                         <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs font-mono text-cyan-300">
-                            Clan creation costs <strong>10,000 CHIPS</strong>, debited directly to the protocol treasury.
+                            Clan creation fee: <strong>10,000 CHIPS</strong>, transferred directly from your wallet to the protocol treasury on Base Sepolia.
                         </div>
 
                         {createError && (
@@ -852,7 +852,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                         disabled={createSubmitting}
                                         className="flex-1"
                                     >
-                                        {createSubmitting ? "Debiting Escrow..." : "Forge Clan"}
+                                        {createSubmitting ? "Approving in Wallet..." : "Forge Clan (10,000 CHIPS)"}
                                     </Button>
                                 </div>
                             </form>

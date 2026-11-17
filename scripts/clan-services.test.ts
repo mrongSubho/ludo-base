@@ -141,7 +141,7 @@ test('clan creation: 10,000 CHIPS creation fee calculation and deficit logic', (
     assert.ok(onChainBalance2 >= deficit2, 'On-chain balance must cover remaining 6,000 CHIPS deficit');
 
     // Scenario 3: Wallet with 500 CHIPS total (insufficient)
-    const escrowBalance3 = BigInt(0);
+    const _escrowBalance3 = BigInt(0);
     const onChainBalance3 = BigInt(500) * (BigInt(10) ** BigInt(18));
     assert.ok(onChainBalance3 < fee, 'Must detect insufficient balance');
 });
