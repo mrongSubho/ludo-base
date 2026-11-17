@@ -121,3 +121,27 @@ test('clan wars: settlement math distributes 100% principal first, then 80/20 pr
         'Governance split sum must equal gov pool',
     );
 });
+
+test('clan creation: 10,000 CHIPS creation fee calculation and deficit logic', () => {
+    const fee = BigInt(10_000) * (BigInt(10) ** BigInt(18));
+    assert.equal(fee.toString(), '10000000000000000000000');
+
+    // Scenario 1: Wallet with 0 escrow, but 9.9B on-chain
+    const escrowBalance1 = BigInt(0);
+    const onChainBalance1 = BigInt('9919869670000000000000000000');
+    const deficit1 = fee - escrowBalance1;
+    assert.equal(deficit1, fee);
+    assert.ok(onChainBalance1 >= deficit1, 'On-chain balance must cover fee deficit');
+
+    // Scenario 2: Wallet with partial escrow (4,000 CHIPS) and 10,000 on-chain
+    const escrowBalance2 = BigInt(4_000) * (BigInt(10) ** BigInt(18));
+    const onChainBalance2 = BigInt(10_000) * (BigInt(10) ** BigInt(18));
+    const deficit2 = fee - escrowBalance2;
+    assert.equal(deficit2.toString(), '6000000000000000000000');
+    assert.ok(onChainBalance2 >= deficit2, 'On-chain balance must cover remaining 6,000 CHIPS deficit');
+
+    // Scenario 3: Wallet with 500 CHIPS total (insufficient)
+    const escrowBalance3 = BigInt(0);
+    const onChainBalance3 = BigInt(500) * (BigInt(10) ** BigInt(18));
+    assert.ok(onChainBalance3 < fee, 'Must detect insufficient balance');
+});

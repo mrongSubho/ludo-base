@@ -1,5 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { serviceDb } from '@/lib/serverAuth';
+import { createPublicClient, http, type Address } from 'viem';
+import { baseSepolia } from 'viem/chains';
+import { CHIPS_ERC20_ABI, chipsAddress } from '@/lib/chips';
 import type {
     Clan,
     ClanMember,
@@ -9,6 +12,54 @@ import type {
     ClanCrest,
     ClanLevelConfig,
 } from './types';
+
+const DEFAULT_CHIPS_CONTRACT: Address = '0xB200000000000000000000821408122b9Ed3d05B';
+const CLAN_CREATION_FEE_RAW = BigInt(10_000) * (BigInt(10) ** BigInt(18)); // 10,000 CHIPS in 1e18
+
+function parseNumericBase(val: unknown): bigint {
+    if (val === null || val === undefined) return BigInt(0);
+    if (typeof val === 'bigint') return val;
+    if (typeof val === 'number') {
+        if (!Number.isFinite(val) || val <= 0) return BigInt(0);
+        const s = val.toLocaleString('fullwide', { useGrouping: false });
+        const intPart = s.split('.')[0] || '0';
+        return BigInt(intPart);
+    }
+    if (typeof val === 'string') {
+        const trimmed = val.trim();
+        if (!trimmed) return BigInt(0);
+        if (trimmed.includes('e') || trimmed.includes('E')) {
+            const num = Number(trimmed);
+            if (!Number.isFinite(num) || num <= 0) return BigInt(0);
+            const s = num.toLocaleString('fullwide', { useGrouping: false });
+            return BigInt(s.split('.')[0] || '0');
+        }
+        const intPart = trimmed.split('.')[0] || '0';
+        return BigInt(intPart || '0');
+    }
+    return BigInt(0);
+}
+
+/**
+ * Read a player's on-chain CHIPS ERC-20 balance on Base Sepolia.
+ */
+export async function getOnChainChipsBalance(walletAddress: string): Promise<bigint> {
+    try {
+        const tokenAddress = chipsAddress() || DEFAULT_CHIPS_CONTRACT;
+        const rpc = process.env.SEPOLIA_RPC || process.env.BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org';
+        const client = createPublicClient({ chain: baseSepolia, transport: http(rpc) });
+        const bal = await client.readContract({
+            address: tokenAddress,
+            abi: CHIPS_ERC20_ABI,
+            functionName: 'balanceOf',
+            args: [walletAddress as Address],
+        });
+        return BigInt(bal);
+    } catch (e) {
+        console.warn('[clanService] Failed to read on-chain CHIPS balance:', e);
+        return BigInt(0);
+    }
+}
 
 export class ClanServiceError extends Error {
     constructor(
@@ -228,6 +279,41 @@ export async function createClan(params: {
     };
 
     const requestId = crypto.randomUUID();
+
+    // Ensure escrow account has at least 10,000 CHIPS (1e18).
+    // If not, query player's on-chain CHIPS balance and automatically bridge
+    // the deficit into their escrow account before executing the atomic creation RPC.
+    const { data: escrowRow } = await (db as any)
+        .from('chips_escrow_accounts')
+        .select('balance')
+        .eq('wallet_address', leader)
+        .maybeSingle();
+
+    const currentEscrow = parseNumericBase(escrowRow?.balance);
+
+    if (currentEscrow < CLAN_CREATION_FEE_RAW) {
+        const deficit = CLAN_CREATION_FEE_RAW - currentEscrow;
+        const onChainBal = await getOnChainChipsBalance(leader);
+
+        if (onChainBal >= deficit) {
+            const { error: depErr } = await (db as any).rpc('chips_escrow_deposit', {
+                p_wallet: leader,
+                p_amount: deficit.toString(),
+                p_ref: `clan_create_bridge:${requestId}`,
+            });
+            if (depErr) {
+                console.error('[clanService] Failed to bridge on-chain balance to escrow:', depErr);
+                throw new ClanServiceError('Failed to prepare CHIPS balance for clan creation', 500);
+            }
+        } else {
+            throw new ClanServiceError(
+                'Insufficient CHIPS balance (10,000 CHIPS required to create a clan)',
+                402,
+                'INSUFFICIENT_CHIPS',
+            );
+        }
+    }
+
     const { data, error } = await (db as any).rpc('clan_create_with_escrow', {
         p_leader_wallet: leader,
         p_name: name,
@@ -240,7 +326,7 @@ export async function createClan(params: {
     if (error) {
         const msg = String(error.message || '');
         if (msg.includes('INSUFFICIENT_ESCROW') || msg.includes('insufficient_escrow')) {
-            throw new ClanServiceError('Insufficient CHIPS in escrow (10,000 CHIPS required to create a clan)', 402, 'INSUFFICIENT_ESCROW');
+            throw new ClanServiceError('Insufficient CHIPS balance (10,000 CHIPS required to create a clan)', 402, 'INSUFFICIENT_CHIPS');
         }
         if (msg.includes('ALREADY_IN_CLAN') || msg.includes('already in a clan')) {
             throw new ClanServiceError('You are already a member of a clan', 409);

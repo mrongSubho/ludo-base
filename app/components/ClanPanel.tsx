@@ -785,7 +785,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                     >
                         <h3 className="text-lg font-black text-white">Create Tactical Clan</h3>
                         <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs font-mono text-cyan-300">
-                            Clan creation costs <strong>10,000 CHIPS</strong>, debited atomically from your escrow balance to the protocol treasury.
+                            Clan creation costs <strong>10,000 CHIPS</strong>, debited directly to the protocol treasury.
                         </div>
 
                         {createError && (
