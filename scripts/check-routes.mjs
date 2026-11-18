@@ -115,6 +115,7 @@ const MATRIX = {
     'matchmaking/pools':      { methods: ['GET'],  auth: 'public', resource: 'none', serviceRole: true },
 
     // ── Live / spectator ──────────────────────────────────────────────────
+    'live-arena/directory':   { methods: ['GET'],  auth: 'public', resource: 'none', serviceRole: true },
     'live-matches/window':    { methods: ['POST'], auth: 'session', resource: 'host', serviceRole: true },
     // SEC-07: CLOSED 2026-10-06 — session required, host-gated (`NOT_HOST`
     // at route.ts:170). Reconciled 2026-10-13.

@@ -9,7 +9,7 @@ export type MatchmakingStatus = 'idle' | 'searching' | 'expanding' | 'timeout' |
  * MM-3: the wager presets, descending — mirrors `snapFee` in the panel.
  * Kept here because expansion is the queue's behaviour, not the panel's.
  */
-const FEE_PRESETS = [10_000_000, 1_000_000, 500_000, 100_000, 10_000, 1_000, 500, 0];
+const FEE_PRESETS = [10_000_000, 5_000_000, 1_500_000, 1_000_000, 500_000, 100_000, 10_000, 1_000, 500, 0];
 
 /**
  * MM-3: widen a search band by exactly one preset in each direction.

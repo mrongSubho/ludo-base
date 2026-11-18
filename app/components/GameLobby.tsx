@@ -29,7 +29,7 @@ import { formatUnits } from 'viem';
 /** Primary preset entry fees (CHIPS). 0 = Free. */
 const FEE_PRESETS = [0, 500, 1_000, 10_000, 100_000, 500_000] as const;
 /** High-roller presets revealed under the More toggle. */
-const MORE_FEE_PRESETS = [1_000_000, 10_000_000] as const;
+const MORE_FEE_PRESETS = [1_000_000, 1_500_000, 5_000_000, 10_000_000] as const;
 
 /**
  * Suggested default fee from balance:
@@ -45,7 +45,10 @@ export function suggestedEntryFee(chips: number): number {
 
 export function formatEntryFee(val: number): string {
     if (val === 0) return 'Free';
-    if (val >= 1_000_000) return `${val / 1_000_000} M`;
+    if (val >= 1_000_000) {
+        const m = val / 1_000_000;
+        return Number.isInteger(m) ? `${m} M` : `${m.toFixed(1)} M`;
+    }
     if (val >= 1_000) return `${val / 1_000} k`;
     return String(val);
 }
@@ -66,6 +69,7 @@ interface GameLobbyProps {
     onStartPassAndPlay?: () => void;
     onOpenProfile?: (address: string) => void;
     onBroadcastOpenChange?: (open: boolean) => void;
+    onOpenArena?: (tab?: 'arena' | 'comms') => void;
 }
 
 export default function GameLobby({
@@ -79,6 +83,7 @@ export default function GameLobby({
     onStartPassAndPlay,
     onOpenProfile,
     onBroadcastOpenChange,
+    onOpenArena,
 }: GameLobbyProps) {
     const {
         roomId,
@@ -323,7 +328,7 @@ export default function GameLobby({
                 setMatchType(pool.matchType);
                 // Trigger search on next tick to ensure state sync
                 setTimeout(() => {
-                    handleStartQuickMatch(pool.mode, pool.matchType);
+                    handleStartQuickMatch(pool.mode, pool.matchType, Number(pool.entryFee ?? 0));
                 }, 100);
             }
         };
@@ -346,10 +351,11 @@ export default function GameLobby({
         };
     }, [setWager, setGameMode, setMatchType, guard, joinGame]);
 
-    const handleStartQuickMatch = useCallback((overrideMode?: 'classic' | 'power', overrideMatchType?: '1v1' | '2v2' | '4P') => {
+    const handleStartQuickMatch = useCallback((overrideMode?: 'classic' | 'power', overrideMatchType?: '1v1' | '2v2' | '4P', overrideWager?: number) => {
         guard('online-play', async () => {
             const targetMode = overrideMode || gameMode;
             const targetType = overrideMatchType || matchType;
+            const targetWager = typeof overrideWager === 'number' ? overrideWager : wager;
             const myAddr = address?.toLowerCase();
             if (!myAddr) return;
 
@@ -369,11 +375,11 @@ export default function GameLobby({
             }
 
             // Step 3: Reserve entry fee from reusable Match Vault (differential top-up if needed; 0 gas if covered)
-            if (wager > 0) {
+            if (targetWager > 0) {
                 try {
                     await vault.ensureVaultAndReserve({
                         matchKey: `qm:${myAddr}`,
-                        entryFeeChips: wager,
+                        entryFeeChips: targetWager,
                     });
                 } catch (err: any) {
                     toast(err?.message || 'Vault deposit cancelled. Match search aborted.', 'error');
@@ -749,7 +755,11 @@ export default function GameLobby({
                         .broadcast-anchor (globals.css) keeps it clear of the
                         fixed footer on narrow phones. */}
                     <div className="broadcast-anchor w-full mt-auto pt-2">
-                        <LiveBroadcastCard onOpenProfile={onOpenProfile} onOpenChange={onBroadcastOpenChange} />
+                        <LiveBroadcastCard
+                            onOpenProfile={onOpenProfile}
+                            onOpenChange={onBroadcastOpenChange}
+                            onOpenArena={onOpenArena}
+                        />
                     </div>
 
                 </div>

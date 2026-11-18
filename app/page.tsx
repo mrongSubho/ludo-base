@@ -6,6 +6,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import WalletConnectCard from './components/WalletConnectCard';
 import GameLobby from './components/GameLobby';
+import { useBroadcastData } from './components/ActivityFeed';
 import { PanelErrorBoundary } from './components/PanelErrorBoundary';
 const AudioDriver = dynamic(() => import('./components/AudioToggle'));
 import NoticeStrip from './components/NoticeStrip';
@@ -282,6 +283,8 @@ export default function Page() {
   const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
   const [spectatingRoomCode, setSpectatingRoomCode] = useState<string | null>(null);
   const [broadcastOpen, setBroadcastOpen] = useState(false);
+  const [arenaInitialTab, setArenaInitialTab] = useState<'arena' | 'comms'>('arena');
+  const broadcastData = useBroadcastData();
   const { profile, address, isConnected, displayName: finalName, isGuest, isSessionChecking } = useCurrentUser();
   // Needed to prove the canonical host to /api/match/start (SEC-06). Best-effort:
   // offline/bot games still post the anonymous marker and are simply not settleable.
@@ -382,7 +385,7 @@ export default function Page() {
 
   // Screen stays on while playing, spectating, reading DMs or watching the
   // live broadcast feed; released everywhere else.
-  useScreenWakeLock(appState === 'game' || appState === 'spectating' || activeTab === 'messages' || broadcastOpen);
+  useScreenWakeLock(appState === 'game' || appState === 'spectating' || activeTab === 'messages' || activeTab === 'arena' || broadcastOpen);
 
   // Read-only spectator count for the match we're PLAYING (no wallet passed,
   // so we never track ourselves into the count — players just observe it).
@@ -783,6 +786,10 @@ export default function Page() {
                   onStartPassAndPlay={() => onStartGame(false)}
                   onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
                   onBroadcastOpenChange={setBroadcastOpen}
+                  onOpenArena={(tab = 'arena') => {
+                    setArenaInitialTab(tab);
+                    if (activeTab !== 'arena') toggle('arena');
+                  }}
                 />
               </main>
 
@@ -853,7 +860,16 @@ export default function Page() {
               )}
                 {activeTab === 'arena' && (
                 <PanelErrorBoundary name="arena" onClose={closeTab}>
-                    <ArenaPanel key="arena" isOpen={true} onClose={closeTab} onSwitchTab={toggle} onWatchMatch={handleWatchMatch} />
+                    <ArenaPanel
+                      key="arena"
+                      isOpen={true}
+                      onClose={closeTab}
+                      onSwitchTab={toggle}
+                      onWatchMatch={handleWatchMatch}
+                      onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
+                      initialTab={arenaInitialTab}
+                      broadcastData={broadcastData}
+                    />
                 </PanelErrorBoundary>
               )}
                 {activeTab === 'marketplace' && (

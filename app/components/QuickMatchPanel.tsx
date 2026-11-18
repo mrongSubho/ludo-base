@@ -25,7 +25,7 @@ const PRO_TIPS = [
 ];
 
 /** Matchmaking snaps to the same fee ladders as the lobby. */
-const FEE_PRESETS = [0, 500, 1_000, 10_000, 100_000, 500_000, 1_000_000, 10_000_000] as const;
+const FEE_PRESETS = [0, 500, 1_000, 10_000, 100_000, 500_000, 1_000_000, 1_500_000, 5_000_000, 10_000_000] as const;
 
 function snapFee(n: number): number {
     return FEE_PRESETS.reduce((best, p) => (Math.abs(p - n) < Math.abs(best - n) ? p : best), FEE_PRESETS[0]);
@@ -33,7 +33,10 @@ function snapFee(n: number): number {
 
 function feeLabel(n: number): string {
     if (n === 0) return 'Free';
-    if (n >= 1_000_000) return `${n / 1_000_000}M`;
+    if (n >= 1_000_000) {
+        const m = n / 1_000_000;
+        return Number.isInteger(m) ? `${m}M` : `${m.toFixed(1)}M`;
+    }
     if (n >= 1_000) return `${n / 1_000}k`;
     return String(n);
 }

@@ -721,7 +721,7 @@ export const LiveMatchSearchesPanel = ({ onJoin }: { onJoin?: () => void }) => {
 // The card (always mounted in the lobby) owns subscriptions + arrays, so
 // closing the broadcast panel no longer wipes history. App close unmounts
 // the card → everything vanishes: session semantics, panel-proof.
-interface BroadcastData {
+export interface BroadcastData {
     chats: ChatMsg[];
     rooms: LiveRoom[];
     searches: LiveSearch[];
@@ -729,7 +729,7 @@ interface BroadcastData {
     country: string;
 }
 
-function useBroadcastData(): BroadcastData {
+export function useBroadcastData(): BroadcastData {
     const { address } = useAccount();
     const me = (address || '').toLowerCase();
     const [country, setCountry] = useState('XX');
@@ -1394,78 +1394,58 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
         </div>
     );
 };
-// Joinable count: searching tickets + open announced rooms (debounced).
+// Joinable count: server-aggregated open searching pools + open announced rooms (debounced).
 function useJoinableCount() {
     const [count, setCount] = useState(0);
-    const { address } = useAccount();
-    const me = (address || '').toLowerCase();
     useEffect(() => {
         let cancelled = false;
         let timer: ReturnType<typeof setTimeout> | null = null;
         const recompute = async () => {
-            // Heartbeats keep live rows under a minute old — anything older
-            // is a ghost whose host vanished without closing.
-            const freshSince = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-            let tickets = 0;
-            let rooms = 0;
             try {
-                // Live tickets only — expired rows linger until the next join
-                // sweep, so unfiltered counts lie. Never count yourself.
-                let q = supabase.from('matchmaking_queue')
-                    .select('player_id', { count: 'exact', head: true })
-                    .eq('status', 'searching')
-                    .gt('expires_at', new Date().toISOString());
-                if (me) q = q.neq('player_id', me);
-                const res = await q;
-                tickets = res.count || 0;
-            } catch { /* keep last */ }
-            try {
-                const r = await supabase.from('live_chat')
-                    .select('room_code, content, sender_id')
-                    .not('room_code', 'is', null)
-                    .eq('room_open', true)
-                    .gt('created_at', freshSince)
-                    .order('created_at', { ascending: false })
-                    .limit(100);
-                // A room counts only while its own card shows an open seat
-                // ("3/4 · join"). Full, stale, foreign-format — or mine — don't.
-                const open = new Set<string>();
-                for (const row of r.data || []) {
-                    if (me && (row.sender_id || '').toLowerCase() === me) continue;
-                    const m = typeof row.content === 'string' && row.content.match(/(\d+)\s*\/\s*(\d+)/);
-                    if (m && parseInt(m[2], 10) - parseInt(m[1], 10) > 0 && row.room_code) {
-                        open.add(row.room_code);
-                    }
+                const res = await fetch('/api/live-arena/directory', { cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!cancelled && typeof data?.stats?.openCount === 'number') {
+                    setCount(data.stats.openCount);
                 }
-                rooms = open.size;
-            } catch { /* pre-migration — tickets only */ }
-            if (!cancelled) setCount(tickets + rooms);
+            } catch { /* keep last count */ }
         };
         const debounced = () => {
             if (timer) clearTimeout(timer);
-            timer = setTimeout(recompute, 2500);
+            timer = setTimeout(recompute, 1500);
         };
         recompute();
+        const pollId = window.setInterval(recompute, 10000);
         const ch = supabase.channel('live-count')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'matchmaking_queue' }, debounced)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'live_chat' }, debounced)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'live_matches' }, debounced)
             .subscribe();
         return () => {
             cancelled = true;
+            window.clearInterval(pollId);
             if (timer) clearTimeout(timer);
             supabase.removeChannel(ch);
         };
     }, []);
     return count;
 }
-export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfile?: (address: string) => void; onOpenChange?: (open: boolean) => void }) => {
+export const LiveBroadcastCard = ({
+    onOpenProfile,
+    onOpenChange,
+    onOpenArena,
+    externalFeedData,
+}: {
+    onOpenProfile?: (address: string) => void;
+    onOpenChange?: (open: boolean) => void;
+    onOpenArena?: (tab?: 'arena' | 'comms') => void;
+    externalFeedData?: BroadcastData;
+}) => {
     const { preferences } = usePreferences();
     const is3077 = preferences.theme === '3077';
     const [isOpen, setIsOpen] = useState(false);
     const joinable = useJoinableCount();
-    // Feed data lives here (always mounted) so closing the panel never
-    // wipes history; the overlay only borrows it for display.
-    const feedData = useBroadcastData();
+    const internalFeedData = useBroadcastData();
+    const feedData = externalFeedData ?? internalFeedData;
     // Latest open room: the ON AIR slot shows the freshest announce
     // (Classic · 2v2 · Free · 3/4 · join), tap-to-join, ticking live.
     // Session-bounded like the rooms tab — pre-session history stays out.
@@ -1567,7 +1547,7 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
                     <div
                         className="broadcast-tier pointer-events-auto h-[48px] w-full max-w-[480px] rounded-xl flex items-center justify-between px-4 relative overflow-hidden cursor-pointer border"
                         style={{ borderColor: 'var(--line-soft)', background: 'var(--surface-2)' }}
-                        onClick={() => setIsOpen(true)}
+                        onClick={() => (onOpenArena ? onOpenArena('arena') : setIsOpen(true))}
                         onMouseEnter={() => setTickerPaused(true)}
                         onMouseLeave={() => setTickerPaused(false)}
                         onFocus={() => setTickerPaused(true)}
@@ -1577,10 +1557,11 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
                         onKeyDown={(e) => {
                             if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault();
-                                setIsOpen(true);
+                                if (onOpenArena) onOpenArena('arena');
+                                else setIsOpen(true);
                             }
                         }}
-                        aria-label="Open live broadcast"
+                        aria-label="Open live arena & broadcast"
                     >
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <span
@@ -1608,9 +1589,9 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
                 ) : (
                 <div
                     className="broadcast-tier pointer-events-auto h-[64px] w-full max-w-[480px] rounded-2xl flex items-center justify-between px-5 relative overflow-hidden transition-all group cursor-pointer border border-cyan-500/20 bg-black/60 backdrop-blur-3xl hover:border-cyan-400/50 hover:shadow-[0_0_30px_rgba(34,211,238,0.2)] active:scale-[0.98]"
-                    onClick={() => setIsOpen(true)}
+                    onClick={() => (onOpenArena ? onOpenArena('arena') : setIsOpen(true))}
                     role="button"
-                    aria-label="Open live broadcast"
+                    aria-label="Open live arena & broadcast"
                 >
                     {/* Cyber grid bg */}
                     <div className="ticker-deco absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.8)_50%)] bg-[length:100%_4px] opacity-20 pointer-events-none" />
@@ -1644,8 +1625,16 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
                                 </button>
                             ) : (
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('open_live_matches')); setIsOpen(true); }}
-                                    title="Open live matches"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onOpenArena) {
+                                            onOpenArena('comms');
+                                        } else {
+                                            window.dispatchEvent(new CustomEvent('open_live_matches'));
+                                            setIsOpen(true);
+                                        }
+                                    }}
+                                    title="Open live comms"
                                     className="flex items-center gap-2 mt-0.5 rounded-md hover:opacity-80 active:scale-95 transition-all text-left"
                                 >
                                     <div className="h-1.5 w-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
@@ -1670,9 +1659,9 @@ export const LiveBroadcastCard = ({ onOpenProfile, onOpenChange }: { onOpenProfi
                 )}
             </div>
 
-            {/* ── Full panel ── */}
+            {/* ── Standalone fallback panel (retired when unified into ArenaPanel) ── */}
             <AnimatePresence>
-                {isOpen && (
+                {!onOpenArena && isOpen && (
                     <>
                         <motion.div
                             initial={{ opacity: 0 }}
