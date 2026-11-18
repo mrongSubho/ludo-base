@@ -493,8 +493,8 @@ export default function Board({
                 myPlayerColor={myPlayer?.color}
             />
 
-            {/* Match footer: social controls, shared by classic and power. */}
-            {<div className={`match-footer ${chatOpen ? 'match-footer-chat' : ''}`}>
+            {/* Match footer: social controls, shared by classic and power (hidden while spectating). */}
+            {!spectatorMode && (<div className={`match-footer ${chatOpen ? 'match-footer-chat' : ''}`}>
                 {chatOpen ? (
                     <div className="match-chat-composer">
                         <div className="match-chat-composer-head">
@@ -601,7 +601,7 @@ export default function Board({
                 </div>
                 </>
                 )}
-            </div>}
+            </div>)}
 
             <Leaderboard isOpen={showLeaderboard} onClose={() => onToggleLeaderboard?.(false)} onOpenProfile={onOpenProfile || (() => { })} />
             {selectedPlayer && (

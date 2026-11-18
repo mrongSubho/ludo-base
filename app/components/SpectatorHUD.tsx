@@ -15,12 +15,32 @@ import { useAppSession } from '@/hooks/useAppSession';
 import { useToast } from './Toast';
 
 // ─────────────────────────────────────────────────────────────
-// SpectatorHUD — Non-intrusive Watch & Bet overlay
+// SpectatorHUD — Solid, height-adjustable Watch & Bet overlay
 //
 // Invariant: NEVER alters `.board-main` / `.board-area` layout or padding.
-// Desktop (`lg+`): Right-side floating terminal glass drawer (collapsible).
-// Mobile (`< lg`): Bottom-docked glass drawer with compact tabs & collapse bar.
+// Solid opaque surface so board colors never bleed through.
+// User can drag top handle smoothly from a 1-line bar (56px) up to full panel.
 // ─────────────────────────────────────────────────────────────
+
+const MIN_DRAWER_HEIGHT = 56;
+const ONE_LINE_THRESHOLD = 96;
+
+function clampDrawerHeight(h: number, maxH: number): number {
+    return Math.min(Math.max(MIN_DRAWER_HEIGHT, Math.round(h)), Math.max(MIN_DRAWER_HEIGHT + 40, maxH));
+}
+
+function getDefaultExpandedHeight(): number {
+    if (typeof window === 'undefined') return 380;
+    const isDesktop = window.innerWidth >= 1024;
+    return isDesktop
+        ? Math.max(460, window.innerHeight - 96)
+        : Math.min(440, Math.max(300, Math.round(window.innerHeight * 0.46)));
+}
+
+function getMaxDrawerHeight(): number {
+    if (typeof window === 'undefined') return 680;
+    return Math.max(360, window.innerHeight - 80);
+}
 
 function AnimatedNumber({ value, decimals = 1 }: { value: number; decimals?: number }) {
     const motionVal = useMotionValue(value);
@@ -36,8 +56,6 @@ function AnimatedNumber({ value, decimals = 1 }: { value: number; decimals?: num
     return <span>{displayStr}</span>;
 }
 
-// Baseline + progress weighted share across actively seated colors so Oracle
-// bars are always informative even before tokens deploy from the yard (-1).
 function calcWinProb(
     positions: Record<string, number[]>,
     seatedColors: readonly PlayerColor[],
@@ -95,9 +113,64 @@ export const SpectatorHUD = ({
     const [chatInput, setChatInput] = useState('');
     const [isBetting, setIsBetting] = useState(false);
     const [betResults, setBetResults] = useState<{ id: string; status: 'won' | 'lost' }[]>([]);
-    const [isMinimized, setIsMinimized] = useState(false);
+    const [drawerHeight, setDrawerHeight] = useState<number>(() => getDefaultExpandedHeight());
+    const [isDragging, setIsDragging] = useState(false);
     const [mobileTab, setMobileTab] = useState<'bet' | 'comm'>('bet');
+    const lastExpandedHeightRef = useRef<number>(getDefaultExpandedHeight());
+    const dragStartYRef = useRef(0);
+    const dragStartHeightRef = useRef(0);
     const seenResultsRef = useRef<Set<string>>(new Set());
+
+    // Keep height within viewport bounds on resize/rotation
+    useEffect(() => {
+        const onResize = () => {
+            const maxH = getMaxDrawerHeight();
+            setDrawerHeight(prev => clampDrawerHeight(prev, maxH));
+        };
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
+    // Drag handlers for smooth 1-line to full-panel adjustment
+    const handleDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        e.currentTarget.setPointerCapture(e.pointerId);
+        dragStartYRef.current = e.clientY;
+        dragStartHeightRef.current = drawerHeight;
+        setIsDragging(true);
+    };
+
+    const handleDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!isDragging) return;
+        const deltaY = dragStartYRef.current - e.clientY;
+        const nextHeight = clampDrawerHeight(dragStartHeightRef.current + deltaY, getMaxDrawerHeight());
+        setDrawerHeight(nextHeight);
+        if (nextHeight > ONE_LINE_THRESHOLD) {
+            lastExpandedHeightRef.current = nextHeight;
+        }
+    };
+
+    const handleDragEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!isDragging) return;
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+        setIsDragging(false);
+        // Snap cleanly to exact 1-line height if dragged very close to bottom
+        setDrawerHeight(prev => (prev <= 80 ? MIN_DRAWER_HEIGHT : prev));
+    };
+
+    const isOneLine = drawerHeight <= ONE_LINE_THRESHOLD;
+
+    const toggleCollapse = () => {
+        if (isOneLine) {
+            const restore = Math.max(260, lastExpandedHeightRef.current || getDefaultExpandedHeight());
+            setDrawerHeight(clampDrawerHeight(restore, getMaxDrawerHeight()));
+        } else {
+            lastExpandedHeightRef.current = drawerHeight;
+            setDrawerHeight(MIN_DRAWER_HEIGHT);
+        }
+    };
 
     // Poll settled bets
     useEffect(() => {
@@ -146,7 +219,6 @@ export const SpectatorHUD = ({
     const seatedColors = Array.from(seatedColorsFor(playerCount));
     const winProb = calcWinProb(positions, seatedColors);
 
-    // Betting window countdown
     useEffect(() => {
         if (!activeBetWindow?.expiresAt || activeBetWindow.windowClosedAt) {
             setTimeLeft(0);
@@ -158,7 +230,6 @@ export const SpectatorHUD = ({
         return () => clearInterval(timer);
     }, [activeBetWindow]);
 
-    // Spectator chat via Supabase Broadcast
     useEffect(() => {
         const channel = supabase
             .channel(`chat-${roomCode}`)
@@ -255,7 +326,6 @@ export const SpectatorHUD = ({
         }
     }, [address, activeBetWindow, betAmount, matchId, isBetting, myProfile, roomCode, ensureAppSession, updateMyProfileOptimistic, toast]);
 
-    // Reset local pick when a new betting window opens
     useEffect(() => {
         setMyBet(null);
         setSelectedBetValue(null);
@@ -326,50 +396,19 @@ export const SpectatorHUD = ({
         ? Math.min(100, Math.max(0, (timeLeft / totalWindowMs) * 100))
         : 0;
 
-    if (isMinimized) {
-        return (
-            <div className="fixed left-3 bottom-3 lg:left-auto lg:right-4 lg:bottom-4 z-[120] flex items-center gap-1.5 pointer-events-auto">
-                <button
-                    type="button"
-                    onClick={() => setIsMinimized(false)}
-                    className="h-9 px-3 rounded-full border border-cyan-400/40 shadow-xl flex items-center gap-2 text-ludo-xs font-bold uppercase tracking-wider text-white transition-all hover:border-cyan-300/70 active:scale-95"
-                    style={{
-                        background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))',
-                        backgroundColor: 'var(--panel-bg, rgba(13, 13, 13, 0.94))',
-                        backdropFilter: 'blur(24px)',
-                    }}
-                >
-                    <span className={`w-2 h-2 rounded-full ${windowOpen ? 'bg-pink-400 animate-pulse' : 'bg-cyan-400'}`} />
-                    <span>{windowOpen ? `Bet · ${(timeLeft / 1000).toFixed(0)}s` : 'Watch & Bet'}</span>
-                    <FiChevronUp className="w-3.5 h-3.5 text-cyan-300" />
-                </button>
-                {onClose && (
-                    <button
-                        type="button"
-                        onClick={() => onClose()}
-                        aria-label="Exit watch mode"
-                        title="Exit watch mode"
-                        className="w-9 h-9 rounded-full border border-white/15 bg-black/75 text-white/80 hover:text-white hover:bg-red-500/80 hover:border-red-400/60 flex items-center justify-center shadow-xl transition-all active:scale-95"
-                    >
-                        <FiX className="w-4 h-4" />
-                    </button>
-                )}
-            </div>
-        );
-    }
-
     return (
         <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed inset-x-2.5 bottom-3 max-h-[52dvh] lg:inset-x-auto lg:left-auto lg:right-4 lg:top-[76px] lg:bottom-4 lg:w-[320px] lg:max-h-none z-[120] flex flex-col pointer-events-auto rounded-[26px] border border-white/15 shadow-2xl overflow-hidden"
             style={{
-                background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))',
-                backgroundColor: 'var(--panel-bg, rgba(13, 13, 13, 0.94))',
-                backdropFilter: 'blur(28px)',
+                height: `${drawerHeight}px`,
+                backgroundColor: '#090d16',
             }}
+            className={`fixed inset-x-2.5 bottom-3 lg:inset-x-auto lg:left-auto lg:right-4 lg:bottom-4 lg:w-[320px] z-[120] flex flex-col pointer-events-auto rounded-[22px] border border-cyan-400/25 shadow-[0_12px_40px_rgba(0,0,0,0.85)] overflow-hidden ${
+                isDragging ? 'select-none' : 'transition-[height] duration-150 ease-out'
+            }`}
         >
             {/* Settled Bet Toast Queue */}
             <div className="absolute inset-x-3 top-14 z-30 flex flex-col items-center gap-2 pointer-events-none">
@@ -382,8 +421,8 @@ export const SpectatorHUD = ({
                             exit={{ opacity: 0, scale: 0.9, y: -12 }}
                             className={`px-4 py-2 rounded-full border shadow-xl flex items-center gap-2 ${
                                 res.status === 'won'
-                                    ? 'bg-emerald-500/95 border-emerald-300 text-slate-950'
-                                    : 'bg-red-500/95 border-red-300 text-white'
+                                    ? 'bg-emerald-500 border-emerald-300 text-slate-950'
+                                    : 'bg-red-500 border-red-300 text-white'
                             }`}
                         >
                             <FiAward className="w-4 h-4 shrink-0" />
@@ -395,344 +434,367 @@ export const SpectatorHUD = ({
                 </AnimatePresence>
             </div>
 
-            {/* ── Header: Live Sync + Minimize + Exit Watch ──────────── */}
-            <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-white/10 bg-black/25 shrink-0 relative z-20">
-                <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                        <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-[0.18em] truncate">
-                            Live Sync · #{roomCode}
-                        </span>
-                        <span className="text-ludo-xs font-mono text-white/50 uppercase tracking-wider truncate">
-                            {windowOpen ? `Market Open · ${(timeLeft / 1000).toFixed(0)}s` : 'Spectator Telemetry'}
-                        </span>
-                    </div>
+            {/* ── Top Resize Drag Handle + Single-Line Header ───────── */}
+            <div
+                onPointerDown={handleDragStart}
+                onPointerMove={handleDragMove}
+                onPointerUp={handleDragEnd}
+                onPointerCancel={handleDragEnd}
+                className="shrink-0 relative z-20 touch-none cursor-ns-resize bg-[#0d1422] border-b border-white/10"
+            >
+                {/* Visual Grip */}
+                <div className="w-full flex justify-center pt-1.5 pb-0.5 pointer-events-none">
+                    <div className="w-10 h-1 rounded-full bg-white/30" />
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                        type="button"
-                        onClick={() => setIsMinimized(true)}
-                        aria-label="Hide Watch & Bet drawer"
-                        title="Minimize to see full board"
-                        className="w-8 h-8 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-white/75 hover:text-white hover:bg-white/20 transition-all active:scale-95"
+                {/* Compact Header Row (always visible, fits 1-line bar cleanly) */}
+                <div className="flex items-center justify-between gap-2 px-3.5 pb-2 pt-0.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${windowOpen ? 'bg-pink-400 animate-pulse' : 'bg-cyan-400'}`} />
+                        <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-[0.14em] truncate">
+                            {isOneLine
+                                ? (windowOpen ? `Bet Live · ${(timeLeft / 1000).toFixed(0)}s` : `Watch #${roomCode}`)
+                                : `Live Sync · #${roomCode}`}
+                        </span>
+                        {!isOneLine && windowOpen && (
+                            <span className="text-ludo-xs font-mono font-bold text-pink-300 tabular-nums shrink-0">
+                                {(timeLeft / 1000).toFixed(0)}s
+                            </span>
+                        )}
+                    </div>
+
+                    <div
+                        className="flex items-center gap-1.5 shrink-0"
+                        onPointerDown={(e) => e.stopPropagation()}
                     >
-                        <FiChevronDown className="w-4 h-4" />
-                    </button>
-                    {onClose && (
                         <button
                             type="button"
-                            onClick={() => onClose()}
-                            aria-label="Exit watch mode"
-                            title="Exit watch mode"
-                            className="w-8 h-8 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-white/75 hover:text-white hover:bg-red-500/80 hover:border-red-400/60 transition-all active:scale-95"
+                            onClick={toggleCollapse}
+                            aria-label={isOneLine ? 'Expand Watch & Bet drawer' : 'Collapse to one line'}
+                            title={isOneLine ? 'Expand panel' : 'Collapse to one line'}
+                            className="w-7 h-7 rounded-full bg-[#172033] border border-white/15 flex items-center justify-center text-white/80 hover:text-white hover:border-cyan-400/50 transition-all active:scale-95"
                         >
-                            <FiX className="w-4 h-4" />
+                            {isOneLine ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
                         </button>
-                    )}
+                        {onClose && (
+                            <button
+                                type="button"
+                                onClick={() => onClose()}
+                                aria-label="Exit watch mode"
+                                title="Exit watch mode"
+                                className="w-7 h-7 rounded-full bg-[#172033] border border-white/15 flex items-center justify-center text-white/80 hover:text-white hover:bg-red-600 hover:border-red-400 transition-all active:scale-95"
+                            >
+                                <FiX className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Mobile Sub-tabs so board remains clearly visible above sheet */}
-            <div className="grid grid-cols-2 gap-1.5 px-3 pt-2 pb-1 shrink-0 lg:hidden relative z-20">
-                <button
-                    type="button"
-                    onClick={() => setMobileTab('bet')}
-                    className={`py-1.5 px-2.5 rounded-xl text-ludo-xs font-bold uppercase tracking-wider transition-all ${
-                        mobileTab === 'bet'
-                            ? 'bg-accent-soft text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]'
-                            : 'bg-white/5 text-white/55 hover:text-white'
-                    }`}
-                >
-                    Bet & Oracle
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setMobileTab('comm')}
-                    className={`py-1.5 px-2.5 rounded-xl text-ludo-xs font-bold uppercase tracking-wider transition-all ${
-                        mobileTab === 'comm'
-                            ? 'bg-accent-soft text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]'
-                            : 'bg-white/5 text-white/55 hover:text-white'
-                    }`}
-                >
-                    Comm ({chatMessages.length})
-                </button>
-            </div>
-
-            {/* Body Content */}
-            <div className="flex-1 min-h-0 flex flex-col gap-2.5 p-3 overflow-y-auto no-scrollbar relative z-10">
-                {/* ── Oracle & Betting Sections ────────────────────────── */}
-                <div className={`flex-col gap-2.5 ${mobileTab === 'bet' ? 'flex' : 'hidden lg:flex'}`}>
-                    {/* AI Oracle Engine */}
-                    <div className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-black/30">
-                        <div className="flex items-center gap-2 mb-2">
-                            <FiTrendingUp className="w-3.5 h-3.5 text-cyan-400" />
-                            <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-[0.16em]">
-                                AI Oracle Engine
-                            </span>
-                        </div>
-                        <div className="grid grid-cols-2 lg:grid-cols-1 gap-x-3 gap-y-1.5">
-                            {Object.entries(winProb)
-                                .sort(([, a], [, b]) => b - a)
-                                .map(([color, pct]) => (
-                                    <div key={color} className="flex items-center gap-2">
-                                        <div
-                                            className="w-2 h-2 rounded-full shrink-0"
-                                            style={{ background: COLOR_STYLES[color]?.bg ?? '#fff' }}
-                                        />
-                                        <span className="text-ludo-xs font-mono uppercase text-white/70 w-10 truncate">
-                                            {color}
-                                        </span>
-                                        <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                                            <motion.div
-                                                className="h-full rounded-full"
-                                                animate={{ width: `${pct * 100}%` }}
-                                                transition={{ duration: 0.6, ease: 'easeOut' }}
-                                                style={{ background: COLOR_STYLES[color]?.bg ?? '#fff' }}
-                                            />
-                                        </div>
-                                        <span
-                                            className="text-ludo-xs font-mono font-bold w-10 text-right tabular-nums"
-                                            style={{ color: COLOR_STYLES[color]?.bg }}
-                                        >
-                                            <AnimatedNumber value={pct * 100} />%
-                                        </span>
-                                    </div>
-                                ))}
-                        </div>
+            {!isOneLine && (
+                <>
+                    {/* Mobile Sub-tabs (< lg) */}
+                    <div className="grid grid-cols-2 gap-1.5 px-3 pt-2 pb-1 shrink-0 lg:hidden bg-[#090d16] relative z-20">
+                        <button
+                            type="button"
+                            onClick={() => setMobileTab('bet')}
+                            className={`py-1.5 px-2.5 rounded-xl text-ludo-xs font-bold uppercase tracking-wider transition-all ${
+                                mobileTab === 'bet'
+                                    ? 'bg-[#12263a] text-cyan-200 border border-cyan-400/50'
+                                    : 'bg-[#101726] text-white/60 border border-white/10 hover:text-white'
+                            }`}
+                        >
+                            Bet & Oracle
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setMobileTab('comm')}
+                            className={`py-1.5 px-2.5 rounded-xl text-ludo-xs font-bold uppercase tracking-wider transition-all ${
+                                mobileTab === 'comm'
+                                    ? 'bg-[#12263a] text-cyan-200 border border-cyan-400/50'
+                                    : 'bg-[#101726] text-white/60 border border-white/10 hover:text-white'
+                            }`}
+                        >
+                            Comm ({chatMessages.length})
+                        </button>
                     </div>
 
-                    {/* Betting Window */}
-                    <div
-                        className="px-3.5 py-3 rounded-2xl border flex flex-col gap-2.5 transition-all"
-                        style={{
-                            background: windowOpen ? 'rgba(236, 72, 153, 0.08)' : 'rgba(0, 0, 0, 0.32)',
-                            borderColor: windowOpen ? 'rgba(236, 72, 153, 0.45)' : 'rgba(255, 255, 255, 0.1)',
-                        }}
-                    >
-                        <div className="flex items-center justify-between">
-                            <span className="text-ludo-xs font-bold text-white/70 uppercase tracking-[0.16em]">
-                                {windowOpen ? (activeBetWindow?.betType?.replace('_', ' ').toUpperCase() ?? 'BET LIVE') : 'Next Window'}
-                            </span>
-                            {windowOpen && (
-                                <div className="flex items-center gap-1">
-                                    <FiZap className="w-3.5 h-3.5 text-pink-400" />
-                                    <span className="text-ludo-xs font-mono font-bold text-pink-300 tabular-nums">
-                                        {(timeLeft / 1000).toFixed(1)}s
+                    {/* Solid Body Content */}
+                    <div className="flex-1 min-h-0 flex flex-col gap-2.5 p-3 overflow-y-auto no-scrollbar bg-[#090d16] relative z-10">
+                        {/* ── Oracle & Betting Sections ──────────────────── */}
+                        <div className={`flex-col gap-2.5 ${mobileTab === 'bet' ? 'flex' : 'hidden lg:flex'}`}>
+                            {/* AI Oracle Engine (solid surface) */}
+                            <div className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-[#101726]">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <FiTrendingUp className="w-3.5 h-3.5 text-cyan-400" />
+                                    <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-[0.16em]">
+                                        AI Oracle Engine
                                     </span>
+                                </div>
+                                <div className="grid grid-cols-2 lg:grid-cols-1 gap-x-3 gap-y-1.5">
+                                    {Object.entries(winProb)
+                                        .sort(([, a], [, b]) => b - a)
+                                        .map(([color, pct]) => (
+                                            <div key={color} className="flex items-center gap-2">
+                                                <div
+                                                    className="w-2 h-2 rounded-full shrink-0"
+                                                    style={{ background: COLOR_STYLES[color]?.bg ?? '#fff' }}
+                                                />
+                                                <span className="text-ludo-xs font-mono uppercase text-white/75 w-10 truncate">
+                                                    {color}
+                                                </span>
+                                                <div className="flex-1 h-1.5 rounded-full bg-[#1a2235] overflow-hidden">
+                                                    <motion.div
+                                                        className="h-full rounded-full"
+                                                        animate={{ width: `${pct * 100}%` }}
+                                                        transition={{ duration: 0.6, ease: 'easeOut' }}
+                                                        style={{ background: COLOR_STYLES[color]?.bg ?? '#fff' }}
+                                                    />
+                                                </div>
+                                                <span
+                                                    className="text-ludo-xs font-mono font-bold w-10 text-right tabular-nums"
+                                                    style={{ color: COLOR_STYLES[color]?.bg }}
+                                                >
+                                                    <AnimatedNumber value={pct * 100} />%
+                                                </span>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+
+                            {/* Betting Window (solid surface) */}
+                            <div
+                                className="px-3.5 py-3 rounded-2xl border flex flex-col gap-2.5 transition-all"
+                                style={{
+                                    backgroundColor: windowOpen ? '#190f1f' : '#101726',
+                                    borderColor: windowOpen ? '#ec489980' : 'rgba(255, 255, 255, 0.1)',
+                                }}
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="text-ludo-xs font-bold text-white/80 uppercase tracking-[0.16em]">
+                                        {windowOpen ? (activeBetWindow?.betType?.replace('_', ' ').toUpperCase() ?? 'BET LIVE') : 'Next Window'}
+                                    </span>
+                                    {windowOpen && (
+                                        <div className="flex items-center gap-1">
+                                            <FiZap className="w-3.5 h-3.5 text-pink-400" />
+                                            <span className="text-ludo-xs font-mono font-bold text-pink-300 tabular-nums">
+                                                {(timeLeft / 1000).toFixed(1)}s
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {windowOpen && (
+                                    <div className="w-full h-1.5 rounded-full bg-[#2a1933] overflow-hidden">
+                                        <motion.div
+                                            className="h-full rounded-full"
+                                            style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg, #ec4899, #f97316)' }}
+                                            transition={{ duration: 0.1 }}
+                                        />
+                                    </div>
+                                )}
+
+                                {windowOpen && activeBetWindow?.betType === 'dice_roll' && (
+                                    <div className="grid grid-cols-3 gap-1.5">
+                                        {[1, 2, 3, 4, 5, 6].map(val => (
+                                            <button
+                                                key={val}
+                                                type="button"
+                                                disabled={isBetting || !!selectedBetValue}
+                                                onClick={() => placeBet(String(val), 'dice_roll')}
+                                                className="py-1.5 min-h-[40px] rounded-xl text-ludo-sm font-bold border transition-all flex flex-col items-center justify-center leading-none gap-0.5 active:scale-95"
+                                                style={{
+                                                    backgroundColor: selectedBetValue === String(val) ? '#ec4899' : '#24172b',
+                                                    borderColor: selectedBetValue === String(val) ? '#ec4899' : '#3b2447',
+                                                    color: selectedBetValue === String(val) ? '#000' : '#fff',
+                                                    opacity: isBetting ? 0.5 : 1,
+                                                }}
+                                            >
+                                                <span>{val}</span>
+                                                <span className="text-ludo-xs font-mono opacity-75">5×</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {windowOpen && activeBetWindow?.betType === 'winner' && (
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                        {seatedColors.map(color => (
+                                            <button
+                                                key={color}
+                                                type="button"
+                                                disabled={isBetting || !!selectedBetValue}
+                                                onClick={() => placeBet(color, 'winner')}
+                                                className="px-2.5 py-2 min-h-[42px] rounded-xl text-ludo-xs font-bold border transition-all capitalize flex items-center justify-between gap-1 active:scale-95 disabled:opacity-60"
+                                                style={{
+                                                    backgroundColor: selectedBetValue === color
+                                                        ? COLOR_STYLES[color]?.bg ?? '#fff'
+                                                        : '#24172b',
+                                                    borderColor: `${COLOR_STYLES[color]?.bg ?? '#fff'}75`,
+                                                    color: selectedBetValue === color ? COLOR_STYLES[color]?.text : '#fff',
+                                                }}
+                                            >
+                                                <span className="flex items-center gap-1.5 truncate">
+                                                    <span
+                                                        className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/30"
+                                                        style={{ background: COLOR_STYLES[color]?.bg ?? '#fff' }}
+                                                    />
+                                                    <span>{color}</span>
+                                                </span>
+                                                <span className="font-mono opacity-85 shrink-0">2×</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {windowOpen && (
+                                    <div className="flex gap-1.5">
+                                        {BET_PRESETS.map(p => (
+                                            <button
+                                                key={p}
+                                                type="button"
+                                                onClick={() => setBetAmount(p)}
+                                                className="flex-1 py-1 min-h-[38px] rounded-lg text-ludo-xs font-mono font-bold uppercase border transition-all"
+                                                style={{
+                                                    backgroundColor: betAmount === p ? '#3b1530' : '#201326',
+                                                    borderColor: betAmount === p ? '#ec4899' : '#3a2244',
+                                                    color: betAmount === p ? '#f9a8d4' : 'rgba(255,255,255,0.7)',
+                                                }}
+                                            >
+                                                {p >= 1000 ? `${p / 1000}k` : p}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {windowOpen && myBet && (
+                                    <button
+                                        type="button"
+                                        onClick={handleCashOut}
+                                        disabled={isCashingOut}
+                                        className="w-full py-2 min-h-[40px] rounded-xl text-ludo-xs font-bold uppercase tracking-[0.14em] bg-[#102d25] border border-emerald-400/60 text-emerald-200 hover:bg-[#163d32] active:scale-95 transition-all disabled:opacity-60"
+                                    >
+                                        {isCashingOut ? 'Cashing out…' : `Cash out +${Math.floor(myBet.amount * myBet.odds * 0.5).toLocaleString()}`}
+                                    </button>
+                                )}
+
+                                {!windowOpen && (
+                                    <p className="text-ludo-xs text-white/55 text-center font-bold uppercase tracking-widest py-1.5">
+                                        Awaiting Market Open…
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Followed Predictors */}
+                            {followedBets.length > 0 && (
+                                <div className="px-3.5 py-2.5 rounded-2xl border border-yellow-500/35 bg-[#1b180e] flex flex-col gap-1.5">
+                                    <span className="text-ludo-xs font-bold text-yellow-300 uppercase tracking-[0.16em]">
+                                        Following · Tap to mirror
+                                    </span>
+                                    {followedBets.slice(0, 3).map(b => (
+                                        <div key={b.id} className="flex items-center gap-2">
+                                            <span className="flex-1 min-w-0 text-ludo-xs font-bold text-white/85 truncate">
+                                                {b.bet_value} @ {b.bet_type === 'dice_roll' ? '5×' : '2×'}
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={() => placeBet(b.bet_value, b.bet_type as BetType)}
+                                                disabled={isBetting || !!selectedBetValue || !windowOpen}
+                                                className="shrink-0 px-3 min-h-[34px] rounded-lg text-ludo-xs font-bold uppercase tracking-wider bg-[#2b2310] border border-yellow-500/50 text-yellow-200 hover:bg-yellow-400 hover:text-slate-950 active:scale-95 transition-all disabled:opacity-40"
+                                            >
+                                                Mirror
+                                            </button>
+                                        </div>
+                                    ))}
                                 </div>
                             )}
                         </div>
 
-                        {windowOpen && (
-                            <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
-                                <motion.div
-                                    className="h-full rounded-full"
-                                    style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg, #ec4899, #f97316)' }}
-                                    transition={{ duration: 0.1 }}
-                                />
-                            </div>
-                        )}
-
-                        {windowOpen && activeBetWindow?.betType === 'dice_roll' && (
-                            <div className="grid grid-cols-3 gap-1.5">
-                                {[1, 2, 3, 4, 5, 6].map(val => (
-                                    <button
-                                        key={val}
-                                        type="button"
-                                        disabled={isBetting || !!selectedBetValue}
-                                        onClick={() => placeBet(String(val), 'dice_roll')}
-                                        className="py-1.5 min-h-[40px] rounded-xl text-ludo-sm font-bold border transition-all flex flex-col items-center justify-center leading-none gap-0.5 active:scale-95"
-                                        style={{
-                                            background: selectedBetValue === String(val) ? '#ec4899' : 'rgba(255,255,255,0.06)',
-                                            borderColor: selectedBetValue === String(val) ? '#ec4899' : 'rgba(255,255,255,0.12)',
-                                            color: selectedBetValue === String(val) ? '#000' : '#fff',
-                                            opacity: isBetting ? 0.5 : 1,
-                                        }}
-                                    >
-                                        <span>{val}</span>
-                                        <span className="text-ludo-xs font-mono opacity-75">5×</span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {windowOpen && activeBetWindow?.betType === 'winner' && (
-                            <div className="grid grid-cols-2 gap-1.5">
-                                {seatedColors.map(color => (
-                                    <button
-                                        key={color}
-                                        type="button"
-                                        disabled={isBetting || !!selectedBetValue}
-                                        onClick={() => placeBet(color, 'winner')}
-                                        className="px-2.5 py-2 min-h-[42px] rounded-xl text-ludo-xs font-bold border transition-all capitalize flex items-center justify-between gap-1 active:scale-95 disabled:opacity-60"
-                                        style={{
-                                            background: selectedBetValue === color
-                                                ? COLOR_STYLES[color]?.bg ?? '#fff'
-                                                : 'rgba(255,255,255,0.06)',
-                                            borderColor: `${COLOR_STYLES[color]?.bg ?? '#fff'}65`,
-                                            color: selectedBetValue === color ? COLOR_STYLES[color]?.text : '#fff',
-                                        }}
-                                    >
-                                        <span className="flex items-center gap-1.5 truncate">
-                                            <span
-                                                className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/30"
-                                                style={{ background: COLOR_STYLES[color]?.bg ?? '#fff' }}
-                                            />
-                                            <span>{color}</span>
-                                        </span>
-                                        <span className="font-mono opacity-85 shrink-0">2×</span>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {windowOpen && (
-                            <div className="flex gap-1.5">
-                                {BET_PRESETS.map(p => (
-                                    <button
-                                        key={p}
-                                        type="button"
-                                        onClick={() => setBetAmount(p)}
-                                        className="flex-1 py-1 min-h-[38px] rounded-lg text-ludo-xs font-mono font-bold uppercase border transition-all"
-                                        style={{
-                                            background: betAmount === p ? 'rgba(236,72,153,0.18)' : 'rgba(255,255,255,0.04)',
-                                            borderColor: betAmount === p ? '#ec4899' : 'rgba(255,255,255,0.1)',
-                                            color: betAmount === p ? '#f9a8d4' : 'rgba(255,255,255,0.65)',
-                                        }}
-                                    >
-                                        {p >= 1000 ? `${p / 1000}k` : p}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {windowOpen && myBet && (
-                            <button
-                                type="button"
-                                onClick={handleCashOut}
-                                disabled={isCashingOut}
-                                className="w-full py-2 min-h-[40px] rounded-xl text-ludo-xs font-bold uppercase tracking-[0.14em] bg-emerald-500/20 border border-emerald-400/50 text-emerald-200 hover:bg-emerald-500/30 active:scale-95 transition-all disabled:opacity-60"
-                            >
-                                {isCashingOut ? 'Cashing out…' : `Cash out +${Math.floor(myBet.amount * myBet.odds * 0.5).toLocaleString()}`}
-                            </button>
-                        )}
-
-                        {!windowOpen && (
-                            <p className="text-ludo-xs text-white/55 text-center font-bold uppercase tracking-widest py-1.5">
-                                Awaiting Market Open…
-                            </p>
-                        )}
-                    </div>
-
-                    {/* Followed Predictors */}
-                    {followedBets.length > 0 && (
-                        <div className="px-3.5 py-2.5 rounded-2xl border border-yellow-500/25 bg-yellow-500/[0.06] flex flex-col gap-1.5">
-                            <span className="text-ludo-xs font-bold text-yellow-300/85 uppercase tracking-[0.16em]">
-                                Following · Tap to mirror
-                            </span>
-                            {followedBets.slice(0, 3).map(b => (
-                                <div key={b.id} className="flex items-center gap-2">
-                                    <span className="flex-1 min-w-0 text-ludo-xs font-bold text-white/80 truncate">
-                                        {b.bet_value} @ {b.bet_type === 'dice_roll' ? '5×' : '2×'}
-                                    </span>
-                                    <button
-                                        type="button"
-                                        onClick={() => placeBet(b.bet_value, b.bet_type as BetType)}
-                                        disabled={isBetting || !!selectedBetValue || !windowOpen}
-                                        className="shrink-0 px-3 min-h-[34px] rounded-lg text-ludo-xs font-bold uppercase tracking-wider bg-yellow-500/20 border border-yellow-500/45 text-yellow-200 hover:bg-yellow-400 hover:text-slate-950 active:scale-95 transition-all disabled:opacity-40"
-                                    >
-                                        Mirror
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* ── Global Network Chat ──────────────────────────────── */}
-                <div
-                    className={`flex-1 min-h-[140px] rounded-2xl border border-white/10 bg-black/30 flex-col overflow-hidden ${
-                        mobileTab === 'comm' ? 'flex' : 'hidden lg:flex'
-                    }`}
-                >
-                    <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/10 bg-white/[0.03] shrink-0">
-                        <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-widest">
-                            Global Comm
-                        </span>
-                        <span className="text-ludo-xs font-mono font-bold text-cyan-300 bg-cyan-500/15 px-2 py-0.5 rounded-full">
-                            {chatMessages.length}
-                        </span>
-                    </div>
-
-                    <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-2 no-scrollbar">
-                        <AnimatePresence initial={false}>
-                            {chatMessages.map(msg => (
-                                msg.system ? (
-                                    <motion.div
-                                        key={msg.id}
-                                        initial={{ opacity: 0, scale: 0.95 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        className="text-center text-ludo-xs font-bold uppercase tracking-wider text-pink-300 py-0.5"
-                                    >
-                                        {msg.text}
-                                    </motion.div>
-                                ) : (
-                                    <motion.div
-                                        key={msg.id}
-                                        initial={{ opacity: 0, x: -6 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                        className="flex flex-col relative pl-2"
-                                    >
-                                        <div className="absolute left-0 top-0.5 bottom-0.5 w-[2px] bg-cyan-400/40 rounded-full" />
-                                        <span className="text-ludo-xs font-bold text-white/50 uppercase tracking-wider">{msg.author}</span>
-                                        <span className="text-ludo-sm font-medium text-white/90 leading-snug">{msg.text}</span>
-                                    </motion.div>
-                                )
-                            ))}
-                        </AnimatePresence>
-                        {chatMessages.length === 0 && (
-                            <div className="h-full flex flex-col items-center justify-center py-4 opacity-40">
-                                <FiMessageSquare className="w-5 h-5 mb-1.5 text-white" />
-                                <p className="text-ludo-xs text-white font-bold uppercase tracking-wider text-center">
-                                    Establish uplink to broadcast
-                                </p>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-2 px-2.5 py-2 border-t border-white/10 bg-white/[0.02] shrink-0">
-                        <textarea
-                            value={chatInput}
-                            onChange={e => setChatInput(e.target.value)}
-                            rows={1}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    void sendChat();
-                                }
-                            }}
-                            placeholder="Transmit data…"
-                            maxLength={120}
-                            autoComplete="off"
-                            autoCorrect="off"
-                            autoCapitalize="sentences"
-                            spellCheck={false}
-                            enterKeyHint="send"
-                            className="flex-1 bg-black/50 border border-white/15 rounded-xl px-3 py-1.5 text-xs font-medium text-white placeholder-white/30 outline-none focus:border-cyan-400/60 transition-all"
-                        />
-                        <button
-                            type="button"
-                            onClick={() => void sendChat()}
-                            disabled={!chatInput.trim()}
-                            aria-label="Send broadcast message"
-                            className="w-8 h-8 rounded-xl bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 hover:bg-cyan-500/35 transition-all disabled:opacity-30"
+                        {/* ── Global Network Chat (solid surface) ──────────── */}
+                        <div
+                            className={`flex-1 min-h-[140px] rounded-2xl border border-white/10 bg-[#101726] flex-col overflow-hidden ${
+                                mobileTab === 'comm' ? 'flex' : 'hidden lg:flex'
+                            }`}
                         >
-                            <FiSend className="w-3.5 h-3.5" />
-                        </button>
+                            <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/10 bg-[#141d30] shrink-0">
+                                <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-widest">
+                                    Global Comm
+                                </span>
+                                <span className="text-ludo-xs font-mono font-bold text-cyan-300 bg-[#0d2238] px-2 py-0.5 rounded-full">
+                                    {chatMessages.length}
+                                </span>
+                            </div>
+
+                            <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2 space-y-2 no-scrollbar">
+                                <AnimatePresence initial={false}>
+                                    {chatMessages.map(msg => (
+                                        msg.system ? (
+                                            <motion.div
+                                                key={msg.id}
+                                                initial={{ opacity: 0, scale: 0.95 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                className="text-center text-ludo-xs font-bold uppercase tracking-wider text-pink-300 py-0.5"
+                                            >
+                                                {msg.text}
+                                            </motion.div>
+                                        ) : (
+                                            <motion.div
+                                                key={msg.id}
+                                                initial={{ opacity: 0, x: -6 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                className="flex flex-col relative pl-2"
+                                            >
+                                                <div className="absolute left-0 top-0.5 bottom-0.5 w-[2px] bg-cyan-400/50 rounded-full" />
+                                                <span className="text-ludo-xs font-bold text-white/55 uppercase tracking-wider">{msg.author}</span>
+                                                <span className="text-ludo-sm font-medium text-white/95 leading-snug">{msg.text}</span>
+                                            </motion.div>
+                                        )
+                                    ))}
+                                </AnimatePresence>
+                                {chatMessages.length === 0 && (
+                                    <div className="h-full flex flex-col items-center justify-center py-4 opacity-50">
+                                        <FiMessageSquare className="w-5 h-5 mb-1.5 text-white" />
+                                        <p className="text-ludo-xs text-white font-bold uppercase tracking-wider text-center">
+                                            Establish uplink to broadcast
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex items-center gap-2 px-2.5 py-2 border-t border-white/10 bg-[#141d30] shrink-0">
+                                <textarea
+                                    value={chatInput}
+                                    onChange={e => setChatInput(e.target.value)}
+                                    rows={1}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            void sendChat();
+                                        }
+                                    }}
+                                    placeholder="Transmit data…"
+                                    maxLength={120}
+                                    autoComplete="off"
+                                    autoCorrect="off"
+                                    autoCapitalize="sentences"
+                                    spellCheck={false}
+                                    enterKeyHint="send"
+                                    className="flex-1 bg-[#090d16] border border-white/15 rounded-xl px-3 py-1.5 text-xs font-medium text-white placeholder-white/35 outline-none focus:border-cyan-400/60 transition-all"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => void sendChat()}
+                                    disabled={!chatInput.trim()}
+                                    aria-label="Send broadcast message"
+                                    className="w-8 h-8 rounded-xl bg-[#10263b] border border-cyan-400/40 flex items-center justify-center text-cyan-300 hover:bg-[#173552] transition-all disabled:opacity-35"
+                                >
+                                    <FiSend className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
+                </>
+            )}
         </motion.div>
     );
 };
