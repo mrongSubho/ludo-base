@@ -25,6 +25,7 @@ export type AuthPromptContext =
     | "clan-create"
     | "clan-war-buyin"
     | "clan-treasury-fund"
+    | "clan-rename"
     | "vault-deposit"
     | "vault-claim";
 
@@ -268,6 +269,15 @@ export const CONTEXT_PRESETS: Record<
         networkText: "Base Sepolia (84532)",
         explanationText: "Funds are held non-custodially by ClanClaim for clan war subsidies and grants.",
         cancelLabel: "Cancel Deposit",
+    },
+    "clan-rename": {
+        mode: "transaction",
+        title: "REBRAND CLAN",
+        badgeText: "Awaiting Confirmation",
+        statusText: "Approve the escalating CHIPS rebrand fee transfer in your wallet to rename your clan.",
+        networkText: "Base Sepolia (84532)",
+        explanationText: "Escalating CHIPS rebrand fee (2k -> 3k -> 5k...) transferred directly to protocol treasury on Base Sepolia.",
+        cancelLabel: "Cancel Rebrand",
     },
     "vault-deposit": {
         mode: "transaction",

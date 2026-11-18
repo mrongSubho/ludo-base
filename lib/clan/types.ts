@@ -40,6 +40,8 @@ export interface Clan {
     min_level: number;
     member_count: number;
     treasury_balance: number;
+    treasury_public?: boolean;
+    rename_count?: number;
     farcaster_channel: string | null;
     status: ClanStatus;
     created_at: string;
@@ -242,3 +244,95 @@ export interface IssuedClanClaimVoucher {
     voucher: ClanClaimVoucherPayload;
     signature: `0x${string}`;
 }
+
+export interface ClanCwrPoint {
+    label: string;
+    cwr: number;
+    delta: number;
+    outcome?: 'W' | 'L' | 'D' | 'B';
+    timestamp: string;
+}
+
+export interface ClanHonorMedal {
+    id: string;
+    title: string;
+    subtitle: string;
+    icon: 'crown' | 'flame' | 'vault' | 'shield' | 'zap' | 'award';
+    unlocked: boolean;
+    tier: 'common' | 'rare' | 'legendary';
+}
+
+export interface ClanWarHistoryEntry {
+    id: string;
+    opponentId: string;
+    opponentName: string;
+    opponentTag: string;
+    opponentCrest: ClanCrest;
+    stakePerPlayer: number;
+    outcome: 'win' | 'loss' | 'draw' | 'active';
+    ourPoints: number;
+    opponentPoints: number;
+    cwrDelta: number;
+    netChipsDelta: number;
+    resolvedAt: string;
+}
+
+export interface ClanContributorStat {
+    wallet_address: string;
+    username: string | null;
+    avatar_url: string | null;
+    rank_tier: string | null;
+    role: ClanRole;
+    wp_earned: number;
+    cxp_contributed: number;
+    joined_at: string;
+}
+
+export interface ClanProfileDossier {
+    clan: Clan;
+    viewerRole: ClanRole | null;
+    viewerIsMember: boolean;
+    canViewTreasury: boolean;
+    renameFeeChips: number;
+    nextRenameFeeChips: number;
+    levelConfig: ClanLevelConfig | null;
+    nextLevelConfig: ClanLevelConfig | null;
+    leaderProfile: {
+        wallet_address: string;
+        username: string | null;
+        avatar_url: string | null;
+        rank_tier: string | null;
+    } | null;
+    cwrHistory: ClanCwrPoint[];
+    warRecord: {
+        played: number;
+        wins: number;
+        losses: number;
+        draws: number;
+        winRate: number;
+        currentStreak: number;
+        bestStreak: number;
+        recentForm: Array<'W' | 'L' | 'D'>;
+    };
+    shapeStats: {
+        shape1v1: { played: number; wins: number; winRate: number };
+        shape2v2: { played: number; wins: number; winRate: number };
+    };
+    topContributors: ClanContributorStat[];
+    members: ClanMember[];
+    levelRoadmap: ClanLevelConfig[];
+    honors: ClanHonorMedal[];
+    treasuryBreakdown: {
+        balance: number;
+        totalInflows: number;
+        totalOutflows: number;
+        warPnL: number;
+        donations: number;
+        warIncome: number;
+        vaultGrants: number;
+        expenses: number;
+        recentLedger: ClanTreasuryLedgerEntry[];
+    } | null;
+    warHistory: ClanWarHistoryEntry[];
+}
+

@@ -11,6 +11,7 @@ import {
     getNextClanLevelConfig,
     getClanTreasuryLedger,
     getClanMissionsAndVault,
+    getClanProfileDossier,
     checkClanAvailability,
     createClan,
     ClanServiceError,
@@ -28,6 +29,7 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const mine = searchParams.get('mine') === 'true';
         const check = searchParams.get('check') === 'true';
+        const profileTarget = searchParams.get('profile');
         const clanId = searchParams.get('clanId');
         const query = searchParams.get('query') || undefined;
         const division = searchParams.get('division') || undefined;
@@ -67,16 +69,18 @@ export async function GET(request: Request) {
                     treasuryLedger: [],
                     missions: [],
                     weeklyVault: null,
+                    dossier: null,
                 });
             }
 
             const isOfficer = ['commander', 'officer'].includes(data.member.role);
-            const [nextLevelConfig, members, joinRequests, treasuryLedger, missionState] = await Promise.all([
+            const [nextLevelConfig, members, joinRequests, treasuryLedger, missionState, dossier] = await Promise.all([
                 getNextClanLevelConfig(data.clan.level),
                 getClanMembers(data.clan.id),
                 isOfficer ? getJoinRequests(data.clan.id) : Promise.resolve([]),
                 getClanTreasuryLedger(data.clan.id, 20),
                 getClanMissionsAndVault(data.clan.id, authed),
+                getClanProfileDossier(data.clan.id, authed),
             ]);
 
             return NextResponse.json({
@@ -89,14 +93,39 @@ export async function GET(request: Request) {
                 treasuryLedger,
                 missions: missionState.contracts,
                 weeklyVault: missionState.weeklyVault,
+                dossier,
             });
+        }
+
+        if (profileTarget) {
+            let viewerWallet: string | null = null;
+            try {
+                const session = await requireSession(request, 'app');
+                viewerWallet = session?.wallet ?? null;
+            } catch {
+                viewerWallet = null;
+            }
+            const dossier = await getClanProfileDossier(profileTarget, viewerWallet);
+            if (!dossier) return NextResponse.json({ error: 'Clan not found' }, { status: 404 });
+            return NextResponse.json({ dossier });
         }
 
         if (clanId) {
             const clan = await getClan(clanId);
             if (!clan) return NextResponse.json({ error: 'Clan not found' }, { status: 404 });
             const members = await getClanMembers(clanId);
-            return NextResponse.json({ clan, members });
+            let viewerWallet: string | null = null;
+            try {
+                const session = await requireSession(request, 'app');
+                viewerWallet = session?.wallet?.toLowerCase() ?? null;
+            } catch {
+                viewerWallet = null;
+            }
+            const viewerIsMember = viewerWallet
+                ? members.some((m) => m.wallet_address.toLowerCase() === viewerWallet)
+                : false;
+            const safeClan = clan.treasury_public || viewerIsMember ? clan : { ...clan, treasury_balance: 0 };
+            return NextResponse.json({ clan: safeClan, members });
         }
 
         const result = await searchClans({ query, division, limit, offset });

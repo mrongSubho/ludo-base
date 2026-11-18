@@ -10,7 +10,11 @@ import {
     CLAN_CLAIM_TYPES,
 } from '../lib/clan/clanClaimVoucher';
 import { verifyWarStakeDepositLog } from '../lib/clan/clanWarService';
-import { verifyTreasuryFundedLog } from '../lib/clan/clanService';
+import {
+    verifyTreasuryFundedLog,
+    getClanRenameFeeChips,
+    buildClanDossierAnalytics,
+} from '../lib/clan/clanService';
 import {
     validateWarFixtureMatch,
     computeMatchCxpAwards,
@@ -514,4 +518,200 @@ test('clan security: GET routes have no ?wallet= fallback and hooks use private 
         const src = readFileSync(join(root, rel), 'utf8');
         assert.ok(src.includes('createPrivateChannel'), `${rel} must use createPrivateChannel`);
     }
+});
+
+test('clan profile: getClanRenameFeeChips escalates 2k -> 3k -> 5k -> 8k -> 13k', () => {
+    assert.equal(getClanRenameFeeChips(0), 2000);
+    assert.equal(getClanRenameFeeChips(1), 3000);
+    assert.equal(getClanRenameFeeChips(2), 5000);
+    assert.equal(getClanRenameFeeChips(3), 8000);
+    assert.equal(getClanRenameFeeChips(4), 13000);
+    assert.equal(getClanRenameFeeChips(-3), 2000);
+});
+
+test('clan profile: buildClanDossierAnalytics enforces treasury_public privacy and computes war telemetry', () => {
+    const baseClan = {
+        id: 'clan-1',
+        name: 'Cyber Syndicate',
+        tag: 'SYND',
+        bio: 'Tactical dominance',
+        crest: { emblem: 'crown', primary: '#00E5FF', secondary: '#0D1117' },
+        leader_wallet: '0xleader0000000000000000000000000000000001',
+        level: 5,
+        cxp: 4200,
+        division: 'Gold',
+        cwr: 1240,
+        join_policy: 'request' as const,
+        min_rxp: 500,
+        min_level: 3,
+        member_count: 10,
+        treasury_balance: 54000,
+        treasury_public: false,
+        rename_count: 1,
+        farcaster_channel: 'syndicate',
+        status: 'active' as const,
+        created_at: '2026-10-01T00:00:00Z',
+    };
+
+    const members = [
+        {
+            id: 'm1',
+            clan_id: 'clan-1',
+            wallet_address: '0xleader0000000000000000000000000000000001',
+            role: 'commander' as const,
+            total_cxp: 1200,
+            weekly_cxp: 200,
+            war_points: 18,
+            joined_at: '2026-10-01T00:00:00Z',
+            player: { username: 'AlphaCmdr', avatar_url: null, rank_tier: 'Gold', rxp: 1500 },
+        },
+        {
+            id: 'm2',
+            clan_id: 'clan-1',
+            wallet_address: '0xmember0000000000000000000000000000000002',
+            role: 'elite' as const,
+            total_cxp: 800,
+            weekly_cxp: 120,
+            war_points: 25,
+            joined_at: '2026-10-02T00:00:00Z',
+            player: { username: 'BetaOp', avatar_url: null, rank_tier: 'Silver', rxp: 900 },
+        },
+    ];
+
+    const wars = [
+        {
+            id: 'w1',
+            clan_a_id: 'clan-1',
+            clan_b_id: 'clan-2',
+            bracket: 5 as const,
+            stake_per_clan: 10000,
+            status: 'completed' as const,
+            matched_at: '2026-10-05T00:00:00Z',
+            war_start_at: '2026-10-05T01:00:00Z',
+            war_end_at: '2026-10-05T12:00:00Z',
+            winner_clan_id: 'clan-1',
+            clan_a_score: 12,
+            clan_b_score: 5,
+            created_at: '2026-10-05T00:00:00Z',
+        },
+        {
+            id: 'w2',
+            clan_a_id: 'clan-3',
+            clan_b_id: 'clan-1',
+            bracket: 5 as const,
+            stake_per_clan: 10000,
+            status: 'completed' as const,
+            matched_at: '2026-10-10T00:00:00Z',
+            war_start_at: '2026-10-10T01:00:00Z',
+            war_end_at: '2026-10-10T12:00:00Z',
+            winner_clan_id: 'clan-1',
+            clan_a_score: 4,
+            clan_b_score: 14,
+            created_at: '2026-10-10T00:00:00Z',
+        },
+    ];
+
+    const fixtures = [
+        {
+            id: 'f1',
+            war_id: 'w1',
+            fixture_index: 0,
+            game_shape: '1v1' as const,
+            clan_a_seats: ['0xleader0000000000000000000000000000000001'],
+            clan_b_seats: ['0xrival1'],
+            scheduled_at: null,
+            status: 'completed' as const,
+            winner_clan_id: 'clan-1',
+            match_id: 'match-1',
+            created_at: '2026-10-05T01:00:00Z',
+        },
+        {
+            id: 'f2',
+            war_id: 'w2',
+            fixture_index: 0,
+            game_shape: '2v2' as const,
+            clan_a_seats: ['0xrival2', '0xrival3'],
+            clan_b_seats: ['0xleader0000000000000000000000000000000001', '0xmember0000000000000000000000000000000002'],
+            scheduled_at: null,
+            status: 'completed' as const,
+            winner_clan_id: 'clan-3',
+            match_id: 'match-2',
+            created_at: '2026-10-10T01:00:00Z',
+        },
+    ];
+
+    const ledger = [
+        { id: 'l1', clan_id: 'clan-1', amount: 12000, reason: 'war_cut', ref: 'w1', created_at: '2026-10-05T12:00:00Z' },
+        { id: 'l2', clan_id: 'clan-1', amount: 5000, reason: 'donation', ref: '0xleader', created_at: '2026-10-06T00:00:00Z' },
+        { id: 'l3', clan_id: 'clan-1', amount: -2000, reason: 'war_subsidy', ref: 'w2', created_at: '2026-10-10T00:00:00Z' },
+    ];
+
+    const opponentMap = {
+        'clan-2': { name: 'Rival Alpha', tag: 'RALP', crest: { emblem: 'shield', primary: '#F43F5E', secondary: '#0D1117' } },
+        'clan-3': { name: 'Rival Beta', tag: 'RBET', crest: { emblem: 'swords', primary: '#F59E0B', secondary: '#0D1117' } },
+    };
+
+    const levelConfigs = [
+        { level: 1, cxp_required: 0, member_cap: 15, officer_slots: 2, unlocks: {} },
+        { level: 5, cxp_required: 4000, member_cap: 30, officer_slots: 4, unlocks: {} },
+        { level: 6, cxp_required: 6000, member_cap: 35, officer_slots: 4, unlocks: {} },
+    ];
+
+    // 1) Outsider viewing a private clan -> treasury_balance masked & treasuryBreakdown null
+    const outsiderPrivate = buildClanDossierAnalytics({
+        clan: baseClan,
+        members,
+        wars,
+        opponentMap,
+        fixtures,
+        ledger,
+        levelConfigs,
+        viewerWallet: '0xoutsider',
+    });
+    assert.equal(outsiderPrivate.viewerIsMember, false);
+    assert.equal(outsiderPrivate.canViewTreasury, false);
+    assert.equal(outsiderPrivate.treasuryBreakdown, null);
+    assert.equal(outsiderPrivate.clan.treasury_balance, 0);
+    assert.equal(outsiderPrivate.renameFeeChips, 3000);
+    assert.equal(outsiderPrivate.nextRenameFeeChips, 5000);
+    assert.equal(outsiderPrivate.warRecord.wins, 2);
+    assert.equal(outsiderPrivate.warRecord.winRate, 100);
+    assert.equal(outsiderPrivate.warRecord.currentStreak, 2);
+    assert.equal(outsiderPrivate.shapeStats.shape1v1.winRate, 100);
+    assert.equal(outsiderPrivate.shapeStats.shape2v2.winRate, 0);
+    assert.equal(outsiderPrivate.topContributors[0].username, 'AlphaCmdr');
+
+    // 2) Member viewing private clan -> full treasury visible
+    const memberPrivate = buildClanDossierAnalytics({
+        clan: baseClan,
+        members,
+        wars,
+        opponentMap,
+        fixtures,
+        ledger,
+        levelConfigs,
+        viewerWallet: '0xmember0000000000000000000000000000000002',
+    });
+    assert.equal(memberPrivate.viewerIsMember, true);
+    assert.equal(memberPrivate.viewerRole, 'elite');
+    assert.equal(memberPrivate.canViewTreasury, true);
+    assert.equal(memberPrivate.clan.treasury_balance, 54000);
+    assert.equal(memberPrivate.treasuryBreakdown?.warIncome, 12000);
+    assert.equal(memberPrivate.treasuryBreakdown?.donations, 5000);
+    assert.equal(memberPrivate.treasuryBreakdown?.warPnL, 10000);
+
+    // 3) Outsider viewing public treasury clan -> treasury visible
+    const outsiderPublic = buildClanDossierAnalytics({
+        clan: { ...baseClan, treasury_public: true },
+        members,
+        wars,
+        opponentMap,
+        fixtures,
+        ledger,
+        levelConfigs,
+        viewerWallet: null,
+    });
+    assert.equal(outsiderPublic.canViewTreasury, true);
+    assert.equal(outsiderPublic.clan.treasury_balance, 54000);
+    assert.ok(outsiderPublic.treasuryBreakdown !== null);
 });

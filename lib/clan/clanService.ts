@@ -32,6 +32,13 @@ import type {
     ClanTreasuryLedgerEntry,
     ClanMissionContract,
     ClanWeeklyVaultSummary,
+    ClanWar,
+    ClanWarFixture,
+    ClanProfileDossier,
+    ClanCwrPoint,
+    ClanHonorMedal,
+    ClanWarHistoryEntry,
+    ClanContributorStat,
 } from './types';
 
 const DEFAULT_CHIPS_CONTRACT: Address = '0xB200000000000000000000821408122b9Ed3d05B';
@@ -141,8 +148,12 @@ export async function searchClans(options: {
         throw new ClanServiceError(error.message, 500);
     }
 
+    const maskedClans = ((data || []) as Clan[]).map((c) =>
+        c.treasury_public ? c : { ...c, treasury_balance: 0 },
+    );
+
     return {
-        clans: (data || []) as Clan[],
+        clans: maskedClans,
         total: count || 0,
     };
 }
@@ -863,7 +874,7 @@ export async function updateMemberRole(
 }
 
 /**
- * Update clan settings (bio, join policy, minimum requirements).
+ * Update clan settings (bio, join policy, minimum requirements, treasury visibility).
  */
 export async function updateClanSettings(
     clanId: string,
@@ -874,6 +885,7 @@ export async function updateClanSettings(
         min_rxp?: number;
         min_level?: number;
         farcaster_channel?: string;
+        treasury_public?: boolean;
     },
 ): Promise<void> {
     const db = serviceDb();
@@ -890,6 +902,10 @@ export async function updateClanSettings(
         throw new ClanServiceError('Only commanders and officers can update clan settings', 403);
     }
 
+    if (typeof updates.treasury_public === 'boolean' && member.role !== 'commander') {
+        throw new ClanServiceError('Only the clan commander can change treasury visibility', 403);
+    }
+
     const payload: Record<string, unknown> = {};
     if (typeof updates.bio === 'string') payload.bio = updates.bio.trim().slice(0, 200);
     if (updates.join_policy) payload.join_policy = updates.join_policy;
@@ -897,6 +913,9 @@ export async function updateClanSettings(
     if (typeof updates.min_level === 'number') payload.min_level = Math.max(1, updates.min_level);
     if (typeof updates.farcaster_channel === 'string') {
         payload.farcaster_channel = updates.farcaster_channel.trim().slice(0, 64);
+    }
+    if (typeof updates.treasury_public === 'boolean') {
+        payload.treasury_public = updates.treasury_public;
     }
 
     if (Object.keys(payload).length === 0) return;
@@ -1202,3 +1221,637 @@ export async function getClanMissionsAndVault(
         },
     };
 }
+
+/**
+ * Escalating CHIPS fee for clan rebranding:
+ * 1st rename (renameCount=0): 2,000 CHIPS
+ * 2nd rename (renameCount=1): 3,000 CHIPS
+ * 3rd rename (renameCount=2): 5,000 CHIPS
+ * 4th rename (renameCount=3): 8,000 CHIPS ... (Fibonacci progression)
+ */
+export function getClanRenameFeeChips(renameCount: number): number {
+    const count = Math.max(0, Math.floor(Number(renameCount) || 0));
+    if (count === 0) return 2000;
+    if (count === 1) return 3000;
+    let prev = 2000;
+    let curr = 3000;
+    for (let i = 2; i <= count; i++) {
+        const next = prev + curr;
+        prev = curr;
+        curr = next;
+    }
+    return curr;
+}
+
+/**
+ * Update clan crest customization (commander or officer).
+ */
+export async function updateClanCrest(
+    clanId: string,
+    actorWallet: string,
+    crest: Partial<ClanCrest>,
+): Promise<ClanCrest> {
+    const db = serviceDb();
+    const actor = actorWallet.toLowerCase();
+
+    const [{ data: member }, { data: clan }] = await Promise.all([
+        (db as any)
+            .from('clan_members')
+            .select('role')
+            .eq('clan_id', clanId)
+            .eq('wallet_address', actor)
+            .maybeSingle(),
+        (db as any)
+            .from('clans')
+            .select('id, crest, status')
+            .eq('id', clanId)
+            .eq('status', 'active')
+            .maybeSingle(),
+    ]);
+
+    if (!clan) throw new ClanServiceError('Clan not found', 404);
+    if (!member || !['commander', 'officer'].includes(member.role)) {
+        throw new ClanServiceError('Only commanders and officers can update the clan crest', 403);
+    }
+
+    const existing = (clan.crest || {}) as ClanCrest;
+    const nextCrest: ClanCrest = {
+        ...existing,
+        emblem: typeof crest.emblem === 'string' && crest.emblem.trim()
+            ? crest.emblem.trim().slice(0, 24)
+            : (existing.emblem || 'shield'),
+        primary: typeof crest.primary === 'string' && /^#[0-9a-fA-F]{6}$/.test(crest.primary.trim())
+            ? crest.primary.trim()
+            : (existing.primary || '#00E5FF'),
+        secondary: typeof crest.secondary === 'string' && /^#[0-9a-fA-F]{6}$/.test(crest.secondary.trim())
+            ? crest.secondary.trim()
+            : (existing.secondary || '#0D1117'),
+    };
+
+    const { error } = await (db as any)
+        .from('clans')
+        .update({ crest: nextCrest })
+        .eq('id', clanId);
+
+    if (error) throw new ClanServiceError(error.message, 500);
+    return nextCrest;
+}
+
+/**
+ * Rebrand clan name and/or tag (commander-only, escalating CHIPS fee on-chain).
+ */
+export async function renameClan(params: {
+    clanId: string;
+    commanderWallet: string;
+    newName?: string;
+    newTag?: string;
+    txHash: string;
+}): Promise<{ name: string; tag: string; rename_count: number; nextRenameFeeChips: number }> {
+    const db = serviceDb();
+    const actor = params.commanderWallet.toLowerCase();
+
+    const [{ data: member }, { data: clan }] = await Promise.all([
+        (db as any)
+            .from('clan_members')
+            .select('role')
+            .eq('clan_id', params.clanId)
+            .eq('wallet_address', actor)
+            .maybeSingle(),
+        (db as any)
+            .from('clans')
+            .select('*')
+            .eq('id', params.clanId)
+            .eq('status', 'active')
+            .maybeSingle(),
+    ]);
+
+    if (!clan) throw new ClanServiceError('Clan not found', 404);
+    if (!member || member.role !== 'commander') {
+        throw new ClanServiceError('Only the clan commander can rebrand the clan', 403);
+    }
+
+    const nextName = typeof params.newName === 'string' && params.newName.trim()
+        ? params.newName.trim()
+        : String(clan.name);
+    const nextTag = typeof params.newTag === 'string' && params.newTag.trim()
+        ? params.newTag.trim().toUpperCase()
+        : String(clan.tag).toUpperCase();
+
+    if (nextName === clan.name && nextTag === clan.tag) {
+        throw new ClanServiceError('New name or tag must differ from current identity', 400);
+    }
+    if (nextName.length < 3 || nextName.length > 24) {
+        throw new ClanServiceError('Clan name must be between 3 and 24 characters', 400);
+    }
+    if (nextTag.length < 2 || nextTag.length > 5 || !/^[A-Z0-9]+$/.test(nextTag)) {
+        throw new ClanServiceError('Clan tag must be 2–5 alphanumeric characters', 400);
+    }
+
+    const [nameClash, tagClash] = await Promise.all([
+        nextName.toLowerCase() !== String(clan.name).toLowerCase()
+            ? (db as any).from('clans').select('id').ilike('name', nextName).neq('id', params.clanId).limit(1).maybeSingle()
+            : Promise.resolve({ data: null }),
+        nextTag !== String(clan.tag).toUpperCase()
+            ? (db as any).from('clans').select('id').eq('tag', nextTag).neq('id', params.clanId).limit(1).maybeSingle()
+            : Promise.resolve({ data: null }),
+    ]);
+
+    if (nameClash?.data) {
+        throw new ClanServiceError('That clan name is already taken', 409, 'NAME_OR_TAG_TAKEN');
+    }
+    if (tagClash?.data) {
+        throw new ClanServiceError('That clan tag is already taken', 409, 'NAME_OR_TAG_TAKEN');
+    }
+
+    const currentRenameCount = Math.max(0, Number(clan.rename_count || 0));
+    const requiredChips = getClanRenameFeeChips(currentRenameCount);
+    const requiredWei = BigInt(requiredChips) * (BigInt(10) ** BigInt(18));
+
+    const txHash = params.txHash?.trim();
+    if (!txHash || !/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+        throw new ClanServiceError(
+            `Confirmed on-chain transaction (${requiredChips.toLocaleString()} CHIPS) is required`,
+            400,
+        );
+    }
+
+    // Prevent transaction hash reuse
+    const { data: priorEvent } = await (db as any)
+        .from('chips_events')
+        .select('tx_hash')
+        .eq('chain_id', 84532)
+        .eq('tx_hash', txHash)
+        .limit(1)
+        .maybeSingle();
+
+    if (priorEvent) {
+        throw new ClanServiceError('This transaction hash has already been used', 409, 'TX_ALREADY_USED');
+    }
+
+    const tokenAddress = (chipsAddress() || DEFAULT_CHIPS_CONTRACT) as Address;
+    const receipt = await waitForConfirmedReceipt(
+        txHash as Hex,
+        (msg, status = 400) => new ClanServiceError(msg, status),
+    );
+    verifyErc20TransferLog({
+        logs: receipt.logs,
+        tokenContract: tokenAddress,
+        expectedFrom: actor,
+        expectedTo: PROTOCOL_TREASURY_WALLET,
+        minAmountWei: requiredWei,
+        makeError: (msg, status = 400) => new ClanServiceError(msg, status),
+    });
+
+    const nextCount = currentRenameCount + 1;
+    const { error: updErr } = await (db as any)
+        .from('clans')
+        .update({
+            name: nextName,
+            tag: nextTag,
+            rename_count: nextCount,
+        })
+        .eq('id', params.clanId);
+
+    if (updErr) {
+        if (updErr.code === '23505') {
+            throw new ClanServiceError('A clan with this name or tag already exists', 409, 'NAME_OR_TAG_TAKEN');
+        }
+        throw new ClanServiceError(updErr.message, 500);
+    }
+
+    try {
+        await (db as any)
+            .from('chips_events')
+            .upsert({
+                chain_id: 84532,
+                tx_hash: txHash,
+                log_index: 0,
+                event_name: 'ClanRenamedOnChain',
+                wallet_address: actor,
+                amount: requiredWei.toString(),
+                payload: {
+                    clanId: params.clanId,
+                    previousName: clan.name,
+                    previousTag: clan.tag,
+                    newName: nextName,
+                    newTag: nextTag,
+                    renameCount: nextCount,
+                    treasury: PROTOCOL_TREASURY_WALLET,
+                },
+            }, { onConflict: 'chain_id,tx_hash,log_index' });
+    } catch {
+        // Best-effort audit insert
+    }
+
+    return {
+        name: nextName,
+        tag: nextTag,
+        rename_count: nextCount,
+        nextRenameFeeChips: getClanRenameFeeChips(nextCount),
+    };
+}
+
+/**
+ * Pure analytics aggregator for Clan Profile Dossier (exported for unit tests).
+ */
+export function buildClanDossierAnalytics(params: {
+    clan: Clan;
+    members: ClanMember[];
+    wars: ClanWar[];
+    opponentMap: Record<string, { name: string; tag: string; crest: ClanCrest }>;
+    fixtures: ClanWarFixture[];
+    ledger: ClanTreasuryLedgerEntry[];
+    levelConfigs: ClanLevelConfig[];
+    viewerWallet?: string | null;
+}): ClanProfileDossier {
+    const { clan, members, wars, opponentMap, fixtures, ledger, levelConfigs } = params;
+    const viewer = params.viewerWallet?.toLowerCase() ?? null;
+    const viewerMember = viewer
+        ? members.find((m) => m.wallet_address.toLowerCase() === viewer) ?? null
+        : null;
+    const viewerIsMember = Boolean(viewerMember);
+    const canViewTreasury = Boolean(clan.treasury_public) || viewerIsMember;
+
+    const renameCount = Math.max(0, Number(clan.rename_count || 0));
+    const renameFeeChips = getClanRenameFeeChips(renameCount);
+    const nextRenameFeeChips = getClanRenameFeeChips(renameCount + 1);
+
+    // Sort wars chronologically (oldest -> newest) for streaks & CWR trajectory
+    const resolvedWars = [...wars]
+        .filter((w) => w.status === 'completed' || w.status === 'draw_refunded')
+        .sort((a, b) => new Date(a.war_end_at).getTime() - new Date(b.war_end_at).getTime());
+
+    let wins = 0;
+    let losses = 0;
+    let draws = 0;
+    let currentStreak = 0;
+    let bestStreak = 0;
+    const recentForm: Array<'W' | 'L' | 'D'> = [];
+    const warHistory: ClanWarHistoryEntry[] = [];
+
+    // Build CWR curve backward from clan.cwr so final point matches live DB value
+    const warOutcomes: Array<{
+        war: ClanWar;
+        outcome: 'win' | 'loss' | 'draw';
+        ourPoints: number;
+        opponentPoints: number;
+        cwrDelta: number;
+    }> = [];
+
+    for (const w of resolvedWars) {
+        const isClanA = w.clan_a_id === clan.id;
+        const ourPoints = isClanA ? Number(w.clan_a_score || 0) : Number(w.clan_b_score || 0);
+        const oppPoints = isClanA ? Number(w.clan_b_score || 0) : Number(w.clan_a_score || 0);
+        let outcome: 'win' | 'loss' | 'draw' = 'draw';
+        if (w.status === 'draw_refunded' || !w.winner_clan_id) {
+            outcome = 'draw';
+            draws += 1;
+            currentStreak = 0;
+            recentForm.push('D');
+        } else if (w.winner_clan_id === clan.id) {
+            outcome = 'win';
+            wins += 1;
+            currentStreak += 1;
+            if (currentStreak > bestStreak) bestStreak = currentStreak;
+            recentForm.push('W');
+        } else {
+            outcome = 'loss';
+            losses += 1;
+            currentStreak = 0;
+            recentForm.push('L');
+        }
+        const cwrDelta = outcome === 'win' ? 24 : outcome === 'loss' ? -18 : 2;
+        warOutcomes.push({ war: w, outcome, ourPoints, opponentPoints: oppPoints, cwrDelta });
+    }
+
+    const totalNetDelta = warOutcomes.reduce((acc, row) => acc + row.cwrDelta, 0);
+    let runningCwr = Math.max(100, Number(clan.cwr || 1000) - totalNetDelta);
+    const cwrHistory: ClanCwrPoint[] = [
+        {
+            label: 'Base',
+            cwr: runningCwr,
+            delta: 0,
+            outcome: 'B',
+            timestamp: clan.created_at,
+        },
+    ];
+
+    for (let i = 0; i < warOutcomes.length; i++) {
+        const { war, outcome, ourPoints, opponentPoints, cwrDelta } = warOutcomes[i];
+        runningCwr = Math.max(100, runningCwr + cwrDelta);
+        const oppId = war.clan_a_id === clan.id ? war.clan_b_id : war.clan_a_id;
+        const opp = opponentMap[oppId] || {
+            name: 'Rival Syndicate',
+            tag: 'RIVAL',
+            crest: { emblem: 'shield', primary: '#94A3B8', secondary: '#0D1117' },
+        };
+
+        const stakePerPlayer = Math.round(Number(war.stake_per_clan || 0) / Math.max(1, Number(war.bracket || 5)));
+        const netChipsDelta = canViewTreasury
+            ? outcome === 'win'
+                ? Math.round(Number(war.stake_per_clan || 0) * 0.12)
+                : outcome === 'loss'
+                    ? 0
+                    : 0
+            : 0;
+
+        cwrHistory.push({
+            label: `#${i + 1}`,
+            cwr: runningCwr,
+            delta: cwrDelta,
+            outcome: outcome === 'win' ? 'W' : outcome === 'loss' ? 'L' : 'D',
+            timestamp: war.war_end_at,
+        });
+
+        warHistory.push({
+            id: war.id,
+            opponentId: oppId,
+            opponentName: opp.name,
+            opponentTag: opp.tag,
+            opponentCrest: opp.crest,
+            stakePerPlayer,
+            outcome,
+            ourPoints,
+            opponentPoints,
+            cwrDelta,
+            netChipsDelta,
+            resolvedAt: war.war_end_at,
+        });
+    }
+
+    // Reverse warHistory so newest appears first in UI table
+    warHistory.reverse();
+
+    // Fixture shape breakdown (1v1 vs 2v2)
+    let played1v1 = 0;
+    let wins1v1 = 0;
+    let played2v2 = 0;
+    let wins2v2 = 0;
+    for (const f of fixtures) {
+        if (f.status !== 'completed' && f.status !== 'walkover') continue;
+        const won = f.winner_clan_id === clan.id;
+        if (f.game_shape === '1v1') {
+            played1v1 += 1;
+            if (won) wins1v1 += 1;
+        } else {
+            played2v2 += 1;
+            if (won) wins2v2 += 1;
+        }
+    }
+
+    const played = wins + losses + draws;
+    const winRate = played > 0 ? Math.round((wins / played) * 100) : 0;
+
+    // Top 5 contributors
+    const topContributors: ClanContributorStat[] = [...members]
+        .sort((a, b) => (Number(b.war_points || 0) * 10 + Number(b.total_cxp || 0))
+            - (Number(a.war_points || 0) * 10 + Number(a.total_cxp || 0)))
+        .slice(0, 5)
+        .map((m) => ({
+            wallet_address: m.wallet_address,
+            username: m.player?.username ?? null,
+            avatar_url: m.player?.avatar_url ?? null,
+            rank_tier: m.player?.rank_tier ?? null,
+            role: m.role,
+            wp_earned: Number(m.war_points || 0),
+            cxp_contributed: Number(m.total_cxp || 0),
+            joined_at: m.joined_at,
+        }));
+
+    // Commander profile
+    const leaderMember = members.find((m) => m.role === 'commander')
+        || members.find((m) => m.wallet_address.toLowerCase() === clan.leader_wallet.toLowerCase());
+
+    const leaderProfile = leaderMember
+        ? {
+            wallet_address: leaderMember.wallet_address,
+            username: leaderMember.player?.username ?? null,
+            avatar_url: leaderMember.player?.avatar_url ?? null,
+            rank_tier: leaderMember.player?.rank_tier ?? null,
+        }
+        : {
+            wallet_address: clan.leader_wallet,
+            username: null,
+            avatar_url: null,
+            rank_tier: null,
+        };
+
+    // Treasury privacy gating
+    let treasuryBreakdown: ClanProfileDossier['treasuryBreakdown'] = null;
+    if (canViewTreasury) {
+        let donations = 0;
+        let warIncome = 0;
+        let vaultGrants = 0;
+        let expenses = 0;
+        let warSubsidyOut = 0;
+
+        for (const entry of ledger) {
+            const amt = Number(entry.amount || 0);
+            if (entry.reason === 'donation') donations += Math.max(0, amt);
+            else if (entry.reason === 'war_cut' || entry.reason === 'subsidy_return') warIncome += Math.max(0, amt);
+            else if (entry.reason === 'member_grant') {
+                if (amt >= 0) vaultGrants += amt;
+                else expenses += Math.abs(amt);
+            } else {
+                const abs = Math.abs(amt);
+                if (amt < 0) {
+                    expenses += abs;
+                    if (entry.reason === 'war_subsidy' || entry.reason === 'stake_adjust_topup') {
+                        warSubsidyOut += abs;
+                    }
+                } else {
+                    donations += amt;
+                }
+            }
+        }
+
+        const totalInflows = donations + warIncome + vaultGrants;
+        const totalOutflows = expenses;
+        treasuryBreakdown = {
+            balance: Number(clan.treasury_balance || 0),
+            totalInflows,
+            totalOutflows,
+            warPnL: warIncome - warSubsidyOut,
+            donations,
+            warIncome,
+            vaultGrants,
+            expenses,
+            recentLedger: ledger.slice(0, 15),
+        };
+    }
+
+    const sortedLevels = [...levelConfigs].sort((a, b) => a.level - b.level);
+    const levelConfig = sortedLevels.find((l) => l.level === clan.level) ?? null;
+    const nextLevelConfig = sortedLevels.find((l) => l.level === clan.level + 1) ?? null;
+
+    // Honor Medals (derived purely from public/combat/growth metrics so hidden treasury never leaks)
+    const honors: ClanHonorMedal[] = [
+        {
+            id: 'first_blood',
+            title: 'First Blood',
+            subtitle: 'Win at least 1 Clan War',
+            icon: 'crown',
+            unlocked: wins >= 1,
+            tier: 'common',
+        },
+        {
+            id: 'unbroken_chain',
+            title: 'Unbroken Chain',
+            subtitle: 'Achieve a 3+ war win streak',
+            icon: 'flame',
+            unlocked: bestStreak >= 3,
+            tier: 'rare',
+        },
+        {
+            id: 'warlord_syndicate',
+            title: 'Warlord Syndicate',
+            subtitle: 'Complete 10+ ranked Clan Wars',
+            icon: 'shield',
+            unlocked: played >= 10,
+            tier: 'rare',
+        },
+        {
+            id: 'elite_elo',
+            title: 'Apex Signal',
+            subtitle: 'Reach 1,200+ Clan War Rating',
+            icon: 'zap',
+            unlocked: Number(clan.cwr || 1000) >= 1200,
+            tier: 'legendary',
+        },
+        {
+            id: 'syndicate_tier',
+            title: 'Tier V Citadel',
+            subtitle: 'Upgrade Syndicate to Level 5+',
+            icon: 'vault',
+            unlocked: Number(clan.level || 1) >= 5,
+            tier: 'rare',
+        },
+        {
+            id: 'full_garrison',
+            title: 'Full Garrison',
+            subtitle: 'Muster 10+ active operatives',
+            icon: 'award',
+            unlocked: Number(clan.member_count || members.length) >= 10,
+            tier: 'common',
+        },
+    ];
+
+    const sanitizedClan: Clan = canViewTreasury
+        ? clan
+        : { ...clan, treasury_balance: 0 };
+
+    return {
+        clan: sanitizedClan,
+        viewerRole: viewerMember?.role ?? null,
+        viewerIsMember,
+        canViewTreasury,
+        renameFeeChips,
+        nextRenameFeeChips,
+        levelConfig,
+        nextLevelConfig,
+        leaderProfile,
+        cwrHistory,
+        warRecord: {
+            played,
+            wins,
+            losses,
+            draws,
+            winRate,
+            currentStreak,
+            bestStreak,
+            recentForm: recentForm.slice(-8),
+        },
+        shapeStats: {
+            shape1v1: {
+                played: played1v1,
+                wins: wins1v1,
+                winRate: played1v1 > 0 ? Math.round((wins1v1 / played1v1) * 100) : 0,
+            },
+            shape2v2: {
+                played: played2v2,
+                wins: wins2v2,
+                winRate: played2v2 > 0 ? Math.round((wins2v2 / played2v2) * 100) : 0,
+            },
+        },
+        topContributors,
+        members,
+        levelRoadmap: sortedLevels,
+        honors,
+        treasuryBreakdown,
+        warHistory,
+    };
+}
+
+/**
+ * Fetch comprehensive Clan Profile Dossier by UUID or uppercase tag.
+ * Respects `clan.treasury_public` when viewer is not a clan member.
+ */
+export async function getClanProfileDossier(
+    targetIdOrTag: string,
+    viewerWallet?: string | null,
+): Promise<ClanProfileDossier | null> {
+    const trimmed = targetIdOrTag.trim();
+    if (!trimmed) return null;
+
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+    const clan = isUuid ? await getClan(trimmed) : await getClanByTag(trimmed.toUpperCase());
+    if (!clan) return null;
+
+    const db = serviceDb();
+    const viewer = viewerWallet?.toLowerCase() ?? null;
+
+    const [members, levelConfigRes, warsRes] = await Promise.all([
+        getClanMembers(clan.id),
+        (db as any).from('clan_level_config').select('*').order('level', { ascending: true }),
+        (db as any)
+            .from('clan_wars')
+            .select('*')
+            .or(`clan_a_id.eq.${clan.id},clan_b_id.eq.${clan.id}`)
+            .order('created_at', { ascending: false })
+            .limit(40),
+    ]);
+
+    const viewerIsMember = viewer
+        ? members.some((m) => m.wallet_address.toLowerCase() === viewer)
+        : false;
+    const canViewTreasury = Boolean(clan.treasury_public) || viewerIsMember;
+
+    const wars = (warsRes.data || []) as ClanWar[];
+    const warIds = wars.map((w) => w.id);
+    const oppIds = Array.from(
+        new Set(wars.map((w) => (w.clan_a_id === clan.id ? w.clan_b_id : w.clan_a_id))),
+    );
+
+    const [opponentsRes, fixturesRes, ledger] = await Promise.all([
+        oppIds.length > 0
+            ? (db as any).from('clans').select('id, name, tag, crest').in('id', oppIds)
+            : Promise.resolve({ data: [] }),
+        warIds.length > 0
+            ? (db as any).from('clan_war_fixtures').select('*').in('war_id', warIds)
+            : Promise.resolve({ data: [] }),
+        canViewTreasury
+            ? getClanTreasuryLedger(clan.id, 100)
+            : Promise.resolve([] as ClanTreasuryLedgerEntry[]),
+    ]);
+
+    const opponentMap: Record<string, { name: string; tag: string; crest: ClanCrest }> = {};
+    for (const o of (opponentsRes.data || []) as any[]) {
+        opponentMap[o.id] = {
+            name: o.name,
+            tag: o.tag,
+            crest: (o.crest || { emblem: 'shield', primary: '#94A3B8', secondary: '#0D1117' }) as ClanCrest,
+        };
+    }
+
+    return buildClanDossierAnalytics({
+        clan,
+        members,
+        wars,
+        opponentMap,
+        fixtures: (fixturesRes.data || []) as ClanWarFixture[],
+        ledger,
+        levelConfigs: (levelConfigRes.data || []) as ClanLevelConfig[],
+        viewerWallet: viewer,
+    });
+}
+

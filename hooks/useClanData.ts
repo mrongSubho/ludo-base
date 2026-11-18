@@ -29,6 +29,7 @@ import type {
     ClanTreasuryLedgerEntry,
     ClanMissionContract,
     ClanWeeklyVaultSummary,
+    ClanProfileDossier,
 } from "@/lib/clan/types";
 
 const PROTOCOL_TREASURY_WALLET: Address =
@@ -53,6 +54,7 @@ export function useClanData() {
     const [treasuryLedger, setTreasuryLedger] = useState<ClanTreasuryLedgerEntry[]>([]);
     const [missions, setMissions] = useState<ClanMissionContract[]>([]);
     const [weeklyVault, setWeeklyVault] = useState<ClanWeeklyVaultSummary | null>(null);
+    const [dossier, setDossier] = useState<ClanProfileDossier | null>(null);
     const [chatMessages, setChatMessages] = useState<ClanChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -74,6 +76,7 @@ export function useClanData() {
             setTreasuryLedger([]);
             setMissions([]);
             setWeeklyVault(null);
+            setDossier(null);
             setChatMessages([]);
             return;
         }
@@ -113,6 +116,7 @@ export function useClanData() {
             setTreasuryLedger(data.treasuryLedger || []);
             setMissions(data.missions || []);
             setWeeklyVault(data.weeklyVault || null);
+            setDossier(data.dossier || null);
 
             if (data.clan?.id) {
                 const chatRes = await fetch(`/api/clans/chat?clanId=${data.clan.id}`, {
@@ -493,6 +497,118 @@ export function useClanData() {
         return data;
     }, [clan?.id, address, ensureAppSession, refresh]);
 
+    /**
+     * Fetch public or member-authenticated clan dossier by UUID or tag.
+     */
+    const fetchClanDossier = useCallback(async (targetIdOrTag: string): Promise<ClanProfileDossier | null> => {
+        const sid = peekAppSession();
+        const headers: Record<string, string> = {};
+        if (sid) headers.Authorization = `Bearer ${sid}`;
+
+        const res = await fetch(`/api/clans?profile=${encodeURIComponent(targetIdOrTag)}`, {
+            headers,
+            cache: "no-store",
+        });
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || "Failed to load clan dossier");
+        }
+        const data = await res.json();
+        return (data.dossier || null) as ClanProfileDossier | null;
+    }, [peekAppSession]);
+
+    /**
+     * Rebrand clan name and/or tag (commander-only, escalating CHIPS transfer on Base Sepolia).
+     */
+    const renameClan = useCallback(async (params: {
+        newName?: string;
+        newTag?: string;
+        feeChips: number;
+    }) => {
+        if (!clan?.id || !address) throw new Error("Not in a clan");
+        const sessionId = await ensureAppSession();
+        if (!sessionId) throw new Error("Session required");
+
+        const feeClean = Math.max(2000, Math.round(params.feeChips));
+        const tokenAddress = chipsAddress() || ("0xB200000000000000000000821408122b9Ed3d05B" as Address);
+        const feeAmount = parseUnits(String(feeClean), 18);
+
+        let hidePrompt: (() => void) | undefined;
+        let txHash: string | undefined;
+
+        try {
+            hidePrompt = showTxPrompt({
+                context: "clan-rename",
+                title: "REBRAND CLAN",
+                statusText: `Approve the ${feeClean.toLocaleString()} CHIPS rebrand fee transfer in your wallet.`,
+                explanationText: `${feeClean.toLocaleString()} CHIPS rebrand fee transferred directly to protocol treasury on Base Sepolia.`,
+            });
+
+            const data = encodeFunctionData({
+                abi: CHIPS_ERC20_ABI,
+                functionName: "transfer",
+                args: [PROTOCOL_TREASURY_WALLET, feeAmount],
+            });
+
+            if (player.mode === "ingame" && cdpUserOp.isInGame) {
+                txHash = await cdpUserOp.sendCallsAndWait([{ to: tokenAddress, data }]);
+            } else {
+                if (chainId && chainId !== DEFAULT_CHAIN_ID) {
+                    await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
+                }
+                const hash = await writeContractAsync({
+                    address: tokenAddress,
+                    abi: CHIPS_ERC20_ABI,
+                    functionName: "transfer",
+                    args: [PROTOCOL_TREASURY_WALLET, feeAmount],
+                });
+                txHash = hash;
+                if (publicClient && hash) {
+                    updateAuthPromptStatus("Rebrand transfer broadcast! Confirming on-chain...", "Confirming On-Chain");
+                    await publicClient.waitForTransactionReceipt({ hash });
+                }
+            }
+        } finally {
+            hidePrompt?.();
+        }
+
+        if (!txHash) throw new Error("Rebrand transaction cancelled");
+
+        const res = await fetch("/api/clans/action", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${sessionId}`,
+            },
+            body: JSON.stringify({
+                action: "rename_clan",
+                clanId: clan.id,
+                newName: params.newName,
+                newTag: params.newTag,
+                txHash,
+                walletAddress: address,
+                sessionId,
+            }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to rebrand clan");
+
+        await refresh();
+        return data;
+    }, [
+        address,
+        cdpUserOp,
+        chainId,
+        clan?.id,
+        ensureAppSession,
+        player.mode,
+        publicClient,
+        refresh,
+        switchChainAsync,
+        writeContractAsync,
+    ]);
+
     return {
         clan,
         member,
@@ -503,13 +619,17 @@ export function useClanData() {
         treasuryLedger,
         missions,
         weeklyVault,
+        dossier,
         chatMessages,
         isLoading,
         error,
         refresh,
+        fetchClanDossier,
         checkClanAvailability,
         createClan,
         fundTreasury,
+        renameClan,
+        updateCrest: (crest: Partial<ClanCrest>) => executeAction("update_crest", { crest }),
         sendChatMessage,
         requestJoin: (clanId: string) => executeAction("request_join", { clanId }),
         cancelRequest: (clanId: string) => executeAction("cancel_request", { clanId }),
@@ -525,6 +645,7 @@ export function useClanData() {
             min_rxp?: number;
             min_level?: number;
             farcaster_channel?: string;
+            treasury_public?: boolean;
         }) => executeAction("update_settings", { updates }),
     };
 }

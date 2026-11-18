@@ -842,6 +842,7 @@ export default function Page() {
                     <ClanPanel
                       isOpen={true}
                       onClose={closeTab}
+                      onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
                     />
                 </PanelErrorBoundary>
               )}

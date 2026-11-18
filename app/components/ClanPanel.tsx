@@ -13,6 +13,7 @@ import {
     LuClock,
     LuCoins,
     LuCrown,
+    LuEye,
     LuFlame,
     LuLandmark,
     LuLock,
@@ -48,13 +49,16 @@ import {
     type CrestEmblem,
 } from "./ClanCrestBadge";
 import type { Clan, ClanJoinPolicy, ClanWarFixture } from "@/lib/clan/types";
+import { ClanDossierContent } from "./clan/ClanDossierContent";
+import ClanProfileModal from "./ClanProfileModal";
 
 interface ClanPanelProps {
     isOpen: boolean;
     onClose: () => void;
+    onOpenProfile?: (wallet: string) => void;
 }
 
-type ClanTab = "hall" | "war" | "missions" | "treasury" | "members";
+type ClanTab = "profile" | "hall" | "war" | "missions" | "treasury" | "members";
 
 const DIVISIONS = ["All", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"] as const;
 const TREASURY_PRESETS = [500, 1000, 5000, 10000] as const;
@@ -80,7 +84,7 @@ function SectionLabel({ children, right }: { children: React.ReactNode; right?: 
     );
 }
 
-export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
+export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
     const isMobile = useIsMobileView();
     const {
         clan,
@@ -92,11 +96,14 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
         treasuryLedger,
         missions,
         weeklyVault,
+        dossier,
         chatMessages,
         error: clanDataError,
         sendChatMessage,
         createClan,
         fundTreasury,
+        renameClan,
+        updateCrest,
         requestJoin,
         reviewRequest,
         leaveClan,
@@ -134,7 +141,8 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
     const { address } = useAccount();
     const { hostGame, joinGame, initQuickLobby } = useTeamUpContext();
 
-    const [activeTab, setActiveTab] = useState<ClanTab>("hall");
+    const [activeTab, setActiveTab] = useState<ClanTab>("profile");
+    const [scoutClanTarget, setScoutClanTarget] = useState<string | null>(null);
     const [chatInput, setChatInput] = useState("");
     const [sendingChat, setSendingChat] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
@@ -192,6 +200,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
     const [settingsPolicy, setSettingsPolicy] = useState<ClanJoinPolicy>("request");
     const [settingsMinLevel, setSettingsMinLevel] = useState(1);
     const [settingsChannel, setSettingsChannel] = useState("");
+    const [settingsTreasuryPublic, setSettingsTreasuryPublic] = useState(false);
     const [settingsSubmitting, setSettingsSubmitting] = useState(false);
 
     const memberNameMap = useMemo(() => {
@@ -435,6 +444,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
         setSettingsPolicy(clan.join_policy);
         setSettingsMinLevel(clan.min_level);
         setSettingsChannel(clan.farcaster_channel || "");
+        setSettingsTreasuryPublic(Boolean(clan.treasury_public));
         setIsEditingSettings(true);
     };
 
@@ -448,6 +458,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                 join_policy: settingsPolicy,
                 min_level: settingsMinLevel,
                 farcaster_channel: settingsChannel,
+                ...(member?.role === "commander" ? { treasury_public: settingsTreasuryPublic } : {}),
             });
             setIsEditingSettings(false);
             setActionSuccess("Clan settings updated.");
@@ -466,6 +477,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
         icon: React.ReactNode;
         dot?: "amber" | "cyan";
     }> = [
+        { id: "profile", label: "Profile", icon: <LuShield className="w-3.5 h-3.5" /> },
         { id: "hall", label: "Hall", icon: <LuMessageSquare className="w-3.5 h-3.5" /> },
         {
             id: "war",
@@ -758,11 +770,15 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                                             <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-full ${beamClass}`} />
 
                                                             <div className="flex items-start justify-between gap-2">
-                                                                <div className="flex items-center gap-3 min-w-0">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setScoutClanTarget(c.id)}
+                                                                    className="flex items-center gap-3 min-w-0 text-left group"
+                                                                >
                                                                     <ClanCrestBadge crest={c.crest} tag={c.tag} size="md" />
                                                                     <div className="min-w-0">
                                                                         <div className="flex items-center gap-2">
-                                                                            <span className="font-bold text-white text-ludo-md truncate">{c.name}</span>
+                                                                            <span className="font-bold text-white text-ludo-md truncate group-hover:text-cyan-300 transition-colors">{c.name}</span>
                                                                             <span className="text-ludo-xs font-mono text-cyan-300 shrink-0">[{c.tag}]</span>
                                                                         </div>
                                                                         <div className="flex items-center gap-2 text-ludo-xs text-white/55 font-mono mt-0.5">
@@ -776,7 +792,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                                                             </span>
                                                                         </div>
                                                                     </div>
-                                                                </div>
+                                                                </button>
                                                                 <Chip size="sm" status={policyStatus}>
                                                                     {policyLabel}
                                                                 </Chip>
@@ -788,20 +804,29 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                                                 </p>
                                                             )}
 
-                                                            <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                                                            <div className="flex items-center justify-between pt-2 border-t border-white/10 gap-2">
                                                                 <span className="inline-flex items-center gap-1.5 text-ludo-xs font-mono text-amber-300 font-bold">
                                                                     <LuTrophy className="w-3.5 h-3.5" />
                                                                     {c.cwr} CWR
                                                                 </span>
-                                                                <button
-                                                                    disabled={isInviteOnly || joiningClanId === c.id}
-                                                                    onClick={() => void handleJoinClan(c.id)}
-                                                                    className={`px-3.5 py-1.5 rounded-xl border font-mono text-ludo-xs font-bold uppercase inline-flex items-center gap-1.5 transition-all ${
-                                                                        isInviteOnly
-                                                                            ? "bg-white/5 border-white/10 text-white/30 cursor-not-allowed"
-                                                                            : "bg-accent-soft hover:bg-cyan-400/25 border-cyan-400/45 text-cyan-200"
-                                                                    }`}
-                                                                >
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setScoutClanTarget(c.id)}
+                                                                        className="px-2.5 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white/80 font-mono text-ludo-xs font-bold uppercase inline-flex items-center gap-1 transition-all"
+                                                                    >
+                                                                        <LuEye className="w-3 h-3" />
+                                                                        <span>Scout</span>
+                                                                    </button>
+                                                                    <button
+                                                                        disabled={isInviteOnly || joiningClanId === c.id}
+                                                                        onClick={() => void handleJoinClan(c.id)}
+                                                                        className={`px-3.5 py-1.5 rounded-xl border font-mono text-ludo-xs font-bold uppercase inline-flex items-center gap-1.5 transition-all ${
+                                                                            isInviteOnly
+                                                                                ? "bg-white/5 border-white/10 text-white/30 cursor-not-allowed"
+                                                                                : "bg-accent-soft hover:bg-cyan-400/25 border-cyan-400/45 text-cyan-200"
+                                                                        }`}
+                                                                    >
                                                                     {isInviteOnly ? (
                                                                         <>
                                                                             <LuLock className="w-3 h-3" />
@@ -820,6 +845,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                                                         </>
                                                                     )}
                                                                 </button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     );
@@ -832,7 +858,7 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                     <div className="flex-1 flex flex-col min-h-0 relative z-10">
                                         {/* Segmented Icon Tab Bar */}
                                         <div className="px-4 pt-3 pb-2 shrink-0">
-                                            <div className="grid grid-cols-5 gap-1 p-1 rounded-2xl bg-black/50 border border-white/10">
+                                            <div className="grid grid-cols-6 gap-1 p-1 rounded-2xl bg-black/50 border border-white/10">
                                                 {tabConfig.map((t) => {
                                                     const active = activeTab === t.id;
                                                     return (
@@ -863,6 +889,32 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
 
                                         {/* Sub-Tab Viewport */}
                                         <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-4 pt-1">
+                                            {/* 0. PROFILE / DOSSIER DEFAULT TAB */}
+                                            {activeTab === "profile" && (
+                                                dossier ? (
+                                                    <ClanDossierContent
+                                                        dossier={dossier}
+                                                        mode="account"
+                                                        onEditCrest={(crest) => updateCrest(crest)}
+                                                        onRenameClan={(p) => renameClan(p)}
+                                                        onToggleTreasuryPrivacy={async (nextPublic) => {
+                                                            await updateSettings({ treasury_public: nextPublic });
+                                                        }}
+                                                        onOpenSettings={openSettingsModal}
+                                                        onInspectMember={onOpenProfile}
+                                                        onInspectClan={(target) => setScoutClanTarget(target)}
+                                                        onRefresh={refreshClan}
+                                                    />
+                                                ) : (
+                                                    <div className="py-12 text-center space-y-2">
+                                                        <div className="w-7 h-7 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin mx-auto" />
+                                                        <div className="text-ludo-xs font-mono text-white/50 uppercase tracking-wider">
+                                                            Loading Syndicate Dossier...
+                                                        </div>
+                                                    </div>
+                                                )
+                                            )}
+
                                             {/* 1. HALL TAB */}
                                             {activeTab === "hall" && (
                                                 <div className="h-full flex flex-col space-y-3">
@@ -2225,6 +2277,39 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                                             />
                                         </div>
                                     </div>
+                                    {member?.role === "commander" && (
+                                        <div className="pt-1">
+                                            <label className="text-white/60 block mb-1">
+                                                Treasury Balance &amp; P&amp;L Visibility (Commander)
+                                            </label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSettingsTreasuryPublic(false)}
+                                                    className={`py-2 px-2 rounded-xl border uppercase font-bold inline-flex items-center justify-center gap-1.5 ${
+                                                        !settingsTreasuryPublic
+                                                            ? "border-amber-400 bg-amber-500/15 text-amber-300"
+                                                            : "border-white/10 bg-white/5 text-white/50"
+                                                    }`}
+                                                >
+                                                    <LuLock className="w-3.5 h-3.5" />
+                                                    <span>Members Only</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSettingsTreasuryPublic(true)}
+                                                    className={`py-2 px-2 rounded-xl border uppercase font-bold inline-flex items-center justify-center gap-1.5 ${
+                                                        settingsTreasuryPublic
+                                                            ? "border-emerald-400 bg-emerald-500/15 text-emerald-300"
+                                                            : "border-white/10 bg-white/5 text-white/50"
+                                                    }`}
+                                                >
+                                                    <LuEye className="w-3.5 h-3.5" />
+                                                    <span>Public</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="flex gap-2 pt-2">
                                         <Button type="button" variant="secondary" size="md" onClick={() => setIsEditingSettings(false)} className="flex-1">
                                             Cancel
@@ -2237,6 +2322,15 @@ export function ClanPanel({ isOpen, onClose }: ClanPanelProps) {
                             </div>
                         </div>
                     )}
+
+                    {/* ── Modal: Public Clan Profile Scout ──────────────────────── */}
+                    <ClanProfileModal
+                        isOpen={Boolean(scoutClanTarget)}
+                        clanIdOrTag={scoutClanTarget}
+                        onClose={() => setScoutClanTarget(null)}
+                        onJoined={() => void refreshClan()}
+                        onInspectMember={onOpenProfile}
+                    />
                 </>
             )}
         </AnimatePresence>

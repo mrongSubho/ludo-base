@@ -1,5 +1,8 @@
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import Button from './Button';
+
+const ClanProfileModal = dynamic(() => import('./ClanProfileModal'), { ssr: false });
 
 interface Player {
     name: string;
@@ -36,6 +39,7 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
     const [friendStatus, setFriendStatus] = useState<'none' | 'sent' | 'friends'>('none');
     const [dmSent, setDmSent] = useState(false);
     const [blocked, setBlocked] = useState(false);
+    const [inspectClanTag, setInspectClanTag] = useState<string | null>(null);
 
     if (!player) return null;
 
@@ -91,9 +95,14 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                 {/* Name + level */}
                 <div className="pp-identity">
                     {Boolean(player.clanTag || player.clan_tag) && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                        <button
+                            type="button"
+                            onClick={() => setInspectClanTag(String(player.clanTag || player.clan_tag))}
+                            className="px-1.5 py-0.5 rounded text-ludo-xs font-mono font-bold bg-accent-soft text-accent border border-accent-line hover:opacity-80 transition-opacity"
+                            title="Inspect Syndicate Dossier"
+                        >
                             [{player.clanTag || player.clan_tag}]
-                        </span>
+                        </button>
                     )}
                     <span className="pp-name">{player.name.slice(0, 12)}</span>
                     <span className="pp-lv">Lv.{player.level}</span>
@@ -166,6 +175,11 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                     <p className="pp-ai-note">AI-controlled — actions disabled.</p>
                 )}
             </div>
+            <ClanProfileModal
+                isOpen={Boolean(inspectClanTag)}
+                clanIdOrTag={inspectClanTag}
+                onClose={() => setInspectClanTag(null)}
+            />
         </>
     );
 }

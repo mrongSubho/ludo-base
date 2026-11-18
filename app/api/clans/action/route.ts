@@ -10,6 +10,8 @@ import {
     kickMember,
     updateMemberRole,
     updateClanSettings,
+    updateClanCrest,
+    renameClan,
     fundClanTreasuryWithTx,
     ClanServiceError,
 } from '@/lib/clan/clanService';
@@ -84,6 +86,30 @@ export async function POST(request: Request) {
                 if (!updates) return NextResponse.json({ error: 'updates object required' }, { status: 400 });
                 await updateClanSettings(clanId, authed, updates);
                 return NextResponse.json({ success: true });
+            }
+
+            case 'update_crest': {
+                const { crest } = body;
+                if (!crest || typeof crest !== 'object') {
+                    return NextResponse.json({ error: 'crest object required' }, { status: 400 });
+                }
+                const updated = await updateClanCrest(clanId, authed, crest);
+                return NextResponse.json({ success: true, crest: updated });
+            }
+
+            case 'rename_clan': {
+                const { newName, newTag, txHash } = body;
+                if (!txHash) {
+                    return NextResponse.json({ error: 'Confirmed CHIPS transaction txHash required' }, { status: 400 });
+                }
+                const res = await renameClan({
+                    clanId,
+                    commanderWallet: authed,
+                    newName,
+                    newTag,
+                    txHash: String(txHash),
+                });
+                return NextResponse.json({ success: true, ...res });
             }
 
             case 'fund_treasury': {
