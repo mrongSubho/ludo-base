@@ -18,7 +18,7 @@ import { missionBadgeFor, type MissionBadgeKey } from '@/lib/missionBadge';
 import { Button } from './Button';
 import { useToast } from './Toast';
 import { useMissionOnChainState } from '@/hooks/useMissionOnChainState';
-import { ClaimingOverlay } from './ClaimingOverlay';
+import { MissionCard } from './MissionCard';
 
 // ─── Mission panel (moved out of Arena) ─────────────────────────────────────
 // Daily / weekly / onboard missions + claim. Arena stays live-only.
@@ -472,25 +472,18 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                 // For daily_bonus: new day unclaimed shows 0/0 (empty bar), already claimed shows 1/1 (full bar).
                                                                 let targetVal: number;
                                                                 let progressVal: number;
-                                                                let progressPercent: number;
 
                                                                 if (isDailyBonus) {
                                                                     if (isClaimed) {
                                                                         targetVal = 1;
                                                                         progressVal = 1;
-                                                                        progressPercent = 100;
                                                                     } else {
                                                                         targetVal = 0;
                                                                         progressVal = 0;
-                                                                        progressPercent = 0;
                                                                     }
                                                                 } else {
                                                                     targetVal = rawTarget <= 0 ? 1 : rawTarget;
                                                                     progressVal = (isCompleted || isClaimed) ? Math.max(rawProgress, targetVal) : rawProgress;
-                                                                    progressPercent = Math.min(
-                                                                        (progressVal / Math.max(targetVal, 1)) * 100,
-                                                                        100
-                                                                    );
                                                                 }
                                                                 const badge = missionBadgeFor(mission.id);
 
@@ -501,132 +494,95 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                                         animate={{ opacity: 1, scale: 1 }}
                                                                         exit={{ opacity: 0, scale: 0.95 }}
                                                                         key={mission.id}
-                                                                        className="flex flex-col gap-3 bg-white/[0.04] border border-white/10 p-4 rounded-2xl hover:bg-white/[0.07] hover:border-white/25 transition-colors relative overflow-hidden group"
                                                                     >
-                                                                        {/* Full-Card Tactical Radar + ThinkingOrb Claiming Overlay */}
-                                                                        <ClaimingOverlay isClaiming={claimingId === mission.id} />
-                                                                        {isCompleted && !isClaimed && (
-                                                                            <div className="absolute inset-0 bg-green-500/5 opacity-50 blur-xl pointer-events-none" />
-                                                                        )}
-                                                                        <div className="flex items-start gap-4">
-                                                                            <div
-                                                                                className={`w-12 h-12 flex items-center justify-center rounded-2xl flex-shrink-0 ${badge.bg} ${badge.color} text-2xl shadow-inner border border-white/5`}
-                                                                            >
-                                                                                {MISSION_BADGE_ICON[badge.key]}
-                                                                            </div>
-                                                                            <div className="flex flex-col flex-1 min-w-0 pt-0.5">
-                                                                                <div className="flex items-start justify-between gap-2">
-                                                                                    <h3
-                                                                                        className={`font-bold text-ludo-lg truncate ${isClaimed ? 'text-white/60' : isCompleted ? 'text-green-300' : 'text-white'}`}
+                                                                        <MissionCard
+                                                                            title={mission.title}
+                                                                            description={mission.description}
+                                                                            icon={MISSION_BADGE_ICON[badge.key]}
+                                                                            iconContainerClassName={`${badge.bg} ${badge.color} border-white/5`}
+                                                                            rewardAmount={mission.rewardAmount}
+                                                                            rewardTone={mission.rewardType === 'chips' ? 'chips' : 'amber'}
+                                                                            rewardIcon={
+                                                                                mission.rewardType === 'chips' ? (
+                                                                                    <svg
+                                                                                        viewBox="0 0 24 24"
+                                                                                        fill="none"
+                                                                                        stroke="currentColor"
+                                                                                        strokeWidth="2.5"
+                                                                                        strokeLinecap="round"
+                                                                                        strokeLinejoin="round"
+                                                                                        className="w-3 h-3 text-yellow-400"
                                                                                     >
-                                                                                        {mission.title}
-                                                                                    </h3>
-                                                                                    <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 flex-shrink-0">
-                                                                                        {mission.rewardType === 'chips' ? (
-                                                                                            <svg
-                                                                                                viewBox="0 0 24 24"
-                                                                                                fill="none"
-                                                                                                stroke="currentColor"
-                                                                                                strokeWidth="2.5"
-                                                                                                strokeLinecap="round"
-                                                                                                strokeLinejoin="round"
-                                                                                                className="w-3 h-3 text-yellow-400"
-                                                                                            >
-                                                                                                <circle cx="12" cy="12" r="8" />
-                                                                                                <line x1="12" y1="8" x2="12" y2="16" />
-                                                                                                <path d="M16 12H8" />
-                                                                                            </svg>
-                                                                                        ) : (
-                                                                                            <svg
-                                                                                                viewBox="0 0 24 24"
-                                                                                                fill="none"
-                                                                                                stroke="currentColor"
-                                                                                                strokeWidth="2.5"
-                                                                                                strokeLinecap="round"
-                                                                                                strokeLinejoin="round"
-                                                                                                className="w-3 h-3 text-cyan-400"
-                                                                                            >
-                                                                                                <path d="M6 3h12l4 6-10 13L2 9z" />
-                                                                                                <path d="M11 3 8 9l4 13 4-13-3-6" />
-                                                                                            </svg>
-                                                                                        )}
-                                                                                        <span
-                                                                                            className={`text-ludo-sm font-black leading-none ${mission.rewardType === 'chips' ? 'text-cyan-400' : 'text-yellow-400'}`}
-                                                                                        >
-                                                                                            {mission.rewardAmount}
-                                                                                        </span>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                        {/* Task details, directly above the progress bar — the same
-                                                                            placement the onboarding cards use. Always rendered, single
-                                                                            line, tabular-nums: no progress value can reflow the card. */}
-                                                                        <div className="flex flex-col gap-2">
-                                                                            <p className="text-ludo-sm font-medium text-white/60 leading-snug tabular-nums truncate">
-                                                                                {mission.description}
-                                                                            </p>
-                                                                            <div className="flex items-center gap-4 mt-1">
-                                                                            <div className="flex-1">
-                                                                                <div className="flex items-end justify-between mb-1.5 px-0.5">
-                                                                                    <span className="text-ludo-xs uppercase font-bold text-white/40 tracking-wider">
-                                                                                        Progress
-                                                                                    </span>
-                                                                                    <span
-                                                                                        className={`text-xs font-black tabular-nums ${isClaimed ? 'text-white/40' : isCompleted ? 'text-green-400' : 'text-white'}`}
-                                                                                    >
-                                                                                        {progressVal}{' '}
-                                                                                        <span className="text-white/30 text-ludo-xs">
-                                                                                            / {targetVal}
-                                                                                        </span>
-                                                                                    </span>
-                                                                                </div>
-                                                                                <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                                                                                    <div
-                                                                                        className={`h-full rounded-full transition-all duration-1000 ease-out ${isClaimed ? 'bg-white/20' : isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-cyan-600'}`}
-                                                                                        style={{ width: `${progressPercent}%` }}
-                                                                                    />
-                                                                                </div>
-                                                                            </div>
-                                                                            <Button
-                                                                                variant="secondary"
-                                                                                size="sm"
-                                                                                loading={claimingId === mission.id}
-                                                                                loadingIcon={<ThinkingOrb state="solving" size={20} />}
-                                                                                disabled={isClaimed}
-                                                                                onClick={
-                                                                                    isClaimed
-                                                                                        ? undefined
-                                                                                        : isCompleted
-                                                                                          ? () => handleClaim(mission.id)
-                                                                                          : () => handleGo(mission.id)
-                                                                                }
-                                                                                className={`min-w-[70px] rounded-xl ${isClaimed ? 'opacity-60 cursor-not-allowed border-white/10 bg-white/5 text-white/50' : isCompleted ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
-                                                                            >
-                                                                                {isClaimed ? (
-                                                                                    <span className="flex items-center gap-1 text-white/60">
-                                                                                        CLAIMED{' '}
-                                                                                        <svg
-                                                                                            viewBox="0 0 24 24"
-                                                                                            fill="none"
-                                                                                            stroke="currentColor"
-                                                                                            strokeWidth="3"
-                                                                                            strokeLinecap="round"
-                                                                                            strokeLinejoin="round"
-                                                                                            className="icon-sm text-green-400"
-                                                                                        >
-                                                                                            <polyline points="20 6 9 17 4 12" />
-                                                                                        </svg>
-                                                                                    </span>
-                                                                                ) : isCompleted ? (
-                                                                                    'CLAIM'
+                                                                                        <circle cx="12" cy="12" r="8" />
+                                                                                        <line x1="12" y1="8" x2="12" y2="16" />
+                                                                                        <path d="M16 12H8" />
+                                                                                    </svg>
                                                                                 ) : (
-                                                                                    'GO'
-                                                                                )}
-                                                                            </Button>
-                                                                        </div>
-                                                                    </div>
-                                                                </motion.div>
+                                                                                    <svg
+                                                                                        viewBox="0 0 24 24"
+                                                                                        fill="none"
+                                                                                        stroke="currentColor"
+                                                                                        strokeWidth="2.5"
+                                                                                        strokeLinecap="round"
+                                                                                        strokeLinejoin="round"
+                                                                                        className="w-3 h-3 text-cyan-400"
+                                                                                    >
+                                                                                        <path d="M6 3h12l4 6-10 13L2 9z" />
+                                                                                        <path d="M11 3 8 9l4 13 4-13-3-6" />
+                                                                                    </svg>
+                                                                                )
+                                                                            }
+                                                                            progress={progressVal}
+                                                                            target={targetVal}
+                                                                            isCompleted={isCompleted}
+                                                                            isClaimed={isClaimed}
+                                                                            isClaiming={claimingId === mission.id}
+                                                                            actionSlot={
+                                                                                <Button
+                                                                                    variant="secondary"
+                                                                                    size="sm"
+                                                                                    loading={claimingId === mission.id}
+                                                                                    loadingIcon={<ThinkingOrb state="solving" size={20} />}
+                                                                                    disabled={isClaimed}
+                                                                                    onClick={
+                                                                                        isClaimed
+                                                                                            ? undefined
+                                                                                            : isCompleted
+                                                                                              ? () => handleClaim(mission.id)
+                                                                                              : () => handleGo(mission.id)
+                                                                                    }
+                                                                                    className={`min-w-[70px] rounded-xl ${
+                                                                                        isClaimed
+                                                                                            ? 'opacity-60 cursor-not-allowed border-white/10 bg-white/5 text-white/50'
+                                                                                            : isCompleted
+                                                                                              ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]'
+                                                                                              : ''
+                                                                                    }`}
+                                                                                >
+                                                                                    {isClaimed ? (
+                                                                                        <span className="flex items-center gap-1 text-white/60">
+                                                                                            CLAIMED{' '}
+                                                                                            <svg
+                                                                                                viewBox="0 0 24 24"
+                                                                                                fill="none"
+                                                                                                stroke="currentColor"
+                                                                                                strokeWidth="3"
+                                                                                                strokeLinecap="round"
+                                                                                                strokeLinejoin="round"
+                                                                                                className="icon-sm text-green-400"
+                                                                                            >
+                                                                                                <polyline points="20 6 9 17 4 12" />
+                                                                                            </svg>
+                                                                                        </span>
+                                                                                    ) : isCompleted ? (
+                                                                                        'CLAIM'
+                                                                                    ) : (
+                                                                                        'GO'
+                                                                                    )}
+                                                                                </Button>
+                                                                            }
+                                                                        />
+                                                                    </motion.div>
                                                                 );
                                                             })}
                                                         </AnimatePresence>

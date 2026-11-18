@@ -32,6 +32,7 @@ import {
     LuTrophy,
     LuUsers,
     LuX,
+    LuZap,
 } from "react-icons/lu";
 import { useIsMobileView } from "@/hooks/useIsMobileView";
 import { useTeamUpContext } from "@/hooks/TeamUpContext";
@@ -51,6 +52,7 @@ import {
 import type { Clan, ClanJoinPolicy, ClanWarFixture } from "@/lib/clan/types";
 import { ClanDossierContent } from "./clan/ClanDossierContent";
 import ClanProfileModal from "./ClanProfileModal";
+import { MissionCard } from "./MissionCard";
 
 interface ClanPanelProps {
     isOpen: boolean;
@@ -1504,36 +1506,66 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                     ) : (
                                                         <div className="space-y-2.5">
                                                             {missions.map((m) => {
-                                                                const pct = Math.min(100, Math.round((m.progress / Math.max(1, m.target)) * 100));
+                                                                const contractDesc =
+                                                                    m.key === "daily_online_matches_3"
+                                                                        ? "Complete online matches to add syndicate CXP."
+                                                                        : m.key === "daily_captures_5"
+                                                                          ? "Capture opponent tokens across live matches."
+                                                                          : m.key === "daily_clan_war_points"
+                                                                            ? "Earn War Points in active Clan War fixtures."
+                                                                            : "Collective syndicate members reaching weekly CXP tier.";
                                                                 return (
-                                                                    <div key={m.key} className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/10 space-y-2">
-                                                                        <div className="flex items-center justify-between gap-2.5">
-                                                                            <div className="flex items-center gap-2.5 min-w-0">
-                                                                                <div className="w-9 h-9 rounded-xl bg-accent-soft border border-cyan-400/35 flex items-center justify-center text-cyan-300 shrink-0">
-                                                                                    {m.scope === "weekly" ? (
-                                                                                        <LuFlame className="w-4 h-4" />
-                                                                                    ) : (
-                                                                                        <LuTarget className="w-4 h-4" />
-                                                                                    )}
-                                                                                </div>
-                                                                                <div className="min-w-0">
-                                                                                    <div className="font-bold text-white truncate">{m.title}</div>
-                                                                                    <div className="text-cyan-300">
-                                                                                        +{m.rewardCxp} CXP · {m.scope.toUpperCase()}
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                            <Chip size="sm" status={m.completed ? "ok" : "off"}>
-                                                                                {m.completed ? "DONE" : `${m.progress}/${m.target}`}
-                                                                            </Chip>
-                                                                        </div>
-                                                                        <div className="w-full h-1.5 rounded-full bg-black/50 border border-white/10 overflow-hidden">
-                                                                            <div
-                                                                                className="h-full bg-cyan-400 rounded-full transition-all"
-                                                                                style={{ width: `${pct}%` }}
-                                                                            />
-                                                                        </div>
-                                                                    </div>
+                                                                    <MissionCard
+                                                                        key={m.key}
+                                                                        title={m.title}
+                                                                        description={contractDesc}
+                                                                        icon={
+                                                                            m.scope === "weekly" ? (
+                                                                                <LuFlame className="w-5 h-5" />
+                                                                            ) : (
+                                                                                <LuTarget className="w-5 h-5" />
+                                                                            )
+                                                                        }
+                                                                        iconContainerClassName={
+                                                                            m.scope === "weekly"
+                                                                                ? "bg-amber-500/15 text-amber-300 border-amber-400/35"
+                                                                                : "bg-accent-soft text-cyan-300 border-cyan-400/35"
+                                                                        }
+                                                                        rewardAmount={`+${m.rewardCxp}`}
+                                                                        rewardUnit="CXP"
+                                                                        rewardTone={m.scope === "weekly" ? "amber" : "cxp"}
+                                                                        rewardIcon={<LuZap className="w-3 h-3 text-cyan-300" />}
+                                                                        scopeLabel={m.scope === "weekly" ? "WEEKLY SYNDICATE" : "DAILY CONTRACT"}
+                                                                        progress={m.progress}
+                                                                        target={m.target}
+                                                                        isCompleted={m.completed}
+                                                                        actionSlot={
+                                                                            m.completed ? (
+                                                                                <span className="min-w-[70px] px-2.5 py-1.5 rounded-xl border border-emerald-400/40 bg-emerald-500/15 text-emerald-300 font-mono text-ludo-xs font-bold inline-flex items-center justify-center gap-1">
+                                                                                    <LuCheck className="w-3 h-3" />
+                                                                                    <span>DONE</span>
+                                                                                </span>
+                                                                            ) : m.key === "daily_clan_war_points" ? (
+                                                                                <Button
+                                                                                    variant="secondary"
+                                                                                    size="sm"
+                                                                                    onClick={() => setActiveTab("war")}
+                                                                                    className="min-w-[70px] rounded-xl font-mono text-ludo-xs uppercase"
+                                                                                >
+                                                                                    WAR
+                                                                                </Button>
+                                                                            ) : (
+                                                                                <Button
+                                                                                    variant="secondary"
+                                                                                    size="sm"
+                                                                                    onClick={onClose}
+                                                                                    className="min-w-[70px] rounded-xl font-mono text-ludo-xs uppercase"
+                                                                                >
+                                                                                    GO
+                                                                                </Button>
+                                                                            )
+                                                                        }
+                                                                    />
                                                                 );
                                                             })}
                                                         </div>
