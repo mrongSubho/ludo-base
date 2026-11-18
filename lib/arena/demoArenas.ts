@@ -195,7 +195,7 @@ export function buildDemoArenaRooms(existingRooms: ArenaDirectoryRoom[]): ArenaD
             demoRooms.push({
                 ...dbLive,
                 wager: dbLive.wager > 0 ? dbLive.wager : ex.wager,
-                betWindowStatus: dbLive.betWindowStatus === 'settled' ? 'closed' : 'open',
+                betWindowStatus: dbLive.betWindowStatus === 'open' ? 'open' : 'closed',
                 currentBetType: dbLive.currentBetType || 'winner',
                 totalBetVolume: dbLive.totalBetVolume > 0 ? dbLive.totalBetVolume : ex.defaultBetVolume,
                 seats: dbLive.seats.length > 0 ? dbLive.seats : makeBotSeats(ex.bots),

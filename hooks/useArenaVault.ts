@@ -23,11 +23,12 @@ function notifyVaultUpdated() {
 }
 
 export function useArenaVault() {
-    const { address, chainId } = useAccount();
+    const { address: wagmiAddress, chainId } = useAccount();
     const { switchChainAsync } = useSwitchChain();
     const { writeContractAsync } = useWriteContract();
     const publicClient = usePublicClient();
     const player = usePlayerSigner();
+    const address = (player.address ?? wagmiAddress) as Address | undefined;
     const cdpUserOp = useCdpUserOp();
     const { ensureAppSession, peekAppSession } = useAppSession();
 
@@ -325,6 +326,36 @@ export function useArenaVault() {
     );
 
     /**
+     * Ensure at least `amountChips` is available in Match Vault.
+     * - If `availableChips >= amountChips`: 0 wallet popups, 0 gas.
+     * - If short: checks CHIPS allowance via `readAllowanceDirect`, opens wallet modal
+     *   for approval (if needed) and deposits only the deficit (`amountChips - availableChips`).
+     */
+    const ensureVaultForStake = useCallback(
+        async (amountChips: number, overrideSessionId?: string): Promise<{ balance: number; toppedUp: number }> => {
+            if (!address) throw new Error("Wallet not connected");
+            const needed = Math.ceil(Number(amountChips));
+            if (!Number.isFinite(needed) || needed <= 0) {
+                throw new Error("Amount must be greater than 0");
+            }
+
+            const sessionId = overrideSessionId || (await ensureAppSession());
+            if (!sessionId) throw new Error("Session required");
+
+            const liveBalance = (await refresh(sessionId)) ?? availableChips;
+            const deficit = Math.max(0, needed - liveBalance);
+
+            if (deficit > 0) {
+                const updatedBal = await topUpVault(deficit, sessionId);
+                return { balance: updatedBal, toppedUp: deficit };
+            }
+
+            return { balance: liveBalance, toppedUp: 0 };
+        },
+        [address, availableChips, ensureAppSession, refresh, topUpVault],
+    );
+
+    /**
      * Smart differential top-up + reservation before starting Quick Match or TeamUp.
      * - If `vaultBalance >= entryFee`: 0 wallet popups, 0 gas, instant reserve!
      * - If `vaultBalance < entryFee`: prompts ONLY for `entryFee - vaultBalance` difference!
@@ -556,6 +587,7 @@ export function useArenaVault() {
         error,
         refresh,
         topUpVault,
+        ensureVaultForStake,
         ensureVaultAndReserve,
         releaseMatchStake,
         withdrawFromVault,

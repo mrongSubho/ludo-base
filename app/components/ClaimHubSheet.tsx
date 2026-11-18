@@ -265,16 +265,16 @@ export default function ClaimHubSheet({
                                         <div className="flex flex-col min-w-0">
                                             <span className="text-ludo-xs font-bold text-white uppercase">
                                                 {c.claim_type === "match_prize"
-                                                    ? "Match Victory Prize"
+                                                    ? "Match / Bet Victory Prize"
                                                     : c.claim_type === "vault_withdraw"
                                                       ? "Vault Withdrawal"
-                                                      : "Match Refund"}
+                                                      : "Match / Bet Refund"}
                                             </span>
                                             <span className="text-ludo-xs font-mono text-emerald-400 font-bold">
                                                 +{c.amount.toLocaleString()} CHIPS
                                             </span>
                                         </div>
-                                        {c.claim_type === "match_prize" && (
+                                        {(c.claim_type === "match_prize" || c.claim_type === "match_refund") && (
                                             <button
                                                 type="button"
                                                 disabled={vault.isActing}

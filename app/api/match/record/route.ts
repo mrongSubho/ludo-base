@@ -621,10 +621,10 @@ export async function POST(request: Request) {
 
                 let winnersToPay: string[] = [winnerLower];
                 const matchShape = mRow?.match_shape as string | null | undefined;
+                const stateObj = msRow?.state as { winner?: string } | undefined;
+                const seatsObj = msRow?.player_seats as Record<string, { wallet?: string }> | undefined;
 
-                if (matchShape === '2v2' && msRow?.state && msRow?.player_seats) {
-                    const stateObj = msRow.state as { winner?: string };
-                    const seatsObj = msRow.player_seats as Record<string, { wallet?: string }>;
+                if (matchShape === '2v2' && stateObj && seatsObj) {
                     const winColor = stateObj.winner;
                     if (winColor && ['green', 'red', 'yellow', 'blue'].includes(winColor)) {
                         const { getTeammateColor } = await import('@/lib/gameLogic');
@@ -640,6 +640,15 @@ export async function POST(request: Request) {
                 await settleArenaMatchPayouts({
                     matchId: String(matchId),
                     matchShape,
+                    winnerWallets: winnersToPay,
+                });
+
+                const { settleSpectatorMatchBets } = await import('@/lib/spectatorBetting');
+                await settleSpectatorMatchBets({
+                    matchId: String(matchId),
+                    matchShape,
+                    winnerRaw: stateObj?.winner ?? winnerLower,
+                    playerSeats: seatsObj ?? null,
                     winnerWallets: winnersToPay,
                 });
             } catch (vaultErr) {

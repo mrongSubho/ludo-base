@@ -3,6 +3,11 @@ import { NextResponse } from 'next/server';
 import { buildStreamMessage, isFreshIssuedAt } from '@/lib/matchProof';
 import { verifyPersonalSign } from '@/lib/walletVerify';
 import { serviceDb, requireSession } from '@/lib/serverAuth';
+import {
+    SPECTATOR_BET_WINDOW_DEFAULT_SEC,
+    computeBetWindowBounds,
+    isBetWindowOpen,
+} from '@/lib/spectatorBetting';
 
 /** Service-role DB — host proof is a wallet signature, not an app session. Throws loudly when unconfigured. */
 function db() {
@@ -94,6 +99,28 @@ export async function POST(request: Request) {
         }
 
         if (enabled) {
+            const { data: existingLive } = await sb
+                .from('live_matches')
+                .select('bet_window_status, current_bet_type, window_opened_at, window_closed_at, spectator_count')
+                .eq('match_id', matchId)
+                .maybeSingle();
+
+            const nowIso = new Date().toISOString();
+            const bounds = computeBetWindowBounds(Date.now(), SPECTATOR_BET_WINDOW_DEFAULT_SEC);
+
+            // Preserve any previously opened window so toggling stream never re-opens or extends a closed window.
+            const hasWindow = Boolean(existingLive?.window_opened_at);
+            const windowStatus = hasWindow
+                ? existingLive?.bet_window_status === 'settled'
+                    ? 'settled'
+                    : isBetWindowOpen({
+                          status: existingLive?.bet_window_status,
+                          windowClosedAt: existingLive?.window_closed_at,
+                      })
+                      ? 'open'
+                      : 'closed'
+                : 'open';
+
             // Live DB PK is match_id (not room_code). Upsert on match_id.
             const { error: liveError } = await withTimeout(
                 sb.from('live_matches')
@@ -101,10 +128,13 @@ export async function POST(request: Request) {
                         match_id: matchId,
                         room_code: String(roomCode),
                         host_address: hostAddress ? String(hostAddress).toLowerCase() : null,
-                        bet_window_status: 'closed',
-                        spectator_count: 0,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
+                        bet_window_status: windowStatus,
+                        current_bet_type: existingLive?.current_bet_type || 'winner',
+                        window_opened_at: existingLive?.window_opened_at || bounds.windowOpenedAt,
+                        window_closed_at: existingLive?.window_closed_at || bounds.windowClosedAt,
+                        spectator_count: existingLive?.spectator_count ?? 0,
+                        created_at: nowIso,
+                        updated_at: nowIso,
                     }, { onConflict: 'match_id' }),
                 12_000,
                 'live_matches.upsert'

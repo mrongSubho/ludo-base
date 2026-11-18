@@ -66,28 +66,28 @@ export function useSpectatorSync(roomCode: string | null) {
         const bootstrap = async () => {
             const { data } = await supabase
                 .from('live_matches')
-                .select('match_id, bet_window_status, current_bet_type')
+                .select('match_id, bet_window_status, current_bet_type, created_at')
                 .eq('room_code', roomCode)
                 .maybeSingle();
             if (cancelled) return;
             matchId = data?.match_id || null;
             if (!matchId) return;
 
-            if (data?.bet_window_status === 'open') {
-                const now = Date.now();
-                updateState({
-                    matchId,
-                    activeBetWindow: {
-                        windowId: `live-${matchId}`,
-                        betType: data.current_bet_type || 'winner',
-                        expiresAt: now + 90_000,
-                        openedAt: now,
-                        windowClosedAt: null,
-                    },
-                });
-            } else {
-                updateState({ matchId });
-            }
+            const openedAt = data?.created_at ? Date.parse(data.created_at) : Date.now();
+            const safeOpenedAt = Number.isFinite(openedAt) ? openedAt : Date.now();
+            const expiresAt = safeOpenedAt + 90_000;
+            const isOpenNow = data?.bet_window_status === 'open' && Date.now() < expiresAt;
+
+            updateState({
+                matchId,
+                activeBetWindow: {
+                    windowId: `live-${matchId}`,
+                    betType: data?.current_bet_type || 'winner',
+                    expiresAt,
+                    openedAt: safeOpenedAt,
+                    windowClosedAt: isOpenNow ? null : new Date(expiresAt).toISOString(),
+                },
+            });
 
             // N6 — single resync path (public snapshot; no player session).
             await resyncMatch({

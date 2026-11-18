@@ -1,17 +1,27 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
 import { FiX, FiMessageSquare, FiSend, FiTrendingUp, FiZap, FiChevronDown, FiChevronUp, FiAward } from 'react-icons/fi';
+import { formatUnits } from 'viem';
 import { supabase } from '@/lib/supabase';
 import { ActiveBettingWindow } from '@/hooks/useSpectatorSync';
-import { BetType, PlayerColor, SpectatorBet } from '@/lib/types';
+import { BetType, PlayerColor } from '@/lib/types';
 import { seatedColorsFor } from '@/lib/engine/core';
 import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 import { getFollowed } from '@/lib/follow';
 import { useAppSession } from '@/hooks/useAppSession';
+import { useArenaVault } from '@/hooks/useArenaVault';
+import { useChipsBalance } from '@/hooks/useChipsBalance';
+import { usePlayerSigner } from '@/hooks/usePlayerSigner';
+import {
+    SPECTATOR_BET_MAX_CHIPS,
+    SPECTATOR_BET_MIN_CHIPS,
+    SPECTATOR_BET_PRESETS,
+    type SpectatorPoolSummary,
+} from '@/lib/spectatorBettingMath';
 import { useToast } from './Toast';
 
 // ─────────────────────────────────────────────────────────────
@@ -76,7 +86,11 @@ const COLOR_STYLES: Record<string, { bg: string; text: string }> = {
     blue:   { bg: '#3b82f6', text: '#fff' },
 };
 
-const BET_PRESETS = [100, 500, 1000, 5000];
+function formatCompactChips(n: number): string {
+    if (n >= 1_000_000) return `${Number((n / 1_000_000).toFixed(1))}M`;
+    if (n >= 1_000) return `${Number((n / 1_000).toFixed(1))}K`;
+    return n.toLocaleString();
+}
 
 interface ChatMessage {
     id: string;
@@ -84,6 +98,31 @@ interface ChatMessage {
     text: string;
     createdAt: number;
     system?: boolean;
+}
+
+interface SpectatorBetRecord {
+    id: string;
+    player_id: string;
+    bet_type: string;
+    bet_value: string;
+    amount: number | string;
+    payout_amount?: number | string | null;
+    status: 'open' | 'won' | 'lost' | 'cashed_out' | 'cancelled';
+    bet_metadata?: Record<string, unknown> | null;
+}
+
+interface ServerWindowSnapshot {
+    status: string;
+    betType: string;
+    openedAt: string | null;
+    closedAt: string | null;
+    serverNow: string;
+}
+
+interface BetChoiceOption {
+    value: string;
+    label: string;
+    colors: PlayerColor[];
 }
 
 interface SpectatorHUDProps {
@@ -103,16 +142,29 @@ export const SpectatorHUD = ({
     positions,
     onClose,
 }: SpectatorHUDProps) => {
-    const { address } = useAccount();
-    const { myProfile, updateMyProfileOptimistic } = useGameData();
-    const { ensureAppSession } = useAppSession();
+    const { address: wagmiAddress } = useAccount();
+    const player = usePlayerSigner();
+    const address = (player.address ?? wagmiAddress) as `0x${string}` | undefined;
+    const { myProfile } = useGameData();
+    const { ensureAppSession, peekAppSession } = useAppSession();
+    const vault = useArenaVault();
+    const chipsBal = useChipsBalance();
     const toast = useToast();
-    const [betAmount, setBetAmount] = useState(500);
+
+    const [betAmount, setBetAmount] = useState<number>(500);
+    const [customMode, setCustomMode] = useState<boolean>(false);
+    const [customInput, setCustomInput] = useState<string>('2500');
     const [selectedBetValue, setSelectedBetValue] = useState<string | null>(null);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [chatInput, setChatInput] = useState('');
     const [isBetting, setIsBetting] = useState(false);
-    const [betResults, setBetResults] = useState<{ id: string; status: 'won' | 'lost' }[]>([]);
+    const [betStatusStep, setBetStatusStep] = useState<string | null>(null);
+    const [betResults, setBetResults] = useState<{ id: string; status: 'won' | 'lost'; text: string }[]>([]);
+    const [myBets, setMyBets] = useState<SpectatorBetRecord[]>([]);
+    const [poolSummary, setPoolSummary] = useState<SpectatorPoolSummary>({ totalPot: 0, betCount: 0, bySide: {} });
+    const [serverWindow, setServerWindow] = useState<ServerWindowSnapshot | null>(null);
+    const [serverSkewMs, setServerSkewMs] = useState<number>(0);
+
     const [drawerHeight, setDrawerHeight] = useState<number>(() => getDefaultExpandedHeight());
     const [isDragging, setIsDragging] = useState(false);
     const [mobileTab, setMobileTab] = useState<'bet' | 'comm'>('bet');
@@ -120,6 +172,11 @@ export const SpectatorHUD = ({
     const dragStartYRef = useRef(0);
     const dragStartHeightRef = useRef(0);
     const seenResultsRef = useRef<Set<string>>(new Set());
+
+    const walletChips = useMemo(() => {
+        if (chipsBal.balance == null) return null;
+        return Math.floor(Number(formatUnits(chipsBal.balance, 18)));
+    }, [chipsBal.balance]);
 
     // Keep height within viewport bounds on resize/rotation
     useEffect(() => {
@@ -156,7 +213,6 @@ export const SpectatorHUD = ({
             e.currentTarget.releasePointerCapture(e.pointerId);
         }
         setIsDragging(false);
-        // Snap cleanly to exact 1-line height if dragged very close to bottom
         setDrawerHeight(prev => (prev <= 80 ? MIN_DRAWER_HEIGHT : prev));
     };
 
@@ -172,63 +228,141 @@ export const SpectatorHUD = ({
         }
     };
 
-    // Poll settled bets
+    const handleSettledBets = useCallback((rows: SpectatorBetRecord[]) => {
+        const fresh: { id: string; status: 'won' | 'lost'; text: string }[] = [];
+        for (const b of rows) {
+            if ((b.status === 'won' || b.status === 'lost') && !seenResultsRef.current.has(b.id)) {
+                seenResultsRef.current.add(b.id);
+                const amountNum = Math.floor(Number(b.amount || 0));
+                const payoutNum = Math.floor(Number(b.payout_amount || 0));
+                const isRefund = b.status === 'won' && payoutNum <= amountNum;
+                const text =
+                    b.status === 'won'
+                        ? isRefund
+                            ? `${payoutNum.toLocaleString()} CHIPS refunded · Credited to Vault / Claim Hub`
+                            : `+${payoutNum.toLocaleString()} CHIPS won · Credited to Vault / Claim Hub`
+                        : 'Bet settled · Better luck next round';
+
+                fresh.push({ id: b.id, status: b.status, text });
+                if (b.status === 'won') {
+                    toast(text, 'success');
+                    if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('ludo-arena-vault-updated'));
+                    }
+                }
+
+                setTimeout(() => {
+                    seenResultsRef.current.delete(b.id);
+                    setBetResults(prev => prev.filter(r => r.id !== b.id));
+                }, 8000);
+            }
+        }
+        if (fresh.length > 0) setBetResults(prev => [...prev, ...fresh].slice(-3));
+    }, [toast]);
+
+    const fetchBetSummary = useCallback(async (overrideSid?: string): Promise<void> => {
+        if (!address || !matchId) return;
+        try {
+            const sessionId = overrideSid || peekAppSession() || (await ensureAppSession().catch(() => null));
+            if (!sessionId) return;
+            const params = new URLSearchParams({ matchId, walletAddress: address, summary: '1' });
+            const res = await fetch(`/api/spectator-bets?${params.toString()}`, {
+                headers: { Authorization: `Bearer ${sessionId}` },
+                cache: 'no-store',
+            });
+            if (!res.ok) return;
+            const payload = await res.json();
+            if (payload?.poolSummary) setPoolSummary(payload.poolSummary);
+            if (Array.isArray(payload?.myBets)) {
+                setMyBets(payload.myBets);
+                handleSettledBets(payload.myBets);
+            }
+            if (payload?.window) {
+                setServerWindow(payload.window as ServerWindowSnapshot);
+                const srvMs = Date.parse(payload.window.serverNow);
+                if (Number.isFinite(srvMs)) {
+                    setServerSkewMs(srvMs - Date.now());
+                }
+            }
+        } catch {
+            /* transient — next poll retries */
+        }
+    }, [address, matchId, peekAppSession, ensureAppSession, handleSettledBets]);
+
+    // Poll pool summary, window state, and settled bets
     useEffect(() => {
         if (!address || !matchId) return;
         let cancelled = false;
-        const poll = async () => {
-            try {
-                const sessionId = await ensureAppSession().catch(() => null);
-                if (!sessionId || cancelled) return;
-                const params = new URLSearchParams({ matchId, walletAddress: address, sessionId, mine: '1' });
-                const res = await fetch(`/api/spectator-bets?${params.toString()}`);
-                if (!res.ok || cancelled) return;
-                const bets = await res.json();
-                if (!Array.isArray(bets) || cancelled) return;
-                const fresh: { id: string; status: 'won' | 'lost' }[] = [];
-                for (const b of bets) {
-                    if ((b.status === 'won' || b.status === 'lost') && !seenResultsRef.current.has(b.id)) {
-                        seenResultsRef.current.add(b.id);
-                        fresh.push({ id: b.id, status: b.status });
-                        setTimeout(() => {
-                            seenResultsRef.current.delete(b.id);
-                            setBetResults(prev => prev.filter(r => r.id !== b.id));
-                        }, 8000);
-                    }
-                }
-                if (fresh.length > 0) setBetResults(prev => [...prev, ...fresh].slice(-3));
-            } catch {
-                /* transient — next poll retries */
-            }
+        const run = async () => {
+            if (!cancelled) await fetchBetSummary();
         };
-        void poll();
-        const t = setInterval(poll, 10000);
+        void run();
+        const t = setInterval(run, 5000);
         return () => {
             cancelled = true;
             clearInterval(t);
         };
-    }, [address, matchId, ensureAppSession]);
+    }, [address, matchId, fetchBetSummary]);
 
-    const [myBet, setMyBet] = useState<{ id: string; odds: number; amount: number } | null>(null);
-    const [isCashingOut, setIsCashingOut] = useState(false);
-    const [followedBets, setFollowedBets] = useState<(SpectatorBet & { id: string })[]>([]);
-    const profileRef = useRef(myProfile);
-    profileRef.current = myProfile;
+    const [followedBets, setFollowedBets] = useState<{ id: string; bet_type: string; bet_value: string }[]>([]);
     const [timeLeft, setTimeLeft] = useState(0);
 
-    const seatedColors = Array.from(seatedColorsFor(playerCount));
+    const seatedColors = useMemo(() => Array.from(seatedColorsFor(playerCount)), [playerCount]);
     const winProb = calcWinProb(positions, seatedColors);
 
+    const betChoices: BetChoiceOption[] = useMemo(() => {
+        if (playerCount === '2v2') {
+            return [
+                { value: 'team 1', label: 'Team 1 (G+B)', colors: ['green', 'blue'] },
+                { value: 'team 2', label: 'Team 2 (R+Y)', colors: ['red', 'yellow'] },
+            ];
+        }
+        return seatedColors.map((color) => ({
+            value: color,
+            label: color,
+            colors: [color],
+        }));
+    }, [playerCount, seatedColors]);
+
+    // Authoritative window reconciliation (server window overrides stale client bootstrap)
+    const effectiveWindow = useMemo(() => {
+        if (serverWindow && serverWindow.closedAt) {
+            const closedMs = Date.parse(serverWindow.closedAt);
+            const openedMs = serverWindow.openedAt ? Date.parse(serverWindow.openedAt) : closedMs - 90_000;
+            const isClosedStatus = serverWindow.status !== 'open';
+            return {
+                status: serverWindow.status,
+                betType: serverWindow.betType || 'winner',
+                openedAt: Number.isFinite(openedMs) ? openedMs : Date.now(),
+                expiresAt: Number.isFinite(closedMs) ? closedMs : 0,
+                windowClosedAt: isClosedStatus ? serverWindow.closedAt : null,
+            };
+        }
+        if (activeBetWindow) {
+            return {
+                status: activeBetWindow.windowClosedAt ? 'closed' : 'open',
+                betType: activeBetWindow.betType || 'winner',
+                openedAt: activeBetWindow.openedAt ?? activeBetWindow.expiresAt - 90_000,
+                expiresAt: activeBetWindow.expiresAt,
+                windowClosedAt: activeBetWindow.windowClosedAt,
+            };
+        }
+        return null;
+    }, [serverWindow, activeBetWindow]);
+
     useEffect(() => {
-        if (!activeBetWindow?.expiresAt || activeBetWindow.windowClosedAt) {
+        if (!effectiveWindow?.expiresAt || effectiveWindow.windowClosedAt) {
             setTimeLeft(0);
             return;
         }
-        const tick = () => setTimeLeft(Math.max(0, activeBetWindow.expiresAt - Date.now()));
+        const tick = () => {
+            const approxServerNow = Date.now() + serverSkewMs;
+            setTimeLeft(Math.max(0, effectiveWindow.expiresAt - approxServerNow));
+        };
         tick();
-        const timer = setInterval(tick, 100);
+        const timer = setInterval(tick, 200);
         return () => clearInterval(timer);
-    }, [activeBetWindow]);
+    }, [effectiveWindow, serverSkewMs]);
 
     useEffect(() => {
         const channel = supabase
@@ -255,7 +389,14 @@ export const SpectatorHUD = ({
         });
     }, [chatInput, address, myProfile, roomCode]);
 
-    const placeBet = useCallback(async (betValue: string, betType: BetType) => {
+    const windowOpen = Boolean(
+        effectiveWindow &&
+        effectiveWindow.status === 'open' &&
+        !effectiveWindow.windowClosedAt &&
+        timeLeft > 0,
+    );
+
+    const placeBet = useCallback(async (betValue: string, label: string, betType: BetType = 'winner') => {
         if (!address) {
             toast('Connect wallet to place bets.', 'error');
             return;
@@ -264,110 +405,103 @@ export const SpectatorHUD = ({
             toast('Syncing match room — please wait a moment.', 'error');
             return;
         }
-        if (!activeBetWindow || activeBetWindow.windowClosedAt) return;
-        if (betAmount <= 0 || isBetting) return;
+        if (!windowOpen) {
+            toast('Betting window is closed for this match.', 'error');
+            return;
+        }
+        if (isBetting) return;
 
-        const currentCoins = myProfile?.coins ?? 0;
-        if (currentCoins < betAmount) {
-            toast('Not enough Link Coins for that bet.', 'error');
+        const cleanAmount = Math.floor(Number(betAmount));
+        if (!Number.isInteger(cleanAmount) || cleanAmount < SPECTATOR_BET_MIN_CHIPS || cleanAmount > SPECTATOR_BET_MAX_CHIPS) {
+            toast(`Enter a bet between ${SPECTATOR_BET_MIN_CHIPS} and ${SPECTATOR_BET_MAX_CHIPS.toLocaleString()} CHIPS.`, 'error');
+            return;
+        }
+
+        if (walletChips != null && vault.availableChips + walletChips < cleanAmount) {
+            toast('Not enough CHIPS across Match Vault and Wallet for this bet.', 'error');
             return;
         }
 
         setIsBetting(true);
+        setBetStatusStep(vault.availableChips >= cleanAmount ? 'Placing bet from Vault…' : 'Checking CHIPS allowance…');
+
         try {
-            updateMyProfileOptimistic({ coins: currentCoins - betAmount });
-
-            const bet: SpectatorBet = {
-                match_id: matchId,
-                bet_type: betType,
-                bet_value: betValue,
-                amount: betAmount,
-                odds: betType === 'dice_roll' ? 5.0 : 2.0,
-                potential_payout: Math.floor(betAmount * (betType === 'dice_roll' ? 5.0 : 2.0)),
-                window_closed_at: new Date(activeBetWindow.expiresAt).toISOString(),
-            };
-
             const sessionId = await ensureAppSession({ context: 'betting' });
             if (!sessionId) throw new Error('Sign-in required to place bets');
+
+            // 1. Ensure Vault has enough balance; if short, SignWaitModal requests CHIPS approval + deficit deposit.
+            if (vault.availableChips < cleanAmount) {
+                setBetStatusStep('Approve CHIPS deposit to Match Vault…');
+            }
+            await vault.ensureVaultForStake(cleanAmount, sessionId);
+
+            setBetStatusStep('Confirming pool entry…');
             const response = await fetch('/api/spectator-bets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ walletAddress: address, sessionId, ...bet }),
+                body: JSON.stringify({
+                    walletAddress: address,
+                    sessionId,
+                    matchId,
+                    betType,
+                    betValue,
+                    amount: cleanAmount,
+                    actionId: crypto.randomUUID(),
+                }),
             });
             const body = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                updateMyProfileOptimistic({ coins: currentCoins });
-                toast(body?.error || 'Failed to transmit bet to node.', 'error');
-            } else {
-                setSelectedBetValue(betValue);
-                if (body?.id) {
-                    setMyBet({ id: body.id, odds: betType === 'dice_roll' ? 5.0 : 2.0, amount: betAmount });
-                }
-                const name = myProfile?.username ?? address.slice(0, 6) + '…';
-                const odds = betType === 'dice_roll' ? 5.0 : 2.0;
-                const callout: ChatMessage = {
-                    id: crypto.randomUUID(),
-                    author: '',
-                    text: `${name} backed ${betValue} @ ${odds}× · ${betAmount.toLocaleString()}`,
-                    createdAt: Date.now(),
-                    system: true,
-                };
-                setChatMessages(prev => [...prev.slice(-49), callout]);
-                void supabase.channel(`chat-${roomCode}`).send({
-                    type: 'broadcast', event: 'spectator-chat', payload: callout,
-                });
+                toast(body?.error || 'Failed to place bet.', 'error');
+                await fetchBetSummary(sessionId);
+                return;
             }
-        } catch (err) {
-            updateMyProfileOptimistic({ coins: currentCoins });
-            toast((err as Error)?.message || 'Bet failed.', 'error');
-        } finally {
-            setIsBetting(false);
-        }
-    }, [address, activeBetWindow, betAmount, matchId, isBetting, myProfile, roomCode, ensureAppSession, updateMyProfileOptimistic, toast]);
 
-    useEffect(() => {
-        setMyBet(null);
-        setSelectedBetValue(null);
-    }, [activeBetWindow?.windowId, activeBetWindow?.expiresAt]);
+            setSelectedBetValue(betValue);
+            await Promise.all([
+                fetchBetSummary(sessionId),
+                vault.refresh(sessionId),
+                chipsBal.refresh().catch(() => undefined),
+            ]);
 
-    const windowOpen = !!activeBetWindow && !activeBetWindow.windowClosedAt && timeLeft > 0;
+            toast(`Backed ${label} with ${cleanAmount.toLocaleString()} CHIPS`, 'success');
 
-    const handleCashOut = useCallback(async () => {
-        if (!address || !myBet || !windowOpen || isCashingOut) return;
-        setIsCashingOut(true);
-        try {
-            const sessionId = await ensureAppSession({ context: 'betting' });
-            if (!sessionId) throw new Error('Sign-in required to cash out');
-            const response = await fetch('/api/spectator-bets', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ walletAddress: address, sessionId, action: 'cash_out', betId: myBet.id }),
-            });
-            const body = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(body?.error || 'Cash-out rejected');
-            const credited = Number(body?.credited ?? 0);
-            updateMyProfileOptimistic({ coins: (myProfile?.coins ?? 0) + credited });
-            const name = profileRef.current?.username ?? address.slice(0, 6) + '…';
-            const feed: ChatMessage = {
+            const name = myProfile?.username ?? address.slice(0, 6) + '…';
+            const callout: ChatMessage = {
                 id: crypto.randomUUID(),
                 author: '',
-                text: `${name} cashed out +${credited.toLocaleString()}`,
+                text: `${name} backed ${label} · ${cleanAmount.toLocaleString()} CHIPS`,
                 createdAt: Date.now(),
                 system: true,
             };
-            setChatMessages(prev => [...prev.slice(-49), feed]);
+            setChatMessages(prev => [...prev.slice(-49), callout]);
             void supabase.channel(`chat-${roomCode}`).send({
-                type: 'broadcast', event: 'spectator-chat', payload: feed,
+                type: 'broadcast', event: 'spectator-chat', payload: callout,
             });
-            setMyBet(null);
-            setSelectedBetValue(null);
-        } catch {
-            /* window locked or bet gone — leave state untouched */
+        } catch (err) {
+            const msg = (err as Error)?.message || 'Bet failed.';
+            if (!msg.toLowerCase().includes('rejected') && !msg.toLowerCase().includes('cancel')) {
+                toast(msg, 'error');
+            }
         } finally {
-            setIsCashingOut(false);
+            setIsBetting(false);
+            setBetStatusStep(null);
         }
-    }, [address, myBet, windowOpen, isCashingOut, myProfile, roomCode, ensureAppSession, updateMyProfileOptimistic]);
+    }, [
+        address,
+        matchId,
+        windowOpen,
+        isBetting,
+        betAmount,
+        walletChips,
+        vault,
+        ensureAppSession,
+        fetchBetSummary,
+        chipsBal,
+        toast,
+        myProfile,
+        roomCode,
+    ]);
 
     useEffect(() => {
         if (!address || !matchId) return;
@@ -378,21 +512,46 @@ export const SpectatorHUD = ({
         }
         let cancelled = false;
         (async () => {
-            const sessionId = await ensureAppSession().catch(() => null);
+            const sessionId = peekAppSession() || (await ensureAppSession().catch(() => null));
             if (!sessionId || cancelled) return;
-            const response = await fetch(`/api/spectator-bets?matchId=${encodeURIComponent(matchId)}&walletAddress=${encodeURIComponent(address)}&sessionId=${encodeURIComponent(sessionId)}`);
+            const response = await fetch(`/api/spectator-bets?matchId=${encodeURIComponent(matchId)}&walletAddress=${encodeURIComponent(address)}`, {
+                headers: { Authorization: `Bearer ${sessionId}` },
+            });
             const data = response.ok ? await response.json() : [];
             if (!cancelled && Array.isArray(data)) {
-                setFollowedBets((data as any[]).filter(row => ids.includes(String(row.player_id).toLowerCase())) as unknown as (SpectatorBet & { id: string })[]);
+                setFollowedBets(
+                    (data as any[])
+                        .filter(row => ids.includes(String(row.player_id).toLowerCase()))
+                        .map(row => ({
+                            id: String(row.id),
+                            bet_type: String(row.bet_type),
+                            bet_value: String(row.bet_value),
+                        })),
+                );
             }
         })();
         return () => { cancelled = true; };
-    }, [address, matchId, ensureAppSession]);
+    }, [address, matchId, peekAppSession, ensureAppSession]);
 
-    const totalWindowMs = activeBetWindow?.expiresAt
-        ? Math.max(3000, activeBetWindow.expiresAt - (activeBetWindow.openedAt ?? activeBetWindow.expiresAt - 90_000))
+    const myOpenStakesBySide = useMemo(() => {
+        const map = new Map<string, number>();
+        for (const b of myBets) {
+            if (b.status !== 'open' && b.status !== 'won') continue;
+            const key = String(b.bet_value).trim().toLowerCase();
+            map.set(key, (map.get(key) ?? 0) + Math.floor(Number(b.amount || 0)));
+        }
+        return map;
+    }, [myBets]);
+
+    const totalMyStaked = useMemo(
+        () => myBets.reduce((sum, b) => sum + (b.status === 'cancelled' ? 0 : Math.floor(Number(b.amount || 0))), 0),
+        [myBets],
+    );
+
+    const totalWindowMs = effectiveWindow?.expiresAt
+        ? Math.max(3000, effectiveWindow.expiresAt - effectiveWindow.openedAt)
         : 90_000;
-    const progressPct = activeBetWindow?.expiresAt
+    const progressPct = effectiveWindow?.expiresAt
         ? Math.min(100, Math.max(0, (timeLeft / totalWindowMs) * 100))
         : 0;
 
@@ -406,7 +565,7 @@ export const SpectatorHUD = ({
                 height: `${drawerHeight}px`,
                 backgroundColor: '#090d16',
             }}
-            className={`fixed inset-x-2.5 bottom-3 lg:inset-x-auto lg:left-auto lg:right-4 lg:bottom-4 lg:w-[320px] z-[120] flex flex-col pointer-events-auto rounded-[22px] border border-cyan-400/25 shadow-[0_12px_40px_rgba(0,0,0,0.85)] overflow-hidden ${
+            className={`fixed inset-x-2.5 bottom-3 lg:inset-x-auto lg:left-auto lg:right-4 lg:bottom-4 lg:w-[332px] z-[120] flex flex-col pointer-events-auto rounded-[22px] border border-cyan-400/25 shadow-[0_12px_40px_rgba(0,0,0,0.85)] overflow-hidden ${
                 isDragging ? 'select-none' : 'transition-[height] duration-150 ease-out'
             }`}
         >
@@ -419,15 +578,15 @@ export const SpectatorHUD = ({
                             initial={{ opacity: 0, scale: 0.9, y: -12 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.9, y: -12 }}
-                            className={`px-4 py-2 rounded-full border shadow-xl flex items-center gap-2 ${
+                            className={`px-3.5 py-2 rounded-2xl border shadow-xl flex items-center gap-2 text-center ${
                                 res.status === 'won'
                                     ? 'bg-emerald-500 border-emerald-300 text-slate-950'
-                                    : 'bg-red-500 border-red-300 text-white'
+                                    : 'bg-slate-800 border-white/20 text-white'
                             }`}
                         >
                             <FiAward className="w-4 h-4 shrink-0" />
                             <span className="font-bold text-ludo-xs uppercase tracking-wider">
-                                {res.status === 'won' ? 'Big Win · Coins credited' : 'Bet Settled · Better luck next'}
+                                {res.text}
                             </span>
                         </motion.div>
                     ))}
@@ -442,12 +601,10 @@ export const SpectatorHUD = ({
                 onPointerCancel={handleDragEnd}
                 className="shrink-0 relative z-20 touch-none cursor-ns-resize bg-[#0d1422] border-b border-white/10"
             >
-                {/* Visual Grip */}
                 <div className="w-full flex justify-center pt-1.5 pb-0.5 pointer-events-none">
                     <div className="w-10 h-1 rounded-full bg-white/30" />
                 </div>
 
-                {/* Compact Header Row (always visible, fits 1-line bar cleanly) */}
                 <div className="flex items-center justify-between gap-2 px-3.5 pb-2 pt-0.5">
                     <div className="flex items-center gap-2 min-w-0">
                         <span className={`w-2 h-2 rounded-full shrink-0 ${windowOpen ? 'bg-pink-400 animate-pulse' : 'bg-cyan-400'}`} />
@@ -504,7 +661,7 @@ export const SpectatorHUD = ({
                                     : 'bg-[#101726] text-white/60 border border-white/10 hover:text-white'
                             }`}
                         >
-                            Bet & Oracle
+                            Bet &amp; Oracle
                         </button>
                         <button
                             type="button"
@@ -523,7 +680,7 @@ export const SpectatorHUD = ({
                     <div className="flex-1 min-h-0 flex flex-col gap-2.5 p-3 overflow-y-auto no-scrollbar bg-[#090d16] relative z-10">
                         {/* ── Oracle & Betting Sections ──────────────────── */}
                         <div className={`flex-col gap-2.5 ${mobileTab === 'bet' ? 'flex' : 'hidden lg:flex'}`}>
-                            {/* AI Oracle Engine (solid surface) */}
+                            {/* AI Oracle Engine */}
                             <div className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-[#101726]">
                                 <div className="flex items-center gap-2 mb-2">
                                     <FiTrendingUp className="w-3.5 h-3.5 text-cyan-400" />
@@ -562,7 +719,7 @@ export const SpectatorHUD = ({
                                 </div>
                             </div>
 
-                            {/* Betting Window (solid surface) */}
+                            {/* Pari-Mutuel Winner Betting Pool */}
                             <div
                                 className="px-3.5 py-3 rounded-2xl border flex flex-col gap-2.5 transition-all"
                                 style={{
@@ -570,17 +727,21 @@ export const SpectatorHUD = ({
                                     borderColor: windowOpen ? '#ec489980' : 'rgba(255, 255, 255, 0.1)',
                                 }}
                             >
-                                <div className="flex items-center justify-between">
-                                    <span className="text-ludo-xs font-bold text-white/80 uppercase tracking-[0.16em]">
-                                        {windowOpen ? (activeBetWindow?.betType?.replace('_', ' ').toUpperCase() ?? 'BET LIVE') : 'Next Window'}
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-ludo-xs font-bold text-white/85 uppercase tracking-[0.14em] truncate">
+                                        {windowOpen ? 'WINNER POOL OPEN' : 'POOL LOCKED'}
                                     </span>
-                                    {windowOpen && (
-                                        <div className="flex items-center gap-1">
+                                    {windowOpen ? (
+                                        <div className="flex items-center gap-1 shrink-0">
                                             <FiZap className="w-3.5 h-3.5 text-pink-400" />
                                             <span className="text-ludo-xs font-mono font-bold text-pink-300 tabular-nums">
-                                                {(timeLeft / 1000).toFixed(1)}s
+                                                {(timeLeft / 1000).toFixed(0)}s
                                             </span>
                                         </div>
+                                    ) : (
+                                        <span className="text-ludo-xs font-mono font-bold text-white/50 shrink-0">
+                                            {poolSummary.totalPot.toLocaleString()} CHIPS
+                                        </span>
                                     )}
                                 </div>
 
@@ -594,94 +755,169 @@ export const SpectatorHUD = ({
                                     </div>
                                 )}
 
-                                {windowOpen && activeBetWindow?.betType === 'dice_roll' && (
-                                    <div className="grid grid-cols-3 gap-1.5">
-                                        {[1, 2, 3, 4, 5, 6].map(val => (
-                                            <button
-                                                key={val}
-                                                type="button"
-                                                disabled={isBetting || !!selectedBetValue}
-                                                onClick={() => placeBet(String(val), 'dice_roll')}
-                                                className="py-1.5 min-h-[40px] rounded-xl text-ludo-sm font-bold border transition-all flex flex-col items-center justify-center leading-none gap-0.5 active:scale-95"
-                                                style={{
-                                                    backgroundColor: selectedBetValue === String(val) ? '#ec4899' : '#24172b',
-                                                    borderColor: selectedBetValue === String(val) ? '#ec4899' : '#3b2447',
-                                                    color: selectedBetValue === String(val) ? '#000' : '#fff',
-                                                    opacity: isBetting ? 0.5 : 1,
-                                                }}
-                                            >
-                                                <span>{val}</span>
-                                                <span className="text-ludo-xs font-mono opacity-75">5×</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                                {/* Vault Balance & Pool Info Strip */}
+                                <div className="flex items-center justify-between text-ludo-xs font-mono text-white/65 bg-black/30 rounded-xl px-2.5 py-1.5 border border-white/5">
+                                    <span className="truncate">
+                                        Vault: <strong className="text-cyan-300">{vault.availableChips.toLocaleString()}</strong>
+                                    </span>
+                                    <span className="truncate text-right">
+                                        Pool: <strong className="text-amber-300">{formatCompactChips(poolSummary.totalPot)}</strong>
+                                    </span>
+                                </div>
 
-                                {windowOpen && activeBetWindow?.betType === 'winner' && (
-                                    <div className="grid grid-cols-2 gap-1.5">
-                                        {seatedColors.map(color => (
+                                {/* Team / Color Pick Buttons (Pari-Mutuel Pool Share, no fixed 2x/5x) */}
+                                <div className="grid grid-cols-2 gap-1.5">
+                                    {betChoices.map((choice) => {
+                                        const stats = poolSummary.bySide[choice.value] ?? { amount: 0, count: 0, sharePct: 0 };
+                                        const myStakeOnSide = myOpenStakesBySide.get(choice.value) ?? 0;
+                                        const isPicked = selectedBetValue === choice.value || myStakeOnSide > 0;
+                                        const primaryColor = choice.colors[0];
+
+                                        return (
                                             <button
-                                                key={color}
+                                                key={choice.value}
                                                 type="button"
-                                                disabled={isBetting || !!selectedBetValue}
-                                                onClick={() => placeBet(color, 'winner')}
-                                                className="px-2.5 py-2 min-h-[42px] rounded-xl text-ludo-xs font-bold border transition-all capitalize flex items-center justify-between gap-1 active:scale-95 disabled:opacity-60"
+                                                disabled={isBetting || !windowOpen}
+                                                onClick={() => void placeBet(choice.value, choice.label, 'winner')}
+                                                className="px-2.5 py-2 min-h-[46px] rounded-xl text-ludo-xs font-bold border transition-all flex flex-col justify-between gap-1 active:scale-95 disabled:opacity-55 text-left"
                                                 style={{
-                                                    backgroundColor: selectedBetValue === color
-                                                        ? COLOR_STYLES[color]?.bg ?? '#fff'
-                                                        : '#24172b',
-                                                    borderColor: `${COLOR_STYLES[color]?.bg ?? '#fff'}75`,
-                                                    color: selectedBetValue === color ? COLOR_STYLES[color]?.text : '#fff',
+                                                    backgroundColor: isPicked ? '#3b1530' : '#24172b',
+                                                    borderColor: isPicked ? '#ec4899' : `${COLOR_STYLES[primaryColor]?.bg ?? '#fff'}55`,
+                                                    color: '#fff',
                                                 }}
                                             >
-                                                <span className="flex items-center gap-1.5 truncate">
-                                                    <span
-                                                        className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/30"
-                                                        style={{ background: COLOR_STYLES[color]?.bg ?? '#fff' }}
-                                                    />
-                                                    <span>{color}</span>
+                                                <span className="flex items-center justify-between gap-1 w-full">
+                                                    <span className="flex items-center gap-1 min-w-0">
+                                                        {choice.colors.map((c) => (
+                                                            <span
+                                                                key={c}
+                                                                className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/30"
+                                                                style={{ background: COLOR_STYLES[c]?.bg ?? '#fff' }}
+                                                            />
+                                                        ))}
+                                                        <span className="capitalize truncate">{choice.label}</span>
+                                                    </span>
+                                                    <span className="font-mono text-white/70 shrink-0">
+                                                        {stats.sharePct > 0 ? `${stats.sharePct}%` : '0%'}
+                                                    </span>
                                                 </span>
-                                                <span className="font-mono opacity-85 shrink-0">2×</span>
+                                                <span className="text-ludo-xs font-mono text-white/60 flex items-center justify-between w-full">
+                                                    <span>{formatCompactChips(stats.amount)}</span>
+                                                    {myStakeOnSide > 0 && (
+                                                        <span className="text-emerald-300 font-bold">
+                                                            You: {formatCompactChips(myStakeOnSide)}
+                                                        </span>
+                                                    )}
+                                                </span>
                                             </button>
-                                        ))}
-                                    </div>
-                                )}
+                                        );
+                                    })}
+                                </div>
 
                                 {windowOpen && (
-                                    <div className="flex gap-1.5">
-                                        {BET_PRESETS.map(p => (
+                                    <>
+                                        {/* Presets: 100, 500, 1K, 10K, 100K + Custom */}
+                                        <div className="grid grid-cols-3 gap-1.5">
+                                            {SPECTATOR_BET_PRESETS.map((p) => {
+                                                const active = !customMode && betAmount === p;
+                                                return (
+                                                    <button
+                                                        key={p}
+                                                        type="button"
+                                                        disabled={isBetting}
+                                                        onClick={() => {
+                                                            setCustomMode(false);
+                                                            setBetAmount(p);
+                                                        }}
+                                                        className="py-1.5 min-h-[34px] rounded-lg text-ludo-xs font-mono font-bold uppercase border transition-all"
+                                                        style={{
+                                                            backgroundColor: active ? '#3b1530' : '#201326',
+                                                            borderColor: active ? '#ec4899' : '#3a2244',
+                                                            color: active ? '#f9a8d4' : 'rgba(255,255,255,0.75)',
+                                                        }}
+                                                    >
+                                                        {p >= 1000 ? `${p / 1000}K` : p}
+                                                    </button>
+                                                );
+                                            })}
                                             <button
-                                                key={p}
                                                 type="button"
-                                                onClick={() => setBetAmount(p)}
-                                                className="flex-1 py-1 min-h-[38px] rounded-lg text-ludo-xs font-mono font-bold uppercase border transition-all"
+                                                disabled={isBetting}
+                                                onClick={() => {
+                                                    setCustomMode(true);
+                                                    const parsed = Math.floor(Number(customInput));
+                                                    if (Number.isFinite(parsed) && parsed > 0) setBetAmount(parsed);
+                                                }}
+                                                className="py-1.5 min-h-[34px] rounded-lg text-ludo-xs font-mono font-bold uppercase border transition-all"
                                                 style={{
-                                                    backgroundColor: betAmount === p ? '#3b1530' : '#201326',
-                                                    borderColor: betAmount === p ? '#ec4899' : '#3a2244',
-                                                    color: betAmount === p ? '#f9a8d4' : 'rgba(255,255,255,0.7)',
+                                                    backgroundColor: customMode ? '#3b1530' : '#201326',
+                                                    borderColor: customMode ? '#ec4899' : '#3a2244',
+                                                    color: customMode ? '#f9a8d4' : 'rgba(255,255,255,0.75)',
                                                 }}
                                             >
-                                                {p >= 1000 ? `${p / 1000}k` : p}
+                                                Custom
                                             </button>
-                                        ))}
-                                    </div>
-                                )}
+                                        </div>
 
-                                {windowOpen && myBet && (
-                                    <button
-                                        type="button"
-                                        onClick={handleCashOut}
-                                        disabled={isCashingOut}
-                                        className="w-full py-2 min-h-[40px] rounded-xl text-ludo-xs font-bold uppercase tracking-[0.14em] bg-[#102d25] border border-emerald-400/60 text-emerald-200 hover:bg-[#163d32] active:scale-95 transition-all disabled:opacity-60"
-                                    >
-                                        {isCashingOut ? 'Cashing out…' : `Cash out +${Math.floor(myBet.amount * myBet.odds * 0.5).toLocaleString()}`}
-                                    </button>
+                                        {customMode && (
+                                            <div className="flex items-center gap-1.5">
+                                                <input
+                                                    type="number"
+                                                    min={SPECTATOR_BET_MIN_CHIPS}
+                                                    max={SPECTATOR_BET_MAX_CHIPS}
+                                                    step={1}
+                                                    value={customInput}
+                                                    onChange={(e) => {
+                                                        setCustomInput(e.target.value);
+                                                        const parsed = Math.floor(Number(e.target.value));
+                                                        if (Number.isFinite(parsed) && parsed > 0) {
+                                                            setBetAmount(parsed);
+                                                        }
+                                                    }}
+                                                    placeholder="Custom CHIPS"
+                                                    autoComplete="off"
+                                                    autoCorrect="off"
+                                                    autoCapitalize="none"
+                                                    spellCheck={false}
+                                                    className="flex-1 min-w-0 bg-[#090d16] border border-pink-500/45 rounded-xl px-2.5 py-1.5 text-ludo-xs font-mono text-white placeholder-white/35 outline-none focus:border-pink-400"
+                                                />
+                                                <span className="text-ludo-xs font-mono text-white/60 shrink-0">
+                                                    CHIPS
+                                                </span>
+                                            </div>
+                                        )}
+
+                                        <div className="text-ludo-xs font-mono text-white/55 flex items-center justify-between gap-2">
+                                            <span className="truncate">
+                                                {betStatusStep
+                                                    ? betStatusStep
+                                                    : vault.availableChips >= betAmount
+                                                      ? '0-gas instant Vault bet'
+                                                      : 'Wallet will prompt CHIPS Vault top-up'}
+                                            </span>
+                                            {walletChips != null && (
+                                                <span className="shrink-0 text-white/45">
+                                                    Wallet: {formatCompactChips(walletChips)}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </>
                                 )}
 
                                 {!windowOpen && (
-                                    <p className="text-ludo-xs text-white/55 text-center font-bold uppercase tracking-widest py-1.5">
-                                        Awaiting Market Open…
+                                    <p className="text-ludo-xs text-white/60 text-center font-bold uppercase tracking-wider py-1">
+                                        {effectiveWindow
+                                            ? effectiveWindow.status === 'settled'
+                                                ? 'Pool Settled · Winnings in Claim Hub'
+                                                : 'Betting Window Closed · Pool Locked'
+                                            : 'Awaiting Market Open…'}
                                     </p>
+                                )}
+
+                                {totalMyStaked > 0 && (
+                                    <div className="text-ludo-xs font-mono text-emerald-300/90 text-center border-t border-white/10 pt-1.5">
+                                        Your active wager: {totalMyStaked.toLocaleString()} CHIPS · 5% fee on win, 100% refund if unopposed
+                                    </div>
                                 )}
                             </div>
 
@@ -693,13 +929,13 @@ export const SpectatorHUD = ({
                                     </span>
                                     {followedBets.slice(0, 3).map(b => (
                                         <div key={b.id} className="flex items-center gap-2">
-                                            <span className="flex-1 min-w-0 text-ludo-xs font-bold text-white/85 truncate">
-                                                {b.bet_value} @ {b.bet_type === 'dice_roll' ? '5×' : '2×'}
+                                            <span className="flex-1 min-w-0 text-ludo-xs font-bold text-white/85 truncate capitalize">
+                                                {b.bet_value}
                                             </span>
                                             <button
                                                 type="button"
-                                                onClick={() => placeBet(b.bet_value, b.bet_type as BetType)}
-                                                disabled={isBetting || !!selectedBetValue || !windowOpen}
+                                                onClick={() => void placeBet(b.bet_value, b.bet_value, b.bet_type as BetType)}
+                                                disabled={isBetting || !windowOpen}
                                                 className="shrink-0 px-3 min-h-[34px] rounded-lg text-ludo-xs font-bold uppercase tracking-wider bg-[#2b2310] border border-yellow-500/50 text-yellow-200 hover:bg-yellow-400 hover:text-slate-950 active:scale-95 transition-all disabled:opacity-40"
                                             >
                                                 Mirror
@@ -779,7 +1015,7 @@ export const SpectatorHUD = ({
                                     autoCapitalize="sentences"
                                     spellCheck={false}
                                     enterKeyHint="send"
-                                    className="flex-1 bg-[#090d16] border border-white/15 rounded-xl px-3 py-1.5 text-xs font-medium text-white placeholder-white/35 outline-none focus:border-cyan-400/60 transition-all"
+                                    className="flex-1 bg-[#090d16] border border-white/15 rounded-xl px-3 py-1.5 text-ludo-xs font-medium text-white placeholder-white/35 outline-none focus:border-cyan-400/60 transition-all"
                                 />
                                 <button
                                     type="button"

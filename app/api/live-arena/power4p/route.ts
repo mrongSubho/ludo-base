@@ -8,6 +8,11 @@ import { getBestMove } from '@/lib/aiEngine';
 import { requireAppSession, requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 import { getDemoExhibitionByKey } from '@/lib/arena/demoArenas';
+import {
+  SPECTATOR_BET_WINDOW_DEFAULT_SEC,
+  computeBetWindowBounds,
+  settleSpectatorMatchBets,
+} from '@/lib/spectatorBetting';
 import type { GameState, PlayerColor, ColorCorner, PowerType } from '@/lib/types';
 import type { Json } from '@/types/database.types';
 
@@ -51,7 +56,7 @@ export async function POST(request: Request) {
     const sb = db();
     const existing = await sb
       .from('live_matches')
-      .select('match_id, room_code, bet_window_status')
+      .select('match_id, room_code, bet_window_status, window_closed_at')
       .eq('arena_key', ex.arenaKey)
       .maybeSingle();
 
@@ -63,21 +68,21 @@ export async function POST(request: Request) {
         .maybeSingle();
       const s = existingState.data?.state as unknown as GameState | undefined;
 
-      // If previous AI match hasn't finished yet, keep it alive and ensure betting window is open
+      // If previous AI match hasn't finished yet, keep it alive and enforce hard window close once expired.
       if (!s?.winner) {
-        if (existing.data.bet_window_status !== 'open') {
-          const openIso = new Date().toISOString();
-          const closeIso = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+        if (
+          existing.data.bet_window_status === 'open' &&
+          existing.data.window_closed_at &&
+          Date.now() >= Date.parse(existing.data.window_closed_at)
+        ) {
           await sb
             .from('live_matches')
             .update({
-              bet_window_status: 'open',
-              current_bet_type: 'winner',
-              window_opened_at: openIso,
-              window_closed_at: closeIso,
-              updated_at: openIso,
+              bet_window_status: 'closed',
+              updated_at: new Date().toISOString(),
             })
-            .eq('match_id', existing.data.match_id);
+            .eq('match_id', existing.data.match_id)
+            .eq('bet_window_status', 'open');
         }
         return NextResponse.json({
           matchId: existing.data.match_id,
@@ -185,8 +190,9 @@ export async function POST(request: Request) {
     });
     if (stateError) throw stateError;
 
-    const nowIso = new Date().toISOString();
-    const closeIso = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const bounds = computeBetWindowBounds(Date.now(), SPECTATOR_BET_WINDOW_DEFAULT_SEC);
+    const nowIso = bounds.windowOpenedAt;
+    const closeIso = bounds.windowClosedAt;
     const { error: liveError } = await sb.from('live_matches').insert({
       match_id: matchId,
       room_code: roomCodeToUse,
@@ -281,8 +287,21 @@ export async function PATCH(request: Request) {
     const state = row.data.state as unknown as GameState;
     if (state.winner) {
       await sb.from('live_matches').update({ bet_window_status: 'closed', window_closed_at: now }).eq('match_id', matchId);
+      await settleSpectatorMatchBets({
+        matchId,
+        matchShape: ex.matchShape,
+        winnerRaw: String(state.winner),
+      });
       return NextResponse.json({ claimed: true, ended: true });
     }
+
+    // Hard-close expired betting window on tick progression so directory & UI stay synced.
+    await sb
+      .from('live_matches')
+      .update({ bet_window_status: 'closed', updated_at: now })
+      .eq('match_id', matchId)
+      .eq('bet_window_status', 'open')
+      .lt('window_closed_at', now);
 
     const activeColors = [...seatedColorsFor(ex.matchShape)];
     const color = state.currentPlayer as PlayerColor;
@@ -323,6 +342,11 @@ export async function PATCH(request: Request) {
 
     if (next.winner) {
       await sb.from('live_matches').update({ bet_window_status: 'closed', window_closed_at: now }).eq('match_id', matchId);
+      await settleSpectatorMatchBets({
+        matchId,
+        matchShape: ex.matchShape,
+        winnerRaw: String(next.winner),
+      });
     }
 
     return NextResponse.json({ claimed: true, advanced: !!updated.data, ended: Boolean(next.winner) });
