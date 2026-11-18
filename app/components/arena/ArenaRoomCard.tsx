@@ -205,6 +205,12 @@ export function ArenaRoomCard({
                         <LuCoins className="w-3 h-3" />
                         <span>{formatArenaChips(room.wager)}</span>
                     </span>
+
+                    {room.isDemoAi && (
+                        <span className="px-1.5 py-0.5 rounded bg-white/10 border border-white/15 font-mono text-ludo-xs font-bold uppercase text-white/75">
+                            AI
+                        </span>
+                    )}
                 </div>
 
                 {/* Right Status */}

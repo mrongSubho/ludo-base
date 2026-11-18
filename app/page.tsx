@@ -63,6 +63,8 @@ import { FirstRunSetupPanel } from './components/FirstRunSetupPanel';
 import { useSpectatorSync } from '@/hooks/useSpectatorSync';
 import { useSpectatorPresence } from '@/hooks/useSpectatorPresence';
 import { useScreenWakeLock } from '@/hooks/useScreenWakeLock';
+import { getDemoExhibitionByRoomCode } from '@/lib/arena/demoArenas';
+import type { ArenaDirectoryRoom } from '@/lib/arena/types';
 import { buildStreamMessage } from '@/lib/matchProof';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
@@ -399,30 +401,37 @@ export default function Page() {
    * tick; other spectators watch the same broadcast stream without writing.
    */
   const [arenaIsHost, setArenaIsHost] = useState(false);
+  const [watchingArenaKey, setWatchingArenaKey] = useState<string | null>(null);
 
   const handleWatchMatch = useCallback(async (roomCode: string) => {
     // REA-17: the arena bootstrap was unguarded, so a slow/hostile endpoint hung
     // the listener on an icon with no feedback. Bounded + exception-safe.
     let resolvedRoom = roomCode;
-    if (roomCode === 'ARENA-POWER-4P') {
+    const demoExhibition = getDemoExhibitionByRoomCode(roomCode);
+    if (demoExhibition) {
       const sid = await ensureAppSession();
       if (!sid || !address) return;
       const qs = new URLSearchParams({
         walletAddress: address.toLowerCase(),
         sessionId: sid,
+        arenaKey: demoExhibition.arenaKey,
       });
       const response = await fetch(`/api/live-arena/power4p?${qs.toString()}`, { method: 'POST', signal: AbortSignal.timeout(15000) });
       const data = await response.json();
       if (!response.ok || !data.roomCode) return;
       resolvedRoom = data.roomCode;
+      setWatchingArenaKey(data.arenaKey || demoExhibition.arenaKey);
       setArenaIsHost(Boolean(data.isHost));
+    } else {
+      setWatchingArenaKey(null);
+      setArenaIsHost(false);
     }
     setSpectatingRoomCode(resolvedRoom);
     setAppState('spectating');
   }, [address, ensureAppSession]);
 
   useEffect(() => {
-    if (appState !== 'spectating' || spectatingRoomCode !== 'ARENA-POWER-4P') return;
+    if (appState !== 'spectating' || !watchingArenaKey) return;
     // Not the host: watch only. Sending a tick would just earn a 403.
     if (!arenaIsHost || !address) return;
     const authorityId = crypto.randomUUID();
@@ -432,7 +441,7 @@ export default function Page() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        arenaKey: 'power4p-ai',
+        arenaKey: watchingArenaKey,
         authorityId,
         walletAddress: address.toLowerCase(),
         sessionId: sid,
@@ -441,7 +450,7 @@ export default function Page() {
     void tick();
     const timer = window.setInterval(tick, 3000);
     return () => window.clearInterval(timer);
-  }, [appState, spectatingRoomCode, arenaIsHost, address, peekAppSession]);
+  }, [appState, watchingArenaKey, arenaIsHost, address, peekAppSession]);
 
   const handleLeaveSpectating = useCallback(() => {
     setSpectatingRoomCode(null);
@@ -569,7 +578,7 @@ export default function Page() {
 
    // REA-24: useCallback so memoized panels receiving these handlers (lobby,
    // arena, board chrome) don't re-render on every unrelated Page render.
-   const handlePlayNow = useCallback(async (isBotOverride?: boolean) => {
+   const handlePlayNow = useCallback(async (isBotOverride?: boolean, shapeOverride?: '1v1' | '2v2' | '4P') => {
     const effectiveIsBotMatch = isBotOverride ?? isBotMatch;
     let resolvedMatchId = gameState?.matchId;
 
@@ -622,9 +631,9 @@ export default function Page() {
 
     if (isLocalMatch) {
       // ── ARM 1: OFFLINE / BOT / LOCAL MATCH ──
-      const effectiveMatchType = playerCount;
+      const effectiveMatchType = shapeOverride ?? playerCount;
       const cc = assignCornersForShape(effectiveMatchType);
-      let players = shufflePlayers(playerCount, effectiveIsBotMatch, cc) as Player[];
+      let players = shufflePlayers(effectiveMatchType, effectiveIsBotMatch, cc) as Player[];
 
       const myAddr = address?.toLowerCase();
       if (myAddr && effectiveIsBotMatch) {
@@ -712,6 +721,14 @@ export default function Page() {
     setIsBotMatch(!!isBot);
     setBotDifficulty(difficulty);
     handlePlayNow(!!isBot);
+  }, [handlePlayNow]);
+
+  const handleJoinDemoMatch = useCallback((room: ArenaDirectoryRoom) => {
+    setSelectedMode(room.gameMode);
+    setPlayerCount(room.matchShape);
+    setIsBotMatch(true);
+    setBotDifficulty('pro');
+    void handlePlayNow(true, room.matchShape);
   }, [handlePlayNow]);
 
   return (
@@ -866,6 +883,7 @@ export default function Page() {
                       onClose={closeTab}
                       onSwitchTab={toggle}
                       onWatchMatch={handleWatchMatch}
+                      onJoinDemoMatch={handleJoinDemoMatch}
                       onOpenProfile={(uid: string) => setSelectedProfileAddress(uid)}
                       initialTab={arenaInitialTab}
                       broadcastData={broadcastData}

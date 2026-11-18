@@ -61,10 +61,25 @@ export function useSpectatorSync(roomCode: string | null) {
         let cancelled = false;
 
         const bootstrap = async () => {
-            const { data } = await supabase.from('live_matches').select('match_id').eq('room_code', roomCode).maybeSingle();
+            const { data } = await supabase
+                .from('live_matches')
+                .select('match_id, bet_window_status, current_bet_type')
+                .eq('room_code', roomCode)
+                .maybeSingle();
             if (cancelled) return;
             matchId = data?.match_id || null;
             if (!matchId) return;
+
+            if (data?.bet_window_status === 'open') {
+                updateState({
+                    activeBetWindow: {
+                        windowId: `live-${matchId}`,
+                        betType: data.current_bet_type || 'winner',
+                        expiresAt: Date.now() + 90_000,
+                        windowClosedAt: null,
+                    },
+                });
+            }
 
             // N6 — single resync path (public snapshot; no player session).
             await resyncMatch({
@@ -244,7 +259,7 @@ export function useSpectatorSync(roomCode: string | null) {
                     updateState({ gameState: snap, isConnected: true, seq });
                 },
             });
-        }, 5000);
+        }, 2500);
 
         return () => {
             cancelled = true;

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { serviceDb } from '@/lib/serverAuth';
 import { getClanTagsForWallets } from '@/lib/clan/clanService';
+import { buildDemoArenaRooms, getDemoExhibitionByRoomCode } from './demoArenas';
 import {
     getArenaWagerTier,
     maxSeatsForShape,
@@ -394,7 +395,7 @@ export async function fetchArenaDirectory(): Promise<ArenaDirectoryResponse> {
         }
     }
 
-    return buildArenaDirectoryResponse({
+    const base = buildArenaDirectoryResponse({
         queueRows,
         shoutRows,
         liveMatchRows,
@@ -402,4 +403,19 @@ export async function fetchArenaDirectory(): Promise<ArenaDirectoryResponse> {
         clanTags,
         nowIso,
     });
+
+    const nonDemoRooms = base.rooms.filter((r) => !getDemoExhibitionByRoomCode(r.roomCode));
+    const demoRooms = buildDemoArenaRooms(base.rooms);
+    const rooms = [...nonDemoRooms, ...demoRooms];
+
+    const openCount = rooms.filter((r) => r.kind === 'open').length;
+    const liveCount = rooms.filter((r) => r.kind === 'live').length;
+    const watchingTotal = rooms.reduce((acc, r) => acc + r.spectatorCount, 0);
+    const volumeTotal = rooms.reduce((acc, r) => acc + r.totalBetVolume, 0);
+
+    return {
+        rooms,
+        stats: { openCount, liveCount, watchingTotal, volumeTotal },
+        updatedAt: base.updatedAt,
+    };
 }

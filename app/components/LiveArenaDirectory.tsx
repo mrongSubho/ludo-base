@@ -24,6 +24,7 @@ type ArenaFilter = "all" | "open" | "live" | "vip";
 
 interface LiveArenaContentProps {
     onWatchMatch?: (roomCode: string) => void;
+    onJoinDemoMatch?: (room: ArenaDirectoryRoom) => void;
     onOpenProfile?: (wallet: string) => void;
     onClosePanel?: () => void;
     onStats?: (live: number, watching: number, vol: number, openCount?: number) => void;
@@ -103,6 +104,7 @@ const PredictorsStrip = () => {
 
 export const LiveArenaContent = ({
     onWatchMatch,
+    onJoinDemoMatch,
     onOpenProfile,
     onClosePanel,
     onStats,
@@ -200,6 +202,11 @@ export const LiveArenaContent = ({
 
     const handleJoinSeat = useCallback(
         (room: ArenaDirectoryRoom, seatIndex?: number) => {
+            if (room.joinMode === "ai_match" && onJoinDemoMatch) {
+                onJoinDemoMatch(room);
+                onClosePanel?.();
+                return;
+            }
             if (room.joinMode === "party" && room.roomCode) {
                 window.dispatchEvent(
                     new CustomEvent("join_party", {
@@ -219,7 +226,7 @@ export const LiveArenaContent = ({
             }
             onClosePanel?.();
         },
-        [onClosePanel],
+        [onJoinDemoMatch, onClosePanel],
     );
 
     const openTotal = rooms.filter((r) => r.kind === "open").length;

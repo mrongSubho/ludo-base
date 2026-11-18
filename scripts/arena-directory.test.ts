@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { formatArenaChips, getArenaWagerTier, ARENA_WAGER_PRESETS } from '../lib/arena/types';
 import { buildArenaDirectoryResponse } from '../lib/arena/directoryService';
+import { buildDemoArenaRooms, getDemoExhibitionByRoomCode } from '../lib/arena/demoArenas';
 
 test('arena directory: full-spectrum wager tiers cover Free through 10M without level gating', () => {
     assert.deepEqual(
@@ -132,4 +133,53 @@ test('arena directory: builds open pools, room shouts, and live matches with hyd
     assert.equal(routeSrc.includes('validation_token'), false);
     assert.equal(routeSrc.includes('join_secret_hash'), false);
     assert.equal(routeSrc.includes('arena_key'), false);
+});
+
+test('arena directory: functional demo AI cards include joinable tables and watchable/bettable exhibitions', () => {
+    const emptyDemo = buildDemoArenaRooms([]);
+    const joinable = emptyDemo.filter((r) => r.joinMode === 'ai_match');
+    const watchable = emptyDemo.filter((r) => r.joinMode === 'watch');
+
+    assert.equal(joinable.length, 3);
+    assert.equal(watchable.length, 3);
+    assert.ok(joinable.every((r) => r.kind === 'open' && r.isDemoAi === true && r.seats.length < r.maxSeats));
+    assert.ok(
+        watchable.every(
+            (r) =>
+                r.kind === 'live' &&
+                r.isDemoAi === true &&
+                r.streamingEnabled === true &&
+                r.betWindowStatus === 'open' &&
+                r.currentBetType === 'winner' &&
+                Boolean(r.roomCode),
+        ),
+    );
+
+    // Suffixed restarted exhibition roomCodes match back cleanly to their exhibition config & hydrate without duplication
+    const matchedSuffixed = getDemoExhibitionByRoomCode('ARENA-VIP-DUEL-9X2K');
+    assert.ok(matchedSuffixed);
+    assert.equal(matchedSuffixed.arenaKey, 'vip-classic-1v1');
+
+    const withDbRow = buildDemoArenaRooms([
+        {
+            ...watchable[1],
+            id: 'db-match-id',
+            matchId: 'db-match-id',
+            roomCode: 'ARENA-VIP-DUEL-9X2K',
+            spectatorCount: 9,
+            totalBetVolume: 750_000,
+        },
+    ]);
+    const vipMerged = withDbRow.find((r) => r.roomCode === 'ARENA-VIP-DUEL-9X2K');
+    assert.ok(vipMerged);
+    assert.equal(vipMerged.spectatorCount, 9);
+    assert.equal(vipMerged.totalBetVolume, 750_000);
+    assert.equal(withDbRow.filter((r) => r.joinMode === 'watch').length, 3);
+
+    const arenaRouteSrc = readFileSync(
+        join(process.cwd(), 'app/api/live-arena/power4p/route.ts'),
+        'utf8',
+    );
+    assert.equal(arenaRouteSrc.includes('validation_token'), false);
+    assert.equal(arenaRouteSrc.includes('join_secret_hash'), false);
 });

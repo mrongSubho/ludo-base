@@ -1,41 +1,23 @@
 import { NextResponse } from 'next/server';
 import { INITIAL_GAME_STATE, getLegalTokenIndices } from '@/lib/gameLogic';
-import { lcg32, rollPowerTypeLcg, resolveNetworkedMove } from '@/lib/engine/core';
-import { getBoardCoordinate } from '@/lib/boardLayout';
+import { lcg32, rollPowerTypeLcg, resolveNetworkedMove, seatedColorsFor } from '@/lib/engine/core';
+import { assignCornersForShape, getBoardCoordinate } from '@/lib/boardLayout';
 import { POWER_TILES_COUNT } from '@/lib/constants';
-import { assignCornersFFA } from '@/lib/boardLayout';
 import { getBestMove } from '@/lib/aiEngine';
 import { requireAppSession, requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
+import { getDemoExhibitionByKey } from '@/lib/arena/demoArenas';
 import type { GameState, PlayerColor, ColorCorner, PowerType } from '@/lib/types';
 import type { Json } from '@/types/database.types';
-
-const ARENA_KEY = 'power4p-ai';
-const ROOM_CODE = 'ARENA-POWER-4P';
-const COLORS: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
 
 function db() {
   return serviceDb();
 }
 
 /**
- * SEC-07: the arena's authority.
- *
- * The arena is AI-vs-AI, but its tick used to run in whichever spectator's
- * browser happened to have it open — `app/page.tsx` sent a PATCH every 3s and
- * the first `.or(authority_id.is.null, …)` write won. That is a deliberate
- * trust-boundary break: any visitor could advance the board, and could win the
- * match for a side.
- *
- * Now host-gated. The **first session-holding caller to bootstrap the arena
- * becomes its host** (`live_matches.host_address`), and only that wallet may
- * drive the tick. Everyone else may still watch; they simply do not tick. If
- * the host goes away, the claim is reclaimable after the same 8s heartbeat
- * window the authority lease already used, so a closed tab does not orphan the
- * arena permanently.
- *
- * There is no money in this match, so the blast radius is the board, not a
- * balance — but a spectator being able to decide a winner is still wrong.
+ * SEC-07: Host-gated AI arena authority.
+ * Only whitelisted demo exhibition keys (`power4p-ai`, `vip-classic-1v1`, `apex-power-2v2`)
+ * may be bootstrapped or ticked; callers cannot supply arbitrary matchIds.
  */
 async function arenaHost(sb: ReturnType<typeof db>, matchId: string): Promise<string | null> {
   const { data } = await sb
@@ -48,123 +30,198 @@ async function arenaHost(sb: ReturnType<typeof db>, matchId: string): Promise<st
 }
 
 /**
- * POST /api/live-arena/power4p — bootstrap the AI arena (session required).
- *
- * Returns `isHost` so the caller knows whether it may drive the tick.
+ * POST /api/live-arena/power4p — bootstrap any whitelisted AI exhibition arena (session required).
  */
 export async function POST(request: Request) {
   try {
-    // SEC-07: a session is required to open the arena at all. Without one there
-    // is nobody who can be its host.
     const { searchParams } = new URL(request.url);
     const expectedWallet = searchParams.get('walletAddress') || undefined;
+    const requestedKey = searchParams.get('arenaKey') || 'power4p-ai';
+    const ex = getDemoExhibitionByKey(requestedKey);
+    if (!ex) {
+      return NextResponse.json({ error: 'Unknown exhibition arenaKey' }, { status: 400 });
+    }
+
     const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
     if (!wallet) {
       return NextResponse.json({ error: 'Session required to watch the arena' }, { status: 401 });
     }
 
     const sb = db();
-    const existing = await sb.from('live_matches').select('match_id, room_code').eq('arena_key', ARENA_KEY).maybeSingle();
+    const existing = await sb
+      .from('live_matches')
+      .select('match_id, room_code, bet_window_status')
+      .eq('arena_key', ex.arenaKey)
+      .maybeSingle();
+
     if (existing.data?.match_id) {
-      return NextResponse.json({
-        matchId: existing.data.match_id,
-        roomCode: existing.data.room_code,
-        // Tells the client whether it may drive the tick, so a non-host
-        // spectator does not PATCH at all.
-        isHost: (await arenaHost(sb, existing.data.match_id)) === wallet,
-      });
+      const existingState = await sb
+        .from('match_states')
+        .select('state')
+        .eq('match_id', existing.data.match_id)
+        .maybeSingle();
+      const s = existingState.data?.state as unknown as GameState | undefined;
+
+      // If previous AI match hasn't finished yet, keep it alive and ensure betting window is open
+      if (!s?.winner) {
+        if (existing.data.bet_window_status !== 'open') {
+          const openIso = new Date().toISOString();
+          const closeIso = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+          await sb
+            .from('live_matches')
+            .update({
+              bet_window_status: 'open',
+              current_bet_type: 'winner',
+              window_opened_at: openIso,
+              window_closed_at: closeIso,
+              updated_at: openIso,
+            })
+            .eq('match_id', existing.data.match_id);
+        }
+        return NextResponse.json({
+          matchId: existing.data.match_id,
+          roomCode: existing.data.room_code,
+          arenaKey: ex.arenaKey,
+          isHost: (await arenaHost(sb, existing.data.match_id)) === wallet,
+        });
+      }
+
+      // Previous AI exhibition ended — detach old arena_key so a fresh AI match starts
+      await sb
+        .from('live_matches')
+        .update({ arena_key: null, bet_window_status: 'closed' })
+        .eq('match_id', existing.data.match_id);
     }
 
-    const cc = assignCornersFFA('4P');
-    // MO-1: the arena is advertised as `power` 4P, so it must actually run power
-    // rules. Seed the same five hidden tiles the real engine expects, from a
-    // committed seed, so respawns are deterministic and replayable.
+    const activeColors = [...seatedColorsFor(ex.matchShape)];
+    const cc = assignCornersForShape(ex.matchShape);
     const powerTileSeed = (crypto.getRandomValues(new Uint32Array(1))[0] >>> 0) || 1;
-    const seedRand = lcg32(powerTileSeed);
     const seededTiles: { r: number; c: number; type: PowerType }[] = [];
-    const takenCells = new Set<string>();
-    while (seededTiles.length < POWER_TILES_COUNT) {
-      const rp = Math.floor(seedRand() * 52);
-      const pt = getBoardCoordinate(rp, 'green', cc);
-      if (!pt) continue;
-      const key = `${pt.r},${pt.c}`;
-      if (takenCells.has(key)) continue;
-      takenCells.add(key);
-      seededTiles.push({ r: pt.r, c: pt.c, type: rollPowerTypeLcg(seedRand) });
+
+    if (ex.gameMode === 'power') {
+      const seedRand = lcg32(powerTileSeed);
+      const takenCells = new Set<string>();
+      while (seededTiles.length < POWER_TILES_COUNT) {
+        const rp = Math.floor(seedRand() * 52);
+        const pt = getBoardCoordinate(rp, activeColors[0], cc);
+        if (!pt) continue;
+        const key = `${pt.r},${pt.c}`;
+        if (takenCells.has(key)) continue;
+        takenCells.add(key);
+        seededTiles.push({ r: pt.r, c: pt.c, type: rollPowerTypeLcg(seedRand) });
+      }
     }
+
     const state: GameState = {
       ...INITIAL_GAME_STATE,
       matchId: `arena-${crypto.randomUUID()}`,
-      playerCount: '4P',
+      playerCount: ex.matchShape,
       isStarted: true,
       status: 'playing',
       botDifficulty: 'pro',
-      currentPlayer: 'green',
+      currentPlayer: activeColors[0],
       powerTileSeed,
       powerTiles: seededTiles,
       lastUpdate: Date.now(),
     };
-    const match = await sb.from('matches').insert({
-      room_code: ROOM_CODE,
-      game_mode: 'power',
-      participants: COLORS.map(c => `ai-${c}`),
-      streaming_enabled: true,
-      metadata: { arena_key: ARENA_KEY, ai: true, match_type: '4P' },
-    }).select('id').single();
+
+    const uniqueRoomCode = `${ex.roomCode}-${Date.now().toString(36).slice(-4).toUpperCase()}`;
+    const existingRoomMatch = await sb
+      .from('matches')
+      .select('id')
+      .eq('room_code', ex.roomCode)
+      .maybeSingle();
+    const roomCodeToUse = existingRoomMatch.data ? uniqueRoomCode : ex.roomCode;
+
+    const match = await sb
+      .from('matches')
+      .insert({
+        room_code: roomCodeToUse,
+        game_mode: ex.gameMode,
+        participants: activeColors.map((c) => `ai-${c}`),
+        streaming_enabled: true,
+        metadata: {
+          arena_key: ex.arenaKey,
+          ai: true,
+          match_type: ex.matchShape,
+          entryFee: ex.wager,
+        },
+      })
+      .select('id')
+      .single();
+
     if (match.error || !match.data) throw match.error || new Error('Failed to create arena match');
     const matchId = String(match.data.id);
+
     const { error: stateError } = await sb.from('match_states').insert({
       match_id: matchId,
-      room_code: ROOM_CODE,
+      room_code: roomCodeToUse,
       host_address: wallet,
       seq: 0,
       state: { ...state, matchId } as unknown as NonNullable<Json>,
       color_corner: cc as unknown as NonNullable<Json>,
-      player_seats: Object.fromEntries(COLORS.map(color => [color, { kind: 'bot' }])) as unknown as NonNullable<Json>,
+      player_seats: Object.fromEntries(activeColors.map((color) => [color, { kind: 'bot' }])) as unknown as NonNullable<Json>,
     });
     if (stateError) throw stateError;
+
+    const nowIso = new Date().toISOString();
+    const closeIso = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     const { error: liveError } = await sb.from('live_matches').insert({
       match_id: matchId,
-      room_code: ROOM_CODE,
-      // SEC-07: the bootstrapping wallet is the arena host, not the placeholder
-      // 'ai-arena' that matched nothing.
+      room_code: roomCodeToUse,
       host_address: wallet,
-      arena_key: ARENA_KEY,
-      bet_window_status: 'closed',
-      spectator_count: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      arena_key: ex.arenaKey,
+      bet_window_status: 'open',
+      current_bet_type: 'winner',
+      window_opened_at: nowIso,
+      window_closed_at: closeIso,
+      spectator_count: 1,
+      created_at: nowIso,
+      updated_at: nowIso,
     });
+
     if (liveError) {
-      const raced = await sb.from('live_matches').select('match_id, room_code').eq('arena_key', ARENA_KEY).maybeSingle();
-      if (raced.data?.match_id) return NextResponse.json({ matchId: raced.data.match_id, roomCode: raced.data.room_code });
+      const raced = await sb
+        .from('live_matches')
+        .select('match_id, room_code')
+        .eq('arena_key', ex.arenaKey)
+        .maybeSingle();
+      if (raced.data?.match_id) {
+        return NextResponse.json({
+          matchId: raced.data.match_id,
+          roomCode: raced.data.room_code,
+          arenaKey: ex.arenaKey,
+        });
+      }
       throw liveError;
     }
-    return NextResponse.json({ matchId, roomCode: ROOM_CODE, created: true, isHost: true });
+
+    return NextResponse.json({
+      matchId,
+      roomCode: roomCodeToUse,
+      arenaKey: ex.arenaKey,
+      created: true,
+      isHost: true,
+    });
   } catch (err) {
-    console.error('Power arena bootstrap failed:', err);
+    console.error('Arena exhibition bootstrap failed:', err);
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Arena unavailable' }, { status: 500 });
   }
 }
 
 export async function PATCH(request: Request) {
   try {
-    // SEC-07: `requestedMatchId` is GONE. Accepting a caller-supplied matchId
-    // let any client name a live match and take a write against it. Only the
-    // arena key is accepted, and the match is resolved server-side.
     const { arenaKey, authorityId, walletAddress, sessionId } = await request.json();
-    if (arenaKey !== ARENA_KEY || !authorityId) {
-      return NextResponse.json({ error: 'Missing authority payload' }, { status: 400 });
+    const ex = getDemoExhibitionByKey(arenaKey);
+    if (!ex || !authorityId) {
+      return NextResponse.json({ error: 'Missing or invalid authority payload' }, { status: 400 });
     }
 
-    // SEC-07: a session is required, and it must be the arena's host.
     const wallet =
       (await requireSessionWallet(request, { scope: 'app', expectedWallet: walletAddress })) ||
       (await requireAppSession(walletAddress, sessionId));
     if (!wallet) return NextResponse.json({ error: 'Session required' }, { status: 401 });
 
-    // Defence in depth: middleware already bounds this, but a direct caller
-    // gets the same bound.
     const limit = checkRateLimit(rateKey('arena:tick', wallet), 40, 60_000);
     if (!limit.ok) {
       return NextResponse.json(
@@ -177,69 +234,78 @@ export async function PATCH(request: Request) {
     const { data: arena } = await sb
       .from('live_matches')
       .select('match_id')
-      .eq('arena_key', ARENA_KEY)
+      .eq('arena_key', ex.arenaKey)
       .maybeSingle();
     const matchId = arena?.match_id;
     if (!matchId) return NextResponse.json({ claimed: false });
 
-    // SEC-07: host-gated. Not the host? Watch, do not drive.
     const host = await arenaHost(sb, matchId);
     if (host && host !== wallet) {
       return NextResponse.json({ claimed: false, reason: 'NOT_HOST' }, { status: 403 });
     }
 
     const now = new Date().toISOString();
-    // P9: Server-assign authority_id to the verified host wallet rather than raw client assertion
-    const serverAuthorityId = wallet;
-    const claim = await sb.from('live_matches').update({ authority_id: serverAuthorityId, authority_heartbeat: now, updated_at: now })
+    const claim = await sb
+      .from('live_matches')
+      .update({ authority_id: wallet, authority_heartbeat: now, updated_at: now })
       .eq('match_id', matchId)
       .or(`authority_id.is.null,authority_heartbeat.lt.${new Date(Date.now() - 8000).toISOString()}`)
-      .select('match_id').maybeSingle();
+      .select('match_id')
+      .maybeSingle();
     if (!claim.data) return NextResponse.json({ claimed: false });
+
     const row = await sb.from('match_states').select('seq, state, color_corner').eq('match_id', matchId).single();
     if (row.error || !row.data) return NextResponse.json({ claimed: true });
     const state = row.data.state as unknown as GameState;
-    if (state.winner) return NextResponse.json({ claimed: true, ended: true });
+    if (state.winner) {
+      await sb.from('live_matches').update({ bet_window_status: 'closed', window_closed_at: now }).eq('match_id', matchId);
+      return NextResponse.json({ claimed: true, ended: true });
+    }
+
+    const activeColors = [...seatedColorsFor(ex.matchShape)];
     const color = state.currentPlayer as PlayerColor;
     const cc = row.data.color_corner as unknown as ColorCorner;
     const seq = Number(row.data.seq);
 
-    // MO-1: deterministic dice. The tick used `Math.random()`, so the arena could
-    // not be replayed and every viewer's board depended on whoever happened to be
-    // ticking. The face now comes from the same LCG stream as power respawns,
-    // seeded by the committed seed and the current seq.
     const rollRand = lcg32(((state.powerTileSeed ?? 0) >>> 0) + seq * 7919);
     const roll = Math.floor(rollRand() * 6) + 1;
 
     const legal = getLegalTokenIndices(state.positions, color, roll, cc);
     let next: GameState;
     if (legal.length) {
-      const choice = getBestMove(state.positions, color, roll, cc, '4P', state.powerTiles, state, 'pro')?.tokenIndex ?? legal[0];
-      // MO-1: run the real engine. `resolveNetworkedMove` owns boost consumption,
-      // the three-sixes rule, power pickup + deterministic respawn, and victory —
-      // none of which `lib/gameLogic.processMove` implements, so the arena used to
-      // play classic rules under a `game_mode: 'power'` label.
+      const choice = getBestMove(state.positions, color, roll, cc, ex.matchShape, state.powerTiles, state, 'pro')?.tokenIndex ?? legal[0];
       const resolved = resolveNetworkedMove({
         state: state as unknown as Parameters<typeof resolveNetworkedMove>[0]['state'],
         color,
         tokenIndex: choice,
         dice: roll,
         cc,
-        playerCount: '4P',
-        activeColors: COLORS,
+        playerCount: ex.matchShape,
+        activeColors,
         now: Date.now(),
       });
       next = resolved.ok && resolved.state
         ? (resolved.state as unknown as GameState)
-        : { ...state, currentPlayer: COLORS[(COLORS.indexOf(color) + 1) % COLORS.length], diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
+        : { ...state, currentPlayer: activeColors[(activeColors.indexOf(color) + 1) % activeColors.length], diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
     } else {
-      next = { ...state, currentPlayer: COLORS[(COLORS.indexOf(color) + 1) % COLORS.length], diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
+      next = { ...state, currentPlayer: activeColors[(activeColors.indexOf(color) + 1) % activeColors.length], diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
     }
-    const updated = await sb.from('match_states').update({ state: next as unknown as NonNullable<Json>, seq: seq + 1, updated_at: now })
-      .eq('match_id', matchId).eq('seq', row.data.seq).select('seq').maybeSingle();
-    return NextResponse.json({ claimed: true, advanced: !!updated.data });
+
+    const updated = await sb
+      .from('match_states')
+      .update({ state: next as unknown as NonNullable<Json>, seq: seq + 1, updated_at: now })
+      .eq('match_id', matchId)
+      .eq('seq', row.data.seq)
+      .select('seq')
+      .maybeSingle();
+
+    if (next.winner) {
+      await sb.from('live_matches').update({ bet_window_status: 'closed', window_closed_at: now }).eq('match_id', matchId);
+    }
+
+    return NextResponse.json({ claimed: true, advanced: !!updated.data, ended: Boolean(next.winner) });
   } catch (err) {
-    console.error('Power arena tick failed:', err);
+    console.error('Arena tick failed:', err);
     return NextResponse.json({ error: err instanceof Error ? err.message : 'Arena tick failed' }, { status: 500 });
   }
 }

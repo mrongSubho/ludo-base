@@ -20,6 +20,7 @@ interface ArenaPanelProps {
     onClose: () => void;
     onSwitchTab?: (tab: any) => void;
     onWatchMatch?: (roomCode: string) => void;
+    onJoinDemoMatch?: (room: import("@/lib/arena/types").ArenaDirectoryRoom) => void;
     onOpenProfile?: (address: string) => void;
     initialTab?: ArenaHubTab;
     broadcastData?: BroadcastData;
@@ -29,6 +30,7 @@ function ArenaPanelInner({
     isOpen,
     onClose,
     onWatchMatch,
+    onJoinDemoMatch,
     onOpenProfile,
     initialTab = "arena",
     externalBroadcastData,
@@ -36,6 +38,7 @@ function ArenaPanelInner({
     isOpen: boolean;
     onClose: () => void;
     onWatchMatch?: (roomCode: string) => void;
+    onJoinDemoMatch?: (room: import("@/lib/arena/types").ArenaDirectoryRoom) => void;
     onOpenProfile?: (address: string) => void;
     initialTab?: ArenaHubTab;
     externalBroadcastData?: BroadcastData;
@@ -197,6 +200,7 @@ function ArenaPanelInner({
                                 {activeHubTab === "arena" ? (
                                     <LiveArenaContent
                                         onWatchMatch={onWatchMatch}
+                                        onJoinDemoMatch={onJoinDemoMatch}
                                         onOpenProfile={onOpenProfile}
                                         onClosePanel={onClose}
                                         onStats={handleLiveStats}
@@ -225,6 +229,7 @@ export default function ArenaPanel(props: ArenaPanelProps) {
             isOpen={props.isOpen}
             onClose={props.onClose}
             onWatchMatch={props.onWatchMatch}
+            onJoinDemoMatch={props.onJoinDemoMatch}
             onOpenProfile={props.onOpenProfile}
             initialTab={props.initialTab}
             externalBroadcastData={props.broadcastData}

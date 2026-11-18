@@ -72,7 +72,7 @@ export interface ArenaPlayerSeat {
 export interface ArenaDirectoryRoom {
     id: string;
     kind: ArenaRoomKind;
-    joinMode: 'pool' | 'party' | 'watch';
+    joinMode: 'pool' | 'party' | 'watch' | 'ai_match';
     roomCode: string | null;
     matchId: string | null;
     gameMode: ArenaGameMode;
@@ -86,6 +86,7 @@ export interface ArenaDirectoryRoom {
     maxSeats: number;
     seats: ArenaPlayerSeat[];
     isPrivate: boolean;
+    isDemoAi?: boolean;
     createdAt: string;
     tier: ArenaTierInfo;
     summaryText?: string | null;
