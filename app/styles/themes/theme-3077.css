@@ -665,13 +665,13 @@ body.theme-3077 :is(
   .ludo-broadcast-scope,
   .ludo-clan-scope
 ) {
-  background: var(--surface-3) !important;
+  background: rgba(11, 15, 23, 0.96) !important;
   background-image: none !important;
-  backdrop-filter: blur(20px) !important;
-  -webkit-backdrop-filter: blur(20px) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
   border-radius: var(--radius-lg) !important;
   border: 1px solid var(--line-strong) !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65) !important;
 }
 
 body.theme-3077 :is(

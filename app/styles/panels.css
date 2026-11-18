@@ -2506,6 +2506,40 @@ body.keyboard-open :is(
     contain: paint;
   }
 
+  body.theme-3077 :is(
+    .panel-shell-3077,
+    .ludo-profile-scope,
+    .ludo-friends-scope,
+    .ludo-rankings-scope,
+    .ludo-leaderboard-scope,
+    .ludo-arena-scope,
+    .ludo-market-scope,
+    .ludo-messages-scope,
+    .ludo-settings-scope,
+    .ludo-teamup-scope,
+    .ludo-quick-scope,
+    .ludo-offline-scope,
+    .ludo-migrate-scope,
+    .ludo-broadcast-scope,
+    .ludo-pubprofile-scope,
+    .ludo-invite-scope,
+    .ludo-wallet-scope,
+    .ludo-burn-scope,
+    .ludo-wall-scope,
+    .ludo-authwait-scope,
+    .ludo-quit-scope,
+    .ludo-splash-scope,
+    .ludo-guestpill-scope,
+    .ludo-onboard-scope,
+    .ludo-idle-scope,
+    .ludo-clan-scope
+  ) {
+    background: #0a0e14 !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
   body.theme-daybreak .ludo-profile-scope,
   body.theme-daybreak .ludo-friends-scope,
   body.theme-daybreak .ludo-rankings-scope,
