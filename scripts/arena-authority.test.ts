@@ -31,11 +31,10 @@ const page = code('app/page.tsx');
 test('SEC-07: the caller can no longer name a match', () => {
     assert.doesNotMatch(route, /requestedMatchId/, 'the client-supplied matchId must be deleted');
     assert.doesNotMatch(route, /const matchId = requestedMatchId/, 'and must not be derived from the body');
-    // The only match source is the arena key, resolved server-side.
-    assert.match(route, /\.eq\('arena_key', ARENA_KEY\)/);
-    // Strict equality against the server constant: a caller-supplied arenaKey
-    // must not be able to select a different match.
-    assert.match(route, /arenaKey !== ARENA_KEY \|\| !authorityId/, 'a caller-supplied arenaKey is rejected');
+    // The only match source is a whitelisted demo arena key, resolved server-side.
+    assert.match(route, /getDemoExhibitionByKey\(/);
+    assert.match(route, /\.eq\('arena_key', ex\.arenaKey\)/);
+    assert.match(route, /if \(!ex \|\| !authorityId\)/, 'an unknown or un-whitelisted arenaKey is rejected');
 });
 
 test('SEC-07: a tick with no session is refused', () => {
@@ -84,9 +83,11 @@ test('a non-host spectator never sends a tick', () => {
 test('the client cannot name a match either', () => {
     // Scoped to the tick body: `matchId` legitimately appears elsewhere in
     // page.tsx for real matches.
-    const tick = page.slice(page.indexOf("arenaKey: 'power4p-ai'"));
-    assert.doesNotMatch(tick.slice(0, 400), /matchId/, 'no matchId in the arena PATCH body');
-    assert.match(page, /arenaKey: 'power4p-ai'/);
+    const tickStart = page.indexOf("fetch('/api/live-arena/power4p', {");
+    assert.ok(tickStart > 0);
+    const tick = page.slice(tickStart, tickStart + 350);
+    assert.doesNotMatch(tick, /matchId/, 'no matchId in the arena PATCH body');
+    assert.match(tick, /arenaKey: watchingArenaKey/);
 });
 
 // ── The route table still classifies this route ────────────────────────────

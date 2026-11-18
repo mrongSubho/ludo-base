@@ -60,6 +60,7 @@ export const RATE_LIMITS: Record<string, LimitRule> = {
     // SEC-07: the claim itself is still unauthenticated. This bounds the
     // damage (one tick per 3s per client) until the claim is gated.
     'live-arena/power4p': { limit: 40, windowMs: 60_000, methods: ['PATCH'] },
+    'live-arena/directory': { limit: 60, windowMs: 60_000, methods: ['GET'] },
 
     // ── Session issuance & auth v2: rate-limit challenge & verify tightly ──
     'auth/challenge': { limit: 30, windowMs: 60_000, methods: ['POST'] },

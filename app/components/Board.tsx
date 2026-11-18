@@ -206,7 +206,7 @@ export default function Board({
     const { boardRotationDeg, counterRotationDeg, uiSlots } = useBoardLayout({
         players,
         colorCorner,
-        address,
+        address: spectatorMode ? undefined : address,
         participants,
         setBoardConfig
     });

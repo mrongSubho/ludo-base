@@ -379,6 +379,7 @@ export default function Page() {
 
   // ─── Spectator mode hooks (only active when spectatingRoomCode is set) ───────
   const {
+    matchId: spectatorMatchId,
     gameState: spectatorGameState,
     activeBetWindow,
     isConnected: spectatorConnected,
@@ -454,6 +455,8 @@ export default function Page() {
 
   const handleLeaveSpectating = useCallback(() => {
     setSpectatingRoomCode(null);
+    setWatchingArenaKey(null);
+    setArenaIsHost(false);
     setAppState('dashboard');
   }, []);
 
@@ -965,13 +968,16 @@ export default function Page() {
                 revealToken={matchStatusReveal}
               />
 
-              <main className="board-main has-top-back" style={{ position: 'relative', paddingRight: spectatorGameState ? '296px' : undefined }}>
+              <main className="board-main has-top-back" style={{ position: 'relative' }}>
                 <Board
                   playerCount={spectatorGameState?.playerCount || "4P"}
                   gameMode={(spectatorGameState?.powerTiles?.length ?? 0) > 0 ? "power" : "classic"}
                   isBotMatch={true}
                   spectatorMode={true}
                   externalGameState={spectatorGameState ?? undefined}
+                  initialPlayers={spectatorGameState?.initialBoardConfig?.players}
+                  initialColorCorner={spectatorGameState?.initialBoardConfig?.colorCorner}
+                  onExitMatch={handleLeaveSpectating}
                 />
                 {/* First paint of a spectated match: the board has no state yet
                     and `isConnected` only flips after the first snapshot (or a
@@ -993,11 +999,23 @@ export default function Page() {
                 )}
               </main>
 
-              {/* SpectatorHUD — positioned on the right */}
+              {/* Exit Watch failsafe pill while initial snapshot connects */}
+              {!spectatorGameState && (
+                <button
+                  type="button"
+                  onClick={handleLeaveSpectating}
+                  className="fixed left-3 bottom-3 z-[120] h-9 px-3.5 rounded-full border border-white/15 bg-black/80 text-white text-ludo-xs font-bold uppercase tracking-wider shadow-xl hover:bg-red-500/80 transition-all"
+                >
+                  Exit Watch
+                </button>
+              )}
+
+              {/* SpectatorHUD — overlay drawer/panel (never modifies board geometry) */}
               {spectatorGameState && (
                 <SpectatorHUD
                   roomCode={spectatingRoomCode}
-                  matchId={''}
+                  matchId={spectatorMatchId || spectatorGameState.matchId || ''}
+                  playerCount={spectatorGameState.playerCount}
                   activeBetWindow={activeBetWindow}
                   positions={spectatorGameState.positions}
                   onClose={handleLeaveSpectating}
@@ -1017,7 +1035,7 @@ export default function Page() {
                 />
               )}
               {activeTab === 'settings' && (
-                <SettingsPanel key="settings-spectate" onClose={closeTab} onOpenWallet={() => toggle('wallet')} />
+                <SettingsPanel key="settings-spectate" onClose={closeTab} onLeaveMatch={handleLeaveSpectating} onOpenWallet={() => toggle('wallet')} />
               )}
               {activeTab === 'wallet' && (
                 <WalletPanel key="wallet-spectate" onClose={closeTab} />

@@ -86,7 +86,7 @@ export function PlayerCard({
                             height={96}
                         />
                     ) : (
-                        player.avatar ? (
+                        player.avatar && !player.avatar.startsWith('avatar:') && player.avatar.length <= 8 ? (
                           <span className="avatar-emoji">{player.avatar}</span>
                         ) : (
                           <span className="avatar-emoji flex items-center justify-center text-white/40">

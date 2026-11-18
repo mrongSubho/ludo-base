@@ -20,10 +20,12 @@ export interface ActiveBettingWindow {
     windowId: string;
     betType: string;
     expiresAt: number;
+    openedAt?: number;
     windowClosedAt: string | null;   // null while open
 }
 
 interface SpectatorSyncState {
+    matchId: string | null;
     gameState: GameState | null;
     isConnected: boolean;
     activeBetWindow: ActiveBettingWindow | null;
@@ -32,6 +34,7 @@ interface SpectatorSyncState {
 }
 
 const EMPTY_STATE: SpectatorSyncState = {
+    matchId: null,
     gameState: null,
     isConnected: false,
     activeBetWindow: null,
@@ -71,14 +74,19 @@ export function useSpectatorSync(roomCode: string | null) {
             if (!matchId) return;
 
             if (data?.bet_window_status === 'open') {
+                const now = Date.now();
                 updateState({
+                    matchId,
                     activeBetWindow: {
                         windowId: `live-${matchId}`,
                         betType: data.current_bet_type || 'winner',
-                        expiresAt: Date.now() + 90_000,
+                        expiresAt: now + 90_000,
+                        openedAt: now,
                         windowClosedAt: null,
                     },
                 });
+            } else {
+                updateState({ matchId });
             }
 
             // N6 — single resync path (public snapshot; no player session).
@@ -97,7 +105,10 @@ export function useSpectatorSync(roomCode: string | null) {
                     return { ok: true, seq: Number(body.seq), state: body.state };
                 },
                 apply: (snap, seq) => {
-                    updateState({ gameState: snap, isConnected: true, seq });
+                    const closedNow = snap.winner && stateRef.current.activeBetWindow && !stateRef.current.activeBetWindow.windowClosedAt
+                        ? { ...stateRef.current.activeBetWindow, windowClosedAt: new Date().toISOString() }
+                        : stateRef.current.activeBetWindow;
+                    updateState({ matchId, gameState: snap, isConnected: true, seq, activeBetWindow: closedNow });
                 },
             });
         };
@@ -199,6 +210,7 @@ export function useSpectatorSync(roomCode: string | null) {
                                 windowId: p.value.windowId,
                                 betType: p.value.betType,
                                 expiresAt: p.value.expiresAt,
+                                openedAt: Date.now(),
                                 windowClosedAt: null,
                             },
                         });
@@ -256,7 +268,10 @@ export function useSpectatorSync(roomCode: string | null) {
                     return { ok: true, seq: Number(body.seq), state: body.state };
                 },
                 apply: (snap, seq) => {
-                    updateState({ gameState: snap, isConnected: true, seq });
+                    const closedNow = snap.winner && stateRef.current.activeBetWindow && !stateRef.current.activeBetWindow.windowClosedAt
+                        ? { ...stateRef.current.activeBetWindow, windowClosedAt: new Date().toISOString() }
+                        : stateRef.current.activeBetWindow;
+                    updateState({ matchId, gameState: snap, isConnected: true, seq, activeBetWindow: closedNow });
                 },
             });
         }, 2500);

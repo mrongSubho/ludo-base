@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { INITIAL_GAME_STATE, getLegalTokenIndices } from '@/lib/gameLogic';
 import { lcg32, rollPowerTypeLcg, resolveNetworkedMove, seatedColorsFor } from '@/lib/engine/core';
-import { assignCornersForShape, getBoardCoordinate } from '@/lib/boardLayout';
+import { assignCornersForShape, BOT_TEMPLATES, CORNER_TO_POSITION, getBoardCoordinate } from '@/lib/boardLayout';
 import { POWER_TILES_COUNT } from '@/lib/constants';
+import { calculateLevel } from '@/lib/progression';
 import { getBestMove } from '@/lib/aiEngine';
 import { requireAppSession, requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
@@ -112,6 +113,25 @@ export async function POST(request: Request) {
       }
     }
 
+    const initialBoardConfig = {
+      colorCorner: cc,
+      players: activeColors.map((color, idx) => {
+        const bot = ex.bots[idx];
+        const tpl = BOT_TEMPLATES[idx % BOT_TEMPLATES.length];
+        return {
+          name: bot?.username || tpl.name,
+          level: calculateLevel(bot?.rxp ?? 1500).level,
+          lxp: bot?.rxp ?? 1500,
+          rxp: bot?.rxp ?? 1500,
+          avatar: tpl.avatar,
+          color,
+          position: CORNER_TO_POSITION[cc[color]],
+          isAi: true,
+          walletAddress: bot?.walletAddress || `ai-${color}`,
+        };
+      }),
+    };
+
     const state: GameState = {
       ...INITIAL_GAME_STATE,
       matchId: `arena-${crypto.randomUUID()}`,
@@ -123,6 +143,7 @@ export async function POST(request: Request) {
       powerTileSeed,
       powerTiles: seededTiles,
       lastUpdate: Date.now(),
+      initialBoardConfig,
     };
 
     const uniqueRoomCode = `${ex.roomCode}-${Date.now().toString(36).slice(-4).toUpperCase()}`;
@@ -245,9 +266,10 @@ export async function PATCH(request: Request) {
     }
 
     const now = new Date().toISOString();
+    const serverAuthorityId = wallet;
     const claim = await sb
       .from('live_matches')
-      .update({ authority_id: wallet, authority_heartbeat: now, updated_at: now })
+      .update({ authority_id: serverAuthorityId, authority_heartbeat: now, updated_at: now })
       .eq('match_id', matchId)
       .or(`authority_id.is.null,authority_heartbeat.lt.${new Date(Date.now() - 8000).toISOString()}`)
       .select('match_id')
