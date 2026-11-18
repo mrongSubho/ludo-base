@@ -149,6 +149,7 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
     const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
     const chatEndRef = useRef<HTMLDivElement | null>(null);
+    const chatThreadRef = useRef<HTMLDivElement | null>(null);
 
     // Discovery & Creation modal states
     const [isCreatingClan, setIsCreatingClan] = useState(false);
@@ -216,8 +217,8 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
         wallets.map((w) => memberNameMap.get(w.toLowerCase()) || shortHex(w)).join(" & ");
 
     useEffect(() => {
-        if (activeTab === "hall" && chatEndRef.current) {
-            chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+        if (activeTab === "hall" && chatThreadRef.current) {
+            chatThreadRef.current.scrollTop = chatThreadRef.current.scrollHeight;
         }
     }, [chatMessages.length, activeTab]);
 
@@ -888,7 +889,13 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                         </div>
 
                                         {/* Sub-Tab Viewport */}
-                                        <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-4 pt-1">
+                                        <div
+                                            className={`flex-1 min-h-0 px-5 pb-4 pt-1 ${
+                                                activeTab === "hall"
+                                                    ? "flex flex-col overflow-hidden"
+                                                    : "overflow-y-auto no-scrollbar"
+                                            }`}
+                                        >
                                             {/* 0. PROFILE / DOSSIER DEFAULT TAB */}
                                             {activeTab === "profile" && (
                                                 dossier ? (
@@ -917,7 +924,7 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
 
                                             {/* 1. HALL TAB */}
                                             {activeTab === "hall" && (
-                                                <div className="h-full flex flex-col space-y-3">
+                                                <div className="flex-1 min-h-0 flex flex-col space-y-3">
                                                     {/* 3-Card Quick Stat HUD */}
                                                     <div className="grid grid-cols-3 gap-2 shrink-0">
                                                         <button
@@ -993,7 +1000,7 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                     )}
 
                                                     {/* Live Plaintext Clan Comms */}
-                                                    <div className="flex-1 flex flex-col justify-between rounded-2xl bg-black/35 border border-white/10 p-3.5 min-h-[240px]">
+                                                    <div className="flex-1 min-h-0 flex flex-col justify-between rounded-2xl bg-black/30 border border-white/10 p-3.5">
                                                         <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10 shrink-0">
                                                             <span className="inline-flex items-center gap-1.5 text-ludo-xs font-mono font-bold text-cyan-300 uppercase tracking-wider">
                                                                 <LuRadio className="w-3.5 h-3.5" />
@@ -1004,7 +1011,7 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                             </span>
                                                         </div>
 
-                                                        <div className="chat-thread-scroll flex-1 overflow-y-auto space-y-2.5 pr-1">
+                                                        <div ref={chatThreadRef} className="chat-thread-scroll flex-1 min-h-0 overflow-y-auto space-y-2.5 pr-1">
                                                             {chatMessages.length === 0 ? (
                                                                 <div className="h-full flex flex-col items-center justify-center text-white/35 font-mono text-ludo-xs text-center gap-2 py-8">
                                                                     <LuMessageSquare className="w-6 h-6 text-white/20" />
