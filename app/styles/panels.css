@@ -2303,6 +2303,7 @@ body.keyboard-open :is(
 }
 body.keyboard-open :is(
   .ludo-messages-scope,
+  .ludo-clan-scope,
   .spectator-hud,
   .ludo-live-chat-scope
 ) .overflow-y-auto {

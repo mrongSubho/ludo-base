@@ -701,6 +701,7 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                     autoCorrect="off"
                                                     autoCapitalize="none"
                                                     spellCheck={false}
+                                                    enterKeyHint="search"
                                                     className="flex-1 min-w-0 bg-transparent border-0 text-white placeholder:text-white/30 text-ludo-sm focus:outline-none font-mono"
                                                 />
                                                 {searchQuery && (
@@ -1065,6 +1066,7 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                                 autoCorrect="off"
                                                                 autoCapitalize="none"
                                                                 spellCheck={false}
+                                                                enterKeyHint="send"
                                                                 className="flex-1 min-w-0 px-3.5 py-2 rounded-xl bg-white/[0.05] border border-white/10 text-white placeholder:text-white/30 text-ludo-xs font-mono focus:outline-none focus:border-cyan-400"
                                                             />
                                                             <Button
@@ -1585,11 +1587,15 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                             </div>
                                                             <div className="flex gap-2">
                                                                 <input
-                                                                    type="number"
-                                                                    min={1}
-                                                                    step={1}
+                                                                    type="text"
+                                                                    inputMode="numeric"
                                                                     value={fundAmountInput}
-                                                                    onChange={(e) => setFundAmountInput(e.target.value)}
+                                                                    onChange={(e) => setFundAmountInput(e.target.value.replace(/[^0-9]/g, ""))}
+                                                                    autoComplete="off"
+                                                                    autoCorrect="off"
+                                                                    autoCapitalize="none"
+                                                                    spellCheck={false}
+                                                                    enterKeyHint="done"
                                                                     className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-400"
                                                                 />
                                                                 <Button type="submit" variant="primary" size="sm" disabled={fundSubmitting}>
@@ -2004,23 +2010,38 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                         <div>
                                             <label className="text-white/60 block mb-1">Member Entry Fee</label>
                                             <input
-                                                type="number"
-                                                min={500}
-                                                step={500}
-                                                value={noticeFee}
-                                                onChange={(e) => setNoticeFee(Number(e.target.value))}
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={String(noticeFee || "")}
+                                                onChange={(e) => {
+                                                    const digits = e.target.value.replace(/[^0-9]/g, "");
+                                                    setNoticeFee(digits ? Number(digits) : 0);
+                                                }}
+                                                autoComplete="off"
+                                                autoCorrect="off"
+                                                autoCapitalize="none"
+                                                spellCheck={false}
+                                                enterKeyHint="next"
                                                 className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
                                             />
                                         </div>
                                         <div>
                                             <label className="text-white/60 block mb-1">Treasury Subsidy</label>
                                             <input
-                                                type="number"
-                                                min={0}
-                                                max={Number(clan?.treasury_balance || 0)}
-                                                step={100}
-                                                value={noticeSubsidy}
-                                                onChange={(e) => setNoticeSubsidy(Number(e.target.value))}
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={String(noticeSubsidy || 0)}
+                                                onChange={(e) => {
+                                                    const digits = e.target.value.replace(/[^0-9]/g, "");
+                                                    const max = Number(clan?.treasury_balance || 0);
+                                                    const next = digits ? Number(digits) : 0;
+                                                    setNoticeSubsidy(Math.min(max, next));
+                                                }}
+                                                autoComplete="off"
+                                                autoCorrect="off"
+                                                autoCapitalize="none"
+                                                spellCheck={false}
+                                                enterKeyHint="done"
                                                 className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-amber-400"
                                             />
                                         </div>
@@ -2200,6 +2221,10 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                             required
                                             value={scheduleTimeInput}
                                             onChange={(e) => setScheduleTimeInput(e.target.value)}
+                                            autoComplete="off"
+                                            autoCorrect="off"
+                                            autoCapitalize="none"
+                                            spellCheck={false}
                                             className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-400"
                                         />
                                     </div>
@@ -2258,6 +2283,11 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                             maxLength={200}
                                             value={settingsBio}
                                             onChange={(e) => setSettingsBio(e.target.value)}
+                                            autoComplete="off"
+                                            autoCorrect="off"
+                                            autoCapitalize="none"
+                                            spellCheck={false}
+                                            enterKeyHint="next"
                                             className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-400"
                                         />
                                     </div>
@@ -2265,10 +2295,18 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                         <div>
                                             <label className="text-white/60 block mb-1">Min Player Level</label>
                                             <input
-                                                type="number"
-                                                min={1}
-                                                value={settingsMinLevel}
-                                                onChange={(e) => setSettingsMinLevel(Number(e.target.value))}
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={String(settingsMinLevel || 1)}
+                                                onChange={(e) => {
+                                                    const digits = e.target.value.replace(/[^0-9]/g, "");
+                                                    setSettingsMinLevel(digits ? Math.max(1, Number(digits)) : 1);
+                                                }}
+                                                autoComplete="off"
+                                                autoCorrect="off"
+                                                autoCapitalize="none"
+                                                spellCheck={false}
+                                                enterKeyHint="next"
                                                 className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-400"
                                             />
                                         </div>
@@ -2280,6 +2318,11 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                 placeholder="/ludo-clan"
                                                 value={settingsChannel}
                                                 onChange={(e) => setSettingsChannel(e.target.value)}
+                                                autoComplete="off"
+                                                autoCorrect="off"
+                                                autoCapitalize="none"
+                                                spellCheck={false}
+                                                enterKeyHint="done"
                                                 className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:border-cyan-400"
                                             />
                                         </div>

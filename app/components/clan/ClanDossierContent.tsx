@@ -547,6 +547,11 @@ export function ClanDossierContent({
                                 minLength={3}
                                 maxLength={24}
                                 placeholder="Clan Name"
+                                autoComplete="off"
+                                autoCorrect="off"
+                                autoCapitalize="none"
+                                spellCheck={false}
+                                enterKeyHint="next"
                                 className="col-span-2 rounded-lg border border-white/15 bg-black/40 px-2.5 py-1.5 text-ludo-sm text-white focus:outline-none focus:border-cyan-400"
                             />
                             <input
@@ -556,6 +561,11 @@ export function ClanDossierContent({
                                 minLength={2}
                                 maxLength={5}
                                 placeholder="TAG"
+                                autoComplete="off"
+                                autoCorrect="off"
+                                autoCapitalize="none"
+                                spellCheck={false}
+                                enterKeyHint="done"
                                 className="rounded-lg border border-white/15 bg-black/40 px-2.5 py-1.5 text-ludo-sm font-mono uppercase text-white focus:outline-none focus:border-cyan-400"
                             />
                         </div>
