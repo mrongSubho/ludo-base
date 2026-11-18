@@ -241,8 +241,10 @@ export function seasonClaimAddress(): `0x${string}` | undefined {
     return a && a.startsWith("0x") ? (a as `0x${string}`) : undefined;
 }
 
+export const DEFAULT_CLAN_CLAIM_ADDRESS = "0xF3570340E2A298Bf5424efC9C62E464528DA6df0" as const;
+
 export function clanClaimAddress(): `0x${string}` | undefined {
-    const a = process.env.NEXT_PUBLIC_CLAN_CLAIM_ADDRESS;
+    const a = process.env.NEXT_PUBLIC_CLAN_CLAIM_ADDRESS || DEFAULT_CLAN_CLAIM_ADDRESS;
     if (!a || !isAddress(a)) return undefined;
     return getAddress(a);
 }
@@ -260,6 +262,28 @@ export const CLAN_CLAIM_DEPOSIT_ABI = [
         outputs: [],
     },
     {
+        type: "function",
+        name: "fundTreasury",
+        stateMutability: "nonpayable",
+        inputs: [
+            { name: "clanId", type: "bytes32" },
+            { name: "amount", type: "uint256" },
+        ],
+        outputs: [],
+    },
+    {
+        type: "function",
+        name: "settleWar",
+        stateMutability: "nonpayable",
+        inputs: [
+            { name: "warId", type: "bytes32" },
+            { name: "winningClanId", type: "bytes32" },
+            { name: "protocolRake", type: "uint256" },
+            { name: "winningClanTreasuryCut", type: "uint256" },
+        ],
+        outputs: [],
+    },
+    {
         type: "event",
         name: "WarStakeDeposited",
         inputs: [
@@ -267,6 +291,26 @@ export const CLAN_CLAIM_DEPOSIT_ABI = [
             { name: "clanId", type: "bytes32", indexed: true },
             { name: "contributor", type: "address", indexed: true },
             { name: "amount", type: "uint256", indexed: false },
+        ],
+    },
+    {
+        type: "event",
+        name: "ClanTreasuryFunded",
+        inputs: [
+            { name: "clanId", type: "bytes32", indexed: true },
+            { name: "contributor", type: "address", indexed: true },
+            { name: "amount", type: "uint256", indexed: false },
+        ],
+    },
+    {
+        type: "event",
+        name: "RewardClaimed",
+        inputs: [
+            { name: "claimId", type: "bytes32", indexed: true },
+            { name: "clanId", type: "bytes32", indexed: true },
+            { name: "recipient", type: "address", indexed: true },
+            { name: "amount", type: "uint256", indexed: false },
+            { name: "claimType", type: "uint8", indexed: false },
         ],
     },
 ] as const;

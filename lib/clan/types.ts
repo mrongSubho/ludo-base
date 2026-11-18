@@ -122,6 +122,8 @@ export interface ClanWar {
     id: string;
     clan_a_id: string;
     clan_b_id: string;
+    clan_a_call_id?: string | null;
+    clan_b_call_id?: string | null;
     bracket: number;
     stake_per_clan: number;
     status: ClanWarStatus;
@@ -154,10 +156,49 @@ export interface ClanWarFixture {
     clan_a_seats: string[];
     clan_b_seats: string[];
     scheduled_at: string | null;
+    proposed_by?: string | null;
+    proposed_at?: string | null;
     status: FixtureStatus;
     winner_clan_id: string | null;
     match_id: string | null;
     created_at: string;
+}
+
+export interface ClanTreasuryLedgerEntry {
+    id: string;
+    clan_id: string;
+    amount: number;
+    reason: string;
+    ref: string | null;
+    created_at: string;
+}
+
+export interface ClanMissionContract {
+    key: string;
+    title: string;
+    scope: 'daily' | 'weekly';
+    rewardCxp: number;
+    progress: number;
+    target: number;
+    completed: boolean;
+}
+
+export interface ClanWeeklyVaultSummary {
+    weeklyClanCxp: number;
+    activeMembers: number;
+    currentTier: number;
+    nextTier: number | null;
+    nextTierTargetCxp: number | null;
+    rewardPerMemberChips: number;
+    unlocksAtUtc: string;
+    tiers: Array<{
+        tier: number;
+        minClanLevel: number;
+        thresholdCxp: number;
+        chipsPerMember: number;
+        unlocked: boolean;
+        reached: boolean;
+    }>;
 }
 
 export type ClanClaimType =

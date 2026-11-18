@@ -24,6 +24,7 @@ export type AuthPromptContext =
     | "clan-batch-claim"
     | "clan-create"
     | "clan-war-buyin"
+    | "clan-treasury-fund"
     | "vault-deposit"
     | "vault-claim";
 
@@ -258,6 +259,15 @@ export const CONTEXT_PRESETS: Record<
         networkText: "Base Sepolia (84532)",
         explanationText: "Stakes are held non-custodially by ClanClaim and released via pull-claim on win or cancellation.",
         cancelLabel: "Cancel Stake",
+    },
+    "clan-treasury-fund": {
+        mode: "transaction",
+        title: "FUND CLAN TREASURY",
+        badgeText: "Awaiting Confirmation",
+        statusText: "Approve your CHIPS deposit into your Clan Treasury on Base Sepolia.",
+        networkText: "Base Sepolia (84532)",
+        explanationText: "Funds are held non-custodially by ClanClaim for clan war subsidies and grants.",
+        cancelLabel: "Cancel Deposit",
     },
     "vault-deposit": {
         mode: "transaction",

@@ -2,15 +2,23 @@
 import {
     type Address,
     type Hex,
+    type Log,
     encodeAbiParameters,
     encodePacked,
     keccak256,
     parseAbiParameters,
+    parseEventLogs,
     toBytes,
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { serviceDb } from '@/lib/serverAuth';
 import { chipsToBaseUnits } from '@/lib/missionCatalog';
+import {
+    CLAN_CLAIM_DEPOSIT_ABI,
+    DEFAULT_CLAN_CLAIM_ADDRESS,
+    clanClaimAddress,
+} from '@/lib/chips';
+import { waitForConfirmedReceipt } from '@/lib/onchainReceipt';
 import type { IssuedClanClaimVoucher, ClanClaimItem, ClanClaimVoucherPayload } from './types';
 import { ClanServiceError } from './clanService';
 
@@ -30,12 +38,7 @@ export const CLAN_CLAIM_TYPEHASH = keccak256(
 );
 
 export function clanClaimContractAddress(): Address {
-    const addr = process.env.NEXT_PUBLIC_CLAN_CLAIM_ADDRESS;
-    if (addr && addr.startsWith('0x') && addr.length === 42) {
-        return addr as Address;
-    }
-    // Fallback deterministic address on Base Sepolia
-    return '0x1234567890123456789012345678901234567890' as Address;
+    return clanClaimAddress() || DEFAULT_CLAN_CLAIM_ADDRESS;
 }
 
 export function clanOraclePrivateKey(): Hex {
@@ -197,4 +200,114 @@ export async function getClaimableList(walletAddress: string): Promise<ClanClaim
 
     if (error) throw new ClanServiceError(error.message, 500);
     return (data || []) as ClanClaimItem[];
+}
+
+/**
+ * Verify that `logs` from a confirmed receipt contain `RewardClaimed` events
+ * from `claimContract` for every `claimId` and `recipient`.
+ * Exported for unit testing.
+ */
+export function verifyClanClaimExecutedLogs(params: {
+    logs: Log[];
+    claimContract: Address;
+    recipient: Address;
+    claimIds: string[];
+}): Set<string> {
+    const decoded = parseEventLogs({
+        abi: CLAN_CLAIM_DEPOSIT_ABI,
+        logs: params.logs,
+        eventName: 'RewardClaimed',
+    });
+
+    const contractLower = params.claimContract.toLowerCase();
+    const recipientLower = params.recipient.toLowerCase();
+
+    const matchedBytes32 = new Set<string>();
+    for (const log of decoded) {
+        if (log.address.toLowerCase() !== contractLower) continue;
+        const args = log.args as { claimId?: Hex; recipient?: string };
+        if (args.recipient?.toLowerCase() === recipientLower && args.claimId) {
+            matchedBytes32.add(args.claimId.toLowerCase());
+        }
+    }
+
+    const confirmedIds = new Set<string>();
+    for (const id of params.claimIds) {
+        const expectedHex = keccak256(toBytes(id)).toLowerCase();
+        if (matchedBytes32.has(expectedHex)) {
+            confirmedIds.add(id);
+        }
+    }
+
+    if (confirmedIds.size === 0) {
+        throw new ClanServiceError(
+            'Transaction receipt does not contain matching ClanClaim RewardClaimed events',
+            400,
+        );
+    }
+
+    return confirmedIds;
+}
+
+/**
+ * Confirm on-chain claim execution and mark matching `clan_claims` rows as `claimed`.
+ */
+export async function confirmClanClaimsExecuted(params: {
+    walletAddress: string;
+    claimIds: string[];
+    txHash: string;
+}): Promise<{ confirmedIds: string[] }> {
+    const db = serviceDb();
+    const wallet = params.walletAddress.toLowerCase() as Address;
+    const txHash = params.txHash.trim();
+
+    if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+        throw new ClanServiceError('Invalid transaction hash format', 400);
+    }
+    if (!params.claimIds.length) {
+        throw new ClanServiceError('At least one claimId is required', 400);
+    }
+
+    // Load only still-claimable rows owned by caller
+    const { data: rows, error: fetchErr } = await (db as any)
+        .from('clan_claims')
+        .select('id')
+        .eq('wallet_address', wallet)
+        .eq('status', 'claimable')
+        .in('id', params.claimIds);
+
+    if (fetchErr) throw new ClanServiceError(fetchErr.message, 500);
+    const pendingIds: string[] = (rows || []).map((r: { id: string }) => r.id);
+    if (pendingIds.length === 0) {
+        return { confirmedIds: [] };
+    }
+
+    const claimContract = clanClaimContractAddress();
+    const receipt = await waitForConfirmedReceipt(
+        txHash,
+        (msg, status = 400) => new ClanServiceError(msg, status),
+    );
+
+    const confirmed = verifyClanClaimExecutedLogs({
+        logs: receipt.logs,
+        claimContract,
+        recipient: wallet,
+        claimIds: pendingIds,
+    });
+    const confirmedList = Array.from(confirmed);
+
+    const { error: updErr } = await (db as any)
+        .from('clan_claims')
+        .update({
+            status: 'claimed',
+            tx_hash: txHash,
+            claimed_at: new Date().toISOString(),
+        })
+        .eq('wallet_address', wallet)
+        .eq('status', 'claimable')
+        .in('id', confirmedList);
+
+    if (updErr) throw new ClanServiceError(updErr.message, 500);
+
+    return { confirmedIds: confirmedList };
 }

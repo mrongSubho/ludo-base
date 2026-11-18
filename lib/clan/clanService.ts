@@ -1,9 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { serviceDb } from '@/lib/serverAuth';
-import { createPublicClient, http, type Address } from 'viem';
+import {
+    createPublicClient,
+    http,
+    keccak256,
+    parseEventLogs,
+    parseUnits,
+    toBytes,
+    type Address,
+    type Hex,
+    type Log,
+} from 'viem';
 import { baseSepolia } from 'viem/chains';
-import { CHIPS_ERC20_ABI, chipsAddress } from '@/lib/chips';
+import {
+    CHIPS_ERC20_ABI,
+    CLAN_CLAIM_DEPOSIT_ABI,
+    DEFAULT_CLAN_CLAIM_ADDRESS,
+    chipsAddress,
+    clanClaimAddress,
+} from '@/lib/chips';
 import { verifyErc20TransferLog, waitForConfirmedReceipt } from '@/lib/onchainReceipt';
+import { recordSocialOnboarding } from '@/lib/onboardingProgressWriter';
 import type {
     Clan,
     ClanMember,
@@ -12,6 +29,9 @@ import type {
     ClanJoinPolicy,
     ClanCrest,
     ClanLevelConfig,
+    ClanTreasuryLedgerEntry,
+    ClanMissionContract,
+    ClanWeeklyVaultSummary,
 } from './types';
 
 const DEFAULT_CHIPS_CONTRACT: Address = '0xB200000000000000000000821408122b9Ed3d05B';
@@ -139,6 +159,115 @@ export async function getClanLevelConfig(level: number): Promise<ClanLevelConfig
         .maybeSingle();
 
     return (data as ClanLevelConfig) || null;
+}
+
+/**
+ * Fetch next clan level config (for CXP progress bars).
+ */
+export async function getNextClanLevelConfig(currentLevel: number): Promise<ClanLevelConfig | null> {
+    const db = serviceDb();
+    const { data } = await (db as any)
+        .from('clan_level_config')
+        .select('*')
+        .gt('level', currentLevel)
+        .order('level', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+    return (data as ClanLevelConfig) || null;
+}
+
+/**
+ * Pre-flight availability & balance check before on-chain clan creation tx.
+ */
+export async function checkClanAvailability(params: {
+    walletAddress: string;
+    name: string;
+    tag: string;
+}): Promise<{
+    available: boolean;
+    reason?: string;
+    onChainChips: string;
+    hasEnoughChips: boolean;
+}> {
+    const db = serviceDb();
+    const wallet = params.walletAddress.toLowerCase();
+    const name = params.name.trim();
+    const tag = params.tag.trim().toUpperCase();
+
+    if (name.length < 3 || name.length > 24) {
+        return { available: false, reason: 'Clan name must be between 3 and 24 characters', onChainChips: '0', hasEnoughChips: false };
+    }
+    if (tag.length < 2 || tag.length > 5 || !/^[A-Z0-9]+$/.test(tag)) {
+        return { available: false, reason: 'Clan tag must be 2–5 alphanumeric characters', onChainChips: '0', hasEnoughChips: false };
+    }
+
+    const [existingMember, nameClash, tagClash, chipsBal] = await Promise.all([
+        getPlayerClan(wallet),
+        (db as any).from('clans').select('id').ilike('name', name).limit(1).maybeSingle(),
+        (db as any).from('clans').select('id').eq('tag', tag).limit(1).maybeSingle(),
+        getOnChainChipsBalance(wallet),
+    ]);
+
+    const hasEnoughChips = chipsBal >= CLAN_CREATION_FEE_RAW;
+    if (existingMember) {
+        return {
+            available: false,
+            reason: 'You are already a member of a clan',
+            onChainChips: chipsBal.toString(),
+            hasEnoughChips,
+        };
+    }
+    if (nameClash?.data) {
+        return {
+            available: false,
+            reason: 'That clan name is already taken',
+            onChainChips: chipsBal.toString(),
+            hasEnoughChips,
+        };
+    }
+    if (tagClash?.data) {
+        return {
+            available: false,
+            reason: 'That clan tag is already taken',
+            onChainChips: chipsBal.toString(),
+            hasEnoughChips,
+        };
+    }
+
+    return {
+        available: true,
+        onChainChips: chipsBal.toString(),
+        hasEnoughChips,
+    };
+}
+
+/**
+ * Server-sourced clan tags for a list of wallets (prevents client tag spoofing).
+ */
+export async function getClanTagsForWallets(
+    wallets: string[],
+): Promise<Record<string, { clanId: string; tag: string; name: string }>> {
+    const clean = [...new Set(wallets.map((w) => w.toLowerCase()).filter(Boolean))];
+    if (clean.length === 0) return {};
+
+    const db = serviceDb();
+    const { data } = await (db as any)
+        .from('clan_members')
+        .select('wallet_address, clan_id, clan:clans(id, tag, name, status)')
+        .in('wallet_address', clean);
+
+    const out: Record<string, { clanId: string; tag: string; name: string }> = {};
+    for (const row of data || []) {
+        if (row?.clan?.status === 'active' && row?.clan?.tag) {
+            out[String(row.wallet_address).toLowerCase()] = {
+                clanId: String(row.clan_id),
+                tag: String(row.clan.tag),
+                name: String(row.clan.name),
+            };
+        }
+    }
+    return out;
 }
 
 /**
@@ -360,6 +489,13 @@ export async function createClan(params: {
             // Best-effort audit insert
         }
 
+        // Complete 'clan' onboarding track
+        try {
+            await recordSocialOnboarding(db, leader, 'clan', 1);
+        } catch {
+            // Best-effort onboarding credit
+        }
+
         return { clanId };
     }
 
@@ -403,6 +539,11 @@ export async function createClan(params: {
     }
 
     const clanId = data?.clan_id || data;
+    try {
+        await recordSocialOnboarding(db, leader, 'clan', 1);
+    } catch {
+        // Best-effort onboarding credit
+    }
     return { clanId };
 }
 
@@ -445,16 +586,19 @@ export async function requestJoinClan(clanId: string, walletAddress: string): Pr
         });
         if (joinErr) throw new ClanServiceError(joinErr.message, 500);
 
-        await (db as any)
-            .from('clans')
-            .update({ member_count: clan.member_count + 1 })
-            .eq('id', clanId);
+        await (db as any).rpc('clan_adjust_member_count', { p_clan_id: clanId, p_delta: 1 });
 
         // Delete any pending requests
         await (db as any)
             .from('clan_join_requests')
             .delete()
             .eq('wallet_address', wallet);
+
+        try {
+            await recordSocialOnboarding(db, wallet, 'clan', 1);
+        } catch {
+            // Best-effort onboarding credit
+        }
 
         return { status: 'joined', message: 'Successfully joined clan' };
     }
@@ -536,16 +680,19 @@ export async function reviewJoinRequest(
     });
     if (addErr) throw new ClanServiceError(addErr.message, 500);
 
-    await (db as any)
-        .from('clans')
-        .update({ member_count: clan.member_count + 1 })
-        .eq('id', clanId);
+    await (db as any).rpc('clan_adjust_member_count', { p_clan_id: clanId, p_delta: 1 });
 
     await (db as any)
         .from('clan_join_requests')
         .update({ status: 'accepted' })
         .eq('clan_id', clanId)
         .eq('wallet_address', target);
+
+    try {
+        await recordSocialOnboarding(db, target, 'clan', 1);
+    } catch {
+        // Best-effort onboarding credit
+    }
 }
 
 /**
@@ -599,10 +746,7 @@ export async function leaveClan(clanId: string, walletAddress: string): Promise<
             .update({ status: 'archived', member_count: 0 })
             .eq('id', clanId);
     } else {
-        await (db as any)
-            .from('clans')
-            .update({ member_count: Math.max(0, clan.member_count - 1) })
-            .eq('id', clanId);
+        await (db as any).rpc('clan_adjust_member_count', { p_clan_id: clanId, p_delta: -1 });
     }
 }
 
@@ -652,10 +796,7 @@ export async function kickMember(clanId: string, actorWallet: string, targetWall
         .eq('clan_id', clanId)
         .eq('wallet_address', target);
 
-    await (db as any)
-        .from('clans')
-        .update({ member_count: Math.max(0, clan.member_count - 1) })
-        .eq('id', clanId);
+    await (db as any).rpc('clan_adjust_member_count', { p_clan_id: clanId, p_delta: -1 });
 }
 
 /**
@@ -766,4 +907,298 @@ export async function updateClanSettings(
         .eq('id', clanId);
 
     if (error) throw new ClanServiceError(error.message, 500);
+}
+
+/**
+ * Fetch recent treasury ledger entries for a clan.
+ */
+export async function getClanTreasuryLedger(clanId: string, limit = 25): Promise<ClanTreasuryLedgerEntry[]> {
+    const db = serviceDb();
+    const { data, error } = await (db as any)
+        .from('clan_treasury_ledger')
+        .select('*')
+        .eq('clan_id', clanId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+
+    if (error) throw new ClanServiceError(error.message, 500);
+    return (data || []) as ClanTreasuryLedgerEntry[];
+}
+
+/**
+ * Verify that `logs` contain a matching `ClanTreasuryFunded` event from `claimContract`.
+ * Exported for unit testing.
+ */
+export function verifyTreasuryFundedLog(params: {
+    logs: Log[];
+    claimContract: string;
+    clanId: Hex;
+    contributor: string;
+    minAmountWei: bigint;
+}): void {
+    const decoded = parseEventLogs({
+        abi: CLAN_CLAIM_DEPOSIT_ABI,
+        logs: params.logs,
+        eventName: 'ClanTreasuryFunded',
+    });
+
+    const contractLower = params.claimContract.toLowerCase();
+    const contributorLower = params.contributor.toLowerCase();
+
+    const match = decoded.find((l) => {
+        const args = l.args as { clanId?: Hex; contributor?: string; amount?: bigint };
+        return (
+            l.address.toLowerCase() === contractLower &&
+            args.clanId?.toLowerCase() === params.clanId.toLowerCase() &&
+            args.contributor?.toLowerCase() === contributorLower &&
+            (args.amount ?? BigInt(0)) >= params.minAmountWei
+        );
+    });
+
+    if (!match) {
+        throw new ClanServiceError(
+            'Transaction receipt does not match a ClanClaim.fundTreasury deposit',
+            400,
+        );
+    }
+}
+
+/**
+ * Credit a verified on-chain `ClanClaim.fundTreasury` donation to the clan treasury.
+ */
+export async function fundClanTreasuryWithTx(params: {
+    clanId: string;
+    walletAddress: string;
+    amountChips: number;
+    txHash: string;
+}): Promise<{ treasuryBalance: number }> {
+    const db = serviceDb();
+    const wallet = params.walletAddress.toLowerCase();
+    const txHash = params.txHash.trim();
+
+    if (!Number.isFinite(params.amountChips) || params.amountChips <= 0) {
+        throw new ClanServiceError('Positive CHIPS amount required', 400);
+    }
+    if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+        throw new ClanServiceError('Invalid transaction hash format', 400);
+    }
+
+    const { data: member } = await (db as any)
+        .from('clan_members')
+        .select('id')
+        .eq('clan_id', params.clanId)
+        .eq('wallet_address', wallet)
+        .maybeSingle();
+
+    if (!member) {
+        throw new ClanServiceError('Only clan members can fund this clan treasury', 403);
+    }
+
+    const { data: usedTx } = await (db as any)
+        .from('chips_events')
+        .select('tx_hash')
+        .eq('chain_id', 84532)
+        .eq('tx_hash', txHash)
+        .eq('event_name', 'ClanTreasuryFunded')
+        .maybeSingle();
+
+    if (usedTx) {
+        throw new ClanServiceError('This transaction has already been credited', 409, 'TRANSACTION_ALREADY_USED');
+    }
+
+    const claimContract = clanClaimAddress() || DEFAULT_CLAN_CLAIM_ADDRESS;
+    const clanIdBytes32 = keccak256(toBytes(params.clanId));
+    const expectedWei = parseUnits(String(params.amountChips), 18);
+
+    const receipt = await waitForConfirmedReceipt(
+        txHash,
+        (msg, status = 400) => new ClanServiceError(msg, status),
+    );
+
+    verifyTreasuryFundedLog({
+        logs: receipt.logs,
+        claimContract,
+        clanId: clanIdBytes32,
+        contributor: wallet,
+        minAmountWei: expectedWei,
+    });
+
+    try {
+        await (db as any).from('chips_events').upsert({
+            chain_id: 84532,
+            tx_hash: txHash,
+            log_index: 0,
+            event_name: 'ClanTreasuryFunded',
+            wallet_address: wallet,
+            amount: expectedWei.toString(),
+            memo_bytes32: clanIdBytes32,
+            payload: { clanId: params.clanId, amountChips: params.amountChips },
+        }, { onConflict: 'chain_id,tx_hash,log_index' });
+    } catch {
+        // Best-effort audit insert
+    }
+
+    const { data: newBal, error } = await (db as any).rpc('clan_credit_treasury_donation', {
+        p_clan_id: params.clanId,
+        p_wallet: wallet,
+        p_amount: params.amountChips,
+        p_tx_hash: txHash,
+    });
+
+    if (error) throw new ClanServiceError(error.message, 500);
+    return { treasuryBalance: Number(newBal ?? 0) };
+}
+
+/**
+ * Compute real Clan Missions (Daily Contracts + Weekly Objectives) and Sunday Weekly Vault status
+ * from authoritative database progress (`clan_members`, `clan_mission_progress`, `clans`).
+ */
+export async function getClanMissionsAndVault(
+    clanId: string,
+    walletAddress: string,
+): Promise<{
+    contracts: ClanMissionContract[];
+    weeklyVault: ClanWeeklyVaultSummary;
+}> {
+    const db = serviceDb();
+    const wallet = walletAddress.toLowerCase();
+    const clan = await getClan(clanId);
+    if (!clan) throw new ClanServiceError('Clan not found', 404);
+
+    const now = new Date();
+    const dayKey = now.toISOString().slice(0, 10);
+
+    // ISO week start / Sunday 23:59:59 UTC unlock timestamp
+    const utcDay = now.getUTCDay(); // 0=Sun..6=Sat
+    const daysUntilSun = utcDay === 0 ? 0 : 7 - utcDay;
+    const sundayEnd = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate() + daysUntilSun,
+        23, 59, 59,
+    ));
+
+    const [{ data: members }, { data: progressRows }] = await Promise.all([
+        (db as any)
+            .from('clan_members')
+            .select('wallet_address, weekly_cxp, war_points')
+            .eq('clan_id', clanId),
+        (db as any)
+            .from('clan_mission_progress')
+            .select('mission_key, progress, target, completed_at')
+            .eq('clan_id', clanId)
+            .eq('wallet_address', wallet)
+            .eq('period_key', dayKey),
+    ]);
+
+    const memberList = (members || []) as Array<{ wallet_address: string; weekly_cxp: number; war_points: number }>;
+    const weeklyClanCxp = memberList.reduce((sum, m) => sum + Number(m.weekly_cxp || 0), 0);
+    const activeMembers = Math.max(
+        10,
+        memberList.filter((m) => Number(m.weekly_cxp || 0) > 0).length,
+    );
+
+    const TIER_DEFS = [
+        { tier: 1, minClanLevel: 1, mult: 150, chipsPerMember: 10 },
+        { tier: 2, minClanLevel: 1, mult: 350, chipsPerMember: 25 },
+        { tier: 3, minClanLevel: 1, mult: 600, chipsPerMember: 50 },
+        { tier: 4, minClanLevel: 4, mult: 900, chipsPerMember: 90 },
+        { tier: 5, minClanLevel: 7, mult: 1300, chipsPerMember: 150 },
+    ];
+
+    const tiers = TIER_DEFS.map((t) => {
+        const thresholdCxp = t.mult * activeMembers;
+        const unlocked = clan.level >= t.minClanLevel;
+        const reached = unlocked && weeklyClanCxp >= thresholdCxp;
+        return {
+            tier: t.tier,
+            minClanLevel: t.minClanLevel,
+            thresholdCxp,
+            chipsPerMember: t.chipsPerMember,
+            unlocked,
+            reached,
+        };
+    });
+
+    const reachedTiers = tiers.filter((t) => t.reached);
+    const currentTierObj = reachedTiers.length > 0 ? reachedTiers[reachedTiers.length - 1] : null;
+    const nextTierObj = tiers.find((t) => !t.reached && t.unlocked) || tiers.find((t) => !t.reached) || null;
+
+    const progressMap = new Map<string, { progress: number; target: number; completed_at: string | null }>();
+    for (const r of progressRows || []) {
+        progressMap.set(String(r.mission_key), {
+            progress: Number(r.progress || 0),
+            target: Number(r.target || 0),
+            completed_at: r.completed_at || null,
+        });
+    }
+
+    const me = memberList.find((m) => m.wallet_address.toLowerCase() === wallet);
+    const myWeeklyCxp = Number(me?.weekly_cxp || 0);
+    const myWarPts = Number(me?.war_points || 0);
+
+    const dailyDefs: Array<{ key: string; title: string; target: number; rewardCxp: number; fallbackProgress: number }> = [
+        {
+            key: 'daily_online_matches_3',
+            title: 'Play 3 Online Matches',
+            target: 3,
+            rewardCxp: 20,
+            fallbackProgress: Math.min(3, Math.floor(myWeeklyCxp / 15)),
+        },
+        {
+            key: 'daily_captures_5',
+            title: 'Capture 5 Opponent Pawns',
+            target: 5,
+            rewardCxp: 30,
+            fallbackProgress: 0,
+        },
+        {
+            key: 'daily_clan_war_points',
+            title: 'Earn 3 War Points in Clan Combat',
+            target: 3,
+            rewardCxp: 50,
+            fallbackProgress: Math.min(3, myWarPts),
+        },
+    ];
+
+    const contracts: ClanMissionContract[] = dailyDefs.map((d) => {
+        const row = progressMap.get(d.key);
+        const progress = Math.min(d.target, row ? row.progress : d.fallbackProgress);
+        return {
+            key: d.key,
+            title: d.title,
+            scope: 'daily',
+            rewardCxp: d.rewardCxp,
+            progress,
+            target: d.target,
+            completed: Boolean(row?.completed_at) || progress >= d.target,
+        };
+    });
+
+    // Add one weekly collective clan objective derived from real clan members' weekly CXP
+    const weeklyTarget = 6 * activeMembers;
+    const weeklyContrib = memberList.filter((m) => Number(m.weekly_cxp || 0) >= 30).length;
+    contracts.push({
+        key: 'weekly_active_syndicate',
+        title: `Collective Weekly CXP (${weeklyClanCxp.toLocaleString()} / ${(150 * activeMembers).toLocaleString()})`,
+        scope: 'weekly',
+        rewardCxp: 500,
+        progress: Math.min(weeklyTarget, weeklyContrib),
+        target: weeklyTarget,
+        completed: weeklyClanCxp >= 150 * activeMembers,
+    });
+
+    return {
+        contracts,
+        weeklyVault: {
+            weeklyClanCxp,
+            activeMembers,
+            currentTier: currentTierObj?.tier ?? 0,
+            nextTier: nextTierObj?.tier ?? null,
+            nextTierTargetCxp: nextTierObj?.thresholdCxp ?? null,
+            rewardPerMemberChips: currentTierObj?.chipsPerMember ?? 0,
+            unlocksAtUtc: sundayEnd.toISOString(),
+            tiers,
+        },
+    };
 }

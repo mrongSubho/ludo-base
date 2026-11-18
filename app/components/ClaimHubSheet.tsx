@@ -279,7 +279,7 @@ export default function ClaimHubSheet({
                                                 type="button"
                                                 disabled={vault.isActing}
                                                 onClick={() => void handleRollPrize(c.id, c.amount)}
-                                                className="px-2.5 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-mono text-[11px] font-bold shrink-0"
+                                                className="px-2.5 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-mono text-ludo-xs font-bold shrink-0"
                                             >
                                                 Keep in Vault (0 Gas)
                                             </button>
@@ -340,35 +340,77 @@ export default function ClaimHubSheet({
                     </Chip>
                 </div>
                 <div className="cb-card p-3.5 space-y-3 text-left">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                                ⚔️
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                </svg>
                             </div>
-                            <div className="flex flex-col">
-                                <span className="text-ludo-sm font-bold text-white leading-tight">
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-ludo-sm font-bold text-white leading-tight truncate">
                                     War Pot Distribution &amp; Escrow Returns
                                 </span>
-                                <span className="text-ludo-xs font-mono text-white/40">
+                                <span className="text-ludo-xs font-mono text-white/40 truncate">
                                     {hasClanClaims
-                                        ? `${clanClaims.totalClaimableChips} CHIPS ready for pull-claim`
+                                        ? `${clanClaims.totalClaimableChips.toLocaleString()} CHIPS ready for pull-claim`
                                         : "Direct non-custodial claims from ClanClaim.sol"}
                                 </span>
                             </div>
                         </div>
                         {hasClanClaims && (
-                            <span className="text-ludo-sm font-mono font-bold text-emerald-400">
-                                {clanClaims.totalClaimableChips} CHIPS
+                            <span className="text-ludo-sm font-mono font-bold text-emerald-400 shrink-0">
+                                {clanClaims.totalClaimableChips.toLocaleString()} CHIPS
                             </span>
                         )}
                     </div>
+
+                    {hasClanClaims && (
+                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            {clanClaims.claims.map((c) => {
+                                const labelMap: Record<string, string> = {
+                                    war_principal: "War Principal Return",
+                                    war_merit_wp: "War Merit Payout (WP)",
+                                    war_gov_share: "Governance Split Share",
+                                    war_refund: "War Stake Refund",
+                                    weekly_vault: "Weekly Vault Reward",
+                                    treasury_grant: "Clan Treasury Grant",
+                                };
+                                const isClaimingThis = clanClaims.claimingId === c.id;
+                                return (
+                                    <div
+                                        key={c.id}
+                                        className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/5"
+                                    >
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-ludo-xs font-bold text-white truncate">
+                                                {labelMap[c.claim_type] || c.claim_type}
+                                                {c.clan?.tag ? ` · [${c.clan.tag}]` : ""}
+                                            </span>
+                                            <span className="text-ludo-xs font-mono text-emerald-400 font-bold">
+                                                +{Number(c.amount).toLocaleString()} CHIPS
+                                            </span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            disabled={clanClaims.isClaimingAll || Boolean(clanClaims.claimingId)}
+                                            onClick={() => void clanClaims.claimSingle(c).catch(() => {})}
+                                            className="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-mono text-ludo-xs font-bold shrink-0"
+                                        >
+                                            {isClaimingThis ? "Claiming…" : "Claim"}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
 
                     <Button
                         variant="primary"
                         size="md"
                         fullWidth
-                        disabled={!hasClanClaims || clanClaims.isClaimingAll}
-                        onClick={() => void clanClaims.claimAll()}
+                        disabled={!hasClanClaims || clanClaims.isClaimingAll || Boolean(clanClaims.claimingId)}
+                        onClick={() => void clanClaims.claimAll().catch(() => {})}
                         className="uppercase tracking-widest font-black text-ludo-xs"
                     >
                         {clanClaims.isClaimingAll ? (
@@ -377,7 +419,7 @@ export default function ClaimHubSheet({
                                 <span>Claiming Clan Rewards…</span>
                             </div>
                         ) : hasClanClaims ? (
-                            `Claim All (${clanClaims.totalClaimableChips} CHIPS)`
+                            `Claim All (${clanClaims.totalClaimableChips.toLocaleString()} CHIPS)`
                         ) : (
                             "No Clan Claims Pending"
                         )}
@@ -424,9 +466,9 @@ export default function ClaimHubSheet({
             )}
 
             {/* Error or Status message */}
-            {(statusNote || vaultErr || vault.error || poolClaimError || legacy.error) && (
+            {(statusNote || vaultErr || vault.error || clanClaims.error || poolClaimError || legacy.error) && (
                 <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-ludo-xs font-mono text-white/70 text-left">
-                    {vaultErr || vault.error || statusNote || poolClaimError || legacy.error}
+                    {vaultErr || vault.error || clanClaims.error || statusNote || poolClaimError || legacy.error}
                 </div>
             )}
         </div>

@@ -1,17 +1,36 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { requireSession, requireAppSession } from '@/lib/serverAuth';
-import { getActiveWarCall, postWarNotice, cancelWarNotice } from '@/lib/clan/clanWarService';
+import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
+import {
+    getActiveWarCall,
+    getActiveWarForClan,
+    postWarNotice,
+    cancelWarNotice,
+} from '@/lib/clan/clanWarService';
 import { ClanServiceError } from '@/lib/clan/clanService';
 
 export async function GET(request: Request) {
     try {
+        const session = await requireSession(request, 'app');
+        if (!session?.wallet) {
+            return NextResponse.json({ error: 'Unauthorized: valid app session required' }, { status: 401 });
+        }
+
         const { searchParams } = new URL(request.url);
         const clanId = searchParams.get('clanId');
         if (!clanId) return NextResponse.json({ error: 'clanId parameter required' }, { status: 400 });
 
-        const data = await getActiveWarCall(clanId);
-        return NextResponse.json(data);
+        const [callData, warData] = await Promise.all([
+            getActiveWarCall(clanId),
+            getActiveWarForClan(clanId),
+        ]);
+
+        return NextResponse.json({
+            ...callData,
+            activeWar: warData.activeWar,
+            fixtures: warData.fixtures,
+        });
     } catch (err: any) {
         console.error('[clans:war:notice:GET]', err);
         return NextResponse.json({ error: err.message || 'Failed to fetch war notice' }, { status: 500 });
@@ -27,6 +46,14 @@ export async function POST(request: Request) {
 
         if (!authed) {
             return NextResponse.json({ error: 'Unauthorized: valid app session required' }, { status: 401 });
+        }
+
+        const limit = checkRateLimit(rateKey('clans:war:notice', authed), 20, 60_000);
+        if (!limit.ok) {
+            return NextResponse.json(
+                { error: 'Too many war notice requests', retryAfter: limit.retryAfterSec },
+                { status: 429, headers: rateLimitHeaders(limit) },
+            );
         }
 
         const { clanId, action } = body;

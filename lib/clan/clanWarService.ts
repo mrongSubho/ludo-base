@@ -8,7 +8,11 @@ import {
     type Hex,
     type Log,
 } from 'viem';
-import { CLAN_CLAIM_DEPOSIT_ABI, clanClaimAddress } from '@/lib/chips';
+import {
+    CLAN_CLAIM_DEPOSIT_ABI,
+    DEFAULT_CLAN_CLAIM_ADDRESS,
+    clanClaimAddress,
+} from '@/lib/chips';
 import { waitForConfirmedReceipt } from '@/lib/onchainReceipt';
 import type {
     ClanWarCall,
@@ -125,8 +129,6 @@ export async function postWarNotice(params: {
         }
     }
 
-    const totalRequired = params.bracket * params.memberFee;
-
     const { data: created, error } = await (db as any)
         .from('clan_war_calls')
         .insert({
@@ -138,7 +140,7 @@ export async function postWarNotice(params: {
             leader_pct: params.leaderPct,
             officers_pct: params.officersPct,
             treasury_subsidy: treasurySubsidy,
-            total_stake: totalRequired,
+            total_stake: treasurySubsidy,
             status: 'notice_open',
         })
         .select('*')
@@ -327,10 +329,7 @@ export async function buyInWarCall(params: {
     const expectedBaseUnits = parseUnits(String(params.stakeAmount), 18);
     const expectedWarId = keccak256(toBytes(warCall.id));
     const expectedClanId = keccak256(toBytes(params.clanId));
-    const claimContract = clanClaimAddress();
-    if (!claimContract) {
-        throw new ClanServiceError('ClanClaim contract address is not configured', 500);
-    }
+    const claimContract = clanClaimAddress() || DEFAULT_CLAN_CLAIM_ADDRESS;
 
     const receipt = await waitForConfirmedReceipt(
         txHash,
@@ -386,6 +385,19 @@ export async function buyInWarCall(params: {
         }
         throw new ClanServiceError(error.message, 500);
     }
+
+    // Recompute actual committed stake on the war call
+    const { data: allStakes } = await (db as any)
+        .from('clan_war_stakes')
+        .select('stake_amount')
+        .eq('war_call_id', warCall.id)
+        .eq('status', 'locked');
+
+    const committedSum = (allStakes || []).reduce((acc: number, row: any) => acc + Number(row.stake_amount), 0);
+    await (db as any)
+        .from('clan_war_calls')
+        .update({ total_stake: committedSum + Number(warCall.treasury_subsidy || 0) })
+        .eq('id', warCall.id);
 
     return stake as ClanWarStake;
 }
@@ -464,43 +476,104 @@ export async function getOpenWarBoard(options?: { bracket?: number }): Promise<A
 }
 
 /**
- * Match two clans (Auto-match or Open War Board selection).
- * Generates 48h prep phase and the full 3N Fixtures Matrix.
+ * Fetch the active (or settling) clan war and its fixtures for a clan,
+ * automatically advancing `prep_phase` -> `active_war` once `war_start_at` elapses.
  */
-export async function matchClans(callAId: string, callBId: string): Promise<ClanWar> {
+export async function getActiveWarForClan(clanId: string): Promise<{
+    activeWar: ClanWar | null;
+    fixtures: ClanWarFixture[];
+}> {
+    const db = serviceDb();
+    const { data: war, error } = await (db as any)
+        .from('clan_wars')
+        .select(`
+            *,
+            clan_a:clans!clan_wars_clan_a_id_fkey ( id, name, tag, crest, level, division, cwr ),
+            clan_b:clans!clan_wars_clan_b_id_fkey ( id, name, tag, crest, level, division, cwr )
+        `)
+        .or(`clan_a_id.eq.${clanId},clan_b_id.eq.${clanId}`)
+        .in('status', ['prep_phase', 'active_war', 'settling'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error || !war) {
+        return { activeWar: null, fixtures: [] };
+    }
+
+    // Advance prep_phase -> active_war once war_start_at has passed
+    if (war.status === 'prep_phase' && war.war_start_at && Date.now() >= new Date(war.war_start_at).getTime()) {
+        await (db as any)
+            .from('clan_wars')
+            .update({ status: 'active_war' })
+            .eq('id', war.id)
+            .eq('status', 'prep_phase');
+        war.status = 'active_war';
+    }
+
+    const fixtures = await getWarFixtures(war.id);
+    return {
+        activeWar: war as ClanWar,
+        fixtures,
+    };
+}
+
+/**
+ * Match two clans (Auto-match or Open War Board selection).
+ * Locks both calls atomically via `clan_match_war_calls` RPC and generates the 3N Fixtures Matrix.
+ */
+export async function matchClans(
+    callAId: string,
+    callBId: string,
+    actorWallet?: string,
+): Promise<ClanWar> {
     const db = serviceDb();
 
-    const { data: callA } = await (db as any).from('clan_war_calls').select('*').eq('id', callAId).single();
-    const { data: callB } = await (db as any).from('clan_war_calls').select('*').eq('id', callBId).single();
+    const { data: callA } = await (db as any).from('clan_war_calls').select('*').eq('id', callAId).maybeSingle();
+    const { data: callB } = await (db as any).from('clan_war_calls').select('*').eq('id', callBId).maybeSingle();
 
     if (!callA || !callB) throw new ClanServiceError('One or both war calls not found', 404);
     if (callA.clan_id === callB.clan_id) throw new ClanServiceError('Cannot match clan with itself', 400);
     if (callA.bracket !== callB.bracket) throw new ClanServiceError('War brackets do not match', 400);
+    if (callA.status !== 'searching' || callB.status !== 'searching') {
+        throw new ClanServiceError('Both war calls must be actively searching to match', 409);
+    }
 
-    const stakePerClan = Math.min(Number(callA.total_stake), Number(callB.total_stake));
-    const now = Date.now();
-    const warStartAt = new Date(now + 48 * 3600 * 1000).toISOString();
-    const warEndAt = new Date(now + 96 * 3600 * 1000).toISOString();
+    // When invoked via Open War Board API, require caller is commander or officer of callA's clan
+    if (actorWallet) {
+        const actor = actorWallet.toLowerCase();
+        const { data: member } = await (db as any)
+            .from('clan_members')
+            .select('role')
+            .eq('clan_id', callA.clan_id)
+            .eq('wallet_address', actor)
+            .maybeSingle();
 
-    // Create clan_wars row
-    const { data: war, error: warErr } = await (db as any)
-        .from('clan_wars')
-        .insert({
-            clan_a_id: callA.clan_id,
-            clan_b_id: callB.clan_id,
-            bracket: callA.bracket,
-            stake_per_clan: stakePerClan,
-            status: 'prep_phase',
-            war_start_at: warStartAt,
-            war_end_at: warEndAt,
-        })
-        .select('*')
-        .single();
+        if (!member || !['commander', 'officer'].includes(member.role)) {
+            throw new ClanServiceError('Only commanders or officers of the challenging clan can initiate a war match', 403);
+        }
+    }
 
-    if (warErr) throw new ClanServiceError(warErr.message, 500);
+    const { data: warJson, error: matchErr } = await (db as any).rpc('clan_match_war_calls', {
+        p_call_a_id: callAId,
+        p_call_b_id: callBId,
+    });
 
-    // Update war calls to matched
-    await (db as any).from('clan_war_calls').update({ status: 'matched' }).in('id', [callAId, callBId]);
+    if (matchErr || !warJson) {
+        const msg = String(matchErr?.message || '');
+        if (msg.includes('CALL_NOT_SEARCHING')) {
+            throw new ClanServiceError('One of the war calls is no longer searching', 409);
+        }
+        if (msg.includes('BRACKET_MISMATCH')) {
+            throw new ClanServiceError('War brackets do not match', 400);
+        }
+        if (msg.includes('SELF_MATCH_NOT_ALLOWED')) {
+            throw new ClanServiceError('Cannot match a clan with itself', 400);
+        }
+        throw new ClanServiceError(msg || 'Failed to match war calls', 500);
+    }
+
+    const war = warJson as ClanWar;
 
     // Fetch roster participants for both clans
     const { data: stakesA } = await (db as any)
@@ -523,7 +596,7 @@ export async function matchClans(callAId: string, callBId: string): Promise<Clan
     // Generate 3N fixtures matrix
     await generateFixturesMatrix(war.id, callA.bracket, rosterA, rosterB);
 
-    return war as ClanWar;
+    return war;
 }
 
 /**
@@ -645,13 +718,14 @@ export async function getWarFixtures(warId: string): Promise<ClanWarFixture[]> {
 }
 
 /**
- * Fixture scheduling: propose or confirm bilateral scheduled time.
+ * Fixture scheduling: bilateral propose / confirm between Clan A and Clan B participants or officers.
  */
 export async function scheduleFixtureTime(params: {
     fixtureId: string;
     actorWallet: string;
-    scheduledAt: string;
-}): Promise<void> {
+    scheduledAt?: string;
+    action?: 'propose' | 'confirm';
+}): Promise<ClanWarFixture> {
     const db = serviceDb();
     const actor = params.actorWallet.toLowerCase();
 
@@ -659,23 +733,82 @@ export async function scheduleFixtureTime(params: {
         .from('clan_war_fixtures')
         .select('*, war:clan_wars(*)')
         .eq('id', params.fixtureId)
-        .single();
+        .maybeSingle();
 
     if (!fixture) throw new ClanServiceError('Fixture not found', 404);
-
-    const isParticipant =
-        fixture.clan_a_seats.map((s: string) => s.toLowerCase()).includes(actor) ||
-        fixture.clan_b_seats.map((s: string) => s.toLowerCase()).includes(actor);
-
-    if (!isParticipant) {
-        throw new ClanServiceError('Only assigned players or clan officers can schedule fixture', 403);
+    if (['completed', 'walkover', 'mutual_void'].includes(fixture.status)) {
+        throw new ClanServiceError('Fixture is already resolved', 400);
     }
 
-    await (db as any)
+    const inClanASeats = (fixture.clan_a_seats || []).map((s: string) => s.toLowerCase()).includes(actor);
+    const inClanBSeats = (fixture.clan_b_seats || []).map((s: string) => s.toLowerCase()).includes(actor);
+
+    let actorSide: 'a' | 'b' | null = inClanASeats ? 'a' : inClanBSeats ? 'b' : null;
+
+    if (!actorSide && fixture.war) {
+        const { data: officerRows } = await (db as any)
+            .from('clan_members')
+            .select('clan_id, role')
+            .eq('wallet_address', actor)
+            .in('clan_id', [fixture.war.clan_a_id, fixture.war.clan_b_id])
+            .in('role', ['commander', 'officer']);
+
+        if (officerRows && officerRows.length > 0) {
+            actorSide = officerRows[0].clan_id === fixture.war.clan_a_id ? 'a' : 'b';
+        }
+    }
+
+    if (!actorSide) {
+        throw new ClanServiceError('Only assigned players or clan officers can schedule this fixture', 403);
+    }
+
+    if (params.action === 'confirm') {
+        if (!fixture.scheduled_at || !fixture.proposed_by) {
+            throw new ClanServiceError('No pending schedule proposal to confirm', 400);
+        }
+        if (fixture.proposed_by === actorSide) {
+            throw new ClanServiceError('Waiting for the opposing clan to confirm this time', 409);
+        }
+        const { data: updated, error } = await (db as any)
+            .from('clan_war_fixtures')
+            .update({ status: 'scheduled_agreed' })
+            .eq('id', params.fixtureId)
+            .select('*')
+            .single();
+        if (error) throw new ClanServiceError(error.message, 500);
+        return updated as ClanWarFixture;
+    }
+
+    if (!params.scheduledAt) {
+        throw new ClanServiceError('scheduledAt timestamp is required', 400);
+    }
+    const parsedTime = new Date(params.scheduledAt);
+    if (Number.isNaN(parsedTime.getTime())) {
+        throw new ClanServiceError('Invalid scheduledAt timestamp', 400);
+    }
+
+    // If opposing side already proposed this exact timestamp, confirm bilaterally
+    const isConfirmingSameSlot =
+        fixture.status === 'reschedule_pending' &&
+        fixture.proposed_by &&
+        fixture.proposed_by !== actorSide &&
+        fixture.scheduled_at &&
+        new Date(fixture.scheduled_at).getTime() === parsedTime.getTime();
+
+    const nextStatus: FixtureStatus = isConfirmingSameSlot ? 'scheduled_agreed' : 'reschedule_pending';
+
+    const { data: updated, error } = await (db as any)
         .from('clan_war_fixtures')
         .update({
-            scheduled_at: params.scheduledAt,
-            status: 'scheduled_agreed',
+            scheduled_at: parsedTime.toISOString(),
+            proposed_by: actorSide,
+            proposed_at: new Date().toISOString(),
+            status: nextStatus,
         })
-        .eq('id', params.fixtureId);
+        .eq('id', params.fixtureId)
+        .select('*')
+        .single();
+
+    if (error) throw new ClanServiceError(error.message, 500);
+    return updated as ClanWarFixture;
 }

@@ -81,10 +81,14 @@ export const RATE_LIMITS: Record<string, LimitRule> = {
     'matches/history': { limit: 60, windowMs: 60_000, methods: ['GET'] },
     'matches/sync-confirm': { limit: 20, windowMs: 60_000, methods: ['POST'] },
     'matches/unsynced': { limit: 60, windowMs: 60_000, methods: ['GET'] },
+    'clans': { limit: 20, windowMs: 60_000, methods: ['POST'] },
+    'clans/action': { limit: 30, windowMs: 60_000, methods: ['POST'] },
     'clans/chat': { limit: 60, windowMs: 60_000, methods: ['POST'] },
     'clans/claims': { limit: 20, windowMs: 60_000, methods: ['POST'] },
     'clans/war/buyin': { limit: 20, windowMs: 60_000, methods: ['POST'] },
     'clans/war/board': { limit: 20, windowMs: 60_000, methods: ['POST'] },
+    'clans/war/fixture': { limit: 30, windowMs: 60_000, methods: ['POST'] },
+    'clans/war/notice': { limit: 20, windowMs: 60_000, methods: ['POST'] },
     'vault': { limit: 30, windowMs: 60_000, methods: ['POST'] },
 };
 

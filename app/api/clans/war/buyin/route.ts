@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { requireSession, requireAppSession } from '@/lib/serverAuth';
+import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 import { buyInWarCall, startWarSearch } from '@/lib/clan/clanWarService';
 import { ClanServiceError } from '@/lib/clan/clanService';
 
@@ -13,6 +14,14 @@ export async function POST(request: Request) {
 
         if (!authed) {
             return NextResponse.json({ error: 'Unauthorized: valid app session required' }, { status: 401 });
+        }
+
+        const limit = checkRateLimit(rateKey('clans:war:buyin', authed), 20, 60_000);
+        if (!limit.ok) {
+            return NextResponse.json(
+                { error: 'Too many war buy-in requests', retryAfter: limit.retryAfterSec },
+                { status: 429, headers: rateLimitHeaders(limit) },
+            );
         }
 
         const { clanId, action, stakeAmount, txHash } = body;

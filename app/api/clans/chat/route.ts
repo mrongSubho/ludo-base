@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { requireSession, requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 import type { ClanChatMessage } from '@/lib/clan/types';
 
 export async function GET(request: Request) {
@@ -9,12 +10,11 @@ export async function GET(request: Request) {
         const clanId = searchParams.get('clanId');
         if (!clanId) return NextResponse.json({ error: 'clanId parameter required' }, { status: 400 });
 
-        const authed = (await requireSession(request, 'app'))?.wallet ||
-            searchParams.get('wallet') || null;
-
-        if (!authed) {
+        const session = await requireSession(request, 'app');
+        if (!session?.wallet) {
             return NextResponse.json({ error: 'Unauthorized: valid app session required' }, { status: 401 });
         }
+        const authed = session.wallet;
 
         const db = serviceDb();
 
@@ -59,6 +59,14 @@ export async function POST(request: Request) {
 
         if (!authed) {
             return NextResponse.json({ error: 'Unauthorized: valid app session required' }, { status: 401 });
+        }
+
+        const limit = checkRateLimit(rateKey('clans:chat', authed), 30, 60_000);
+        if (!limit.ok) {
+            return NextResponse.json(
+                { error: 'Too many chat messages', retryAfter: limit.retryAfterSec },
+                { status: 429, headers: rateLimitHeaders(limit) },
+            );
         }
 
         const { clanId, content } = body;
@@ -110,9 +118,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Broadcast to realtime channel so all online clan members receive instantly
+        // Broadcast to private realtime channel so all online clan members receive instantly
         try {
-            await (db as any).channel(`clan-${clanId}`).send({
+            await (db as any).channel(`clan-${clanId}`, { config: { private: true } }).send({
                 type: 'broadcast',
                 event: 'clan_chat_message',
                 payload: { message: inserted },

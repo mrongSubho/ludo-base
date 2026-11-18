@@ -2,14 +2,21 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAccount, useWriteContract, useSwitchChain, usePublicClient } from "wagmi";
-import { encodeFunctionData, parseUnits, type Address } from "viem";
+import { encodeFunctionData, keccak256, parseUnits, toBytes, type Address } from "viem";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useCdpUserOp } from "@/hooks/useCdpUserOp";
 import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
-import { CHIPS_ERC20_ABI, chipsAddress } from "@/lib/chips";
+import { readAllowanceDirect } from "@/hooks/useChipsAllowance";
+import {
+    CHIPS_ERC20_ABI,
+    CLAN_CLAIM_DEPOSIT_ABI,
+    DEFAULT_CLAN_CLAIM_ADDRESS,
+    chipsAddress,
+    clanClaimAddress,
+} from "@/lib/chips";
 import { DEFAULT_CHAIN_ID } from "@/lib/chains";
 import { useAppSession } from "@/hooks/useAppSession";
-import { supabase } from "@/lib/supabase";
+import { createPrivateChannel, supabase } from "@/lib/supabase";
 import type {
     Clan,
     ClanMember,
@@ -19,6 +26,9 @@ import type {
     ClanRole,
     ClanJoinPolicy,
     ClanCrest,
+    ClanTreasuryLedgerEntry,
+    ClanMissionContract,
+    ClanWeeklyVaultSummary,
 } from "@/lib/clan/types";
 
 const PROTOCOL_TREASURY_WALLET: Address =
@@ -37,8 +47,12 @@ export function useClanData() {
     const [clan, setClan] = useState<Clan | null>(null);
     const [member, setMember] = useState<ClanMember | null>(null);
     const [levelConfig, setLevelConfig] = useState<ClanLevelConfig | null>(null);
+    const [nextLevelConfig, setNextLevelConfig] = useState<ClanLevelConfig | null>(null);
     const [members, setMembers] = useState<ClanMember[]>([]);
-    const [joinRequests, _setJoinRequests] = useState<ClanJoinRequest[]>([]);
+    const [joinRequests, setJoinRequests] = useState<ClanJoinRequest[]>([]);
+    const [treasuryLedger, setTreasuryLedger] = useState<ClanTreasuryLedgerEntry[]>([]);
+    const [missions, setMissions] = useState<ClanMissionContract[]>([]);
+    const [weeklyVault, setWeeklyVault] = useState<ClanWeeklyVaultSummary | null>(null);
     const [chatMessages, setChatMessages] = useState<ClanChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -47,15 +61,26 @@ export function useClanData() {
     clanIdRef.current = clan?.id || null;
 
     /**
-     * Refresh caller's clan status, members, and chat feed.
+     * Refresh caller's clan status, members, join requests, treasury, missions, and chat feed.
      */
     const refresh = useCallback(async () => {
         if (!address) {
             setClan(null);
             setMember(null);
             setLevelConfig(null);
+            setNextLevelConfig(null);
             setMembers([]);
+            setJoinRequests([]);
+            setTreasuryLedger([]);
+            setMissions([]);
+            setWeeklyVault(null);
             setChatMessages([]);
+            return;
+        }
+
+        const sid = peekAppSession();
+        if (!sid) {
+            // Do not fire unauthenticated ?mine=true calls before session sign-in
             return;
         }
 
@@ -63,11 +88,12 @@ export function useClanData() {
         setError(null);
 
         try {
-            const sid = peekAppSession();
-            const headers: Record<string, string> = { "Content-Type": "application/json" };
-            if (sid) headers["Authorization"] = `Bearer ${sid}`;
+            const headers: Record<string, string> = {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${sid}`,
+            };
 
-            const res = await fetch(`/api/clans?mine=true&wallet=${encodeURIComponent(address)}`, {
+            const res = await fetch("/api/clans?mine=true", {
                 headers,
                 cache: "no-store",
             });
@@ -81,26 +107,25 @@ export function useClanData() {
             setClan(data.clan || null);
             setMember(data.member || null);
             setLevelConfig(data.levelConfig || null);
+            setNextLevelConfig(data.nextLevelConfig || null);
+            setMembers(data.members || []);
+            setJoinRequests(data.joinRequests || []);
+            setTreasuryLedger(data.treasuryLedger || []);
+            setMissions(data.missions || []);
+            setWeeklyVault(data.weeklyVault || null);
 
             if (data.clan?.id) {
-                // Fetch members and chat
-                const [chatRes, clanRes] = await Promise.all([
-                    fetch(`/api/clans/chat?clanId=${data.clan.id}&wallet=${encodeURIComponent(address)}`, {
-                        headers,
-                        cache: "no-store",
-                    }),
-                    fetch(`/api/clans?clanId=${data.clan.id}`, { cache: "no-store" }),
-                ]);
+                const chatRes = await fetch(`/api/clans/chat?clanId=${data.clan.id}`, {
+                    headers,
+                    cache: "no-store",
+                });
 
                 if (chatRes.ok) {
                     const chatData = await chatRes.json();
                     setChatMessages(chatData.messages || []);
                 }
-
-                if (clanRes.ok) {
-                    const clanData = await clanRes.json();
-                    if (clanData.clan) setClan(clanData.clan);
-                }
+            } else {
+                setChatMessages([]);
             }
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
@@ -111,18 +136,15 @@ export function useClanData() {
         }
     }, [address, peekAppSession]);
 
-    // Initial load and wallet change
     useEffect(() => {
         void refresh();
     }, [refresh]);
 
-    // Realtime broadcast subscription for live chat and clan events
+    // Private Realtime subscription for live chat and clan events
     useEffect(() => {
         if (!clan?.id) return;
         const topic = `clan-${clan.id}`;
-        const channel = supabase.channel(topic, {
-            config: { broadcast: { self: false } },
-        });
+        const channel = createPrivateChannel(topic);
 
         channel
             .on("broadcast", { event: "clan_chat_message" }, (payload: { payload?: { message?: ClanChatMessage } }) => {
@@ -145,7 +167,31 @@ export function useClanData() {
     }, [clan?.id, refresh]);
 
     /**
-     * Create a new clan by executing on-chain 10,000 CHIPS creation fee to Protocol Treasury.
+     * Pre-flight availability and CHIPS balance check before signing creation tx.
+     */
+    const checkClanAvailability = useCallback(async (name: string, tag: string) => {
+        const sessionId = await ensureAppSession();
+        if (!sessionId) throw new Error("Session required");
+
+        const res = await fetch(
+            `/api/clans?check=true&name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}`,
+            {
+                headers: { Authorization: `Bearer ${sessionId}` },
+                cache: "no-store",
+            },
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Pre-flight check failed");
+        return data as {
+            available: boolean;
+            reason?: string;
+            onChainChips: string;
+            hasEnoughChips: boolean;
+        };
+    }, [ensureAppSession]);
+
+    /**
+     * Create a new clan with pre-flight validation + 10,000 CHIPS creation fee transfer.
      */
     const createClan = useCallback(async (params: {
         name: string;
@@ -156,6 +202,15 @@ export function useClanData() {
         if (!address) throw new Error("Wallet not connected");
         const sessionId = await ensureAppSession();
         if (!sessionId) throw new Error("Session required to create clan");
+
+        // Pre-flight check BEFORE user signs on-chain transfer
+        const check = await checkClanAvailability(params.name, params.tag);
+        if (!check.available) {
+            throw new Error(check.reason || "Clan name or tag is unavailable");
+        }
+        if (!check.hasEnoughChips) {
+            throw new Error("Insufficient on-chain CHIPS balance (10,000 CHIPS required)");
+        }
 
         const tokenAddress = chipsAddress() || ("0xB200000000000000000000821408122b9Ed3d05B" as Address);
         const treasuryAddress = PROTOCOL_TREASURY_WALLET;
@@ -182,11 +237,7 @@ export function useClanData() {
                 txHash = await cdpUserOp.sendCallsAndWait([{ to: tokenAddress, data }]);
             } else {
                 if (chainId && chainId !== DEFAULT_CHAIN_ID) {
-                    try {
-                        await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
-                    } catch (err) {
-                        console.warn("[useClanData] Network switch failed:", err);
-                    }
+                    await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
                 }
                 const hash = await writeContractAsync({
                     address: tokenAddress,
@@ -229,7 +280,148 @@ export function useClanData() {
 
         await refresh();
         return data;
-    }, [address, chainId, cdpUserOp, ensureAppSession, player.mode, publicClient, refresh, switchChainAsync, writeContractAsync]);
+    }, [
+        address,
+        chainId,
+        cdpUserOp,
+        checkClanAvailability,
+        ensureAppSession,
+        player.mode,
+        publicClient,
+        refresh,
+        switchChainAsync,
+        writeContractAsync,
+    ]);
+
+    /**
+     * Fund the clan treasury on-chain via `ClanClaim.fundTreasury` and record it in DB.
+     */
+    const fundTreasury = useCallback(async (amountChips: number) => {
+        if (!clan?.id || !address) throw new Error("Not in a clan");
+        const cleanAmount = Math.floor(Number(amountChips));
+        if (!Number.isFinite(cleanAmount) || cleanAmount <= 0) {
+            throw new Error("Enter a positive CHIPS amount");
+        }
+
+        const sessionId = await ensureAppSession();
+        if (!sessionId) throw new Error("Session required");
+
+        const chipsToken = chipsAddress() || ("0xB200000000000000000000821408122b9Ed3d05B" as Address);
+        const claimContract = clanClaimAddress() || DEFAULT_CLAN_CLAIM_ADDRESS;
+        const clanIdBytes32 = keccak256(toBytes(clan.id));
+        const amountWei = parseUnits(String(cleanAmount), 18);
+
+        let hidePrompt: (() => void) | undefined;
+        let txHash: string | undefined;
+
+        try {
+            const currentAllowance = await readAllowanceDirect(address as Address, claimContract);
+            const hasAllowance = currentAllowance >= amountWei;
+
+            hidePrompt = showTxPrompt({
+                context: "clan-treasury-fund",
+                title: "FUND CLAN TREASURY",
+                statusText: hasAllowance
+                    ? `Confirm ${cleanAmount.toLocaleString()} CHIPS deposit to your clan treasury.`
+                    : `Approve CHIPS allowance and deposit ${cleanAmount.toLocaleString()} CHIPS to your clan treasury.`,
+                explanationText: "Funds are held non-custodially in ClanClaim on Base Sepolia for war subsidies and grants.",
+            });
+
+            const fundData = encodeFunctionData({
+                abi: CLAN_CLAIM_DEPOSIT_ABI,
+                functionName: "fundTreasury",
+                args: [clanIdBytes32, amountWei],
+            });
+
+            if (player.mode === "ingame" && cdpUserOp.isInGame) {
+                const calls = hasAllowance
+                    ? [{ to: claimContract, data: fundData }]
+                    : [
+                          {
+                              to: chipsToken,
+                              data: encodeFunctionData({
+                                  abi: CHIPS_ERC20_ABI,
+                                  functionName: "approve",
+                                  args: [claimContract, amountWei],
+                              }),
+                          },
+                          { to: claimContract, data: fundData },
+                      ];
+                txHash = await cdpUserOp.sendCallsAndWait(calls);
+            } else {
+                if (chainId && chainId !== DEFAULT_CHAIN_ID) {
+                    await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
+                }
+                if (!hasAllowance) {
+                    updateAuthPromptStatus(
+                        `Step 1/2: Approve ${cleanAmount.toLocaleString()} CHIPS allowance...`,
+                        "Awaiting Approval",
+                    );
+                    const approveHash = await writeContractAsync({
+                        address: chipsToken,
+                        abi: CHIPS_ERC20_ABI,
+                        functionName: "approve",
+                        args: [claimContract, amountWei],
+                    });
+                    if (publicClient && approveHash) {
+                        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+                    }
+                }
+                updateAuthPromptStatus(
+                    `${hasAllowance ? "" : "Step 2/2: "}Confirm ${cleanAmount.toLocaleString()} CHIPS treasury deposit...`,
+                    "Awaiting Deposit",
+                );
+                const hash = await writeContractAsync({
+                    address: claimContract,
+                    abi: CLAN_CLAIM_DEPOSIT_ABI,
+                    functionName: "fundTreasury",
+                    args: [clanIdBytes32, amountWei],
+                });
+                txHash = hash;
+                if (publicClient && hash) {
+                    updateAuthPromptStatus("Deposit broadcast! Confirming on-chain...", "Confirming On-Chain");
+                    await publicClient.waitForTransactionReceipt({ hash });
+                }
+            }
+        } finally {
+            hidePrompt?.();
+        }
+
+        if (!txHash) throw new Error("Treasury deposit cancelled");
+
+        const res = await fetch("/api/clans/action", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${sessionId}`,
+            },
+            body: JSON.stringify({
+                action: "fund_treasury",
+                clanId: clan.id,
+                amountChips: cleanAmount,
+                txHash,
+                walletAddress: address,
+                sessionId,
+            }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to credit treasury");
+
+        await refresh();
+        return data;
+    }, [
+        address,
+        cdpUserOp,
+        chainId,
+        clan?.id,
+        ensureAppSession,
+        player.mode,
+        publicClient,
+        refresh,
+        switchChainAsync,
+        writeContractAsync,
+    ]);
 
     /**
      * Send message in clan chat.
@@ -260,7 +452,10 @@ export function useClanData() {
 
         const data = await res.json();
         if (data.message) {
-            setChatMessages((prev) => [...prev, data.message]);
+            setChatMessages((prev) => {
+                if (prev.some((m) => m.id === data.message.id)) return prev;
+                return [...prev, data.message];
+            });
         }
     }, [clan?.id, address, ensureAppSession]);
 
@@ -302,13 +497,19 @@ export function useClanData() {
         clan,
         member,
         levelConfig,
+        nextLevelConfig,
         members,
         joinRequests,
+        treasuryLedger,
+        missions,
+        weeklyVault,
         chatMessages,
         isLoading,
         error,
         refresh,
+        checkClanAvailability,
         createClan,
+        fundTreasury,
         sendChatMessage,
         requestJoin: (clanId: string) => executeAction("request_join", { clanId }),
         cancelRequest: (clanId: string) => executeAction("cancel_request", { clanId }),

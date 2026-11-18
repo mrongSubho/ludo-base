@@ -1,20 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { requireSession, requireAppSession } from '@/lib/serverAuth';
-import { getClaimableList, issueClanClaimVoucher } from '@/lib/clan/clanClaimVoucher';
+import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
+import {
+    getClaimableList,
+    issueClanClaimVoucher,
+    confirmClanClaimsExecuted,
+} from '@/lib/clan/clanClaimVoucher';
 import { ClanServiceError } from '@/lib/clan/clanService';
 
 export async function GET(request: Request) {
     try {
-        const { searchParams } = new URL(request.url);
-        const authed = (await requireSession(request, 'app'))?.wallet ||
-            searchParams.get('wallet') || null;
-
-        if (!authed) {
+        const session = await requireSession(request, 'app');
+        if (!session?.wallet) {
             return NextResponse.json({ error: 'Unauthorized: valid app session required' }, { status: 401 });
         }
 
-        const claims = await getClaimableList(authed);
+        const claims = await getClaimableList(session.wallet);
         return NextResponse.json({ claims });
     } catch (err: any) {
         console.error('[clans:claims:GET]', err);
@@ -33,7 +35,33 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Unauthorized: valid app session required' }, { status: 401 });
         }
 
-        const { claimId, chainId } = body;
+        const limit = checkRateLimit(rateKey('clans:claims', authed), 20, 60_000);
+        if (!limit.ok) {
+            return NextResponse.json(
+                { error: 'Too many claim requests', retryAfter: limit.retryAfterSec },
+                { status: 429, headers: rateLimitHeaders(limit) },
+            );
+        }
+
+        const { action, claimId, claimIds, txHash, chainId } = body;
+
+        if (action === 'confirm_claim') {
+            const ids: string[] = Array.isArray(claimIds)
+                ? claimIds.map(String)
+                : claimId
+                  ? [String(claimId)]
+                  : [];
+            if (!ids.length || !txHash) {
+                return NextResponse.json({ error: 'claimIds and txHash required' }, { status: 400 });
+            }
+            const res = await confirmClanClaimsExecuted({
+                walletAddress: authed,
+                claimIds: ids,
+                txHash: String(txHash),
+            });
+            return NextResponse.json({ success: true, ...res });
+        }
+
         if (!claimId) {
             return NextResponse.json({ error: 'claimId required' }, { status: 400 });
         }
@@ -50,6 +78,6 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: err.message, code: err.code }, { status: err.statusCode });
         }
         console.error('[clans:claims:POST]', err);
-        return NextResponse.json({ error: err.message || 'Failed to issue voucher' }, { status: 500 });
+        return NextResponse.json({ error: err.message || 'Failed to process claim request' }, { status: 500 });
     }
 }

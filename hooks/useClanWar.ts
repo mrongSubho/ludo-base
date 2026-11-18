@@ -12,11 +12,12 @@ import { readAllowanceDirect } from "@/hooks/useChipsAllowance";
 import {
     CHIPS_ERC20_ABI,
     CLAN_CLAIM_DEPOSIT_ABI,
+    DEFAULT_CLAN_CLAIM_ADDRESS,
     chipsAddress,
     clanClaimAddress,
 } from "@/lib/chips";
 import { DEFAULT_CHAIN_ID } from "@/lib/chains";
-import { supabase } from "@/lib/supabase";
+import { createPrivateChannel, supabase } from "@/lib/supabase";
 import type {
     ClanWarCall,
     ClanWarStake,
@@ -25,7 +26,6 @@ import type {
 } from "@/lib/clan/types";
 
 const DEFAULT_CHIPS_ADDRESS: Address = "0xB200000000000000000000821408122b9Ed3d05B";
-const DEFAULT_CLAN_CLAIM_ADDRESS: Address = "0xF3570340E2A298Bf5424efC9C62E464528DA6df0";
 
 export function useClanWar(clanId: string | null | undefined) {
     const { address, chainId } = useAccount();
@@ -49,20 +49,24 @@ export function useClanWar(clanId: string | null | undefined) {
         if (!clanId) {
             setWarCall(null);
             setStakes([]);
+            setTotalCommitted(0);
             setActiveWar(null);
             setFixtures([]);
             return;
         }
 
+        const sid = peekAppSession();
+        if (!sid) return;
+
         setIsLoading(true);
         setError(null);
 
         try {
-            const sid = peekAppSession();
-            const headers: Record<string, string> = { "Content-Type": "application/json" };
-            if (sid) headers["Authorization"] = `Bearer ${sid}`;
+            const headers: Record<string, string> = {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${sid}`,
+            };
 
-            // Fetch notice / call status
             const noticeRes = await fetch(`/api/clans/war/notice?clanId=${clanId}`, {
                 headers,
                 cache: "no-store",
@@ -73,18 +77,8 @@ export function useClanWar(clanId: string | null | undefined) {
                 setWarCall(noticeData.warCall || null);
                 setStakes(noticeData.stakes || []);
                 setTotalCommitted(noticeData.totalCommitted || 0);
-            }
-
-            // If war is matched or in progress, fetch fixtures
-            if (activeWar?.id) {
-                const fixRes = await fetch(`/api/clans/war/fixture?warId=${activeWar.id}`, {
-                    headers,
-                    cache: "no-store",
-                });
-                if (fixRes.ok) {
-                    const fixData = await fixRes.json();
-                    setFixtures(fixData.fixtures || []);
-                }
+                setActiveWar(noticeData.activeWar || null);
+                setFixtures(noticeData.fixtures || []);
             }
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
@@ -93,19 +87,17 @@ export function useClanWar(clanId: string | null | undefined) {
         } finally {
             setIsLoading(false);
         }
-    }, [clanId, activeWar?.id, peekAppSession]);
+    }, [clanId, peekAppSession]);
 
     useEffect(() => {
         void refresh();
     }, [refresh]);
 
-    // Realtime broadcast subscription for live war scoreboard and fixtures
+    // Private Realtime broadcast subscription for live war scoreboard and fixtures
     useEffect(() => {
         if (!activeWar?.id) return;
         const topic = `clan-war-${activeWar.id}`;
-        const channel = supabase.channel(topic, {
-            config: { broadcast: { self: false } },
-        });
+        const channel = createPrivateChannel(topic);
 
         channel
             .on("broadcast", { event: "fixture_completed" }, () => {
@@ -257,11 +249,7 @@ export function useClanWar(clanId: string | null | undefined) {
                 txHash = await cdpUserOp.sendCallsAndWait(calls);
             } else {
                 if (chainId && chainId !== DEFAULT_CHAIN_ID) {
-                    try {
-                        await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
-                    } catch (err) {
-                        console.warn("[useClanWar] Network switch before buy-in failed:", err);
-                    }
+                    await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
                 }
 
                 if (!hasAllowance) {
@@ -379,15 +367,20 @@ export function useClanWar(clanId: string | null | undefined) {
      * Fetch Open War Board.
      */
     const fetchWarBoard = useCallback(async (bracket?: number) => {
+        const sessionId = await ensureAppSession();
+        if (!sessionId) return [];
         const url = bracket ? `/api/clans/war/board?bracket=${bracket}` : "/api/clans/war/board";
-        const res = await fetch(url, { cache: "no-store" });
+        const res = await fetch(url, {
+            headers: { Authorization: `Bearer ${sessionId}` },
+            cache: "no-store",
+        });
         if (res.ok) {
             const data = await res.json();
             setWarBoard(data.board || []);
             return data.board;
         }
         return [];
-    }, []);
+    }, [ensureAppSession]);
 
     /**
      * Match two searching clans.
@@ -420,9 +413,13 @@ export function useClanWar(clanId: string | null | undefined) {
     }, [address, ensureAppSession, refresh]);
 
     /**
-     * Bilateral fixture time agreement.
+     * Bilateral fixture time proposal / confirmation.
      */
-    const scheduleFixture = useCallback(async (fixtureId: string, scheduledAt: string) => {
+    const scheduleFixture = useCallback(async (
+        fixtureId: string,
+        scheduledAt?: string,
+        action: "propose" | "confirm" = "propose",
+    ) => {
         if (!address) return;
         const sessionId = await ensureAppSession();
         if (!sessionId) throw new Error("Session required");
@@ -436,6 +433,7 @@ export function useClanWar(clanId: string | null | undefined) {
             body: JSON.stringify({
                 fixtureId,
                 scheduledAt,
+                action,
                 walletAddress: address,
                 sessionId,
             }),
@@ -445,6 +443,7 @@ export function useClanWar(clanId: string | null | undefined) {
         if (!res.ok) throw new Error(data.error || "Fixture schedule failed");
 
         await refresh();
+        return data.fixture as ClanWarFixture;
     }, [address, ensureAppSession, refresh]);
 
     return {

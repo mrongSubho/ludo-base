@@ -507,7 +507,7 @@ export async function POST(request: Request) {
         }
 
         // Clan Progression Bridge:
-        // Any match played awards Member CXP (+50 win / +15 loss) and Clan CXP (+100 win / +30 loss).
+        // Awards CXP using paid/free rates with opposing-clanmate anti-farm & atomic RPCs.
         try {
             const db = supabase as any;
             const { data: clanMemberships } = await db
@@ -516,65 +516,38 @@ export async function POST(request: Request) {
                 .in('wallet_address', lowerParts);
 
             if (clanMemberships && clanMemberships.length > 0) {
-                for (const cm of clanMemberships) {
-                    const isWinner = winnerLower !== null && cm.wallet_address.toLowerCase() === winnerLower;
-                    const memberCxp = isWinner ? 50 : 15;
-                    const clanCxp = isWinner ? 100 : 30;
+                const { computeMatchCxpAwards } = await import('@/lib/clan/clanScorer');
+                const isPaidMatch = effectiveWager > 0;
+                const { memberAwards, clanAwards } = computeMatchCxpAwards({
+                    memberships: clanMemberships,
+                    participantCount: lowerParts.length,
+                    winnerLower,
+                    isPaidMatch,
+                });
 
-                    // Increment member stats
-                    const { data: curMem } = await db
-                        .from('clan_members')
-                        .select('weekly_cxp, total_cxp')
-                        .eq('clan_id', cm.clan_id)
-                        .eq('wallet_address', cm.wallet_address)
-                        .maybeSingle();
-
-                    if (curMem) {
-                        await db
-                            .from('clan_members')
-                            .update({
-                                weekly_cxp: (curMem.weekly_cxp || 0) + memberCxp,
-                                total_cxp: (curMem.total_cxp || 0) + memberCxp,
-                            })
-                            .eq('clan_id', cm.clan_id)
-                            .eq('wallet_address', cm.wallet_address);
-                    }
-
-                    // Increment clan CXP and check level up
-                    const { data: curClan } = await db
-                        .from('clans')
-                        .select('cxp, level')
-                        .eq('id', cm.clan_id)
-                        .maybeSingle();
-
-                    if (curClan) {
-                        const newCxp = (curClan.cxp || 0) + clanCxp;
-                        const { data: nextLevel } = await db
-                            .from('clan_level_config')
-                            .select('level, cxp_required')
-                            .gt('level', curClan.level)
-                            .lte('cxp_required', newCxp)
-                            .order('level', { ascending: false })
-                            .limit(1)
-                            .maybeSingle();
-
-                        const newLevel = nextLevel ? nextLevel.level : curClan.level;
-                        await db
-                            .from('clans')
-                            .update({
-                                cxp: newCxp,
-                                level: newLevel,
-                            })
-                            .eq('id', cm.clan_id);
-                    }
-                }
+                await Promise.all([
+                    ...memberAwards.map((a) =>
+                        db.rpc('increment_member_cxp_wp', {
+                            p_clan_id: a.clanId,
+                            p_wallet: a.wallet,
+                            p_wp: 0,
+                            p_cxp: a.cxp,
+                        }),
+                    ),
+                    ...Object.entries(clanAwards).map(([clanId, totalCxp]) =>
+                        db.rpc('increment_clan_cxp', {
+                            p_clan_id: clanId,
+                            p_cxp_delta: totalCxp,
+                        }),
+                    ),
+                ]);
             }
         } catch (clanCxpErr) {
             console.error('[clans] progression bridge error:', clanCxpErr);
         }
 
         // War Fixture Scoring Bridge:
-        // If match is associated with a clan war fixture, award War Points and update fixture state.
+        // Strictly validates active war window, fixture seats, shape, and winner before scoring.
         const fixtureId = body.fixtureId || body.fixture_id;
         if (fixtureId && winnerLower) {
             try {
@@ -588,41 +561,49 @@ export async function POST(request: Request) {
                 if (fixture && fixture.status !== 'completed') {
                     const { data: war } = await db
                         .from('clan_wars')
-                        .select('id, clan_a_id, clan_b_id')
+                        .select('id, clan_a_id, clan_b_id, status, war_start_at')
                         .eq('id', fixture.war_id)
-                        .single();
+                        .maybeSingle();
 
                     if (war) {
-                        const lowerA = fixture.clan_a_seats.map((s: string) => s.toLowerCase());
-                        const lowerB = fixture.clan_b_seats.map((s: string) => s.toLowerCase());
-                        const isClanAWinner = lowerA.includes(winnerLower);
-
-                        const winnerClanId = isClanAWinner ? war.clan_a_id : war.clan_b_id;
-                        const losingClanId = isClanAWinner ? war.clan_b_id : war.clan_a_id;
-                        const winnerWallets = isClanAWinner ? lowerA : lowerB;
-                        const losingWallets = isClanAWinner ? lowerB : lowerA;
-
-                        const { finalizeFixtureScore } = await import('@/lib/clan/clanScorer');
-                        await finalizeFixtureScore({
-                            matchId: String(matchId),
-                            warId: String(war.id),
-                            fixtureId: String(fixture.id),
-                            winnerClanId: String(winnerClanId),
-                            losingClanId: String(losingClanId),
-                            winnerWallets,
-                            losingWallets,
-                            gameShape: fixture.game_shape,
+                        const { validateWarFixtureMatch, finalizeFixtureScore } = await import('@/lib/clan/clanScorer');
+                        const check = validateWarFixtureMatch({
+                            fixture,
+                            war,
+                            participants: lowerParts,
+                            winnerLower,
                         });
 
-                        await db.from('clan_score_queue').insert({
-                            match_id: String(matchId),
-                            war_id: war.id,
-                            fixture_id: fixture.id,
-                            winner_clan_id: winnerClanId,
-                            losing_clan_id: losingClanId,
-                            status: 'processed',
-                            processed_at: new Date().toISOString(),
-                        });
+                        if (!check.valid) {
+                            console.warn('[clans] fixture scoring rejected:', check.reason, { fixtureId, matchId });
+                        } else {
+                            if (war.status === 'prep_phase') {
+                                await db
+                                    .from('clan_wars')
+                                    .update({ status: 'active_war' })
+                                    .eq('id', war.id)
+                                    .eq('status', 'prep_phase');
+                            }
+
+                            await finalizeFixtureScore({
+                                matchId: String(matchId),
+                                warId: String(war.id),
+                                fixtureId: String(fixture.id),
+                                winnerClanId: String(check.winnerClanId),
+                                losingClanId: String(check.losingClanId),
+                                winnerWallets: check.winnerWallets,
+                                losingWallets: check.losingWallets,
+                                gameShape: fixture.game_shape,
+                            });
+
+                            await db.from('clan_score_queue').insert({
+                                match_id: String(matchId),
+                                war_id: war.id,
+                                fixture_id: fixture.id,
+                                status: 'processed',
+                                processed_at: new Date().toISOString(),
+                            });
+                        }
                     }
                 }
             } catch (fixErr) {

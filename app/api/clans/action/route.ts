@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { requireSession, requireAppSession } from '@/lib/serverAuth';
+import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 import {
     requestJoinClan,
     cancelJoinRequest,
@@ -9,6 +10,7 @@ import {
     kickMember,
     updateMemberRole,
     updateClanSettings,
+    fundClanTreasuryWithTx,
     ClanServiceError,
 } from '@/lib/clan/clanService';
 
@@ -21,6 +23,14 @@ export async function POST(request: Request) {
 
         if (!authed) {
             return NextResponse.json({ error: 'Unauthorized: valid app session required' }, { status: 401 });
+        }
+
+        const limit = checkRateLimit(rateKey('clans:action', authed), 30, 60_000);
+        if (!limit.ok) {
+            return NextResponse.json(
+                { error: 'Too many clan actions', retryAfter: limit.retryAfterSec },
+                { status: 429, headers: rateLimitHeaders(limit) },
+            );
         }
 
         const { action, clanId } = body;
@@ -74,6 +84,20 @@ export async function POST(request: Request) {
                 if (!updates) return NextResponse.json({ error: 'updates object required' }, { status: 400 });
                 await updateClanSettings(clanId, authed, updates);
                 return NextResponse.json({ success: true });
+            }
+
+            case 'fund_treasury': {
+                const { amountChips, txHash } = body;
+                if (!amountChips || Number(amountChips) <= 0 || !txHash) {
+                    return NextResponse.json({ error: 'Positive amountChips and txHash required' }, { status: 400 });
+                }
+                const res = await fundClanTreasuryWithTx({
+                    clanId,
+                    walletAddress: authed,
+                    amountChips: Number(amountChips),
+                    txHash: String(txHash),
+                });
+                return NextResponse.json({ success: true, ...res });
             }
 
             default:

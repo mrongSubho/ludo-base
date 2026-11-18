@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireSessionWallet, requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { getClanTagsForWallets } from '@/lib/clan/clanService';
 
 /**
  * GET /api/profile?walletAddress=0x…
@@ -19,7 +20,15 @@ export async function GET(request: Request) {
             .maybeSingle();
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
         if (!data) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
-        return NextResponse.json(data);
+
+        const clanMap = await getClanTagsForWallets([wallet]);
+        const clanInfo = clanMap[wallet.toLowerCase()];
+        return NextResponse.json({
+            ...data,
+            clan_tag: clanInfo?.tag ?? null,
+            clan_id: clanInfo?.clanId ?? null,
+            clan_name: clanInfo?.name ?? null,
+        });
     } catch (error) {
         return NextResponse.json({ error: (error as Error).message }, { status: 500 });
     }
