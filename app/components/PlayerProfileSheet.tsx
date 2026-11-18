@@ -98,7 +98,7 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
                         <button
                             type="button"
                             onClick={() => setInspectClanTag(String(player.clanTag || player.clan_tag))}
-                            className="px-1.5 py-0.5 rounded text-ludo-xs font-mono font-bold bg-accent-soft text-accent border border-accent-line hover:opacity-80 transition-opacity"
+                            className="px-1.5 py-0.5 rounded text-ludo-xs font-mono font-bold bg-accent-soft text-cyan-300 border border-cyan-400/35 hover:opacity-80 transition-opacity"
                             title="Inspect Syndicate Dossier"
                         >
                             [{player.clanTag || player.clan_tag}]

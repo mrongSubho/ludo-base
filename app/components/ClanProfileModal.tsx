@@ -119,7 +119,7 @@ export default function ClanProfileModal({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 10 }}
                         transition={{ duration: 0.18 }}
-                        className="ludo-pubprofile-scope ludo-clan-scope fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-24px)] max-w-2xl max-h-[86dvh] overflow-hidden border border-line rounded-3xl z-[215] shadow-2xl flex flex-col"
+                        className="ludo-pubprofile-scope ludo-clan-scope fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-24px)] max-w-lg max-h-[84dvh] overflow-hidden border border-white/10 rounded-[28px] z-[215] shadow-2xl flex flex-col text-white font-sans"
                         style={{
                             backgroundImage: "var(--panel-bg-image, var(--ludo-bg-cosmic))",
                             backgroundColor: "var(--panel-bg, #0b111c)",
@@ -130,16 +130,16 @@ export default function ClanProfileModal({
                         aria-label="Syndicate Public Dossier"
                     >
                         {/* Modal Header */}
-                        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-line bg-surface/60">
-                            <div className="flex items-center gap-2">
-                                <span className="w-7 h-7 rounded-lg bg-accent-soft border border-accent-line flex items-center justify-center text-accent">
+                        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/30">
+                            <div className="flex items-center gap-2.5">
+                                <span className="w-7 h-7 rounded-lg bg-accent-soft border border-cyan-400/35 flex items-center justify-center text-cyan-300">
                                     <LuShield className="w-4 h-4" />
                                 </span>
                                 <div>
-                                    <div className="text-ludo-xs uppercase tracking-wider font-mono text-ink-soft">
+                                    <div className="text-ludo-xs uppercase tracking-wider font-mono text-white/55">
                                         Syndicate Scout Dossier
                                     </div>
-                                    <div className="text-ludo-sm font-bold text-ink">
+                                    <div className="text-ludo-sm font-bold text-white">
                                         {dossier ? `[${dossier.clan.tag}] ${dossier.clan.name}` : activeTarget}
                                     </div>
                                 </div>
@@ -147,7 +147,7 @@ export default function ClanProfileModal({
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="w-8 h-8 rounded-full border border-line bg-surface flex items-center justify-center text-ink-soft hover:text-ink transition-colors"
+                                className="w-8 h-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white/60 hover:text-white transition-colors"
                                 aria-label="Close syndicate dossier"
                             >
                                 <LuX className="w-4 h-4" />
@@ -158,18 +158,18 @@ export default function ClanProfileModal({
                         <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                             {isLoading && !dossier ? (
                                 <div className="py-12 text-center space-y-2">
-                                    <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin mx-auto" />
-                                    <div className="text-ludo-xs font-mono text-ink-soft uppercase tracking-wider">
+                                    <div className="w-8 h-8 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin mx-auto" />
+                                    <div className="text-ludo-xs font-mono text-white/55 uppercase tracking-wider">
                                         Decrypting Syndicate Dossier...
                                     </div>
                                 </div>
                             ) : error ? (
-                                <div className="rounded-xl border border-rose-500/35 bg-rose-500/10 p-5 text-center space-y-2">
-                                    <div className="text-ludo-sm font-bold text-rose-300">{error}</div>
+                                <div className="rounded-xl border border-red-500/35 bg-red-500/15 p-5 text-center space-y-2">
+                                    <div className="text-ludo-sm font-bold text-red-300">{error}</div>
                                     <button
                                         type="button"
                                         onClick={() => void loadDossier(activeTarget)}
-                                        className="px-3 py-1.5 rounded-lg bg-surface border border-line text-ludo-xs font-mono font-bold text-ink"
+                                        className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/15 text-ludo-xs font-mono font-bold text-white"
                                     >
                                         Retry Lookup
                                     </button>
