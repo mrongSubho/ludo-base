@@ -14,6 +14,7 @@ import { SessionAuthBanner } from './components/SessionAuthBanner';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
 import { BrandMark3077Icon } from './components/icons';
 import { HudCornerTicks } from './components/HudPrimitives';
+import { BootSequence } from './components/BootSequence';
 import { BurnPanel } from './components/BurnPanel';
 import { FooterNavPanel } from './components/FooterNavPanel';
 import { ConnectionBadge } from './components/ConnectionBadge';
@@ -493,10 +494,16 @@ export default function Page() {
     setAppState('dashboard');
   }, []);
 
+  const [bootMode, setBootMode] = useState<'pending' | 'static' | 'cinematic'>('pending');
   const [minDwellPassed, setMinDwellPassed] = useState(false);
   const [maxTimeoutPassed, setMaxTimeoutPassed] = useState(false);
 
   useEffect(() => {
+    setBootMode(prefersReducedMotion() ? 'static' : 'cinematic');
+  }, []);
+
+  useEffect(() => {
+    if (bootMode !== 'static') return;
     let alive = true;
     const dwellTimer = setTimeout(() => {
       if (alive) setMinDwellPassed(true);
@@ -511,9 +518,10 @@ export default function Page() {
       clearTimeout(dwellTimer);
       clearTimeout(maxTimer);
     };
-  }, []);
+  }, [bootMode]);
 
   useEffect(() => {
+    if (bootMode !== 'static') return;
     // Fail-safe timeout ensures the app never hangs on splash indefinitely
     if (maxTimeoutPassed) {
       setShowSplash(false);
@@ -525,7 +533,7 @@ export default function Page() {
     if (minDwellPassed && !isSessionChecking) {
       setShowSplash(false);
     }
-  }, [minDwellPassed, isSessionChecking, maxTimeoutPassed]);
+  }, [bootMode, minDwellPassed, isSessionChecking, maxTimeoutPassed]);
 
   // Sync state to ref for back-button hardware popstate interceptor
   const stateRef = useRef({ activeTab, appState, showQuitWarning });
@@ -769,7 +777,15 @@ export default function Page() {
 
   return (
     <>
-      {showSplash && <SplashScreen />}
+      {showSplash &&
+        (bootMode === 'cinematic' ? (
+          <BootSequence
+            isSessionChecking={isSessionChecking}
+            onComplete={() => setShowSplash(false)}
+          />
+        ) : (
+          <SplashScreen />
+        ))}
 
       <PresenceManager />
 
