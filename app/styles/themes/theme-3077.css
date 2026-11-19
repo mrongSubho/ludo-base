@@ -290,7 +290,17 @@ body.theme-3077 .footer-nav .nav-item .nav-icon {
 }
 
 body.theme-3077 .footer-nav .nav-item {
-  padding: 6px 2px;
+  flex: 1 1 auto;
+  padding: 6px 4px;
+}
+
+@media (max-width: 360px) {
+  body.theme-3077 .footer-nav .nav-item {
+    padding: 6px 2px;
+  }
+  body.theme-3077 .footer-nav .nav-item .nav-label {
+    letter-spacing: 0.03em;
+  }
 }
 
 body.theme-3077 .footer-nav .nav-item .nav-icon {

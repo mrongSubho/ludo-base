@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
 import {
     ApexRankIcon,
-    ArenaBladesIcon,
     ArmoryCrateIcon,
     DirectiveTargetIcon,
     SquadLinkIcon,
@@ -31,7 +30,6 @@ const NAV_TABS = [
     { id: 'leaderboard', icon: ApexRankIcon, label: 'Leaderboard' },
     { id: 'clan', icon: SyndicateShieldIcon, label: 'Clan' },
     { id: 'mission', icon: DirectiveTargetIcon, label: 'Mission' },
-    { id: 'arena', icon: ArenaBladesIcon, label: 'Arena' },
     { id: 'marketplace', icon: ArmoryCrateIcon, label: 'Market' },
 ] as const;
 

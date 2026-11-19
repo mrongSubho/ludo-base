@@ -96,8 +96,8 @@ const SCENES = [
   { name: 'panel-rankings-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Leaderboard', 'ludo-rankings-scope'), settle: 'panel' },
   { name: 'panel-mission-retro', theme: 'retro', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Mission', 'ludo-mission-scope'), settle: 'panel' },
   { name: 'panel-mission-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Mission', 'ludo-mission-scope'), settle: 'panel' },
-  { name: 'panel-arena-retro', theme: 'retro', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Arena', 'ludo-arena-scope'), settle: 'panel' },
-  { name: 'panel-arena-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Arena', 'ludo-arena-scope'), settle: 'panel' },
+  { name: 'panel-arena-retro', theme: 'retro', mask: ALWAYS_MASK, drive: driveArenaPanel, settle: 'panel' },
+  { name: 'panel-arena-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: driveArenaPanel, settle: 'panel' },
   { name: 'panel-market-retro', theme: 'retro', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Market', 'ludo-market-scope'), settle: 'panel' },
   { name: 'panel-market-daybreak', theme: 'light', mask: ALWAYS_MASK, drive: (p, s) => drivePanel(p, s, 'Market', 'ludo-market-scope'), settle: 'panel' },
   // /burn renders BurnFeed standalone — the only wallet-free capture of a
@@ -215,6 +215,13 @@ async function drivePanel(page, scene, label, scopeClass) {
     .first();
   await item.click({ timeout: 20000 });
   await page.waitForSelector(`.${scopeClass}`, { state: 'visible', timeout: 30000 });
+  await page.waitForTimeout(1200);
+}
+
+async function driveArenaPanel(page, scene) {
+  await driveLobby(page, scene);
+  await page.getByRole('button', { name: 'Open live arena & broadcast' }).first().click({ timeout: 20000 });
+  await page.waitForSelector('.ludo-arena-scope', { state: 'visible', timeout: 30000 });
   await page.waitForTimeout(1200);
 }
 
