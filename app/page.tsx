@@ -775,13 +775,17 @@ export default function Page() {
     void handlePlayNow(true, room.matchShape);
   }, [handlePlayNow]);
 
+  const handleBootComplete = useCallback(() => {
+    setShowSplash(false);
+  }, []);
+
   return (
     <>
       {showSplash &&
         (bootMode === 'cinematic' ? (
           <BootSequence
             isSessionChecking={isSessionChecking}
-            onComplete={() => setShowSplash(false)}
+            onComplete={handleBootComplete}
           />
         ) : (
           <SplashScreen />

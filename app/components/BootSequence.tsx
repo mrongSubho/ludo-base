@@ -30,8 +30,12 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
     const videoEndedRef = useRef(false);
     const sessionCheckingRef = useRef(isSessionChecking);
     sessionCheckingRef.current = isSessionChecking;
+    const onCompleteRef = useRef(onComplete);
+    onCompleteRef.current = onComplete;
+    const sfxPrefRef = useRef(preferences.sfx);
+    sfxPrefRef.current = preferences.sfx;
 
-    const [isMuted, setIsMuted] = useState(true);
+    const [isMuted, setIsMuted] = useState(!preferences.sfx);
     const [videoFailed, setVideoFailed] = useState(false);
     const [telemetry, setTelemetry] = useState('BOOT // KERNEL INIT');
     const [videoProgress, setVideoProgress] = useState(0);
@@ -39,8 +43,8 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
     const finishBoot = useCallback(() => {
         if (completedRef.current) return;
         completedRef.current = true;
-        onComplete();
-    }, [onComplete]);
+        onCompleteRef.current();
+    }, []);
 
     // Complete cleanly once session restore finishes after the boot sequence / fallback concludes
     useEffect(() => {
@@ -49,7 +53,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
         }
     }, [isSessionChecking, videoFailed, finishBoot]);
 
-    // Keep audio strictly muted if the user turned off SFX in Settings
+    // Keep audio synced with Settings SFX toggle
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
@@ -59,7 +63,9 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
         }
     }, [preferences.sfx]);
 
-    // Playback lifecycle + autoplay start timeout + hard fail-safe ceiling
+    // Playback lifecycle: runs strictly once on mount (never restarts on parent re-renders).
+    // Attempts unmuted autoplay first; if blocked by browser autoplay policy, silently
+    // starts muted and unmutes automatically on first interaction with no nag banner.
     useEffect(() => {
         if (prefersReducedMotion()) {
             if (!sessionCheckingRef.current) finishBoot();
@@ -67,16 +73,64 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
         }
 
         const video = videoRef.current;
+        let removeGestureListeners = () => {};
+
         if (video) {
             video.setAttribute('webkit-playsinline', 'true');
-            video.muted = true;
-            video.play().catch(() => {
-                // Handled cleanly by the startup timeout fallback below
-            });
+            const wantAudio = sfxPrefRef.current;
+
+            const startPlayback = async () => {
+                if (wantAudio) {
+                    try {
+                        video.muted = false;
+                        video.volume = 1;
+                        await video.play();
+                        setIsMuted(false);
+                        return;
+                    } catch {
+                        // Browser blocked unmuted autoplay before gesture; fall back quietly to muted
+                    }
+                }
+                try {
+                    video.muted = true;
+                    setIsMuted(true);
+                    await video.play();
+                } catch {
+                    // Handled by the startup guard if device refuses autoplay completely
+                }
+
+                if (wantAudio) {
+                    const unmuteOnGesture = () => {
+                        removeGestureListeners();
+                        if (!sfxPrefRef.current || completedRef.current) return;
+                        video.muted = false;
+                        video.volume = 1;
+                        setIsMuted(false);
+                        if (video.paused && !video.ended) {
+                            void video.play().catch(() => {
+                                video.muted = true;
+                                setIsMuted(true);
+                            });
+                        }
+                    };
+                    document.addEventListener('pointerdown', unmuteOnGesture, { passive: true, capture: true });
+                    document.addEventListener('keydown', unmuteOnGesture, { passive: true, capture: true });
+                    removeGestureListeners = () => {
+                        document.removeEventListener('pointerdown', unmuteOnGesture, { capture: true });
+                        document.removeEventListener('keydown', unmuteOnGesture, { capture: true });
+                    };
+                }
+            };
+
+            void startPlayback();
         }
 
         const startGuard = window.setTimeout(() => {
             if (playbackStartedRef.current) return;
+            // Do not skip a video that is still actively buffering over cellular
+            if (video && (video.readyState >= 2 || video.networkState === HTMLMediaElement.NETWORK_LOADING)) {
+                return;
+            }
             setVideoFailed(true);
             setTelemetry('SYS.LINK // FAST BOOT');
             if (!sessionCheckingRef.current) {
@@ -89,6 +143,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
         }, BOOT_MAX_TIMEOUT_MS);
 
         return () => {
+            removeGestureListeners();
             window.clearTimeout(startGuard);
             window.clearTimeout(maxFailSafe);
         };
@@ -115,12 +170,13 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
         if (cur > 0.05) {
             playbackStartedRef.current = true;
         }
-        const dur = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : BOOT_DURATION_MS / 1000;
+        const hasValidDur = Number.isFinite(video.duration) && video.duration >= 1;
+        const dur = hasValidDur ? video.duration : BOOT_DURATION_MS / 1000;
         const pct = Math.min(100, Math.round((cur / dur) * 100));
         setVideoProgress(pct);
         setTelemetry(getBootTelemetryForTime(cur));
 
-        if (dur > 0 && cur >= dur - 0.08) {
+        if (hasValidDur && cur >= dur - 0.08) {
             markVideoEnded();
         }
     }, [markVideoEnded]);
@@ -133,21 +189,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
         }
     }, [finishBoot]);
 
-    // Tap anywhere unlocks audio if allowed by SFX preference (never skips or restarts)
-    const handleUnlockAudio = useCallback(() => {
-        if (!preferences.sfx || videoFailed) return;
-        const video = videoRef.current;
-        if (!video || !video.muted) return;
-        video.muted = false;
-        video.volume = 1;
-        setIsMuted(false);
-        video.play().catch(() => {
-            video.muted = true;
-            setIsMuted(true);
-        });
-    }, [preferences.sfx, videoFailed]);
-
-    const handleToggleAudioBadge = useCallback(
+    const handleToggleMute = useCallback(
         (e: React.PointerEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             if (!preferences.sfx || videoFailed) return;
@@ -174,7 +216,6 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
     return (
         <div
             className="ludo-splash-scope fixed inset-0 z-[9999] bg-surface-page text-ink-strong overflow-hidden select-none touch-manipulation flex flex-col items-center justify-center"
-            onPointerDown={handleUnlockAudio}
             role="status"
             aria-label="Loading Ludo 3077"
         >
@@ -184,7 +225,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                     src={BOOT_VIDEO_SRC}
                     poster={BOOT_POSTER_SRC}
                     autoPlay
-                    muted
+                    muted={!preferences.sfx}
                     playsInline
                     preload="auto"
                     onPlaying={handlePlaying}
@@ -215,16 +256,29 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                 </div>
             )}
 
-            {/* Mobile Autoplay Audio Unlock Pill (only while muted + SFX enabled) */}
+            {/* Minimal Icon-Only Corner Speaker Toggle (zero text banner) */}
             {!videoFailed && preferences.sfx && (
                 <button
                     type="button"
-                    onPointerDown={handleToggleAudioBadge}
+                    onPointerDown={handleToggleMute}
                     aria-label={isMuted ? 'Unmute boot audio' : 'Mute boot audio'}
-                    className="fixed right-3 z-20 px-2.5 py-1 rounded border border-line-strong bg-surface-panel/85 text-accent font-mono text-ludo-xs font-bold tracking-[0.14em] uppercase cursor-pointer backdrop-blur-sm active:scale-95 transition-transform"
+                    title={isMuted ? 'Unmute boot audio' : 'Mute boot audio'}
+                    className="fixed right-3 z-20 w-8 h-8 flex items-center justify-center rounded-md border border-line-soft bg-surface-panel/60 text-ink-muted hover:text-accent cursor-pointer backdrop-blur-sm active:scale-95 transition-transform"
                     style={{ top: 'max(12px, env(safe-area-inset-top))' }}
                 >
-                    {isMuted ? 'TAP FOR AUDIO' : 'AUDIO ON'}
+                    {isMuted ? (
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                            <line x1="23" y1="9" x2="17" y2="15" />
+                            <line x1="17" y1="9" x2="23" y2="15" />
+                        </svg>
+                    ) : (
+                        <svg viewBox="0 0 24 24" className="w-4 h-4 text-accent" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M11 5L6 9H2v6h4l5 4V5z" />
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                        </svg>
+                    )}
                 </button>
             )}
 

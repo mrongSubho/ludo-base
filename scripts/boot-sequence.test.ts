@@ -19,8 +19,8 @@ function readRepoFile(relPath: string): string {
 test('bootTimeline: video & poster assets exist on disk with valid timing safeguards', () => {
     assert.equal(BOOT_VIDEO_SRC, '/boot/ludo-3077-boot-v1.mp4');
     assert.equal(BOOT_POSTER_SRC, '/boot/ludo-3077-boot-v1-poster.jpg');
-    assert.ok(BOOT_START_TIMEOUT_MS >= 1500 && BOOT_START_TIMEOUT_MS < BOOT_DURATION_MS);
-    assert.ok(BOOT_MAX_TIMEOUT_MS > BOOT_DURATION_MS);
+    assert.ok(BOOT_START_TIMEOUT_MS >= 5000 && BOOT_START_TIMEOUT_MS < BOOT_DURATION_MS);
+    assert.ok(BOOT_MAX_TIMEOUT_MS >= 15000);
 
     const videoDiskPath = path.resolve(process.cwd(), 'public', BOOT_VIDEO_SRC.replace(/^\//, ''));
     const posterDiskPath = path.resolve(process.cwd(), 'public', BOOT_POSTER_SRC.replace(/^\//, ''));
@@ -48,20 +48,21 @@ test('public/_headers: marks /boot/* immutable for disk caching across reloads',
     assert.match(headers, /Cache-Control:\s*public,max-age=31536000,immutable/);
 });
 
-test('BootSequence & page.tsx: wires muted autoplay, unmute tap, stall fallback, reduced motion, and no skip', () => {
+test('BootSequence & page.tsx: tries unmuted autoplay, never flashes TAP FOR AUDIO, stabilizes callback, and guards duration', () => {
     const bootSrc = readRepoFile('app/components/BootSequence.tsx');
     assert.match(bootSrc, /<video/);
-    assert.match(bootSrc, /BOOT_VIDEO_SRC/);
-    assert.match(bootSrc, /BOOT_POSTER_SRC/);
-    assert.match(bootSrc, /BOOT_START_TIMEOUT_MS/);
-    assert.match(bootSrc, /BOOT_MAX_TIMEOUT_MS/);
+    assert.match(bootSrc, /onCompleteRef/);
+    assert.match(bootSrc, /video\.muted = false/);
+    assert.match(bootSrc, /video\.duration >= 1/);
+    assert.match(bootSrc, /NETWORK_LOADING/);
     assert.match(bootSrc, /playsInline/);
-    assert.match(bootSrc, /muted/);
     assert.match(bootSrc, /prefersReducedMotion/);
     assert.match(bootSrc, /useBootPreload/);
+    assert.doesNotMatch(bootSrc, /TAP FOR AUDIO/);
     assert.doesNotMatch(bootSrc, /SKIP/);
 
     const pageSrc = readRepoFile('app/page.tsx');
+    assert.match(pageSrc, /handleBootComplete/);
     assert.match(pageSrc, /BootSequence/);
     assert.match(pageSrc, /prefersReducedMotion/);
 });

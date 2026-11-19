@@ -3,10 +3,10 @@ export const BOOT_POSTER_SRC = '/boot/ludo-3077-boot-v1-poster.jpg';
 
 export const BOOT_DURATION_S = 10.0;
 export const BOOT_DURATION_MS = 10000;
-/** Max time to wait for `<video>` playback to advance before falling back to static HUD splash. */
-export const BOOT_START_TIMEOUT_MS = 2200;
-/** Hard fail-safe ceiling so slow/offline APIs or stalled media never hang boot. */
-export const BOOT_MAX_TIMEOUT_MS = 12000;
+/** Grace window before falling back if video cannot decode/buffer on restricted devices. */
+export const BOOT_START_TIMEOUT_MS = 6500;
+/** Hard fail-safe ceiling allowing slow buffer + full 10s playback without ever hanging. */
+export const BOOT_MAX_TIMEOUT_MS = 16000;
 
 export interface BootTelemetryCue {
     id: number;
