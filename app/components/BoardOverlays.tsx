@@ -9,25 +9,46 @@ import { getTeam } from '@/lib/gameLogic';
 import { ChatContent } from './EmojiPicker';
 import { CyberSticker } from './emotes/CyberStickers';
 import Button from './Button';
+import { HudCornerTicks } from './HudPrimitives';
+import { ArenaBladesIcon, ProximityMineIcon, OverdriveBoltIcon, WarningHexIcon } from './icons';
 
 interface StatusNotificationProps {
     message: string | null;
 }
 
+function resolveStatusTone(message: string): 'bomb' | 'capture' | 'info' {
+    const m = message.toLowerCase();
+    if (m.includes('bomb') || m.includes('mine') || m.includes('trap') || m.includes('nuke')) return 'bomb';
+    if (m.includes('captured') || m.includes('kicked') || m.includes('eliminated')) return 'capture';
+    return 'info';
+}
+
 export function StatusNotification({ message }: StatusNotificationProps) {
+    const tone = message ? resolveStatusTone(message) : 'info';
     return (
-        <AnimatePresence>
-            {message && (
-                <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="capture-toast"
-                >
-                    {message}
-                </motion.div>
-            )}
-        </AnimatePresence>
+        <div className="capture-toast-anchor pointer-events-none" aria-live="polite">
+            <AnimatePresence>
+                {message && (
+                    <motion.div
+                        key={message}
+                        initial={{ opacity: 0, y: 10, scale: 0.94 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.94 }}
+                        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                        className={`capture-toast capture-toast-${tone}`}
+                    >
+                        {tone === 'bomb' ? (
+                            <ProximityMineIcon className="w-4 h-4 text-red-400 shrink-0" />
+                        ) : tone === 'capture' ? (
+                            <ArenaBladesIcon className="w-4 h-4 text-amber-300 shrink-0" active />
+                        ) : (
+                            <OverdriveBoltIcon className="w-4 h-4 text-cyan-300 shrink-0" active />
+                        )}
+                        <span>{message}</span>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
     );
 }
 
@@ -40,55 +61,80 @@ interface IdleWarningOverlayProps {
 export function IdleWarningOverlay({ idleWarning, myPlayer, onCancelAfk }: IdleWarningOverlayProps) {
     if (!idleWarning || idleWarning.player !== myPlayer?.color) return null;
 
+    const r = 26;
+    const circumference = 2 * Math.PI * r;
+    const ratio = Math.min(1, Math.max(0, idleWarning.timeLeft / 10));
+    const dashOffset = circumference * (1 - ratio);
+
     return (
         <AnimatePresence>
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="ludo-idle-scope"
-                style={{
-                    position: 'absolute',
-                    inset: 0,
-                    zIndex: 50,
-                    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    borderRadius: '16px',
-                    color: '#fff',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)'
-                }}
+                className="ludo-idle-scope absolute inset-0 z-50 flex flex-col items-center justify-center rounded-2xl bg-black/70 px-4 backdrop-blur-md"
             >
-                <motion.div 
-                    initial={{ scale: 0.8, y: 20 }}
-                    animate={{ scale: 1, y: 0 }}
-                    style={{ 
-                        textAlign: 'center', 
-                        padding: '32px', 
-                        background: 'rgba(255, 255, 255, 0.05)', 
-                        backdropFilter: 'blur(40px)',
-                        WebkitBackdropFilter: 'blur(40px)',
-                        borderRadius: '24px', 
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
-                    }}
+                <motion.div
+                    initial={{ scale: 0.9, y: 14, opacity: 0 }}
+                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                    exit={{ scale: 0.94, y: 8, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className="idle-warning-card panel-shell-3077 relative overflow-hidden w-full max-w-[300px] p-6 text-center flex flex-col items-center gap-3.5"
                 >
-                    <h2 style={{ fontSize: '24px', margin: '0 0 12px 0', color: '#ef4444', fontWeight: 'bold', textShadow: '0 0 20px rgba(239, 68, 68, 0.3)' }}>Are you still there?</h2>
-                    <p style={{ fontSize: '18px', margin: '0 0 24px 0', opacity: 0.7, color: 'rgba(255,255,255,0.8)' }}>
-                        Auto-kicking in <span style={{ fontWeight: 'bold', fontSize: '24px', color: '#fff' }}>{idleWarning.timeLeft}s</span>
-                    </p>
-                    <button
+                    <HudCornerTicks />
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-red-500/15 border border-red-400/35 text-ludo-xs font-mono font-bold uppercase tracking-[0.18em] text-red-400">
+                        <WarningHexIcon className="w-3.5 h-3.5" />
+                        Pilot Idle Detected
+                    </span>
+
+                    <div className="relative w-16 h-16 flex items-center justify-center my-0.5" aria-hidden="true">
+                        <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
+                            <circle
+                                cx="32"
+                                cy="32"
+                                r={r}
+                                fill="none"
+                                stroke="rgba(239, 68, 68, 0.2)"
+                                strokeWidth="4"
+                            />
+                            <circle
+                                cx="32"
+                                cy="32"
+                                r={r}
+                                fill="none"
+                                stroke="#ef4444"
+                                strokeWidth="4"
+                                strokeLinecap="round"
+                                strokeDasharray={circumference}
+                                strokeDashoffset={dashOffset}
+                            />
+                        </svg>
+                        <span className="absolute font-mono font-extrabold text-lg tabular-nums text-red-400">
+                            {idleWarning.timeLeft}s
+                        </span>
+                    </div>
+
+                    <div className="space-y-1">
+                        <h2 className="text-lg font-extrabold text-ink-strong tracking-tight">
+                            Are you still there?
+                        </h2>
+                        <p className="text-ludo-xs text-ink-muted">
+                            Auto-kicking in {idleWarning.timeLeft}s unless controls respond
+                        </p>
+                    </div>
+
+                    <Button
+                        variant="primary"
+                        size="lg"
+                        fullWidth
                         onClick={(e) => {
                             e.stopPropagation();
                             if (myPlayer?.color) onCancelAfk(myPlayer.color);
                         }}
-                        className="px-8 py-3 bg-white text-black text-sm font-black uppercase tracking-[0.2em] hover:bg-white/90 border-0 rounded-2xl transition-all duration-300 active:scale-95"
+                        className="uppercase tracking-[0.16em]"
                     >
-                        I'm Back!
-                    </button>
+                        I&apos;m Back!
+                    </Button>
                 </motion.div>
             </motion.div>
         </AnimatePresence>

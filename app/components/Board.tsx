@@ -22,8 +22,10 @@ import { BoardTokens } from './BoardTokens';
 import { BoardGrid } from './BoardGrid';
 import {
     IdleWarningOverlay,
-    NameOverlay
+    NameOverlay,
+    StatusNotification,
 } from './BoardOverlays';
+import { ChatIcon, DirectiveTargetIcon, OverdriveBoltIcon, SimBotIcon } from './icons';
 import { MatchStatsOverlay } from './MatchStatsOverlay';
 import { usePoolClaim } from '@/hooks/useChipsPool';
 import { EmoteTray, parseEmotePayload } from './EmoteTray';
@@ -351,7 +353,8 @@ export default function Board({
                         position: 'relative',
                         transform: boardRotationDeg !== 0 ? `rotate(${boardRotationDeg}deg)` : undefined,
                         transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-                    }}
+                        '--active-faction-color': activeColor,
+                    } as React.CSSProperties}
                 >
                     <BoardGrid
                         squarePx={boardSquarePx}
@@ -446,6 +449,7 @@ export default function Board({
 
               </div>
 
+             <StatusNotification message={localGameState.captureMessage ?? null} />
              <IdleWarningOverlay idleWarning={localGameState.idleWarning} myPlayer={myPlayer} onCancelAfk={cancelAfk} />
          </motion.div>
 
@@ -596,7 +600,8 @@ export default function Board({
                         aria-label="Chat"
                         aria-expanded={chatOpen}
                     >
-                        Chat
+                        <ChatIcon className="w-3.5 h-3.5 mr-1.5" active={chatOpen} />
+                        <span>Chat</span>
                     </button>
                 </div>
                 </>
@@ -638,6 +643,15 @@ function BoardTurnStatus({
     return (
         <div className={`board-turn-status ${isMyTurn ? 'is-yours' : ''}`} aria-live="polite">
             <span className="board-turn-status-dot" />
+            {isMyTurn ? (
+                gamePhase === 'moving' ? (
+                    <DirectiveTargetIcon className="w-3 h-3 shrink-0" active />
+                ) : (
+                    <OverdriveBoltIcon className="w-3 h-3 shrink-0" active />
+                )
+            ) : (
+                <SimBotIcon className="w-3 h-3 shrink-0 opacity-70" />
+            )}
             <span>{label}</span>
         </div>
     );
@@ -674,7 +688,7 @@ function PowerGlyph({ type }: { type: PowerType }) {
         );
     }
     return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="#c4b5fd" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
             <path d="M4 12a8 8 0 0 1 14-5l2 2" />
             <path d="M20 4v5h-5" />
             <path d="M20 12a8 8 0 0 1-14 5l-2-2" />

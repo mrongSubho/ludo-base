@@ -24,6 +24,7 @@ import { writeWalletMode } from "@/lib/walletMode";
 import { isCdpAuthEnabled } from "./CdpAuthProvider";
 import { markBootUnlocked } from "./BootLock";
 import Button from "./Button";
+import { CheckGlyphIcon, ChevronGlyphIcon } from "./icons";
 import {
     hasSeenWalletReady,
     markProtectNudged,
@@ -254,9 +255,19 @@ export default function InGameWalletPanel({
 
                 {/* Security ladder */}
                 <div className="ingame-ladder" aria-label="Setup progress">
-                    <span className="ingame-ladder-step done">✓ Wallet</span>
+                    <span className="ingame-ladder-step done">
+                        <CheckGlyphIcon className="w-3 h-3 inline-block mr-0.5" /> Wallet
+                    </span>
                     <span className={`ingame-ladder-step ${showProtect ? "now" : "done"}`}>
-                        {showProtect ? "→ Protect" : "✓ Protect"}
+                        {showProtect ? (
+                            <>
+                                <ChevronGlyphIcon direction="right" className="w-3 h-3 inline-block mr-0.5" /> Protect
+                            </>
+                        ) : (
+                            <>
+                                <CheckGlyphIcon className="w-3 h-3 inline-block mr-0.5" /> Protect
+                            </>
+                        )}
                     </span>
                     <span className="ingame-ladder-step">Play</span>
                 </div>

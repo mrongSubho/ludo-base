@@ -14,6 +14,8 @@ import { Chip } from './Chip';
 import { ThinkingOrb } from './ThinkingOrb';
 import { useArenaVault } from '@/hooks/useArenaVault';
 import { useToast } from './Toast';
+import { HudCornerTicks } from './HudPrimitives';
+import { ChipsHexIcon, CloseReticleIcon, PilotAvatarFallbackIcon, QuickDeployIcon, SimBotIcon } from './icons';
 
 const PRO_TIPS = [
     "Safe zones protect you from capture!",
@@ -56,10 +58,10 @@ function adjacentPresets(n: number): { lower?: number; higher?: number } {
 // theme's display font). Spacing inside `.ludo-quick-scope` is re-asserted
 // in globals.css (the global unlayered reset zeroes Tailwind utilities).
 
-// Icon tile: cyan glow square shared with the other synced panels.
+// Icon tile: chamfered tactical tile shared with the other synced panels.
 const QuickTile = () => (
-    <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-cyan-300"><path d="M12 2s-8 11.5-8 16c0 4.4 3.6 8 8 8s8-3.6 8-8c0-4.5-8-16-8-16z"></path></svg>
+    <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
+        <QuickDeployIcon className="w-4 h-4 text-cyan-300" />
     </div>
 );
 
@@ -423,13 +425,14 @@ export const QuickMatchPanel = ({
                         className="ludo-quick-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                         style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
                     >
+                        <HudCornerTicks />
                         {/* Authentic Subdued Cosmic Orbs */}
                         <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                         <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
                         {/* Handle Bar */}
                         <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                            <div className="w-12 h-1.5 bg-white/20 rounded-full cursor-pointer" onClick={handleCancelAndClose} />
+                            <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full cursor-pointer" onClick={handleCancelAndClose} />
                         </div>
 
                         <div className="px-5 pb-3 border-b border-white/10 relative z-10">
@@ -444,9 +447,9 @@ export const QuickMatchPanel = ({
                                         <div className="w-[1px] h-2 bg-white/10" />
                                         <span className="text-ludo-xs uppercase font-black tracking-widest text-white/40">{matchType}</span>
                                     </div>
-                                    <div className="flex items-center gap-2 bg-amber-400/20 px-3 py-1 rounded-lg border border-amber-400/30">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                                        <span className="text-sm font-black text-amber-400 tracking-tight">
+                                    <div className="hud-chamfer-sm flex items-center gap-2 bg-amber-400/20 px-3 py-1 rounded-lg border border-amber-400/30">
+                                        <ChipsHexIcon className="w-4 h-4 text-amber-400" active />
+                                        <span className="text-sm font-extrabold font-mono text-amber-400 tracking-tight tabular-nums">
                                             {wagerRange?.max === undefined && wagerRange?.min === 0
                                                 ? 'Any'
                                                 : activeWager.toLocaleString()}
@@ -859,9 +862,9 @@ export const QuickMatchPanel = ({
                                         size="icon"
                                         onClick={handleCancelAndClose}
                                         aria-label="Close match found"
-                                        className="absolute right-8 top-8 z-[210] border border-line-soft bg-surface-hover"
+                                        className="panel-close-3077 absolute right-8 top-8 z-[210] border border-line-soft bg-surface-hover"
                                     >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        <CloseReticleIcon className="icon-md" />
                                     </Button>
                                 )}
 
@@ -878,8 +881,8 @@ export const QuickMatchPanel = ({
                                             <span className="text-ludo-xs font-black text-white/60 uppercase tracking-[0.2em]">{gameMode}</span>
                                             <div className="w-1 h-3 bg-white/10 rounded-full" />
                                             <div className="flex items-center gap-1">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3"><circle cx="12" cy="12" r="8"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-                                                <span className="text-ludo-xs font-black text-amber-400 tracking-[0.1em]">
+                                                <ChipsHexIcon className="w-3.5 h-3.5 text-amber-400" active />
+                                                <span className="text-ludo-xs font-extrabold font-mono text-amber-400 tracking-[0.1em] tabular-nums">
                                                     {wagerRange?.max === undefined && wagerRange?.min === 0
                                                         ? 'Any'
                                                         : feeLabel(activeWager)}
@@ -898,17 +901,17 @@ export const QuickMatchPanel = ({
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="relative">
                                                 <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-cyan-400/50 flex items-center justify-center p-2">
-                                                    <div className="w-full h-full rounded-2xl overflow-hidden bg-slate-800">
+                                                    <div className="hud-avatar-frame w-full h-full rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center">
                                                         {profile?.avatar_url ? (
                                                             <img loading="lazy" decoding="async" src={profile.avatar_url} alt="You" className="w-full h-full object-cover" width={96} height={96} />
                                                         ) : (
-                                                            <div className="w-full h-full bg-gradient-to-br from-cyan-500/40 to-blue-600/40 flex items-center justify-center text-3xl font-black text-white/20">
-                                                                {finalName?.[0] || 'U'}
+                                                            <div className="w-full h-full bg-gradient-to-br from-cyan-500/30 to-sky-700/30 flex items-center justify-center text-cyan-300/70">
+                                                                <PilotAvatarFallbackIcon className="w-10 h-10 md:w-12 md:h-12" />
                                                             </div>
                                                         )}
                                                     </div>
                                                 </div>
-                                                <div className="absolute -inset-1 border border-cyan-400/30 rounded-[28px] animate-pulse pointer-events-none" />
+                                                <div className="hud-status-breath absolute -inset-1 border border-cyan-400/35 rounded-[28px] pointer-events-none" />
                                             </div>
                                             <div className="flex flex-col items-center">
                                                 <span className="text-lg md:text-xl font-bold text-white tracking-tight">{finalName}</span>
@@ -923,7 +926,7 @@ export const QuickMatchPanel = ({
                                         {/* VS Badge */}
                                         <div className="flex flex-col items-center gap-4">
                                             <div
-                                                className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white text-black flex items-center justify-center text-2xl md:text-3xl font-black shadow-[0_0_40px_white]"
+                                                className="hud-chamfer-sm w-16 h-16 md:w-20 md:h-20 rounded-full bg-accent text-accent-ink flex items-center justify-center text-2xl md:text-3xl font-extrabold font-mono shadow-[0_0_32px_rgba(0,229,255,0.45)]"
                                             >
                                                 VS
                                             </div>
@@ -932,30 +935,20 @@ export const QuickMatchPanel = ({
                                         {/* Opponent */}
                                         <div className="flex flex-col items-center gap-4">
                                             <div className="relative">
-                                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-purple-400/50 flex items-center justify-center p-2">
-                                                    <div className="w-full h-full rounded-2xl overflow-hidden bg-slate-800 flex items-center justify-center">
+                                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-amber-400/50 flex items-center justify-center p-2">
+                                                    <div className="hud-avatar-frame w-full h-full rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center">
                                                         {isLoadingRival ? (
-                                                            <div className="w-8 h-8 border-2 border-purple-400/30 border-t-purple-400 rounded-full animate-spin" />
+                                                            <div className="w-8 h-8 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
                                                         ) : opponentProfile?.avatar_url ? (
                                                             <img loading="lazy" decoding="async" src={opponentProfile.avatar_url} alt="Rival" className="w-full h-full object-cover" width={96} height={96} />
                                                         ) : (
-                                                            <div className="w-full h-full bg-gradient-to-br from-purple-500/40 to-pink-600/40 flex items-center justify-center">
-                                                                <svg
-                                                                    className="w-12 h-12 md:w-16 md:h-16 text-white/20"
-                                                                    viewBox="0 0 24 24"
-                                                                    fill="none"
-                                                                    stroke="currentColor"
-                                                                    strokeWidth="2"
-                                                                >
-                                                                    <rect x="3" y="8" width="18" height="10" rx="2" />
-                                                                    <circle cx="12" cy="4" r="2" />
-                                                                    <path d="M12 6v2" />
-                                                                </svg>
+                                                            <div className="w-full h-full bg-gradient-to-br from-amber-500/30 to-red-500/30 flex items-center justify-center text-amber-300/80">
+                                                                <SimBotIcon className="w-12 h-12 md:w-14 md:h-14" />
                                                             </div>
                                                         )}
                                                     </div>
                                                 </div>
-                                                {!isLoadingRival && <div className="absolute -inset-1 border border-purple-400/30 rounded-[28px] animate-pulse pointer-events-none" />}
+                                                {!isLoadingRival && <div className="hud-status-breath absolute -inset-1 border border-amber-400/35 rounded-[28px] pointer-events-none" />}
                                             </div>
                                             <div className="flex flex-col items-center">
                                                 <h3 className="text-lg md:text-xl font-bold text-white tracking-tight text-center">
@@ -987,7 +980,7 @@ export const QuickMatchPanel = ({
                                             <motion.div
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                className="mb-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-ludo-xs font-black text-amber-500 uppercase tracking-widest animate-pulse"
+                                                className="hud-status-breath mb-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-ludo-xs font-extrabold text-amber-500 uppercase tracking-widest"
                                             >
                                                 {roomStatus === 'failed'
                                                     ? roomError === 'not-deployed'

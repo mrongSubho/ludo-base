@@ -5,6 +5,8 @@ import { Player } from '@/hooks/useGameEngine';
 import { PlayerColor } from '@/lib/types';
 import { Corner } from '@/lib/boardLayout';
 import { getTierInfo } from '@/lib/progression';
+import { usePreferences } from '@/hooks/usePreferences';
+import { PilotAvatarFallbackIcon } from './icons';
 
 export const getDisplayNameHelper = (player: Player) => {
     let baseName = player.name;
@@ -36,6 +38,13 @@ const AWAIT_RING_COLORS: Record<string, string> = {
     blue: '#3b82f6',
 };
 
+const AWAIT_RING_COLORS_3077: Record<string, string> = {
+    green: '#00FF66',
+    red: '#FF0055',
+    yellow: '#FFD000',
+    blue: '#0099FF',
+};
+
 interface PlayerCardProps {
     player: Player;
     isActive: boolean;
@@ -49,6 +58,8 @@ export function PlayerCard({
     awaitingMove,
     isKicked = false,
 }: PlayerCardProps) {
+    const { preferences } = usePreferences();
+    const is3077 = preferences.theme === '3077';
     const [levelUp, setLevelUp] = useState(false);
     const prevLevelRef = useRef(player.level);
 
@@ -62,6 +73,8 @@ export function PlayerCard({
         prevLevelRef.current = player.level;
     }, [player.level]);
 
+    const ringColor = (is3077 ? AWAIT_RING_COLORS_3077 : AWAIT_RING_COLORS)[player.color] || '#00E5FF';
+
     return (
         <div className={`player-card player-card-corner ${player.position} ${isActive ? 'player-card-active' : ''}`}>
             <div className="avatar-circle-wrapper" style={{ position: 'relative' }}>
@@ -69,12 +82,12 @@ export function PlayerCard({
                     <span
                         key={delay}
                         className="await-ring"
-                        style={{ borderColor: AWAIT_RING_COLORS[player.color] || '#ffffff', animationDelay: `${delay}s` }}
+                        style={{ borderColor: ringColor, animationDelay: `${delay}s` }}
                         aria-hidden
                     />
                 ))}
                 <div
-                    className={`avatar-circle ${player.color} ${isActive ? 'active-glow' : ''} ${awaitingMove ? 'await-move' : ''}`}
+                    className={`avatar-circle hud-avatar-frame ${player.color} ${isActive ? 'active-glow' : ''} ${awaitingMove ? 'await-move' : ''}`}
                     title={getDisplayNameHelper(player)}
                 >
                     {player.avatar && (player.avatar.startsWith('http') || player.avatar.startsWith('/')) ? (
@@ -89,14 +102,14 @@ export function PlayerCard({
                         player.avatar && !player.avatar.startsWith('avatar:') && player.avatar.length <= 8 ? (
                           <span className="avatar-emoji">{player.avatar}</span>
                         ) : (
-                          <span className="avatar-emoji flex items-center justify-center text-white/40">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                          <span className="avatar-emoji flex items-center justify-center text-accent/80">
+                            <PilotAvatarFallbackIcon className="w-5 h-5" />
                           </span>
                         )
                     )}
                 </div>
                 <div className={`avatar-level-badge ${levelUp ? 'level-up' : ''}`} style={{ background: getTierInfo(player.rxp || 0).tier === 'Arena Master' ? '#ea580c' : getTierInfo(player.rxp || 0).tier === 'Diamond' ? '#0891b2' : getTierInfo(player.rxp || 0).tier === 'Platinum' ? '#2563eb' : getTierInfo(player.rxp || 0).tier === 'Gold' ? '#ca8a04' : getTierInfo(player.rxp || 0).tier === 'Silver' ? '#64748b' : '#b45309' }}>
-                    <span className="text-ludo-xs font-black">{player.level}</span>
+                    <span className="text-ludo-xs font-extrabold">{player.level}</span>
                 </div>
                 <span className={`player-connection-dot ${isKicked ? 'offline' : player.isAi ? 'ai' : ''}`} title={isKicked ? 'Disconnected' : player.isAi ? 'AI opponent' : 'Connected'} />
             </div>
@@ -159,7 +172,7 @@ export function PlayerRow({
                             />
                         )}
                         {isMyTurn && spectatorMode && localGameState.diceValue != null && (
-                            <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center text-white font-black text-lg">
+                            <div className="hud-chamfer-sm w-10 h-10 rounded-xl bg-surface-recessed border border-accent/40 flex items-center justify-center text-accent font-mono font-extrabold text-lg tabular-nums shadow-[0_0_12px_rgba(0,229,255,0.2)]">
                                 {localGameState.diceValue}
                             </div>
                         )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useAccount, useReadContract, useSwitchChain } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
@@ -40,6 +41,21 @@ export function useChipsBalance() {
     });
 
     const balance = typeof data === "bigint" ? data : undefined;
+
+    useEffect(() => {
+        if (typeof window === "undefined" || !enabled) return;
+        const onRefresh = () => {
+            void refetch();
+        };
+        window.addEventListener("ludo-chips-refresh", onRefresh);
+        window.addEventListener("ludo-arena-vault-updated", onRefresh);
+        window.addEventListener("ludo-clan-claims-updated", onRefresh);
+        return () => {
+            window.removeEventListener("ludo-chips-refresh", onRefresh);
+            window.removeEventListener("ludo-arena-vault-updated", onRefresh);
+            window.removeEventListener("ludo-clan-claims-updated", onRefresh);
+        };
+    }, [enabled, refetch]);
 
     let friendlyError: string | null = null;
     if (error) {

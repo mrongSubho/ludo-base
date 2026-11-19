@@ -59,12 +59,13 @@ export const CLAN_CLAIM_ABI = [
 ] as const;
 
 export function useClanClaims() {
-    const { address, chainId } = useAccount();
+    const { address: wagmiAddress, chainId } = useAccount();
     const { switchChainAsync } = useSwitchChain();
-    const { ensureAppSession, peekAppSession } = useAppSession();
+    const { sessionId: activeSessionId, ensureAppSession, peekAppSession } = useAppSession();
     const { writeContractAsync, isPending: isWriting } = useWriteContract();
     const publicClient = usePublicClient();
     const player = usePlayerSigner();
+    const address = (player.address ?? wagmiAddress) as `0x${string}` | undefined;
     const cdpUserOp = useCdpUserOp();
 
     const [claims, setClaims] = useState<ClanClaimItem[]>([]);
@@ -79,7 +80,7 @@ export function useClanClaims() {
             return;
         }
 
-        const sid = peekAppSession();
+        const sid = activeSessionId || peekAppSession();
         if (!sid) {
             setClaims([]);
             return;
@@ -110,10 +111,23 @@ export function useClanClaims() {
         } finally {
             setIsLoading(false);
         }
-    }, [address, peekAppSession]);
+    }, [activeSessionId, address, peekAppSession]);
 
     useEffect(() => {
         void refresh();
+    }, [refresh]);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const onUpdate = () => {
+            void refresh();
+        };
+        window.addEventListener("ludo-clan-claims-updated", onUpdate);
+        window.addEventListener("ludo-chips-refresh", onUpdate);
+        return () => {
+            window.removeEventListener("ludo-clan-claims-updated", onUpdate);
+            window.removeEventListener("ludo-chips-refresh", onUpdate);
+        };
     }, [refresh]);
 
     const totalClaimableChips = useMemo(() => {
@@ -237,6 +251,9 @@ export function useClanClaims() {
                 await confirmClaimsOnServer([claimItem.id], txHash, sessionId);
             }
             await refresh();
+            if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("ludo-clan-claims-updated"));
+            }
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             console.error("[useClanClaims:claimSingle]", msg);
@@ -342,6 +359,9 @@ export function useClanClaims() {
                 await confirmClaimsOnServer(claims.map((c) => c.id), txHash, sessionId);
             }
             await refresh();
+            if (typeof window !== "undefined") {
+                window.dispatchEvent(new CustomEvent("ludo-clan-claims-updated"));
+            }
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             console.error("[useClanClaims:claimAll]", msg);

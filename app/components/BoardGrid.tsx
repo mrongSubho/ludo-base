@@ -5,6 +5,9 @@ import { motion } from 'framer-motion';
 import { getGridCellInfo, getBoardCoordinate, PathCell, ColorCorner, Corner, CORNER_SLOTS, CellType, SHARED_PATH, SAFE_POSITIONS } from '@/lib/boardLayout';
 import { PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
+import { usePreferences } from '@/hooks/usePreferences';
+import { ProximityMineIcon } from './icons';
+import { HudCornerTicks } from './HudPrimitives';
 
 interface BoardGridProps {
     pathCells: PathCell[];
@@ -28,6 +31,13 @@ const ZONE_HEX: Record<string, string> = {
     blue: '#00ccff',
 };
 
+const ZONE_HEX_3077: Record<string, string> = {
+    green: '#00FF66',
+    red: '#FF0055',
+    yellow: '#FFD000',
+    blue: '#0099FF',
+};
+
 const StarMarker = ({ color = "#eab308", counterRotationDeg = 0 }: { color?: string; counterRotationDeg?: number }) => (
     <>
         {/* Classic / Daybreak 5-Point Star */}
@@ -47,18 +57,19 @@ const StarMarker = ({ color = "#eab308", counterRotationDeg = 0 }: { color?: str
     </>
 );
 
-function getZoneColorForSafeCell(r: number, c: number, cc: ColorCorner): string {
+function getZoneColorForSafeCell(r: number, c: number, cc: ColorCorner, is3077 = false): string {
     const globalIdx = SHARED_PATH.findIndex(p => p.r === r && p.c === c);
-    if (globalIdx === -1) return '#eab308';
+    if (globalIdx === -1) return is3077 ? '#FFD000' : '#eab308';
     const colors = Object.keys(cc) as string[];
+    const palette = is3077 ? ZONE_HEX_3077 : ZONE_HEX;
     for (const color of colors) {
         const corner = cc[color as keyof ColorCorner] as Corner | undefined;
         if (!corner) continue;
         const sc = CORNER_SLOTS[corner].startIdx;
         const d = (globalIdx - sc + 52) % 52;
-        if (d < 13) return ZONE_HEX[color] || '#eab308';
+        if (d < 13) return palette[color] || (is3077 ? '#FFD000' : '#eab308');
     }
-    return '#eab308';
+    return is3077 ? '#FFD000' : '#eab308';
 }
 
 const ArrowMarker = ({ dir, color = "#ffffff" }: { dir: 'up' | 'down' | 'left' | 'right', color?: string }) => {
@@ -87,15 +98,24 @@ export function BoardGrid({
     counterRotationDeg,
     squarePx
 }: BoardGridProps) {
+    const { preferences } = usePreferences();
+    const is3077 = preferences.theme === '3077';
     const activeColor = localGameState?.currentPlayer || propActiveColor;
     
-    // Fallback Hex Colors (from mockup)
-    const COLOR_MAP: Record<string, string> = {
-        green: '#22c55e',
-        red: '#ef4444',
-        blue: '#3b82f6',
-        yellow: '#eab308'
-    };
+    // Fallback Hex Colors (aligned to theme faction matrix)
+    const COLOR_MAP: Record<string, string> = is3077
+        ? {
+            green: '#00FF66',
+            red: '#FF0055',
+            blue: '#0099FF',
+            yellow: '#FFD000',
+        }
+        : {
+            green: '#22c55e',
+            red: '#ef4444',
+            blue: '#3b82f6',
+            yellow: '#eab308',
+        };
 
     // Calculate occupied cells to hide star markers
     const occupiedCells = new Set<string>();
@@ -128,6 +148,7 @@ export function BoardGrid({
             padding: '1px',
             position: 'relative'
         }}>
+            <HudCornerTicks className="board-chassis-ticks" />
             {/* ── Path Squares ── */}
             {(pathCells || []).map(({ row, col, cls }: PathCell) => {
                 const cellInfo = getGridCellInfo(row, col, colorCorner);
@@ -142,7 +163,7 @@ export function BoardGrid({
                 }
 
                 const isSafe = cellInfo.type === 'safe';
-                const safeZoneColor = isSafe ? getZoneColorForSafeCell(row, col, colorCorner) : null;
+                const safeZoneColor = isSafe ? getZoneColorForSafeCell(row, col, colorCorner, is3077) : null;
                 if (isSafe && safeZoneColor) {
                     bg = `${safeZoneColor}33`;
                 }
@@ -174,7 +195,15 @@ export function BoardGrid({
                                 </span>
                             </span>
                         )}
-                        {trap && <span className="trap-icon" style={{ fontSize: 16 }}>💣</span>}
+                        {trap && (
+                            <span
+                                className="trap-icon trap-mine-3077 inline-flex items-center justify-center text-negative"
+                                style={{ transform: `rotate(${counterRotationDeg || 0}deg)` }}
+                                aria-label="Proximity mine"
+                            >
+                                <ProximityMineIcon className="w-4 h-4" />
+                            </span>
+                        )}
                         {(Object.entries(colorCorner) as [PlayerColor, Corner][]).map(([color, corner]) => {
                             const slot = CORNER_SLOTS[corner];
                             if (slot.arrowCell.r === row && slot.arrowCell.c === col) {

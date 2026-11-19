@@ -206,6 +206,95 @@ export function formatChips(raw: bigint | number | undefined | null): string {
     return String(Math.floor(n));
 }
 
+const CHIPS_E18 = BigInt("1000000000000000000");
+
+function formatScaledSuffix(whole: number, unitStep: number, suffix: string): string {
+    const scaled = Math.floor(whole / unitStep);
+    const intPart = Math.floor(scaled / 100);
+    const frac = scaled % 100;
+    if (frac === 0) return `${intPart}${suffix}`;
+    const fracStr = String(frac).padStart(2, "0").replace(/0+$/, "");
+    return `${intPart}.${fracStr}${suffix}`;
+}
+
+/**
+ * Compact header/wallet formatter (`1k`, `1.19k`, `3.92M`, `1.5B`) truncated to
+ * two decimals without rounding up balances.
+ */
+export function formatCompactChips(raw: bigint | number | undefined | null): string {
+    if (raw == null) return "0";
+    const whole =
+        typeof raw === "bigint"
+            ? raw <= BigInt(0)
+                ? 0
+                : Number(raw / CHIPS_E18)
+            : !Number.isFinite(raw) || raw <= 0
+              ? 0
+              : Math.floor(raw);
+
+    if (whole >= 1_000_000_000) return formatScaledSuffix(whole, 10_000_000, "B");
+    if (whole >= 1_000_000) return formatScaledSuffix(whole, 10_000, "M");
+    if (whole >= 1_000) return formatScaledSuffix(whole, 10, "k");
+    return String(whole);
+}
+
+export interface TotalChipsInput {
+    walletChips?: number;
+    vaultAvailableChips?: number;
+    vaultReservedChips?: number;
+    vaultClaimableChips?: number;
+    clanClaimableChips?: number;
+    legacyClaimableChips?: number;
+    escrowChips?: number;
+}
+
+export interface TotalChipsBreakdown {
+    walletChips: number;
+    vaultAvailableChips: number;
+    vaultReservedChips: number;
+    vaultTotalChips: number;
+    vaultClaimableChips: number;
+    clanClaimableChips: number;
+    legacyClaimableChips: number;
+    unclaimedChips: number;
+    escrowChips: number;
+    totalChips: number;
+    totalFormatted: string;
+}
+
+function cleanWholeChips(v: unknown): number {
+    const n = typeof v === "number" ? v : Number(v ?? 0);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+/** Aggregates disjoint on-chain, vault, claim-hub, and escrow CHIPS buckets. */
+export function computeTotalChipsBreakdown(input: TotalChipsInput): TotalChipsBreakdown {
+    const walletChips = cleanWholeChips(input.walletChips);
+    const vaultAvailableChips = cleanWholeChips(input.vaultAvailableChips);
+    const vaultReservedChips = cleanWholeChips(input.vaultReservedChips);
+    const vaultTotalChips = vaultAvailableChips + vaultReservedChips;
+    const vaultClaimableChips = cleanWholeChips(input.vaultClaimableChips);
+    const clanClaimableChips = cleanWholeChips(input.clanClaimableChips);
+    const legacyClaimableChips = cleanWholeChips(input.legacyClaimableChips);
+    const unclaimedChips = vaultClaimableChips + clanClaimableChips + legacyClaimableChips;
+    const escrowChips = cleanWholeChips(input.escrowChips);
+    const totalChips = walletChips + vaultTotalChips + unclaimedChips + escrowChips;
+
+    return {
+        walletChips,
+        vaultAvailableChips,
+        vaultReservedChips,
+        vaultTotalChips,
+        vaultClaimableChips,
+        clanClaimableChips,
+        legacyClaimableChips,
+        unclaimedChips,
+        escrowChips,
+        totalChips,
+        totalFormatted: formatCompactChips(totalChips),
+    };
+}
+
 export { toHex };
 
 export function claimHubAddress(): `0x${string}` | undefined {

@@ -20,6 +20,7 @@ import { ChatContent } from './EmojiPicker';
 import { encodeChatDraft, insertDraftEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
 import { usePreferences } from '@/hooks/usePreferences';
 import { prefersReducedMotion } from '@/lib/motion';
+import { CloseReticleIcon, WarningHexIcon } from './icons';
 
 interface Activity {
     id: string;
@@ -323,7 +324,7 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                     role="alert"
                     className="mx-5 mb-1 flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-ludo-sm leading-snug text-red-200"
                 >
-                    <span aria-hidden="true">⚠</span>
+                    <WarningHexIcon className="icon-sm shrink-0 mt-0.5" />
                     <span className="flex-1">{sendError}</span>
                     <button
                         type="button"
@@ -331,7 +332,7 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                         aria-label="Dismiss"
                         className="shrink-0 text-red-300/70 hover:text-red-100"
                     >
-                        ✕
+                        <CloseReticleIcon className="icon-sm" />
                     </button>
                 </div>
             )}
@@ -1327,7 +1328,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                     role="alert"
                     className="mx-5 mb-1 flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-ludo-sm leading-snug text-red-200"
                 >
-                    <span aria-hidden="true">⚠</span>
+                    <WarningHexIcon className="icon-sm shrink-0 mt-0.5" />
                     <span className="flex-1">{sendError}</span>
                     <button
                         type="button"
@@ -1335,7 +1336,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                         aria-label="Dismiss"
                         className="shrink-0 text-red-300/70 hover:text-red-100"
                     >
-                        ✕
+                        <CloseReticleIcon className="icon-sm" />
                     </button>
                 </div>
             )}
@@ -1581,7 +1582,7 @@ export const LiveBroadcastCard = ({
                             <span className="font-mono text-xs font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>
                                 {joinable}
                             </span>
-                            <span className="font-mono text-[10px] uppercase tracking-wider" style={{ color: 'var(--ink-muted)' }}>
+                            <span className="font-mono text-ludo-xs uppercase tracking-wider" style={{ color: 'var(--ink-muted)' }}>
                                 Live
                             </span>
                         </div>

@@ -14,6 +14,8 @@ import { useGuestWall } from '@/hooks/GuestWallContext';
 import { PanelTabs, TabCount } from './PanelTabs';
 import { Button } from './Button';
 import { Chip } from './Chip';
+import { HudCornerTicks, HudProgressGauge } from './HudPrimitives';
+import { ArmoryCrateIcon, ChipsHexIcon, CloseReticleIcon } from './icons';
 
 type MarketTab = 'themes' | 'dices' | 'tokens' | 'items';
 type Rarity = 'common' | 'rare' | 'legendary';
@@ -83,10 +85,7 @@ function chipsBaseToWhole(v: unknown): number {
     }
 }
 const TokenIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-cyan-400">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 6v12M8 10h8M8 14h8" />
-    </svg>
+    <ChipsHexIcon className="w-3.5 h-3.5 text-cyan-300" active />
 );
 
 // ─── Real item previews ─────────────────────────────────────────────────────
@@ -182,7 +181,7 @@ const RARITY_RANK: Record<Rarity, number> = { common: 1, rare: 2, legendary: 3 }
 const RARITY_BEAM: Record<Rarity, string> = {
     common: 'bg-white/25',
     rare: 'bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.9)]',
-    legendary: 'bg-fuchsia-400 shadow-[0_0_12px_rgba(232,121,249,0.9)]',
+    legendary: 'bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.9)]',
 };
 
 const SORT_LABELS: Record<SortKey, string> = {
@@ -203,7 +202,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 const RARITY_HALO: Record<Rarity, string> = {
     common: 'rgba(255,255,255,0.10)',
     rare: 'rgba(34,211,238,0.28)',
-    legendary: 'rgba(232,121,249,0.32)',
+    legendary: 'rgba(245,158,11,0.34)',
 };
 
 /** Singular display names per category (set-bar copy, loadout labels) */
@@ -760,13 +759,14 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                 className="ludo-market-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                                 style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
                             >
+                                <HudCornerTicks />
                                 {/* Cosmic orbs */}
                                 <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                                 <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
                                 {/* Drag Handle */}
                                 <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                                    <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                                    <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
                                 </div>
 
                                 {/* ─── Transaction overlays ─── */}
@@ -807,13 +807,8 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                     <div className="flex items-center justify-between mb-2 mt-1">
                                         <div className="flex flex-col">
                                             <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                                <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
-                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-cyan-300">
-                                                        <path d="M4 9l1.2-4.2A1 1 0 0 1 6.2 4h11.6a1 1 0 0 1 1 .8L20 9" />
-                                                        <path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" />
-                                                        <path d="M4 9h16" />
-                                                        <path d="M9.5 20v-6h5v6" />
-                                                    </svg>
+                                                <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
+                                                    <ArmoryCrateIcon className="w-4 h-4 text-cyan-300" />
                                                 </div>
                                                 Marketplace
                                             </h2>
@@ -824,13 +819,13 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 </span>
                                                 <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
                                                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/40 border border-white/10" title="Escrowed CHIPS available for purchases">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.8)]" />
-                                                    <span className="text-ludo-sm font-black text-white tabular-nums">{balance.toLocaleString()} CHIPS</span>
+                                                    <ChipsHexIcon className="w-3 h-3 text-amber-400 shrink-0" active />
+                                                    <span className="text-ludo-sm font-extrabold text-white tabular-nums">{balance.toLocaleString()} CHIPS</span>
                                                 </span>
                                             </div>
                                         </div>
-                                        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close marketplace" className="bg-surface-hover border border-line-soft">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close marketplace" className="panel-close-3077 bg-surface-hover border border-line-soft">
+                                            <CloseReticleIcon className="icon-md" />
                                         </Button>
                                     </div>
 
@@ -1016,7 +1011,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     <div
                                                         key={item.id}
                                                         onClick={onTap}
-                                                        className={`group relative rounded-2xl bg-white/[0.04] border border-white/10 overflow-hidden cursor-pointer transition-all hover:border-white/25 hover:bg-white/[0.07] active:scale-[0.98] ${marked ? 'ring-1 ring-green-400/60 shadow-[0_0_20px_rgba(74,222,128,0.15)]' : ''}`}
+                                                        className={`card-3077 group relative rounded-2xl bg-white/[0.04] border border-white/10 overflow-hidden cursor-pointer transition-all hover:border-white/25 hover:bg-white/[0.07] active:scale-[0.98] ${marked ? 'ring-1 ring-green-400/60 shadow-[0_0_20px_rgba(74,222,128,0.15)]' : ''}`}
                                                     >
                                                         {/* rarity beam */}
                                                         <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-full z-20 ${RARITY_BEAM[item.rarity]}`} />
@@ -1024,10 +1019,10 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         <div className={`relative ${item.previewColor} ${density === 'comfort' ? 'aspect-[5/4]' : 'aspect-[5/4]'} flex items-center justify-center overflow-hidden`}>
                                                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.12),transparent_65%)] pointer-events-none" />
                                                             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/55 pointer-events-none" />
-                                                            {item.rarity === 'legendary' && <div className="absolute inset-0 bg-fuchsia-500/10 animate-pulse pointer-events-none" />}
+                                                            {item.rarity === 'legendary' && <div className="absolute inset-0 bg-amber-400/10 pointer-events-none" />}
                                                             {previewStage(density === 'comfort' ? '120px' : '88px', item.rarity)}
                                                             {/* rarity sigil floats on the art — frees the full row for the name */}
-                                                            <div className={`absolute top-2 left-2.5 z-20 rounded-md flex items-center justify-center font-black backdrop-blur-sm border ${density === 'comfort' ? 'w-5 h-5 text-ludo-xs' : 'w-4 h-4 text-ludo-xs'} ${item.rarity === 'legendary' ? 'bg-fuchsia-500/30 border-fuchsia-300/50 text-fuchsia-100' : item.rarity === 'rare' ? 'bg-cyan-500/30 border-cyan-300/50 text-cyan-100' : 'bg-black/40 border-white/20 text-white/60'}`}>
+                                                            <div className={`absolute top-2 left-2.5 z-20 rounded-md flex items-center justify-center font-extrabold backdrop-blur-sm border ${density === 'comfort' ? 'w-5 h-5 text-ludo-xs' : 'w-4 h-4 text-ludo-xs'} ${item.rarity === 'legendary' ? 'bg-amber-400/25 border-amber-300/60 text-amber-100' : item.rarity === 'rare' ? 'bg-cyan-400/25 border-cyan-300/50 text-cyan-100' : 'bg-black/40 border-white/20 text-white/60'}`}>
                                                                 {item.rarity === 'common' ? 'C' : item.rarity === 'rare' ? 'R' : 'L'}
                                                             </div>
                                                             <div className="relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 drop-shadow-[0_10px_16px_rgba(0,0,0,0.5)]">
@@ -1035,14 +1030,14 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             </div>
                                                             {/* store: tiny owned badge (no equipped tag, no tick) */}
                                                             {!isLoadout && owned && (
-                                                                <div className="absolute top-2 right-2 z-20 px-1.5 py-0.5 rounded-md bg-black/55 border border-white/15 backdrop-blur-sm text-ludo-xs font-black tracking-[0.14em] text-white/75">
+                                                                <div className="absolute top-2 right-2 z-20 px-1.5 py-0.5 rounded-md bg-black/55 border border-white/15 backdrop-blur-sm text-ludo-xs font-extrabold tracking-[0.14em] text-white/75">
                                                                     OWNED
                                                                 </div>
                                                             )}
                                                             {/* loadout mark: active gear or showcased relic */}
                                                             {marked && (
                                                                 <>
-                                                                    <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-ludo-xs font-black uppercase tracking-[0.16em] shadow-lg whitespace-nowrap backdrop-blur-sm">
+                                                                    <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-ludo-xs font-extrabold uppercase tracking-[0.16em] shadow-lg whitespace-nowrap backdrop-blur-sm">
                                                                         {equipped ? 'Active' : 'Showcasing'}
                                                                     </div>
                                                                     <div className="porcelain-holo-tick absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-lg z-20">
@@ -1053,10 +1048,10 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         </div>
                                                         {/* body: title + price only */}
                                                         <div className={`${density === 'comfort' ? 'p-3' : 'p-2'}`}>
-                                                            <h3 className={`font-black text-white ${density === 'comfort' ? 'text-[12.5px] leading-tight line-clamp-2 min-h-[2.1em]' : 'text-ludo-sm truncate'}`}>{item.name}</h3>
+                                                            <h3 className={`font-extrabold text-white ${density === 'comfort' ? 'text-ludo-md leading-tight line-clamp-2 min-h-[2.1em]' : 'text-ludo-sm truncate'}`}>{item.name}</h3>
                                                             <div className="flex items-center gap-1 mt-1">
-                                                                <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.7)]" />
-                                                                <span className={`font-black text-white font-mono ${density === 'comfort' ? 'text-ludo-md' : 'text-ludo-sm'}`}>{item.price.toLocaleString()}</span>
+                                                                <ChipsHexIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" active />
+                                                                <span className={`font-extrabold text-white font-mono tabular-nums ${density === 'comfort' ? 'text-ludo-md' : 'text-ludo-sm'}`}>{item.price.toLocaleString()}</span>
                                                             </div>
                                                         </div>
                                                         {/* hover quick-action rail */}
@@ -1113,12 +1108,10 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                                                            <div
-                                                                className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-fuchsia-400 transition-all"
-                                                                style={{ width: `${((tabItems.length - missing.length) / tabItems.length) * 100}%` }}
-                                                            />
-                                                        </div>
+                                                        <HudProgressGauge
+                                                            percent={((tabItems.length - missing.length) / tabItems.length) * 100}
+                                                            tone="accent"
+                                                        />
                                                         <div className="mt-1.5 text-ludo-xs font-bold text-white/35 truncate">
                                                             {missing.length} to go · {formatCompact(missingTotal)} total
                                                         </div>
@@ -1322,7 +1315,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     </Button>
                                                     <h2 className="text-base font-black text-white tracking-tight">Inspect</h2>
                                                 </div>
-                                                <span className={`px-2.5 py-1 rounded-full text-ludo-xs font-black uppercase tracking-widest border ${selectedItem.rarity === 'legendary' ? 'border-fuchsia-400/50 text-fuchsia-300 bg-fuchsia-500/10' : selectedItem.rarity === 'rare' ? 'border-cyan-400/50 text-cyan-300 bg-cyan-500/10' : 'border-white/15 text-white/50 bg-white/5'}`}>
+                                                <span className={`px-2.5 py-1 rounded-full text-ludo-xs font-extrabold uppercase tracking-widest border ${selectedItem.rarity === 'legendary' ? 'border-amber-400/50 text-amber-300 bg-amber-400/10' : selectedItem.rarity === 'rare' ? 'border-cyan-400/50 text-cyan-300 bg-cyan-400/10' : 'border-white/15 text-white/50 bg-white/5'}`}>
                                                     {selectedItem.rarity}
                                                 </span>
                                             </div>

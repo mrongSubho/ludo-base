@@ -6,6 +6,8 @@ import { motion } from 'framer-motion';
 import type { BotDifficulty } from '@/lib/types';
 import { Button } from './Button';
 import { Chip } from './Chip';
+import { HudCornerTicks, HudSectionLabel } from './HudPrimitives';
+import { CloseReticleIcon, SimBotIcon } from './icons';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as the other synced panels: this sheet always renders on the shared
@@ -14,24 +16,18 @@ import { Chip } from './Chip';
 // theme's display font). Spacing inside `.ludo-offline-scope` is re-asserted
 // in globals.css (the global unlayered reset zeroes Tailwind utilities).
 
-// Icon tile: cyan glow square shared with the other synced panels.
+// Icon tile: cyber-tactical chamfered tile shared with synced panels.
 const OfflineTile = () => (
-    <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-cyan-300">
-            <path d="M12 2s-8 11.5-8 16c0 4.4 3.6 8 8 8s8-3.6 8-8c0-4.5-8-16-8-16z"></path>
-        </svg>
+    <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
+        <SimBotIcon className="w-4 h-4 text-cyan-300" />
     </div>
 );
 
-// Section label: pill + gradient rule (marketplace vocabulary)
-const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-    <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
-            {children}
-        </span>
-        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-    </div>
-);
+const DIFFICULTY_THREAT: Record<BotDifficulty, number> = {
+    rookie: 1,
+    pro: 2,
+    master: 3,
+};
 
 interface OfflineMatchPanelProps {
     gameMode: 'classic' | 'power';
@@ -75,13 +71,14 @@ export const OfflineMatchPanel = ({
                         className="ludo-offline-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                         style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
                     >
+                    <HudCornerTicks />
                     {/* Authentic Subdued Cosmic Orbs */}
                     <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                     <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
                     {/* Handle Bar */}
                     <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                        <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                        <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
                     </div>
 
                     {/* Header */}
@@ -96,9 +93,9 @@ export const OfflineMatchPanel = ({
                                 size="icon"
                                 onClick={onClose}
                                 aria-label="Close offline play"
-                                className="bg-surface-hover border border-line-soft shrink-0"
+                                className="panel-close-3077 bg-surface-hover border border-line-soft shrink-0"
                             >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                <CloseReticleIcon className="icon-md" />
                             </Button>
                         </div>
                         <div className="flex items-center gap-2 px-0.5">
@@ -114,7 +111,7 @@ export const OfflineMatchPanel = ({
 
                     {/* Content Area */}
                     <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-2">
-                        <SectionLabel>Mode</SectionLabel>
+                        <HudSectionLabel className="mt-1 mb-1">Mode</HudSectionLabel>
                         <div className="grid grid-cols-2 gap-1.5">
                             <Chip
                                 type="filter"
@@ -143,25 +140,47 @@ export const OfflineMatchPanel = ({
                         </p>
 
                         {mode === 'ai' && (<>
-                        <SectionLabel>Setup</SectionLabel>
+                        <HudSectionLabel className="mt-1 mb-1">Setup</HudSectionLabel>
                         <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col gap-3">
-                            <div className="flex justify-between items-center text-xs font-black uppercase tracking-[0.2em] text-white/40">
+                            <div className="flex justify-between items-center text-xs font-extrabold uppercase tracking-[0.2em] text-white/40">
                                 <span>Opponents</span>
                                 <span className="text-accent">{aiCount} × AI • Free</span>
                             </div>
                             <div className="flex gap-1.5">
-                                {(['rookie', 'pro', 'master'] as const).map(d => (
-                                    <Chip
-                                        key={d}
-                                        type="filter"
-                                        size="sm"
-                                        active={difficulty === d}
-                                        onClick={() => setDifficulty(d)}
-                                        className="min-h-[44px] flex-1 justify-center rounded-xl uppercase tracking-[0.12em] lowercase first-letter:uppercase"
-                                    >
-                                        {d}
-                                    </Chip>
-                                ))}
+                                {(['rookie', 'pro', 'master'] as const).map(d => {
+                                    const threat = DIFFICULTY_THREAT[d];
+                                    const active = difficulty === d;
+                                    return (
+                                        <Chip
+                                            key={d}
+                                            type="filter"
+                                            size="sm"
+                                            active={active}
+                                            onClick={() => setDifficulty(d)}
+                                            className="min-h-[44px] flex-1 justify-center rounded-xl uppercase tracking-[0.12em] lowercase first-letter:uppercase gap-1.5"
+                                        >
+                                            <span>{d}</span>
+                                            <span className="inline-flex items-end gap-[2px]" aria-hidden="true">
+                                                {[1, 2, 3].map((lvl) => (
+                                                    <span
+                                                        key={lvl}
+                                                        className={`w-[2.5px] rounded-[1px] ${
+                                                            lvl === 1 ? 'h-1.5' : lvl === 2 ? 'h-2.5' : 'h-3'
+                                                        } ${
+                                                            lvl <= threat
+                                                                ? d === 'master'
+                                                                    ? 'bg-amber-400'
+                                                                    : active
+                                                                      ? 'bg-accent'
+                                                                      : 'bg-cyan-300/75'
+                                                                : 'bg-white/20'
+                                                        }`}
+                                                    />
+                                                ))}
+                                            </span>
+                                        </Chip>
+                                    );
+                                })}
                             </div>
                             <p className="text-ludo-xs font-bold text-white/35 text-center tracking-wide">
                                 {DIFFICULTY_BLURB[difficulty]}

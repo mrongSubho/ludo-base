@@ -17,7 +17,7 @@ export default function AudioToggle() {
     const isMuted = !preferences.music;
 
     useEffect(() => {
-        const theme = preferences.theme || 'retro';
+        const theme = preferences.theme || '3077';
         if (!isMuted) {
             playAmbient(theme);
         } else {

@@ -26,7 +26,7 @@ export const metadata: Metadata = {
           name: "Ludo 3077 : The Onchain Arena",
           url: APP_URL,
           splashImageUrl: `${APP_URL}/og-image.png`,
-          splashBackgroundColor: "#F8FAFC",
+          splashBackgroundColor: "#05070A",
         },
       },
     }),
@@ -56,11 +56,11 @@ export default async function RootLayout({
   const theme = cookieStore.get('ludo-theme')?.value;
   const tokenStyle = cookieStore.get('token-style')?.value;
 
-  // Three themes: Retro-Futurism (dark), Daybreak (soft-UI light), and 3077 (cyber-tactical HUD).
+  // Three themes: 3077 (flagship cyber-tactical HUD, default), Retro-Futurism (dark), and Daybreak (soft-UI light).
   // Legacy 'dark'/'ui' cookies migrate to Retro-Futurism; legacy 'porcelain'
   // cookies migrate to Daybreak.
-  let themeClass = 'theme-retro-futurism'; // Default
-  if (theme === '3077') themeClass = 'theme-3077';
+  let themeClass = 'theme-3077'; // Default flagship
+  if (theme === 'retro' || theme === 'dark' || theme === 'ui') themeClass = 'theme-retro-futurism';
   else if (theme === 'light' || theme === 'porcelain') themeClass = 'theme-daybreak';
 
   // Orb is the DEFAULT token style: the class must be on <body> at first

@@ -233,14 +233,16 @@ body.theme-3077 .dash-header {
   border-bottom: 1px solid var(--line-soft);
 }
 
-body.theme-3077 .dash-header button {
+body.theme-3077 .dash-header > button,
+body.theme-3077 .dash-header .hud-header-cluster {
   border-color: var(--line-soft) !important;
   box-shadow: none !important;
   background: var(--surface-2) !important;
 }
 
-body.theme-3077 .dash-header button:hover {
-  border-color: var(--line-strong) !important;
+body.theme-3077 .dash-header > button:hover,
+body.theme-3077 .dash-header .hud-header-cluster:hover {
+  border-color: rgba(0, 229, 255, 0.55) !important;
 }
 
 body.theme-3077 .dash-main {
@@ -274,10 +276,15 @@ body.theme-3077 .footer-nav {
 }
 
 body.theme-3077 .footer-nav .nav-item,
-body.theme-3077 .footer-nav .nav-item .nav-icon,
 body.theme-3077 .footer-nav .nav-item .nav-label,
 body.theme-3077 .footer-nav .nav-item > div {
   transition-property: border-color, background-color, color, opacity !important;
+  transition-duration: var(--dur-fast) !important;
+  transition-timing-function: var(--ease-out) !important;
+}
+
+body.theme-3077 .footer-nav .nav-item .nav-icon {
+  transition-property: color, opacity, transform !important;
   transition-duration: var(--dur-fast) !important;
   transition-timing-function: var(--ease-out) !important;
 }
@@ -289,22 +296,49 @@ body.theme-3077 .footer-nav .nav-item {
 body.theme-3077 .footer-nav .nav-item .nav-icon {
   color: var(--ink-muted) !important;
   filter: none !important;
-  transform: none !important;
+  transform: translateY(0) !important;
 }
 
-body.theme-3077 .footer-nav .nav-item.active .nav-icon,
+body.theme-3077 .footer-nav .nav-item.active .nav-icon {
+  color: var(--accent) !important;
+  filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.45)) !important;
+  transform: translateY(-1px) !important;
+}
+
 body.theme-3077 .footer-nav .nav-item:hover:not(.active) .nav-icon {
   color: var(--accent) !important;
   filter: none !important;
-  transform: none !important;
+  transform: translateY(-1px) !important;
+}
+
+body.theme-3077 .footer-active-plate {
+  border-radius: 6px !important;
+  background: linear-gradient(180deg, rgba(0, 229, 255, 0.14) 0%, rgba(0, 229, 255, 0.04) 100%) !important;
+  border-color: rgba(0, 229, 255, 0.35) !important;
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%, 0 5px);
+}
+
+body.theme-3077 .footer-active-laser {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 10px;
+  right: 10px;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.8);
 }
 
 body.theme-3077 .footer-nav .nav-item .nav-label {
   color: var(--ink-muted) !important;
+  font-family: var(--font-chakra), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 body.theme-3077 .footer-nav .nav-item.active .nav-label {
   color: var(--accent) !important;
+  font-weight: 700;
 }
 
 body.theme-3077 :is(
@@ -463,9 +497,23 @@ body.theme-3077 :is(
   .ludo-clan-scope,
   .ludo-broadcast-scope
 ) :is(button, [role="button"], [role="radio"]) {
-  transition-property: border-color, background-color, color, opacity !important;
+  transition-property: border-color, background-color, color, opacity, transform !important;
   transition-duration: var(--dur-fast) !important;
   transition-timing-function: var(--ease-out) !important;
+}
+
+/* Hover stays geometry-stable (no lift/jump); press gives a crisp tactile detent. */
+body.theme-3077 :is(
+  .ludo-lobby-scope,
+  .ludo-market-scope,
+  .ludo-friends-scope,
+  .ludo-messages-scope,
+  .ludo-rankings-scope,
+  .ludo-arena-scope,
+  .ludo-clan-scope,
+  .ludo-broadcast-scope
+) :is(button, [role="button"], [role="radio"]):hover {
+  transform: translateZ(0) !important;
 }
 
 body.theme-3077 :is(
@@ -477,8 +525,8 @@ body.theme-3077 :is(
   .ludo-arena-scope,
   .ludo-clan-scope,
   .ludo-broadcast-scope
-) :is(button, [role="button"], [role="radio"]):is(:hover, :active) {
-  transform: translateZ(0) !important;
+) :is(button, [role="button"], [role="radio"]):not(:disabled):active {
+  transform: scale(0.98) !important;
 }
 
 /* ─── 8. 3077 Lobby Controls, Chamfered Segmented Selectors & Matchmaking Rail (P5) ─── */
@@ -632,8 +680,16 @@ body.theme-3077 .rail-sweep-3077::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body.theme-3077 .rail-sweep-3077::after {
+  body.theme-3077 .rail-sweep-3077::after,
+  body.theme-3077 .animate-hud-reticle-spin,
+  body.theme-3077 .animate-hud-reticle-spin-rev,
+  body.theme-3077 .animate-hud-boot-bar,
+  body.theme-3077 .hud-status-breath,
+  body.theme-3077 .trap-mine-3077 {
     animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+  body.theme-3077 .rail-sweep-3077::after {
     transform: translateX(0);
     opacity: 0.5;
   }
@@ -665,13 +721,144 @@ body.theme-3077 :is(
   .ludo-broadcast-scope,
   .ludo-clan-scope
 ) {
-  background: rgba(11, 15, 23, 0.96) !important;
+  background: rgba(8, 11, 18, 0.96) !important;
   background-image: none !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
-  border-radius: var(--radius-lg) !important;
+  border-radius: 10px !important;
   border: 1px solid var(--line-strong) !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65) !important;
+  border-top-color: rgba(0, 229, 255, 0.42) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(0, 229, 255, 0.14) !important;
+}
+
+body.theme-3077 .panel-handle-bar {
+  width: 56px;
+  height: 2px;
+  border-radius: 1px !important;
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.85), transparent) !important;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.45);
+}
+
+body.theme-3077 .panel-close-3077 {
+  border-radius: 6px !important;
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+}
+
+/* ─── 9.1 Crisp Mecha-Tactical HUD Primitives (3077-Only) ─── */
+body.theme-3077 .hud-ticks-3077 {
+  display: block;
+}
+
+body.theme-3077 .hud-tick {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-color: rgba(0, 229, 255, 0.58);
+  border-style: solid;
+  border-width: 0;
+}
+
+body.theme-3077 .hud-tick-tl {
+  top: 6px;
+  left: 6px;
+  border-top-width: 1.5px;
+  border-left-width: 1.5px;
+}
+
+body.theme-3077 .hud-tick-tr {
+  top: 6px;
+  right: 6px;
+  border-top-width: 1.5px;
+  border-right-width: 1.5px;
+}
+
+body.theme-3077 .hud-tick-bl {
+  bottom: 6px;
+  left: 6px;
+  border-bottom-width: 1.5px;
+  border-left-width: 1.5px;
+}
+
+body.theme-3077 .hud-tick-br {
+  bottom: 6px;
+  right: 6px;
+  border-bottom-width: 1.5px;
+  border-right-width: 1.5px;
+}
+
+body.theme-3077 .hud-chamfer-sm {
+  border-radius: 2px !important;
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+}
+
+body.theme-3077 .hud-chamfer-md {
+  border-radius: 3px !important;
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
+}
+
+body.theme-3077 .hud-chamfer-lg {
+  border-radius: 4px !important;
+  clip-path: polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px);
+}
+
+body.theme-3077 .panel-tabs-3077 {
+  border-radius: 8px !important;
+  background: rgba(5, 7, 10, 0.85) !important;
+  border-color: var(--line-soft) !important;
+}
+
+body.theme-3077 .panel-tab-active-3077 {
+  border-radius: 6px !important;
+  background: linear-gradient(180deg, rgba(0, 229, 255, 0.16) 0%, rgba(0, 229, 255, 0.06) 100%) !important;
+  border-color: rgba(0, 229, 255, 0.48) !important;
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+body.theme-3077 .hud-progress-track {
+  border-radius: 2px !important;
+  background: rgba(5, 7, 10, 0.82) !important;
+  border-color: rgba(0, 229, 255, 0.22) !important;
+}
+
+body.theme-3077 .hud-progress-notches {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 10px,
+    rgba(5, 7, 10, 0.72) 10px,
+    rgba(5, 7, 10, 0.72) 12px
+  );
+}
+
+body.theme-3077 .hud-progress-leading-glow {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  background: rgba(255, 255, 255, 0.75);
+}
+
+/* ─── 9.2 Header HUD Command Clusters & Fee Presets ─── */
+body.theme-3077 .hud-header-cluster {
+  border-radius: 4px !important;
+  background: rgba(11, 15, 23, 0.88) !important;
+  border: 1px solid rgba(0, 229, 255, 0.26) !important;
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px);
+}
+
+body.theme-3077 .hud-header-cluster:hover {
+  border-color: rgba(0, 229, 255, 0.55) !important;
+}
+
+body.theme-3077 .hud-avatar-frame {
+  border-radius: 3px !important;
+  clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 4px, 100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px), 0 4px);
+}
+
+body.theme-3077 .fee-preset-3077 {
+  border-radius: 4px !important;
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
 }
 
 body.theme-3077 :is(
@@ -696,4 +883,63 @@ body.theme-3077 .lobby-dice-cube {
 }
 body.theme-3077 .dice-tier {
   background: none;
+}
+body.theme-3077 .action-dice-3077-pedestal {
+  transform: rotateX(72deg);
+}
+
+/* ─── 11. Cyber Vault Wallet (3077) ─── */
+body.theme-3077 .cb-wallet-root {
+  background: #06090e;
+  border: 1px solid rgba(0, 229, 255, 0.34);
+  border-top-color: rgba(0, 229, 255, 0.6);
+  border-radius: 12px;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.85),
+    inset 0 1px 0 rgba(0, 229, 255, 0.2);
+}
+
+body.theme-3077 .cb-mode-pill {
+  background: rgba(11, 15, 23, 0.92);
+  border-color: rgba(0, 229, 255, 0.26);
+  border-radius: 6px;
+}
+
+body.theme-3077 .cb-address,
+body.theme-3077 .cb-card {
+  background: rgba(11, 15, 23, 0.88);
+  border-color: rgba(0, 229, 255, 0.2);
+  border-radius: 10px;
+}
+
+body.theme-3077 .cb-action-circle {
+  border-radius: 6px;
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px);
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid rgba(0, 229, 255, 0.34);
+  color: #00e5ff;
+}
+
+body.theme-3077 .cb-action-circle.primary {
+  background: linear-gradient(180deg, #22eaff 0%, #00e5ff 100%);
+  border-color: #67f3ff;
+  color: #02090d;
+  box-shadow: 0 6px 20px rgba(0, 229, 255, 0.34);
+}
+
+body.theme-3077 .cb-more-icon,
+body.theme-3077 .cb-activity-icon.out {
+  background: rgba(0, 229, 255, 0.12);
+  color: #00e5ff;
+  border-radius: 8px;
+}
+
+body.theme-3077 .cb-copy,
+body.theme-3077 .cb-link,
+body.theme-3077 .cb-activity-link {
+  color: #00e5ff;
+}
+
+body.theme-3077 .cb-tab.active {
+  color: #00e5ff;
 }

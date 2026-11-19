@@ -3,6 +3,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { prefersReducedMotion } from '@/lib/motion';
+import { usePreferences } from '@/hooks/usePreferences';
 import { Token } from './BoardTokens';
 import { Corner, ColorCorner, CORNER_SLOTS } from '@/lib/boardLayout';
 
@@ -78,6 +79,13 @@ const ZONE_HEX: Record<string, string> = {
     blue: '#00ccff',
 };
 
+const FACTION_HEX_3077: Record<string, string> = {
+    green: '#00FF66',
+    red: '#FF0055',
+    yellow: '#FFD000',
+    blue: '#0099FF',
+};
+
 /**
  * Which color owns a GLOBAL shared-path cell index `g` (0..51).
  * The 52-cell perimeter is split into four 13-cell segments that start at
@@ -116,16 +124,18 @@ function globalToLocal(pos: number, tokenColor: string, colorCorner: ColorCorner
  * index 0–51, or 52–57 for home lane).  Because `pos` is already a global
  * index we pass it straight to getOwnerColorForGlobal — no startIdx offset.
  */
-function getZoneHex(pos: number, tokenColor: string, colorCorner: ColorCorner | undefined): string {
-    if (!colorCorner) return RING_HEX[tokenColor] || '#ffffff';
-    if (pos >= 52) return RING_HEX[tokenColor] || '#ffffff';   // home lane → own color
+function getZoneHex(pos: number, tokenColor: string, colorCorner: ColorCorner | undefined, is3077 = false): string {
+    const ringMap = is3077 ? FACTION_HEX_3077 : RING_HEX;
+    const zoneMap = is3077 ? FACTION_HEX_3077 : ZONE_HEX;
+    if (!colorCorner) return ringMap[tokenColor] || '#ffffff';
+    if (pos >= 52) return ringMap[tokenColor] || '#ffffff';   // home lane → own color
     const owner = getOwnerColorForGlobal(pos, colorCorner);
-    return (owner && ZONE_HEX[owner]) || RING_HEX[tokenColor] || '#ffffff';
+    return (owner && zoneMap[owner]) || ringMap[tokenColor] || '#ffffff';
 }
 
-const HomeProgressRing = ({ pos, color, counterRotationDeg = 0, colorCorner, tokenColor, viewerColor }: { pos: number; color: string; counterRotationDeg?: number; colorCorner?: ColorCorner; tokenColor?: string; viewerColor?: string }) => {
-    const hex = RING_HEX[color] || '#ffffff';
-    const zoneHex = tokenColor && colorCorner ? getZoneHex(pos, tokenColor, colorCorner) : hex;
+const HomeProgressRing = ({ pos, color, counterRotationDeg = 0, colorCorner, tokenColor, viewerColor, is3077 = false }: { pos: number; color: string; counterRotationDeg?: number; colorCorner?: ColorCorner; tokenColor?: string; viewerColor?: string; is3077?: boolean }) => {
+    const hex = (is3077 ? FACTION_HEX_3077 : RING_HEX)[color] || '#ffffff';
+    const zoneHex = tokenColor && colorCorner ? getZoneHex(pos, tokenColor, colorCorner, is3077) : hex;
     const r = 20;
     const C = 2 * Math.PI * r;
     const localPos = tokenColor && colorCorner ? globalToLocal(pos, tokenColor, colorCorner) : pos;
@@ -212,8 +222,11 @@ export function HomeBlock({
     gamePhase = 'rolling',
     currentPlayer = ''
 }: HomeBlockProps) {
+    const { preferences } = usePreferences();
+    const is3077 = preferences.theme === '3077';
     const prevFinishedRef = useRef<number>(finishedTokens.length);
     const padRef = useRef<HTMLDivElement>(null);
+    const isDeployReady = currentPlayer === color && gamePhase === 'moving' && diceValue === 6 && tokensInHome.length > 0;
 
     useEffect(() => {
         if (finishedTokens.length > prevFinishedRef.current) {
@@ -222,12 +235,19 @@ export function HomeBlock({
                 const rect = el.getBoundingClientRect();
                 const x = (rect.left + rect.width / 2) / window.innerWidth;
                 const y = (rect.top + rect.height / 2) / window.innerHeight;
-                const colorMap: Record<string, [number, number, number]> = {
-                    green: [16, 185, 129],
-                    red: [239, 68, 68],
-                    yellow: [245, 158, 11],
-                    blue: [59, 130, 246],
-                };
+                const colorMap: Record<string, [number, number, number]> = is3077
+                    ? {
+                        green: [0, 255, 102],
+                        red: [255, 0, 85],
+                        yellow: [255, 208, 0],
+                        blue: [0, 153, 255],
+                    }
+                    : {
+                        green: [16, 185, 129],
+                        red: [239, 68, 68],
+                        yellow: [245, 158, 11],
+                        blue: [59, 130, 246],
+                    };
                 const rgb = colorMap[color] || [255, 255, 255];
                 // CSS_LAYOUT_ANIMATION_PLAN §3.4: confetti is motion-only feedback;
                 // the win state itself is announced by the overlay.
@@ -236,7 +256,7 @@ export function HomeBlock({
                     particleCount: 60,
                     spread: 70,
                     origin: { x, y },
-                    colors: [`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`, '#ffffff'],
+                    colors: [`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`, is3077 ? '#00e5ff' : '#ffffff'],
                     startVelocity: 30,
                     gravity: 0.8,
                     scalar: 0.9,
@@ -246,11 +266,11 @@ export function HomeBlock({
             }
         }
         prevFinishedRef.current = finishedTokens.length;
-    }, [finishedTokens, color]);
+    }, [finishedTokens, color, is3077]);
 
     return (
         <div
-            className={`board-home ${color}`}
+            className={`board-home ${color} ${isDeployReady ? 'home-deploy-ready' : ''}`}
             data-corner={corner}
             style={{ gridRow, gridColumn: gridCol }}
         >
@@ -274,7 +294,7 @@ export function HomeBlock({
                             )}
                             {isFinished && (
                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                    <HomeProgressRing pos={57} color={color} counterRotationDeg={counterRotationDeg} colorCorner={colorCorner} tokenColor={color} />
+                                    <HomeProgressRing pos={57} color={color} counterRotationDeg={counterRotationDeg} colorCorner={colorCorner} tokenColor={color} is3077={is3077} />
                                 </div>
                             )}
                             {!isInHome && !isFinished && (
@@ -283,7 +303,7 @@ export function HomeBlock({
                                     const onTrack = typeof pos === 'number' && pos >= 0 && pos <= 56;
                                     const isDone = typeof pos === 'number' && pos === 57;
                                     if (onTrack || isDone) {
-                                        return <HomeProgressRing pos={pos} color={color} counterRotationDeg={counterRotationDeg} colorCorner={colorCorner} tokenColor={color} viewerColor={viewerColor} />;
+                                        return <HomeProgressRing pos={pos} color={color} counterRotationDeg={counterRotationDeg} colorCorner={colorCorner} tokenColor={color} viewerColor={viewerColor} is3077={is3077} />;
                                     }
                                     return <span className="token-dot-placeholder" />;
                                 })()
@@ -292,6 +312,15 @@ export function HomeBlock({
                     );
                 })}
             </div>
+            {isDeployReady && (
+                <div className="home-deploy-anchor pointer-events-none" aria-hidden="true">
+                    <div style={{ transform: `rotate(${counterRotationDeg}deg)` }}>
+                        <span className="home-deploy-badge home-deploy-badge-pulse">
+                            DEPLOY [6]
+                        </span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

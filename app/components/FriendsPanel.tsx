@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { PanelTabs, TabCount } from './PanelTabs';
-import { ChatIcon } from './icons';
+import { ChatIcon, CloseReticleIcon, SquadLinkIcon } from './icons';
+import { HudCornerTicks } from './HudPrimitives';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useAppSession } from '@/hooks/useAppSession';
 import { ThinkingOrb } from './ThinkingOrb';
@@ -93,13 +94,8 @@ const SearchIcon = () => (
 );
 
 const UsersTile = () => (
-    <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-cyan-300">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-        </svg>
+    <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
+        <SquadLinkIcon className="w-4 h-4 text-cyan-300" />
     </div>
 );
 
@@ -130,17 +126,17 @@ const Avatar = ({ url, name, box = 'w-11 h-11', ring = '', dot }: {
     url?: string | null; name: string; box?: string; ring?: string;
     dot?: 'Online' | 'In Match' | 'Offline' | null;
 }) => (
-    <div className={`${box} rounded-full overflow-hidden bg-cyan-900/50 shrink-0 relative ${ring}`}>
+    <div className={`hud-avatar-frame ${box} rounded-full overflow-hidden bg-cyan-900/50 shrink-0 relative ${ring}`}>
         {url ? (
             <img loading="lazy" decoding="async" src={url} alt={name} className="w-full h-full object-cover" width={96} height={96} />
         ) : (
-            <div className="w-full h-full flex items-center justify-center text-white/40 font-black text-base">
+            <div className="w-full h-full flex items-center justify-center text-white/40 font-extrabold text-base">
                 {(name?.[0] || 'L').toUpperCase()}
             </div>
         )}
         {dot && (
             <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-[#14151f]
-                ${dot === 'Online' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.9)] animate-pulse' : dot === 'In Match' ? 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)] animate-pulse' : 'bg-white/25'}`}
+                ${dot === 'Online' ? 'hud-status-breath bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.9)]' : dot === 'In Match' ? 'hud-status-breath bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.9)]' : 'bg-white/25'}`}
             />
         )}
     </div>
@@ -739,13 +735,14 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                         className="ludo-friends-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                         style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
                     >
+                        <HudCornerTicks />
                         {/* Authentic Subdued Cosmic Orbs */}
                         <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                         <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
                         {/* Drag Handle */}
                         <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                            <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                            <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
                         </div>
 
                         {/* Header */}
@@ -760,14 +757,14 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                                     size="icon"
                                     onClick={onClose}
                                     aria-label="Close friends"
-                                    className="bg-surface-hover border border-line-soft"
+                                    className="panel-close-3077 bg-surface-hover border border-line-soft"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    <CloseReticleIcon className="icon-md" />
                                 </Button>
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
                                 <span className="flex items-center gap-1.5">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${onlineCount > 0 ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.9)] animate-pulse' : 'bg-white/25'}`} />
+                                    <span className={`w-1.5 h-1.5 rounded-full ${onlineCount > 0 ? 'hud-status-breath bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.9)]' : 'bg-white/25'}`} />
                                     <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase tabular-nums">
                                         {onlineCount} online
                                     </span>

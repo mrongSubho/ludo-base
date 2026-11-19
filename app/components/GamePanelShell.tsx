@@ -2,12 +2,16 @@
 
 import React, { ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { motion } from "framer-motion";
 import { Button } from "./Button";
+import { HudCornerTicks } from "./HudPrimitives";
+import { CloseReticleIcon } from "./icons";
 
 type Props = {
     scopeClass?: string;
     title: ReactNode;
     subtitle?: ReactNode;
+    kicker?: string;
     onClose: () => void;
     children: ReactNode;
     maxWClass?: string;
@@ -19,15 +23,13 @@ type Props = {
    --panel-border, --panel-shadow, --ink-*, --line-*) instead of branching on
    the theme in JS. Each theme block owns those values, so a theme switch
    repaints the shell through the cascade — no MutationObserver, no second
-   render, and chrome/content drift is structurally impossible.
-   (UI_DESIGN_AUDIT Phase 3: this used to be `useIsDaybreak()` + a
-   body.classList MutationObserver feeding inline ternaries whose hexes had
-   already drifted from the CSS tokens.) */
+   render, and chrome/content drift is structurally impossible. */
 
 export function GamePanelShell({
     scopeClass = "",
     title,
     subtitle,
+    kicker,
     onClose,
     children,
     maxWidthPx = 500,
@@ -48,7 +50,10 @@ export function GamePanelShell({
                     className="relative h-full"
                     style={{ width: "100%", maxWidth: maxWidthPx }}
                 >
-                    <div
+                    <motion.div
+                        initial={{ opacity: 0, y: 12, scale: 0.99 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
                         className={`${scopeClass} panel-shell-3077 pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] rounded-[32px] flex flex-col overflow-hidden`}
                         style={{
                             background: "var(--panel-bg)",
@@ -59,6 +64,8 @@ export function GamePanelShell({
                             WebkitBackdropFilter: "blur(32px)",
                         }}
                     >
+                        <HudCornerTicks />
+
                         {!hideOrbs && (
                             <>
                                 <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
@@ -68,7 +75,7 @@ export function GamePanelShell({
 
                         <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
                             <div
-                                className="w-12 h-1.5 rounded-full"
+                                className="panel-handle-bar w-12 h-1.5 rounded-full"
                                 style={{ background: "var(--line-strong)" }}
                             />
                         </div>
@@ -77,29 +84,28 @@ export function GamePanelShell({
                             className="px-5 pb-3 relative z-10"
                             style={{ borderBottom: "1px solid var(--line-soft)" }}
                         >
-                            <div className="flex items-center justify-between mb-1 mt-1">
-                                <h2
-                                    className="text-xl font-bold flex items-center gap-2"
-                                    style={{ color: "var(--ink-strong)" }}
-                                >
-                                    {title}
-                                </h2>
-                                {/* The panel's close control is the shared Button
-                                    (UI_COMPONENT_AUDIT B.1): size="icon" is the
-                                    44×44 target, and the recessed fill + hairline
-                                    come from tokens so both themes are correct
-                                    without a patch rule. */}
+                            <div className="flex items-center justify-between mb-1 mt-1 gap-2">
+                                <div className="min-w-0 flex flex-col">
+                                    {kicker && (
+                                        <p className="text-ludo-xs font-mono uppercase tracking-[0.22em] text-accent mb-0.5 truncate">
+                                            {kicker}
+                                        </p>
+                                    )}
+                                    <h2
+                                        className="text-xl font-bold flex items-center gap-2"
+                                        style={{ color: "var(--ink-strong)" }}
+                                    >
+                                        {title}
+                                    </h2>
+                                </div>
                                 <Button
                                     variant="ghost"
                                     size="icon"
                                     onClick={onClose}
                                     aria-label="Close panel"
-                                    className="bg-surface-recessed border border-line-soft"
+                                    className="panel-close-3077 bg-surface-recessed border border-line-soft shrink-0"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md">
-                                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                                    </svg>
+                                    <CloseReticleIcon className="icon-md" />
                                 </Button>
                             </div>
                             {subtitle && (
@@ -112,7 +118,7 @@ export function GamePanelShell({
                         <div className="panel-body-3077 flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-4">
                             {children}
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
             </div>
         </>,

@@ -21,6 +21,9 @@ import { usePoolSummary } from '@/hooks/useChipsPool';
 import { getTierInfo } from '@/lib/progression';
 import PublicProfileModal from './PublicProfileModal';
 import RankTierIcon, { getTierColorClass } from './RankTierIcon';
+import { usePreferences } from '@/hooks/usePreferences';
+import { HudCornerTicks, HudProgressGauge } from './HudPrimitives';
+import { ApexRankIcon, ChipsHexIcon, WarningHexIcon } from './icons';
 
 // ─── Post-match stats sheet ──────────────────────────────────────────────────
 // Terminal-glass treatment of the classic win sheet: result banner, XP strip,
@@ -32,6 +35,13 @@ const COLOR_ACCENT: Record<string, string> = {
     red: '#ef4444',
     yellow: '#eab308',
     blue: '#3b82f6',
+};
+
+const COLOR_ACCENT_3077: Record<string, string> = {
+    green: '#00FF66',
+    red: '#FF0055',
+    yellow: '#FFD000',
+    blue: '#0099FF',
 };
 
 function formatChips(n: number): string {
@@ -148,6 +158,8 @@ export function MatchStatsOverlay({
     seq,
     replay,
 }: MatchStatsOverlayProps) {
+    const { preferences } = usePreferences();
+    const is3077 = preferences.theme === '3077';
     const [selectedProfileAddress, setSelectedProfileAddress] = useState<string | null>(null);
     const seats = playerCount === '1v1' ? 2 : 4;
 
@@ -277,22 +289,18 @@ export function MatchStatsOverlay({
                         transition={{ type: 'tween', duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                         className="match-stats-card ludo-stats-scope"
                     >
+                        <HudCornerTicks />
                         {/* Result ribbon */}
                         <div className={`match-stats-ribbon ${iWon ? 'win' : 'lose'}`}>
                             <div className="match-stats-crown" aria-hidden>
                                 {iWon ? (
-                                    <svg viewBox="0 0 24 24" className="w-7 h-7" fill="currentColor">
-                                        <path d="M3 8l4.5 3L12 5l4.5 6L21 8l-1.5 11h-15L3 8z" />
-                                    </svg>
+                                    <ApexRankIcon className="w-7 h-7" active />
                                 ) : (
-                                    <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <circle cx="12" cy="12" r="9" />
-                                        <path d="M8 15s1.5-2 4-2 4 2 4 2M9 10h.01M15 10h.01" strokeLinecap="round" />
-                                    </svg>
+                                    <WarningHexIcon className="w-6 h-6" />
                                 )}
                             </div>
                             <h2 className="match-stats-title">
-                                {iWon ? 'Win' : 'Defeat'}
+                                {iWon ? 'Victory' : 'Defeat'}
                             </h2>
                             <p className="match-stats-sub">
                                 {gameMode.toUpperCase()} · {playerCount} ·{' '}
@@ -303,21 +311,19 @@ export function MatchStatsOverlay({
                         {/* XP strip (local player) */}
                         <div className="match-stats-xp">
                             <span className="match-stats-lv">Lv.{myLevel}</span>
-                            <div className="match-stats-xp-track" aria-hidden>
-                                <div className="match-stats-xp-fill" style={{ width: `${xpPct}%` }} />
-                            </div>
-                            <span className="match-stats-xp-num">
+                            <HudProgressGauge percent={xpPct} tone="accent" className="flex-1" />
+                            <span className="match-stats-xp-num tabular-nums">
                                 {xpInto}/{xpNeed}
                             </span>
                             {lxpGain != null && lxpGain > 0 && (
-                                <span className="match-stats-xp-gain">+{lxpGain} XP</span>
+                                <span className="match-stats-xp-gain tabular-nums">+{lxpGain} XP</span>
                             )}
                         </div>
 
                         {/* Player table */}
                         <div className="match-stats-table">
                             {rows.map((row, idx) => {
-                                const accent = COLOR_ACCENT[row.player.color] || '#00E5FF';
+                                const accent = (is3077 ? COLOR_ACCENT_3077 : COLOR_ACCENT)[row.player.color] || '#00E5FF';
                                 const isMe = myPlayer?.color === row.player.color;
                                 const displayName = getDisplayNameHelper(row.player);
                                 const wallet = row.player.walletAddress;
@@ -327,14 +333,17 @@ export function MatchStatsOverlay({
                                     : getTierInfo(row.player.rxp || 0).tier;
 
                                 return (
-                                    <div
+                                    <motion.div
                                         key={row.player.color}
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ duration: 0.2, delay: 0.06 + idx * 0.04, ease: [0.22, 1, 0.36, 1] }}
                                         className={`match-stats-row ${row.won ? 'won' : ''} ${isMe ? 'me' : ''}`}
                                     >
                                         {/* Left: Rank Badge + Avatar + Username (Clickable to open profile) */}
                                         <div className="flex items-center gap-2 min-w-0">
                                             <div
-                                                className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-mono font-black shrink-0 ${
+                                                className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-mono font-extrabold shrink-0 ${
                                                     row.won
                                                         ? 'bg-amber-400/20 border border-amber-400/40 text-amber-300'
                                                         : 'bg-white/5 border border-white/10 text-white/40'
@@ -365,7 +374,7 @@ export function MatchStatsOverlay({
                                                 title={isClickable ? 'Inspect combatant profile' : undefined}
                                             >
                                                 <div
-                                                    className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden border transition-colors group-hover:border-cyan-300"
+                                                    className="hud-avatar-frame w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden border transition-colors group-hover:border-cyan-300"
                                                     style={{
                                                         borderColor: accent,
                                                         backgroundColor: `${accent}20`,
@@ -470,7 +479,7 @@ export function MatchStatsOverlay({
                                             </div>
 
                                             {row.won ? (
-                                                <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/30 text-ludo-xs font-mono font-black text-amber-400 uppercase shrink-0">
+                                                <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/30 text-ludo-xs font-mono font-extrabold text-amber-400 uppercase shrink-0">
                                                     <LuTrophy className="w-3 h-3 shrink-0" />
                                                     {isPaid && estClaim > 0 ? (
                                                         <span>
@@ -491,7 +500,7 @@ export function MatchStatsOverlay({
                                                 </span>
                                             )}
                                         </div>
-                                    </div>
+                                    </motion.div>
                                 );
                             })}
                         </div>
@@ -525,7 +534,10 @@ export function MatchStatsOverlay({
                         {showClaimSlot && (
                             <div className={`match-stats-claim ${iWon ? 'ready' : 'dim'}`}>
                                 <div className="match-stats-claim-head">
-                                    <span className="match-stats-claim-tag">CHIPS</span>
+                                    <span className="match-stats-claim-tag inline-flex items-center gap-1">
+                                        <ChipsHexIcon className="w-3.5 h-3.5 text-amber-400" active />
+                                        CHIPS
+                                    </span>
                                     <span className="match-stats-claim-amount">
                                         {iWon && estClaim > 0 ? formatChips(estClaim) : '—'}
                                     </span>

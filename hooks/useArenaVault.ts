@@ -30,7 +30,7 @@ export function useArenaVault() {
     const player = usePlayerSigner();
     const address = (player.address ?? wagmiAddress) as Address | undefined;
     const cdpUserOp = useCdpUserOp();
-    const { ensureAppSession, peekAppSession } = useAppSession();
+    const { sessionId: activeSessionId, ensureAppSession, peekAppSession } = useAppSession();
 
     const [availableChips, setAvailableChips] = useState<number>(0);
     const [reservedChips, setReservedChips] = useState<number>(0);
@@ -51,7 +51,7 @@ export function useArenaVault() {
             return null;
         }
 
-        const sid = forceSessionId || peekAppSession();
+        const sid = forceSessionId || activeSessionId || peekAppSession();
         if (!sid) return null;
 
         setIsLoading(true);
@@ -77,7 +77,7 @@ export function useArenaVault() {
         } finally {
             setIsLoading(false);
         }
-    }, [address, peekAppSession]);
+    }, [activeSessionId, address, peekAppSession]);
 
     useEffect(() => {
         void refresh();
@@ -89,7 +89,11 @@ export function useArenaVault() {
             void refresh();
         };
         window.addEventListener(VAULT_EVENT, onUpdate);
-        return () => window.removeEventListener(VAULT_EVENT, onUpdate);
+        window.addEventListener("ludo-chips-refresh", onUpdate);
+        return () => {
+            window.removeEventListener(VAULT_EVENT, onUpdate);
+            window.removeEventListener("ludo-chips-refresh", onUpdate);
+        };
     }, [refresh]);
 
     /**

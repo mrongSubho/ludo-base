@@ -53,6 +53,8 @@ import type { Clan, ClanJoinPolicy, ClanWarFixture } from "@/lib/clan/types";
 import { ClanDossierContent } from "./clan/ClanDossierContent";
 import ClanProfileModal from "./ClanProfileModal";
 import { MissionCard } from "./MissionCard";
+import { HudCornerTicks, HudProgressGauge } from "./HudPrimitives";
+import { CloseReticleIcon, SyndicateShieldIcon } from "./icons";
 
 interface ClanPanelProps {
     isOpen: boolean;
@@ -527,13 +529,14 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                     backdropFilter: "blur(32px)",
                                 }}
                             >
+                                <HudCornerTicks />
                                 {/* Authentic Subdued Cosmic Orbs */}
                                 <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                                 <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
                                 {/* Drag Handle */}
                                 <div className="w-full flex justify-center pt-2 pb-1 relative z-10 shrink-0">
-                                    <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                                    <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
                                 </div>
 
                                 {/* ── Top Syndicate Header ──────────────────────────────────── */}
@@ -543,8 +546,8 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                             {clan ? (
                                                 <ClanCrestBadge crest={clan.crest} tag={clan.tag} size="md" />
                                             ) : (
-                                                <div className="w-10 h-10 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center text-cyan-300 shrink-0 shadow-[0_0_16px_rgba(34,211,238,0.25)]">
-                                                    <LuShield className="w-5 h-5" />
+                                                <div className="hud-chamfer-sm w-10 h-10 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center text-cyan-300 shrink-0 shadow-[0_0_16px_rgba(0,229,255,0.22)]">
+                                                    <SyndicateShieldIcon className="w-5 h-5" active />
                                                 </div>
                                             )}
                                             <div className="min-w-0">
@@ -600,9 +603,9 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                 size="icon"
                                                 onClick={onClose}
                                                 aria-label="Close Tactical Clans panel"
-                                                className="bg-surface-hover border border-line-soft shrink-0"
+                                                className="panel-close-3077 bg-surface-hover border border-line-soft shrink-0"
                                             >
-                                                <LuX className="icon-md" />
+                                                <CloseReticleIcon className="icon-md" />
                                             </Button>
                                         </div>
                                     </div>
@@ -613,15 +616,7 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                             <span className="text-ludo-xs font-mono font-bold text-cyan-300 uppercase tracking-wider shrink-0">
                                                 CXP
                                             </span>
-                                            <div className="flex-1 h-1.5 rounded-full bg-black/50 border border-white/10 overflow-hidden">
-                                                <div
-                                                    className="h-full rounded-full transition-all"
-                                                    style={{
-                                                        width: `${cxpPct}%`,
-                                                        backgroundColor: clan.crest?.primary || "#22d3ee",
-                                                    }}
-                                                />
-                                            </div>
+                                            <HudProgressGauge percent={cxpPct} tone="accent" className="flex-1" />
                                             <span className="text-ludo-xs font-mono text-white/60 tabular-nums shrink-0">
                                                 {nextLevelTarget
                                                     ? `${clan.cxp.toLocaleString()} / ${nextLevelTarget.toLocaleString()}`
@@ -679,13 +674,13 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                             <Button
                                                 variant="primary"
                                                 size="sm"
+                                                leftIcon={<LuPlus className="w-4 h-4" />}
                                                 onClick={() => {
                                                     setCreateError(null);
                                                     setIsCreatingClan(true);
                                                 }}
-                                                className="shrink-0 font-bold tracking-wider"
+                                                className="shrink-0 font-bold tracking-wider whitespace-nowrap"
                                             >
-                                                <LuPlus className="w-4 h-4 mr-1" />
                                                 Forge
                                             </Button>
                                         </div>
@@ -1076,10 +1071,10 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                                 size="sm"
                                                                 type="submit"
                                                                 disabled={sendingChat || !chatInput.trim()}
-                                                                className="shrink-0 inline-flex items-center gap-1.5"
+                                                                leftIcon={<LuSend className="w-3.5 h-3.5" />}
+                                                                className="shrink-0 whitespace-nowrap"
                                                             >
-                                                                <LuSend className="w-3.5 h-3.5" />
-                                                                <span>{sendingChat ? "..." : "Send"}</span>
+                                                                {sendingChat ? "..." : "Send"}
                                                             </Button>
                                                         </form>
                                                     </div>
@@ -1104,11 +1099,11 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                                 <Button
                                                                     variant="primary"
                                                                     size="md"
+                                                                    leftIcon={<LuPlus className="w-4 h-4" />}
                                                                     onClick={() => setIsPostingNotice(true)}
-                                                                    className="font-bold tracking-wider inline-flex items-center gap-1.5"
+                                                                    className="font-bold tracking-wider whitespace-nowrap"
                                                                 >
-                                                                    <LuPlus className="w-4 h-4" />
-                                                                    <span>Post War Notice</span>
+                                                                    Post War Notice
                                                                 </Button>
                                                             )}
                                                         </div>
@@ -1258,15 +1253,13 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                                                 variant="primary"
                                                                                 size="md"
                                                                                 disabled={buyInSubmitting}
+                                                                                leftIcon={<LuLock className="w-3.5 h-3.5" />}
                                                                                 onClick={handleJoinWarRoster}
-                                                                                className="inline-flex items-center gap-1.5"
+                                                                                className="whitespace-nowrap"
                                                                             >
-                                                                                <LuLock className="w-3.5 h-3.5" />
-                                                                                <span>
-                                                                                    {buyInSubmitting
-                                                                                        ? "Approving in Wallet..."
-                                                                                        : `Lock ${warCall.member_fee.toLocaleString()} CHIPS`}
-                                                                                </span>
+                                                                                {buyInSubmitting
+                                                                                    ? "Approving in Wallet..."
+                                                                                    : `Lock ${warCall.member_fee.toLocaleString()} CHIPS`}
                                                                             </Button>
                                                                         );
                                                                     })()}
@@ -1357,11 +1350,11 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                                                         <Button
                                                                                             size="sm"
                                                                                             variant={isClanAHost ? "primary" : "secondary"}
+                                                                                            leftIcon={<LuPlay className="w-3 h-3" />}
                                                                                             onClick={() => handleDeployFixture(f)}
-                                                                                            className="inline-flex items-center gap-1"
+                                                                                            className="whitespace-nowrap"
                                                                                         >
-                                                                                            <LuPlay className="w-3 h-3" />
-                                                                                            <span>{isClanAHost ? "Deploy" : "Join"}</span>
+                                                                                            {isClanAHost ? "Deploy" : "Join"}
                                                                                         </Button>
                                                                                     ) : (
                                                                                         <Chip
@@ -1591,11 +1584,11 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                                         <Button
                                                             variant="primary"
                                                             size="sm"
+                                                            leftIcon={<LuPlus className="w-3.5 h-3.5" />}
                                                             onClick={() => setIsFundingTreasury((v) => !v)}
-                                                            className="inline-flex items-center gap-1"
+                                                            className="whitespace-nowrap"
                                                         >
-                                                            <LuPlus className="w-3.5 h-3.5" />
-                                                            <span>{isFundingTreasury ? "Close" : "Fund"}</span>
+                                                            {isFundingTreasury ? "Close" : "Fund"}
                                                         </Button>
                                                     </div>
 

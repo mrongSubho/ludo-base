@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { ActionDice } from './ActionDice';
 import { PanelErrorBoundary } from './PanelErrorBoundary';
@@ -25,6 +26,14 @@ import { seatedColorsFor } from '@/lib/engine/core';
 import { useArenaVault } from '@/hooks/useArenaVault';
 import { useChipsBalance } from '@/hooks/useChipsBalance';
 import { formatUnits } from 'viem';
+import {
+    CheckGlyphIcon,
+    ChevronGlyphIcon,
+    ChipsHexIcon,
+    ClassicGridIcon,
+    OverdriveBoltIcon,
+    VaultShieldIcon,
+} from './icons';
 
 /** Primary preset entry fees (CHIPS). 0 = Free. */
 const FEE_PRESETS = [0, 500, 1_000, 10_000, 100_000, 500_000] as const;
@@ -480,17 +489,28 @@ export default function GameLobby({
                                                             playSelect();
                                                             setGameMode(mode);
                                                         }}
-                                                        className="seg-btn-3077 w-[160px] h-[48px] flex flex-col items-center justify-center px-3 cursor-pointer"
+                                                        className="seg-btn-3077 w-[160px] h-[48px] flex items-center justify-center gap-2 px-3 cursor-pointer"
                                                     >
+                                                        {mode === 'classic' ? (
+                                                            <ClassicGridIcon className="w-4 h-4 shrink-0" active={active} />
+                                                        ) : (
+                                                            <OverdriveBoltIcon className="w-4 h-4 shrink-0" active={active} />
+                                                        )}
                                                         <span className="font-semibold text-sm uppercase tracking-wider leading-tight">
                                                             {mode}
                                                         </span>
+                                                        <span
+                                                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                                                active ? 'bg-accent' : 'bg-line-strong'
+                                                            }`}
+                                                            aria-hidden="true"
+                                                        />
                                                     </button>
                                                 </div>
                                             );
                                         })}
                                     </div>
-                                    <p className="lobby-mono-3077 mt-1.5 text-[12px] leading-4 text-center" style={{ color: 'var(--ink-muted)' }}>
+                                    <p className="lobby-mono-3077 mt-1.5 text-ludo-md leading-4 text-center" style={{ color: 'var(--ink-muted)' }}>
                                         {gameMode === 'power' ? '6 POWER TILES · BOOSTS ON' : 'ORIGINAL RULES · NO BOOSTS'}
                                     </p>
                                 </>
@@ -569,7 +589,7 @@ export default function GameLobby({
                                                             <span className="w-[4px] h-[4px] rounded-[1px]" style={{ backgroundColor: blColor }} />
                                                             <span className="w-[4px] h-[4px] rounded-[1px]" style={{ backgroundColor: brColor }} />
                                                         </span>
-                                                        <span className="lobby-mono-3077 text-[12px] font-semibold leading-none">
+                                                        <span className="lobby-mono-3077 text-ludo-md font-semibold leading-none">
                                                             {type}
                                                         </span>
                                                     </button>
@@ -618,22 +638,37 @@ export default function GameLobby({
                             type="button"
                             onClick={() => { playSelect(); setShowFee(v => !v); }}
                             aria-expanded={showFee}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-[18px] hover:bg-white/5 active:scale-[0.99] transition-all"
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-[18px] hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform]"
                         >
-                            <span className="text-ludo-xs font-black uppercase tracking-[0.2em] text-white/90 drop-shadow-md">
-                                Entry Fee
+                            <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
+                                <ChipsHexIcon className="w-4 h-4 text-accent shrink-0" active={wager > 0} />
+                                <span>Entry Fee</span>
                             </span>
-                            <span className={`text-ludo-sm font-black tracking-wide ${wager > 0 ? 'text-cyan-300' : 'text-white/50'}`}>
-                                {formatEntryFee(wager)}
+                            <span className="inline-flex items-center gap-2">
+                                <span className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${wager > 0 ? 'text-accent' : 'text-ink-muted'}`}>
+                                    {formatEntryFee(wager)}
+                                </span>
+                                <ChevronGlyphIcon
+                                    direction="down"
+                                    className={`w-3.5 h-3.5 text-ink-muted transition-transform duration-200 ${showFee ? 'rotate-180' : ''}`}
+                                />
                             </span>
                         </button>
+                        <AnimatePresence initial={false}>
                         {showFee && (
-                            <div className="w-full px-1.5 pb-2 flex flex-col items-center gap-1">
+                            <motion.div
+                                key="fee-drawer"
+                                initial={{ opacity: 0, y: -6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -4 }}
+                                transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
+                                className="w-full px-1.5 pb-2 flex flex-col items-center gap-1"
+                            >
                                 <div className="flex items-center justify-between w-full px-2 mb-1">
                                     <button
                                         onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }}
                                         aria-label="Decrease entry fee"
-                                        className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200"
+                                        className="fee-preset-3077 w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200"
                                     >
                                         <LuMinus className="w-5 h-5 stroke-[3px]" />
                                     </button>
@@ -651,9 +686,9 @@ export default function GameLobby({
                                                 const next = Math.max(0, parseInt(digits || '0', 10) || 0);
                                                 setWager(Math.min(next, playableChips));
                                             }}
-                                            className="w-full bg-transparent text-center text-xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 rounded-xl"
+                                            className="w-full bg-transparent text-center text-xl font-bold font-mono tabular-nums text-ink-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
                                         />
-                                        <span className="text-ludo-xs font-bold text-white/35 uppercase tracking-wider mt-0.5">
+                                        <span className="text-ludo-xs font-mono font-bold text-ink-faint uppercase tracking-wider mt-0.5 tabular-nums">
                                             CHIPS · {formatEntryFee(playableChips)} Total
                                         </span>
                                     </div>
@@ -661,7 +696,7 @@ export default function GameLobby({
                                         onClick={() => { playCoin(); setWager(Math.min(playableChips, wager + (wager >= 1000 ? 1000 : 100))); }}
                                         aria-label="Increase entry fee"
                                         disabled={wager >= playableChips}
-                                        className="w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                        className="fee-preset-3077 w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
                                     >
                                         <LuPlus className="w-5 h-5 stroke-[3px]" />
                                     </button>
@@ -675,7 +710,7 @@ export default function GameLobby({
                                                 disabled={!affordable}
                                                 title={affordable ? undefined : 'Insufficient CHIPS'}
                                                 onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
-                                                className={`px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-black ${wager === val
+                                                className={`fee-preset-3077 px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold font-mono tabular-nums ${wager === val
                                                     ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]'
                                                     : affordable
                                                         ? 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 hover:scale-105 active:scale-95 border-white/10 text-white/90'
@@ -689,13 +724,14 @@ export default function GameLobby({
                                     <button
                                         type="button"
                                         onClick={() => { playSelect(); setShowMoreFees(v => !v); }}
-                                        className={`px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-black ${
+                                        className={`fee-preset-3077 px-3 min-h-[44px] inline-flex items-center gap-1 justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold ${
                                             showMoreFees || MORE_FEE_PRESETS.includes(wager as any)
                                                 ? 'border-cyan-400/60 bg-[rgba(0,0,0,0.4)] text-cyan-300'
                                                 : 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-white/75'
                                         }`}
                                     >
-                                        {showMoreFees ? 'Less ▴' : 'More ▾'}
+                                        <span>{showMoreFees ? 'Less' : 'More'}</span>
+                                        <ChevronGlyphIcon direction={showMoreFees ? 'up' : 'down'} className="w-3 h-3" />
                                     </button>
                                 </div>
                                 {showMoreFees && (
@@ -708,7 +744,7 @@ export default function GameLobby({
                                                     disabled={!affordable}
                                                     title={affordable ? undefined : 'Insufficient CHIPS'}
                                                     onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
-                                                    className={`px-3.5 min-h-[40px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-black ${wager === val
+                                                    className={`fee-preset-3077 px-3.5 min-h-[40px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold font-mono tabular-nums ${wager === val
                                                         ? 'border-amber-400 bg-[rgba(0,0,0,0.45)] text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
                                                         : affordable
                                                             ? 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-amber-200/90'
@@ -722,23 +758,30 @@ export default function GameLobby({
                                     </div>
                                 )}
                                 {(vault.availableChips > 0 || wager > 0) && (
-                                    <div className="w-full mt-1.5 px-3 py-1.5 rounded-xl bg-black/30 border border-cyan-500/20 flex items-center justify-between gap-2 text-ludo-xs font-mono">
-                                        <span className="text-cyan-300 font-bold">
-                                            Vault: {formatEntryFee(vault.availableChips)} CHIPS
+                                    <div className="w-full mt-1.5 px-3 py-1.5 rounded-xl bg-surface-recessed border border-line-soft flex items-center justify-between gap-2 text-ludo-xs font-mono">
+                                        <span className="inline-flex items-center gap-1.5 text-accent font-bold shrink-0">
+                                            <VaultShieldIcon className="w-3.5 h-3.5 shrink-0" active />
+                                            <span>Vault: {formatEntryFee(vault.availableChips)} CHIPS</span>
                                         </span>
-                                        <span className="text-white/60 truncate">
-                                            {wager === 0
-                                                ? 'Safe for next paid match'
-                                                : vault.availableChips >= wager
-                                                  ? '✓ Covered (0 gas entry)'
-                                                  : vault.availableChips > 0
-                                                    ? `Top up ${formatEntryFee(wager - vault.availableChips)} diff`
-                                                    : '1-step top-up on start'}
+                                        <span className="text-ink-muted truncate">
+                                            {wager === 0 ? (
+                                                'Safe for next paid match'
+                                            ) : vault.availableChips >= wager ? (
+                                                <span className="inline-flex items-center gap-1 text-positive font-semibold">
+                                                    <CheckGlyphIcon className="w-3 h-3 shrink-0" />
+                                                    <span>Covered (0 gas entry)</span>
+                                                </span>
+                                            ) : vault.availableChips > 0 ? (
+                                                `Top up ${formatEntryFee(wager - vault.availableChips)} diff`
+                                            ) : (
+                                                '1-step top-up on start'
+                                            )}
                                         </span>
                                     </div>
                                 )}
-                            </div>
+                            </motion.div>
                         )}
+                        </AnimatePresence>
                     </div>
 
                     {/* 3. ACTION DICE - flex-1 so it rides lower, centered in

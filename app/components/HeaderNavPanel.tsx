@@ -1,17 +1,19 @@
 "use client";
 
 import React from 'react';
-import { ChatIcon, SlidersIcon } from './icons';
-import { useChipsBalance } from '@/hooks/useChipsBalance';
+import {
+    ChatIcon,
+    ChipsHexIcon,
+    PilotAvatarFallbackIcon,
+    SlidersIcon,
+} from './icons';
+import { RankTierIcon } from './RankTierIcon';
+import { useTotalChips } from '@/hooks/useTotalChips';
+import { formatCompactChips } from '@/lib/chips';
 
-// ─── Inline SVG Icons ────────────────────────────────────────────────────────
+// ─── Shared Token Glyph (back-compat re-export for BoardHeaderCompact/page) ──
 
-export const TokenIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M12 6v12M8 10h8M8 14h8" />
-    </svg>
-);
+export const TokenIcon = () => <ChipsHexIcon className="w-full h-full" active />;
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -49,107 +51,118 @@ export const HeaderNavPanel = ({
     onOpenProfile,
     onRevealMatchStatus,
 }: HeaderNavPanelProps) => {
-    const chips = useChipsBalance();
+    const chips = useTotalChips();
     const showChips = Boolean(chips.configured && chips.address);
+    const balanceDisplay = showChips
+        ? chips.walletReady || chips.totalChips > 0
+            ? chips.totalFormatted
+            : '—'
+        : formatCompactChips(coins);
+    const balanceTooltip = showChips
+        ? [
+              `Total CHIPS: ${chips.totalChips.toLocaleString()}`,
+              `Wallet: ${chips.walletChips.toLocaleString()}`,
+              `Vault: ${chips.vaultTotalChips.toLocaleString()}`,
+              `Unclaimed: ${chips.unclaimedChips.toLocaleString()}`,
+              ...(chips.escrowChips > 0 ? [`Escrow: ${chips.escrowChips.toLocaleString()}`] : []),
+          ].join(' · ')
+        : `Balance: ${coins.toLocaleString()}`;
+
     return (
         <header
-            className="header dash-header ludo-header-scope px-0 flex items-center justify-between py-3 sm:py-4 gap-1 sm:gap-1.5 sticky top-0 z-[300]"
+            className="header dash-header ludo-header-scope px-2 sm:px-3 flex items-center justify-between py-2 sm:py-3 gap-1.5 sm:gap-2 sticky top-0 z-[300]"
             onClick={(event) => {
                 if (event.target === event.currentTarget) onRevealMatchStatus?.();
             }}
         >
-            {/* [x] Header Redesign (3 Pills) */}
-            {/* [x] Header Refinement (Compact Symmetrical Spaced Pills) */}
-            {/* [x] Verify changes (Fixed widths and "free space" gaps) */}
-            {/* Pill 1: Left - Coin / CHIPS Balance — click opens wallet panel */}
+            {/* Zone 1: Left — Compact Total CHIPS Readout (Icon + Amount only) */}
             <button
                 type="button"
                 onClick={() => onOpenWallet?.()}
-                title={showChips ? 'Open CHIPS wallet' : 'Coins / CHIPS wallet'}
-                className="w-[84px] sm:w-[110px] flex-none h-[40px] sm:h-[44px] flex items-center justify-start bg-transparent border border-cyan-500/50 rounded-r-full rounded-l-none shadow-[0_4px_20px_rgba(0,0,0,0.4)] shimmer-effect relative overflow-hidden cursor-pointer hover:border-cyan-300/70 transition-colors text-left"
+                title={balanceTooltip}
+                aria-label={`${balanceTooltip} — Open wallet`}
+                className="hud-header-cluster min-w-[68px] max-w-[116px] flex-none h-[40px] sm:h-[44px] px-2.5 flex items-center gap-1.5 rounded-xl bg-surface-recessed border border-line-soft text-ink-strong hover:border-line-strong active:scale-[0.98] transition-[border-color,background-color,transform] cursor-pointer text-left"
             >
-                <div className="flex items-center gap-2 z-10 px-2 sm:px-3 w-full justify-start">
-                    <div className={`w-5 h-5 ${showChips ? 'text-cyan-300' : 'text-yellow-400'} drop-shadow-[0_0_10px_rgba(34,211,238,0.55)] flex-shrink-0`}>
-                        <TokenIcon />
-                    </div>
-                    <span
-                        className="text-xs sm:text-sm font-black text-white tracking-tight truncate max-w-[52px] sm:max-w-[80px]"
-                        title={showChips ? `CHIPS ${chips.human}` : `Coins ${coins.toLocaleString()}`}
-                    >
-                        {showChips ? chips.human : coins.toLocaleString()}
-                    </span>
-                </div>
+                <span className={`w-5 h-5 flex-shrink-0 ${showChips ? 'text-accent' : 'text-warn'}`}>
+                    <ChipsHexIcon className="w-full h-full" active />
+                </span>
+                <span className="text-ludo-sm font-bold text-ink-strong font-mono tabular-nums truncate leading-none">
+                    {balanceDisplay}
+                </span>
             </button>
 
-            {/* Pill 2: Center - User Profile (tap name/avatar → profile panel) */}
+            {/* Zone 2: Center — Pilot Dossier Badge */}
             <button
                 type="button"
                 onClick={() => onOpenProfile?.()}
                 title="Open profile"
                 aria-label="Open profile"
-                className="w-[128px] sm:w-[150px] flex-none h-[40px] sm:h-[44px] flex items-center justify-center bg-transparent border border-cyan-500/50 rounded-full shadow-[0_4px_25px_rgba(0,0,0,0.45)] shimmer-effect relative overflow-hidden cursor-pointer hover:border-cyan-300/70 transition-colors text-left"
+                className="hud-header-cluster flex-1 min-w-0 max-w-[208px] h-[40px] sm:h-[44px] px-2 sm:px-2.5 flex items-center gap-2 rounded-xl bg-surface-recessed border border-line-soft text-ink-strong hover:border-line-strong active:scale-[0.98] transition-[border-color,background-color,transform] cursor-pointer text-left"
             >
-                <div className="flex items-center gap-2.5 w-full justify-center z-10 px-1">
-                    <div className="relative flex-shrink-0">
-                        <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-cyan-400/60 bg-[#1a1c29] shadow-[0_0_15px_rgba(34,211,238,0.4)]">
-                            {finalAvatar ? (
-                                <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" width={96} height={96} />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-cyan-300">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                                </div>
-                            )}
-                        </div>
-                        {/* Green Online Status Dot */}
-                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-[#0b0f19] rounded-full shadow-[0_0_12px_rgba(34,197,94,1)] animate-pulse"></span>
-
-                        {/* Level anchored to bottom of avatar */}
-                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-cyan-600 text-white text-ludo-xs font-black px-1.5 rounded-full border border-white/40 shadow-lg z-10 whitespace-nowrap scale-105">
-                            LV.{level}
-                        </div>
+                <div className="relative flex-shrink-0">
+                    <div className="hud-avatar-frame w-7 h-7 sm:w-8 sm:h-8 rounded-lg overflow-hidden border border-line-strong bg-surface-panel flex items-center justify-center">
+                        {finalAvatar ? (
+                            <img
+                                src={finalAvatar}
+                                alt={finalName}
+                                className="w-full h-full object-cover"
+                                width={96}
+                                height={96}
+                            />
+                        ) : (
+                            <PilotAvatarFallbackIcon className="w-4 h-4 text-accent" active />
+                        )}
                     </div>
+                    <span
+                        className="hud-status-breath absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-positive border-2 border-surface-page rounded-full"
+                        aria-hidden="true"
+                    />
+                </div>
 
-                    <div className="flex flex-col items-start min-w-0 pr-1 max-w-[62px] sm:max-w-[80px]">
-                        <span className="text-ludo-xs sm:text-ludo-xs font-black text-white italic tracking-tighter uppercase truncate w-full">
-                            {finalName}
+                <div className="flex flex-col items-start min-w-0 flex-1 leading-none">
+                    <span className="text-ludo-sm font-bold text-ink-strong uppercase tracking-tight truncate w-full">
+                        {finalName}
+                    </span>
+                    <span className="flex items-center gap-1 mt-0.5 min-w-0 w-full">
+                        <RankTierIcon tier={tier} size={11} className="shrink-0" />
+                        <span className="text-ludo-xs font-mono font-bold text-accent uppercase tracking-wider truncate">
+                            LV.{level} · {tier}
                         </span>
-                        <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-widest leading-none mt-0.5">
-                            {tier}
-                        </span>
-                    </div>
+                    </span>
                 </div>
             </button>
 
-            {/* Pill 3: Right - Actions */}
-            <div className="w-[84px] sm:w-[110px] flex-none h-[40px] sm:h-[44px] flex items-center justify-end bg-transparent border border-cyan-500/50 rounded-l-full rounded-r-none shadow-[0_4px_20px_rgba(0,0,0,0.9)] shimmer-effect relative overflow-hidden">
-                <div className="flex items-center gap-1 z-10 w-full justify-end px-2">
-                    <button
-                        className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full text-white/95 hover:text-white hover:bg-white/10 transition-all relative ${unreadCount > 0 ? 'ping-glow' : ''}`}
-                        onClick={onMessagesClick}
-                        title="Messages"
-                    >
-                        <ChatIcon className="w-5 h-5 sm:w-6 sm:h-6" />
-                        {/* Notifications dot (top-left) — requests + pokes live here */}
-                        {hasNotifications && (
-                            <span className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-[#131520] shadow-[0_0_10px_rgba(251,191,36,0.9)] animate-pulse" />
-                        )}
-                        {unreadCount > 0 && (
-                            <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-[16px] px-1 bg-white text-black text-ludo-xs font-black rounded-full shadow-[0_0_12px_rgba(255,255,255,0.7)] border border-cyan-500/30">
-                                {unreadCount > 99 ? '99+' : unreadCount}
-                            </span>
-                        )}
-                    </button>
-                    
-                    <div className="w-px h-5 bg-white/20 mx-1"></div>
+            {/* Zone 3: Right — Comms & System Tune Cluster */}
+            <div className="hud-header-cluster flex-none h-[40px] sm:h-[44px] px-1 sm:px-1.5 flex items-center gap-0.5 rounded-xl bg-surface-recessed border border-line-soft text-ink-strong">
+                <button
+                    type="button"
+                    className="w-9 h-9 flex items-center justify-center rounded-lg text-ink-muted hover:text-ink-strong hover:bg-surface-hover active:scale-95 transition-[color,background-color,transform] relative cursor-pointer"
+                    onClick={onMessagesClick}
+                    title="Messages"
+                    aria-label={unreadCount > 0 ? `Messages (${unreadCount} unread)` : 'Messages'}
+                >
+                    <ChatIcon className="w-5 h-5" active={unreadCount > 0} />
+                    {hasNotifications && (
+                        <span className="absolute top-1 left-1 w-2 h-2 rounded-full bg-warn border border-surface-page" />
+                    )}
+                    {unreadCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[16px] h-[16px] px-1 bg-accent text-accent-ink text-ludo-xs font-mono font-bold rounded-full border border-surface-page tabular-nums">
+                            {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                    )}
+                </button>
 
-                    <button
-                        className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-all"
-                        onClick={onSettingsClick}
-                        title="Settings"
-                    >
-                        <SlidersIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-                    </button>
-                </div>
+                <div className="w-px h-5 bg-line-soft mx-0.5" aria-hidden="true" />
+
+                <button
+                    type="button"
+                    className="w-9 h-9 flex items-center justify-center rounded-lg text-ink-muted hover:text-ink-strong hover:bg-surface-hover active:scale-95 transition-[color,background-color,transform] cursor-pointer"
+                    onClick={onSettingsClick}
+                    title="Settings"
+                    aria-label="Settings"
+                >
+                    <SlidersIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
             </div>
         </header>
     );

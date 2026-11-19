@@ -42,3 +42,12 @@
     text-decoration: none;
   }
 }
+
+/* Corner targeting ticks appear exclusively inside the flagship 3077 theme. */
+.hud-ticks-3077 {
+  display: none;
+}
+
+.footer-active-laser {
+  display: none;
+}

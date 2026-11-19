@@ -2,6 +2,7 @@
 
 import React from "react";
 import { ClaimingOverlay } from "./ClaimingOverlay";
+import { HudCornerTicks, HudProgressGauge } from "./HudPrimitives";
 
 export interface MissionCardProps {
     title: string;
@@ -56,10 +57,11 @@ export function MissionCard({
 
     return (
         <div
-            className={`flex flex-col gap-3 bg-white/[0.04] border p-4 rounded-2xl hover:bg-white/[0.07] hover:border-white/25 transition-colors relative overflow-hidden group ${
+            className={`card-3077 flex flex-col gap-3 bg-white/[0.04] border p-4 rounded-2xl hover:bg-white/[0.07] hover:border-white/25 transition-colors relative overflow-hidden group ${
                 doneVisual ? "border-emerald-400/35" : "border-white/10"
             }`}
         >
+            <HudCornerTicks />
             <ClaimingOverlay isClaiming={isClaiming} />
 
             {doneVisual && (
@@ -135,18 +137,10 @@ export function MissionCard({
                                 </span>
                             </span>
                         </div>
-                        <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/10">
-                            <div
-                                className={`h-full rounded-full transition-all duration-700 ease-out ${
-                                    isClaimed
-                                        ? "bg-white/20"
-                                        : isCompleted
-                                          ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.45)]"
-                                          : "bg-cyan-400"
-                                }`}
-                                style={{ width: `${progressPercent}%` }}
-                            />
-                        </div>
+                        <HudProgressGauge
+                            percent={progressPercent}
+                            tone={isClaimed ? "muted" : isCompleted ? "positive" : "accent"}
+                        />
                     </div>
 
                     {actionSlot && <div className="shrink-0">{actionSlot}</div>}

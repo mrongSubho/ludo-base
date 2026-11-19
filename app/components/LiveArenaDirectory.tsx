@@ -11,12 +11,13 @@ import { LiveArenaStage, type StageRoom } from "./LiveArenaStage";
 import { ArenaRoomCard } from "./arena/ArenaRoomCard";
 import { MatchInspectionSheet } from "./arena/MatchInspectionSheet";
 import type { ArenaDirectoryResponse, ArenaDirectoryRoom } from "@/lib/arena/types";
+import { ArenaBladesIcon } from "./icons";
 
 const ClanProfileModal = dynamic(() => import("./ClanProfileModal"), { ssr: false });
 
 export const LiveTile = () => (
-    <div className="w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
-        <FiTv className="w-4 h-4 text-cyan-300" />
+    <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
+        <ArenaBladesIcon className="w-4 h-4 text-cyan-300" />
     </div>
 );
 

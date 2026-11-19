@@ -13,12 +13,14 @@ import { useIsMobileView } from '@/hooks/useIsMobileView';
 import { PanelChildTabs, TabCount } from './PanelTabs';
 import { OnboardingPanel } from './OnboardingPanel';
 import { ThinkingOrb } from './ThinkingOrb';
-import { LuX, LuShieldCheck, LuListChecks, LuGift, LuDices, LuTrophy, LuSwords, LuBell, LuEye, LuUsers, LuTarget, LuClock } from 'react-icons/lu';
+import { LuShieldCheck, LuGift, LuDices, LuTrophy, LuSwords, LuBell, LuEye, LuUsers, LuTarget, LuClock } from 'react-icons/lu';
 import { missionBadgeFor, type MissionBadgeKey } from '@/lib/missionBadge';
 import { Button } from './Button';
 import { useToast } from './Toast';
 import { useMissionOnChainState } from '@/hooks/useMissionOnChainState';
 import { MissionCard } from './MissionCard';
+import { HudCornerTicks, HudSectionLabel } from './HudPrimitives';
+import { CloseReticleIcon, DirectiveTargetIcon } from './icons';
 
 // ─── Mission panel (moved out of Arena) ─────────────────────────────────────
 // Daily / weekly / onboard missions + claim. Arena stays live-only.
@@ -26,18 +28,8 @@ import { MissionCard } from './MissionCard';
 type MissionTab = 'daily' | 'weekly' | 'onboard';
 
 const MissionTile = () => (
-    <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
-        <LuListChecks className="w-4 h-4 text-cyan-300" />
-    </div>
-);
-
-const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
-    <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
-            {children}
-        </span>
-        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-        {right}
+    <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
+        <DirectiveTargetIcon className="w-4 h-4 text-cyan-300" />
     </div>
 );
 
@@ -316,11 +308,12 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                     backdropFilter: 'blur(32px)',
                                 }}
                             >
+                                <HudCornerTicks />
                                 <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                                 <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
                                 <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                                    <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                                    <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
                                 </div>
 
                                 <div className="px-5 pb-3 border-b border-white/10 relative z-10">
@@ -334,9 +327,9 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                             size="icon"
                                             onClick={onClose}
                                             aria-label="Close missions"
-                                            className="bg-surface-hover border border-line-soft shrink-0"
+                                            className="panel-close-3077 bg-surface-hover border border-line-soft shrink-0"
                                         >
-                                            <LuX className="icon-md" />
+                                            <CloseReticleIcon className="icon-md" />
                                         </Button>
                                     </div>
                                     <div className="flex items-center gap-2 px-0.5">
@@ -345,7 +338,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                         </span>
                                         {onChain.configured && (
                                             <span className="ml-2 inline-flex items-center gap-1 text-ludo-xs font-bold text-cyan-400/80 tracking-wider uppercase">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                                                <span className="hud-status-breath w-1.5 h-1.5 rounded-full bg-cyan-400" />
                                                 on-chain
                                             </span>
                                         )}
@@ -386,7 +379,8 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                             <OnboardingPanel />
                                         ) : (
                                             <>
-                                                <SectionLabel
+                                                <HudSectionLabel
+                                                    className="mt-1 mb-1"
                                                     right={
                                                         resetTimerStr ? (
                                                             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/10 text-ludo-xs font-mono font-bold text-white/50 tracking-wider shrink-0">
@@ -399,7 +393,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                                                 >
                                                     {visibleMissions.length} mission
                                                     {visibleMissions.length === 1 ? '' : 's'} left
-                                                </SectionLabel>
+                                                </HudSectionLabel>
                                                 {isLoadingMissions && missions.length === 0 ? (
                                                     <div className="flex items-center justify-center py-16">
                                                         <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />

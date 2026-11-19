@@ -12,6 +12,8 @@ const AudioDriver = dynamic(() => import('./components/AudioToggle'));
 import NoticeStrip from './components/NoticeStrip';
 import { SessionAuthBanner } from './components/SessionAuthBanner';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
+import { BrandMark3077Icon } from './components/icons';
+import { HudCornerTicks } from './components/HudPrimitives';
 import { BurnPanel } from './components/BurnPanel';
 import { FooterNavPanel } from './components/FooterNavPanel';
 import { ConnectionBadge } from './components/ConnectionBadge';
@@ -81,38 +83,69 @@ const SPLASH_MAX_TIMEOUT_MS = 2500;
 
 const SplashScreen = () => (
   <div
-    className="ludo-splash-scope fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#07090e] text-white"
-    style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic, #07090e))', backgroundColor: '#07090e' }}
+    className="ludo-splash-scope fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-surface-page text-ink-strong overflow-hidden"
+    style={{
+      backgroundImage:
+        'linear-gradient(color-mix(in srgb, var(--accent) 6%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--accent) 6%, transparent) 1px, transparent 1px), radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--accent) 14%, transparent) 0%, transparent 60%)',
+      backgroundSize: '32px 32px, 32px 32px, 100% 100%',
+    }}
   >
-    <div
-      className="flex flex-col items-center"
-    >
-      <div className="w-24 h-24 mb-6 relative">
+    <HudCornerTicks className="m-4" />
+
+    <div className="flex flex-col items-center relative z-10 px-6">
+      {/* Precision Tactical Boot Reticle + Chamfered Core Emblem */}
+      <div className="w-28 h-28 mb-6 relative flex items-center justify-center">
+        <svg
+          viewBox="0 0 120 120"
+          className="absolute inset-0 w-full h-full text-accent opacity-60 animate-hud-reticle-spin"
+          fill="none"
+          aria-hidden="true"
+        >
+          <circle cx="60" cy="60" r="56" stroke="currentColor" strokeWidth="1" strokeDasharray="8 6 2 6" />
+          <path d="M60 2V10M60 110V118M2 60H10M110 60H118" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+        <svg
+          viewBox="0 0 120 120"
+          className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] text-accent opacity-35 animate-hud-reticle-spin-rev"
+          fill="none"
+          aria-hidden="true"
+        >
+          <circle cx="60" cy="60" r="46" stroke="currentColor" strokeWidth="1" strokeDasharray="18 10" />
+        </svg>
         <div
-          className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-cyan-600 to-teal-400 opacity-20 blur-xl animate-slow-rotate"
-        />
-        <div className="absolute inset-0 bg-gradient-to-tr from-cyan-600 to-teal-400 rounded-3xl shadow-[0_0_40px_rgba(34,211,238,0.4)] flex items-center justify-center border border-white/20">
-          <svg viewBox="0 0 100 100" className="w-12 h-12 drop-shadow-lg">
-            <rect x="6" y="6" width="88" height="88" rx="20" fill="#fff" />
-            {[[30, 30], [70, 30], [50, 50], [30, 70], [70, 70]].map(([cx, cy], i) => (
-              <circle key={i} cx={cx} cy={cy} r="9" fill="#0b0b12" />
-            ))}
-          </svg>
+          className="relative w-16 h-16 flex items-center justify-center border border-line-strong bg-surface-panel shadow-[0_0_28px_color-mix(in_srgb,var(--accent)_25%,transparent)]"
+          style={{
+            clipPath: 'polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px)',
+          }}
+        >
+          <BrandMark3077Icon className="w-9 h-9 text-accent" active />
         </div>
       </div>
 
-      <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-200 to-teal-200 tracking-tight mb-2 drop-shadow-sm text-center">
-        LUDO 3077
+      <h1 className="text-4xl md:text-5xl font-extrabold tracking-wider mb-1.5 text-center uppercase">
+        <span className="text-ink-strong">LUDO </span>
+        <span className="text-accent">3077</span>
       </h1>
-      <p className="text-cyan-400 font-black tracking-[0.4em] uppercase text-ludo-xs mb-12 text-center drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]">
-        The Onchain Arena
+      <p className="font-mono text-accent font-bold tracking-[0.32em] uppercase text-ludo-xs mb-10 text-center">
+        {'// THE ONCHAIN ARENA //'}
       </p>
 
-      {/* Loading Bar Illusion */}
-      <div className="w-64 h-1.5 bg-black/40 rounded-full overflow-hidden border border-white/10 shadow-inner">
-        <div
-          className="h-full bg-gradient-to-r from-cyan-600 via-teal-400 to-emerald-400 rounded-full shadow-[0_0_10px_rgba(34,211,238,0.6)] animate-loading-bar"
-        />
+      {/* Compositor-only segmented boot rail (scaleX, zero layout animation) */}
+      <div className="w-64 flex flex-col gap-2">
+        <div className="relative w-full h-1.5 bg-surface-recessed border border-line-strong rounded-sm overflow-hidden">
+          <div className="h-full w-full bg-accent shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_70%,transparent)] animate-hud-boot-bar" />
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(90deg, transparent, transparent 10px, color-mix(in srgb, var(--surface-page) 80%, transparent) 10px, color-mix(in srgb, var(--surface-page) 80%, transparent) 12px)',
+            }}
+          />
+        </div>
+        <div className="flex items-center justify-between font-mono text-ludo-xs tracking-[0.2em] uppercase text-ink-muted">
+          <span>INITIATING ARENA LINK</span>
+          <span className="text-accent">SYS.OK</span>
+        </div>
       </div>
     </div>
   </div>

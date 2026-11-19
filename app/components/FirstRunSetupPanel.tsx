@@ -5,54 +5,24 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { completeOnboarding } from '@/lib/onboarding';
 import { PanelTabs } from './PanelTabs';
 import { Button } from './Button';
+import { HudCornerTicks, HudSectionLabel } from './HudPrimitives';
+import {
+    Theme3077Icon,
+    ThemeDaybreakIcon,
+    ThemeRetroIcon,
+    TokenChessIcon,
+    TokenOrbIcon,
+} from './icons';
 
 // ─── FirstRunSetupPanel ──────────────────────────────────────────────────────
 // First-run setup shown once per device before the lobby. Chrome matches
 // Settings → Appearance (same card shell + PanelTabs segmented controls).
-// Fresh devices default to Retro + Orbs; stored prefs are always respected.
-// Selections apply live so the user sees the arena change.
-
-const Cyber3077Icon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="22" y1="12" x2="18" y2="12" />
-        <line x1="6" y1="12" x2="2" y2="12" />
-        <line x1="12" y1="6" x2="12" y2="2" />
-        <line x1="12" y1="22" x2="12" y2="18" />
-        <circle cx="12" cy="12" r="4" />
-    </svg>
-);
-
-const BoltIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-    </svg>
-);
-
-const SunIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4">
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-    </svg>
-);
-
-const PawnIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <circle cx="12" cy="7" r="3" />
-        <path d="M12 10v7M8.5 21h7M9.5 17h5" />
-    </svg>
-);
-
-const OrbIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-        <circle cx="12" cy="12" r="8" />
-        <circle cx="12" cy="12" r="3" />
-    </svg>
-);
+// Fresh devices default to 3077 (flagship cyber-tactical) + Orbs; stored prefs
+// are always respected. Selections apply live so the user sees the arena change.
 
 export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
     const { preferences, updatePreference } = usePreferences();
-    const theme = preferences.theme === '3077' ? '3077' : preferences.theme === 'light' ? 'light' : 'retro';
+    const theme = preferences.theme === 'retro' ? 'retro' : preferences.theme === 'light' ? 'light' : '3077';
     const tokenStyle = preferences.tokenStyle === 'orb' ? 'orb' : 'pawn';
     const defaulted = useRef(false);
 
@@ -60,9 +30,9 @@ export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
         if (defaulted.current) return;
         defaulted.current = true;
         try {
-            // Fresh device → Retro (product default). Stored choices win.
+            // Fresh device → 3077 (flagship default). Stored choices win.
             if (localStorage.getItem('ludo-theme') === null) {
-                updatePreference('ludo-theme', 'retro');
+                updatePreference('ludo-theme', '3077');
             }
             if (localStorage.getItem('token-style') === null) {
                 updatePreference('token-style', 'orb');
@@ -70,8 +40,7 @@ export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
         } catch {
             /* storage unavailable — hook fallbacks stand */
         }
-         
-    }, []);
+    }, [updatePreference]);
 
     const finish = () => {
         completeOnboarding();
@@ -81,70 +50,66 @@ export const FirstRunSetupPanel = ({ onDone }: { onDone: () => void }) => {
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center px-4 bg-black/70 backdrop-blur-md">
             <div
-                className="ludo-onboard-scope w-full max-w-[360px] rounded-[26px] border border-white/10 px-5 pt-5 pb-5 flex flex-col gap-4 shadow-2xl"
-                style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))', backdropFilter: 'blur(32px)' }}
+                className="ludo-onboard-scope panel-shell-3077 relative w-full max-w-[360px] rounded-[26px] border border-line-soft px-5 pt-5 pb-5 flex flex-col gap-4 shadow-2xl overflow-hidden"
+                style={{
+                    background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))',
+                    backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))',
+                    backdropFilter: 'blur(32px)',
+                }}
             >
-                <div className="text-center flex flex-col gap-1">
-                    <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300">
-                        First time setup
+                <HudCornerTicks />
+
+                <div className="text-center flex flex-col gap-1 relative z-10">
+                    <p className="text-ludo-xs font-mono font-bold uppercase tracking-[0.28em] text-accent">
+                        {'// FIRST TIME SETUP'}
                     </p>
-                    <h2 className="text-lg font-black text-white uppercase tracking-tight">
+                    <h2 className="text-lg font-bold text-ink-strong uppercase tracking-tight">
                         Shape your arena
                     </h2>
                 </div>
 
                 {/* Appearance — same card shell + segmented controls as Settings */}
-                <section>
-                    <div className="flex items-center gap-2.5 mb-2">
-                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
-                            Appearance
-                        </span>
-                        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-                    </div>
-                    <div className="onboard-appearance rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                <section className="relative z-10">
+                    <HudSectionLabel className="mb-2">Appearance</HudSectionLabel>
+                    <div className="onboard-appearance rounded-2xl border border-line-soft bg-surface-recessed overflow-hidden divide-y divide-line-soft">
                         <div className="onboard-appearance-row">
                             <div className="onboard-row-label">Theme</div>
                             <PanelTabs
+                                cols={3}
                                 value={theme}
                                 onPick={(v) => updatePreference('ludo-theme', v)}
                                 options={[
-                                    { value: '3077', label: '3077', icon: Cyber3077Icon },
-                                    { value: 'retro', label: 'Retro', icon: BoltIcon },
-                                    { value: 'light', label: 'Daybreak', icon: SunIcon },
+                                    { value: '3077', label: '3077', icon: <Theme3077Icon className="w-4 h-4" /> },
+                                    { value: 'retro', label: 'Retro', icon: <ThemeRetroIcon className="w-4 h-4" /> },
+                                    { value: 'light', label: 'Daybreak', icon: <ThemeDaybreakIcon className="w-4 h-4" /> },
                                 ]}
                             />
                         </div>
                         <div className="onboard-appearance-row">
                             <div className="onboard-row-label">Token style</div>
                             <PanelTabs
+                                cols={2}
                                 value={tokenStyle}
                                 onPick={(v) => updatePreference('token-style', v)}
                                 options={[
-                                    { value: 'pawn', label: 'Chess', icon: PawnIcon },
-                                    { value: 'orb', label: 'Orbs', icon: OrbIcon },
+                                    { value: 'pawn', label: 'Chess', icon: <TokenChessIcon className="w-4 h-4" /> },
+                                    { value: 'orb', label: 'Orbs', icon: <TokenOrbIcon className="w-4 h-4" /> },
                                 ]}
                             />
                         </div>
                     </div>
                 </section>
 
-                {/* The onboarding CTA is the shared Button (Phase B.4). It was
-                    `bg-cyan-400 text-black` + its own glow + its own focus ring,
-                    which is bright cyan with black ink in BOTH themes — wrong in
-                    Daybreak, where the accent is #0d6d87. `variant="primary"`
-                    makes it the theme's accent with the correct ink on top, and
-                    the geometry is preserved through className so the diff is the
-                    colour decision only. */}
                 <Button
                     variant="primary"
                     size="lg"
                     fullWidth
                     onClick={finish}
-                    className="onboard-cta min-h-[56px] rounded-2xl text-ludo-lg uppercase tracking-[0.22em] shadow-[0_0_28px_color-mix(in_srgb,var(--accent)_40%,transparent)]"
+                    className="onboard-cta relative z-10 min-h-[56px] rounded-2xl text-ludo-lg uppercase tracking-[0.22em] shadow-[0_0_28px_color-mix(in_srgb,var(--accent)_40%,transparent)]"
                 >
                     Enter the lobby
                 </Button>
-                <p className="text-center text-ludo-xs font-bold text-white/35 -mt-2">
+                <p className="relative z-10 text-center text-ludo-xs font-bold text-ink-muted -mt-2">
                     Change anytime in Settings
                 </p>
             </div>

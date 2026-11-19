@@ -16,6 +16,16 @@ import { useAppSession } from '@/hooks/useAppSession';
 import { exitGuest } from '@/lib/guest';
 import { APP_VERSION, APP_BUILD_HASH } from '@/lib/version';
 import { PanelTabs } from './PanelTabs';
+import {
+    CloseReticleIcon,
+    SlidersIcon,
+    Theme3077Icon,
+    ThemeDaybreakIcon,
+    ThemeRetroIcon,
+    TokenChessIcon,
+    TokenOrbIcon,
+} from './icons';
+import { HudCornerTicks, HudSectionLabel } from './HudPrimitives';
 import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import { useWalletMode } from '@/hooks/useWalletMode';
 import { useBiometricGate } from '@/hooks/useBiometricGate';
@@ -105,51 +115,12 @@ const ChevronIcon = () => (
 );
 
 const GearTile = () => (
-    <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-cyan-300">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
+    <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
+        <SlidersIcon className="w-4 h-4 text-cyan-300" />
     </div>
 );
 
-const BoltIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-    </svg>
-);
-
-const PawnIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <circle cx="12" cy="7" r="3" />
-        <path d="M12 10v7M8.5 21h7M9.5 17h5" />
-    </svg>
-);
-
-const OrbIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4">
-        <circle cx="12" cy="12" r="8" />
-        <circle cx="12" cy="12" r="3" />
-    </svg>
-);
-
-const Cyber3077Icon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="22" y1="12" x2="18" y2="12" />
-        <line x1="6" y1="12" x2="2" y2="12" />
-        <line x1="12" y1="6" x2="12" y2="2" />
-        <line x1="12" y1="22" x2="12" y2="18" />
-        <circle cx="12" cy="12" r="4" />
-    </svg>
-);
-
-const SunIcon = (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-4 h-4">
-        <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-    </svg>
-);
+// Theme and token icons imported from ./icons (single source of truth).
 
 // iOS-style switch + row rhythm now live in the shared primitives
 // (UI_COMPONENT_AUDIT Phase A: Switch.tsx, ListRow.tsx). Settings is their
@@ -160,12 +131,7 @@ import { ListRow } from "./ListRow";
 import { Button } from "./Button";
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-    <div className="flex items-center gap-2.5 mb-2">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
-            {children}
-        </span>
-        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-    </div>
+    <HudSectionLabel className="mb-2">{children}</HudSectionLabel>
 );
 
 const PrefRow = ({ icon, tint, label, hint, on, onToggle, last = false }: {
@@ -470,13 +436,14 @@ export function SettingsPanel({
                         className="ludo-settings-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                         style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
                     >
+                        <HudCornerTicks />
                         {/* Authentic Subdued Cosmic Orbs */}
                         <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                         <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
                         {/* Drag Handle */}
                         <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                            <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                            <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
                         </div>
 
                         {/* Header */}
@@ -511,9 +478,9 @@ export function SettingsPanel({
                                     size="icon"
                                     onClick={onClose}
                                     aria-label="Close settings"
-                                    className="bg-surface-hover border border-line-soft"
+                                    className="panel-close-3077 bg-surface-hover border border-line-soft"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    <CloseReticleIcon className="icon-md" />
                                 </Button>
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
@@ -542,7 +509,7 @@ export function SettingsPanel({
                                         on={preferences.sfx} onToggle={() => updatePreference('ludo-sfx', preferences.sfx ? 'off' : 'on')}
                                     />
                                     <PrefRow
-                                        icon={<MusicIcon />} tint="bg-fuchsia-500/15 text-fuchsia-300"
+                                        icon={<MusicIcon />} tint="bg-amber-500/15 text-amber-300"
                                         label="Game Music" hint="Lobby and arena ambience"
                                         on={preferences.music} onToggle={() => updatePreference('ludo-music', preferences.music ? 'off' : 'on')}
                                     />
@@ -570,23 +537,25 @@ export function SettingsPanel({
                                     <div className="p-3.5">
                                         <div className="text-ludo-xs font-black uppercase tracking-widest text-white/35 mb-2">Theme</div>
                                         <PanelTabs
+                                            cols={3}
                                             value={preferences.theme}
                                             onPick={(v) => updatePreference('ludo-theme', v)}
                                             options={[
-                                                { value: '3077', label: '3077', icon: Cyber3077Icon },
-                                                { value: 'retro', label: 'Retro', icon: BoltIcon },
-                                                { value: 'light', label: 'Daybreak', icon: SunIcon },
+                                                { value: '3077', label: '3077', icon: <Theme3077Icon className="w-4 h-4" /> },
+                                                { value: 'retro', label: 'Retro', icon: <ThemeRetroIcon className="w-4 h-4" /> },
+                                                { value: 'light', label: 'Daybreak', icon: <ThemeDaybreakIcon className="w-4 h-4" /> },
                                             ]}
                                         />
                                     </div>
                                     <div className="p-3.5">
                                         <div className="text-ludo-xs font-black uppercase tracking-widest text-white/35 mb-2">Token style</div>
                                         <PanelTabs
+                                            cols={2}
                                             value={preferences.tokenStyle}
                                             onPick={(v) => updatePreference('token-style', v)}
                                             options={[
-                                                { value: 'pawn', label: 'Chess', icon: PawnIcon },
-                                                { value: 'orb', label: 'Orbs', icon: OrbIcon },
+                                                { value: 'pawn', label: 'Chess', icon: <TokenChessIcon className="w-4 h-4" /> },
+                                                { value: 'orb', label: 'Orbs', icon: <TokenOrbIcon className="w-4 h-4" /> },
                                             ]}
                                         />
                                     </div>

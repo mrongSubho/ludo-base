@@ -10,8 +10,11 @@ import {
     useBroadcastData,
     type BroadcastData,
 } from "./ActivityFeed";
-import { LuRadio, LuTv, LuX } from "react-icons/lu";
+import { LuRadio, LuTv } from "react-icons/lu";
 import { Button } from "./Button";
+import { PanelTabs, TabCount } from "./PanelTabs";
+import { HudCornerTicks } from "./HudPrimitives";
+import { CloseReticleIcon } from "./icons";
 
 export type ArenaHubTab = "arena" | "comms";
 
@@ -105,12 +108,13 @@ function ArenaPanelInner({
                                     backdropFilter: "blur(32px)",
                                 }}
                             >
+                                <HudCornerTicks />
                                 <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                                 <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
                                 {/* Drag Handle */}
                                 <div className="w-full flex justify-center pt-2 pb-1 relative z-10 shrink-0">
-                                    <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                                    <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
                                 </div>
 
                                 {/* Panel Header + Dual Hub Tab Switcher */}
@@ -123,7 +127,7 @@ function ArenaPanelInner({
                                             </h2>
                                             <div className="flex items-center gap-2 px-0.5 mt-1">
                                                 {(liveStats.live > 0 || liveStats.open > 0) && (
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                                                    <span className="hud-status-breath w-1.5 h-1.5 rounded-full bg-cyan-400" />
                                                 )}
                                                 <span className="text-ludo-xs font-mono font-bold text-cyan-300 tracking-wide uppercase tabular-nums">
                                                     {liveStats.open} open
@@ -144,56 +148,41 @@ function ArenaPanelInner({
                                             size="icon"
                                             onClick={onClose}
                                             aria-label="Close arena"
-                                            className="bg-surface-hover border border-line-soft shrink-0"
+                                            className="panel-close-3077 bg-surface-hover border border-line-soft shrink-0"
                                         >
-                                            <LuX className="icon-md" />
+                                            <CloseReticleIcon className="icon-md" />
                                         </Button>
                                     </div>
 
                                     {/* 2 Iconic Primary Tabs: Arena Rooms | Live Comms */}
-                                    <div className="grid grid-cols-2 gap-1.5 p-1 rounded-2xl bg-black/40 border border-white/10">
-                                        <button
-                                            type="button"
-                                            onClick={() => setActiveHubTab("arena")}
-                                            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-ludo-xs font-bold uppercase tracking-wider transition-all ${
-                                                activeHubTab === "arena"
-                                                    ? "bg-accent-soft text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]"
-                                                    : "text-white/50 hover:text-white/85"
-                                            }`}
-                                        >
-                                            <LuTv
-                                                className={`w-3.5 h-3.5 ${
-                                                    activeHubTab === "arena" ? "text-cyan-300" : ""
-                                                }`}
-                                            />
-                                            <span>Arena Rooms</span>
-                                            <span className="px-1.5 py-0.5 rounded-md bg-black/30 font-mono text-ludo-xs text-cyan-300">
-                                                {liveStats.open + liveStats.live}
-                                            </span>
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            onClick={() => setActiveHubTab("comms")}
-                                            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-ludo-xs font-bold uppercase tracking-wider transition-all ${
-                                                activeHubTab === "comms"
-                                                    ? "bg-accent-soft text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]"
-                                                    : "text-white/50 hover:text-white/85"
-                                            }`}
-                                        >
-                                            <LuRadio
-                                                className={`w-3.5 h-3.5 ${
-                                                    activeHubTab === "comms" ? "text-cyan-300" : ""
-                                                }`}
-                                            />
-                                            <span>Live Comms</span>
-                                            {totalCommsSignals > 0 && (
-                                                <span className="px-1.5 py-0.5 rounded-md bg-black/30 font-mono text-ludo-xs text-emerald-300">
-                                                    {totalCommsSignals}
-                                                </span>
-                                            )}
-                                        </button>
-                                    </div>
+                                    <PanelTabs
+                                        cols={2}
+                                        value={activeHubTab}
+                                        onPick={setActiveHubTab}
+                                        options={[
+                                            {
+                                                value: "arena",
+                                                label: "Arena Rooms",
+                                                icon: <LuTv className="w-3.5 h-3.5" />,
+                                                badge: (
+                                                    <TabCount active={activeHubTab === "arena"}>
+                                                        {liveStats.open + liveStats.live}
+                                                    </TabCount>
+                                                ),
+                                            },
+                                            {
+                                                value: "comms",
+                                                label: "Live Comms",
+                                                icon: <LuRadio className="w-3.5 h-3.5" />,
+                                                badge:
+                                                    totalCommsSignals > 0 ? (
+                                                        <TabCount active={activeHubTab === "comms"}>
+                                                            {totalCommsSignals}
+                                                        </TabCount>
+                                                    ) : undefined,
+                                            },
+                                        ]}
+                                    />
                                 </div>
 
                                 {/* Tab Viewport */}

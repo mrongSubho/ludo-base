@@ -1,67 +1,19 @@
-/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useGameData } from '@/hooks/GameDataContext';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
+import {
+    ApexRankIcon,
+    ArenaBladesIcon,
+    ArmoryCrateIcon,
+    DirectiveTargetIcon,
+    SquadLinkIcon,
+    SyndicateShieldIcon,
+} from './icons';
 
 // Tab Type
 type Tab = 'friends' | 'leaderboard' | 'mission' | 'arena' | 'marketplace' | 'settings' | 'messages' | 'wallet' | 'profile' | 'clan' | null;
-
-// ─── Inline SVG Icons ────────────────────────────────────────────────────────
-
-const ShieldIcon = () => (
-    <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </svg>
-);
-
-const ProfileIcon = () => (
-    <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-    </svg>
-);
-
-const UsersIcon = () => (
-    <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-);
-
-const TrophyIcon = () => (
-    <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M8 21h8M12 17v4M7 4h10M5 4h14v5a7 7 0 0 1-14 0V4z" />
-    </svg>
-);
-
-const TournamentIcon = () => (
-    <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-        <line x1="4" y1="22" x2="4" y2="15" />
-    </svg>
-);
-
-const MissionIcon = () => (
-    <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 11l3 3L22 4" />
-        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-    </svg>
-);
-
-const ShopIcon = () => (
-    <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-        <line x1="3" y1="6" x2="21" y2="6" />
-        <path d="M16 10a4 4 0 0 1-8 0" />
-    </svg>
-);
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -74,21 +26,25 @@ interface FooterNavPanelProps {
     onOpenProfile: (address: string) => void;
 }
 
+const NAV_TABS = [
+    { id: 'friends', icon: SquadLinkIcon, label: 'Friends' },
+    { id: 'leaderboard', icon: ApexRankIcon, label: 'Leaderboard' },
+    { id: 'clan', icon: SyndicateShieldIcon, label: 'Clan' },
+    { id: 'mission', icon: DirectiveTargetIcon, label: 'Mission' },
+    { id: 'arena', icon: ArenaBladesIcon, label: 'Arena' },
+    { id: 'marketplace', icon: ArmoryCrateIcon, label: 'Market' },
+] as const;
+
 export const FooterNavPanel = ({
     activeTab,
     onToggleTab,
-    onCloseTab,
-    selectedChatId,
-    onSelectChat,
-    onOpenProfile
 }: FooterNavPanelProps) => {
     // Mobile: no layout spring / backdrop-blur on the active pill — those
     // stall the compositor while sandwich panels are mounting beside it.
     const isMobile = useIsMobileView();
+
     // Single source of truth for footer clearance: measure the real rendered
-    // box (compact vs full breakpoint, font loading — safe-area padding
-    // included). Use sites add breathing room ONLY, never env(safe-area…)
-    // again: in-app webviews report large bottom insets and it triple-counts.
+    // box (compact vs full breakpoint, font loading — safe-area padding included).
     useEffect(() => {
         const el = document.querySelector('.footer-nav');
         if (!el) return;
@@ -106,52 +62,51 @@ export const FooterNavPanel = ({
     }, []);
 
     return (
-        <>
-            <nav className="footer-nav ludo-footer-scope overflow-hidden">
-                {[
-                    { id: 'friends', icon: UsersIcon, label: 'Friends' },
-                    { id: 'leaderboard', icon: TrophyIcon, label: 'Leaderboard' },
-                    { id: 'clan', icon: ShieldIcon, label: 'Clan' },
-                    { id: 'mission', icon: MissionIcon, label: 'Mission' },
-                    { id: 'arena', icon: TournamentIcon, label: 'Arena' },
-                    { id: 'marketplace', icon: ShopIcon, label: 'Market' }
-                ].map((tab) => {
-                    const isActive = activeTab === tab.id;
-                    const Icon = tab.icon;
-                    return (
-                        <button
-                            key={tab.id}
-                            className={`nav-item relative z-10 group ${isActive ? 'active' : ''}`}
-                            onClick={() => onToggleTab(tab.id as Tab)}
-                        >
-                            {/* Active indicator: static on mobile, spring slide on desktop */}
-                            {isActive && (isMobile ? (
+        <nav className="footer-nav ludo-footer-scope overflow-hidden">
+            {NAV_TABS.map((tab) => {
+                const isActive = activeTab === tab.id;
+                const Icon = tab.icon;
+                return (
+                    <button
+                        key={tab.id}
+                        type="button"
+                        className={`nav-item relative z-10 group ${isActive ? 'active' : ''}`}
+                        onClick={() => onToggleTab(tab.id as Tab)}
+                        aria-pressed={isActive}
+                    >
+                        {/* Active indicator: static on mobile, spring slide on desktop */}
+                        {isActive &&
+                            (isMobile ? (
                                 <div
-                                    className="absolute inset-0 border border-white/10 rounded-2xl -z-10"
+                                    className="footer-active-plate absolute inset-0 border border-white/10 rounded-2xl -z-10"
                                     style={{ background: 'var(--nav-active-bg, rgba(13, 13, 13, 0.4))' }}
-                                />
+                                >
+                                    <span className="footer-active-laser" aria-hidden="true" />
+                                </div>
                             ) : (
                                 <motion.div
                                     layoutId="active-nav-bg"
-                                    className="absolute inset-0 border border-white/10 rounded-2xl -z-10 shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
+                                    className="footer-active-plate absolute inset-0 border border-white/10 rounded-2xl -z-10 shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
                                     style={{ background: 'var(--nav-active-bg, rgba(13, 13, 13, 0.4))' }}
-                                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                                />
+                                    transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+                                >
+                                    <span className="footer-active-laser" aria-hidden="true" />
+                                </motion.div>
                             ))}
-                            {/* Hover Background */}
-                            {!isActive && (
-                                <div className="absolute inset-0 bg-white/[0.04] border border-white/5 rounded-2xl -z-10 opacity-0 group-hover:opacity-100 transition-all duration-300" />
-                            )}
 
-                            <div className="relative inline-flex items-center justify-center">
-                                <Icon />
-                            </div>
+                        {/* Hover Background */}
+                        {!isActive && (
+                            <div className="absolute inset-0 bg-white/[0.04] border border-white/5 rounded-2xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                        )}
 
-                            <span className="nav-label">{tab.label}</span>
-                        </button>
-                    );
-                })}
-            </nav>
-        </>
+                        <div className="relative inline-flex items-center justify-center">
+                            <Icon className="nav-icon" active={isActive} />
+                        </div>
+
+                        <span className="nav-label">{tab.label}</span>
+                    </button>
+                );
+            })}
+        </nav>
     );
 };

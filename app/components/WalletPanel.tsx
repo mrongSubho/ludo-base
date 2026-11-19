@@ -7,6 +7,8 @@ import { useWalletMode } from "@/hooks/useWalletMode";
 import { useNetworkLabel } from "@/hooks/useNetworkLabel";
 import { useWalletActivity } from "@/hooks/useWalletActivity";
 import { useAppSession } from "@/hooks/useAppSession";
+import { useTotalChips } from "@/hooks/useTotalChips";
+import { formatCompactChips } from "@/lib/chips";
 import SendTokenSheet from "./SendTokenSheet";
 import ReceiveSheet from "./ReceiveSheet";
 import WalletActivityList from "./WalletActivityList";
@@ -15,6 +17,8 @@ import WalletSecurityPanel from "./WalletSecurityPanel";
 import AllowanceHubSheet from "./AllowanceHubSheet";
 import RevokeAllowanceSheet from "./RevokeAllowanceSheet";
 import ClaimHubSheet from "./ClaimHubSheet";
+import { HudCornerTicks } from "./HudPrimitives";
+import { ChipsHexIcon, CloseReticleIcon } from "./icons";
 
 /**
  * Wallet — Coinbase-style card.
@@ -64,12 +68,12 @@ function TokenIcon({ kind }: { kind: "eth" | "usdc" | "chips" }) {
     return (
         <div
             className="cb-asset-icon"
-            style={{ background: "linear-gradient(145deg, #0052FF 0%, #6B8CFF 55%, #A8C0FF 100%)" }}
+            style={{
+                background: "linear-gradient(145deg, rgba(0, 229, 255, 0.24) 0%, #09131f 100%)",
+                border: "1px solid rgba(0, 229, 255, 0.45)",
+            }}
         >
-            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="#fff" strokeWidth="2">
-                <circle cx="12" cy="12" r="8" />
-                <circle cx="12" cy="12" r="3" fill="#fff" stroke="none" />
-            </svg>
+            <ChipsHexIcon className="w-5 h-5 text-cyan-300" active />
         </div>
     );
 }
@@ -186,6 +190,7 @@ const TITLES: Record<Screen, string> = {
 
 export default function WalletPanel({ onClose }: { onClose: () => void }) {
     const { tokens, loading, refresh, needsReconnect, address, usdc } = useWalletAssets();
+    const totalChips = useTotalChips();
     const mode = useWalletMode();
     const network = useNetworkLabel();
     const { sessionId } = useAppSession();
@@ -196,6 +201,40 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
 
     // H2 — CHIPS never priced into USD total.
     const usdTotal = useMemo(() => Number(formatUnits(usdc ?? BigInt(0), 6)), [usdc]);
+
+    const unclaimedSourceParts = useMemo(
+        () =>
+            [
+                totalChips.vaultClaimableChips > 0
+                    ? `Match Prizes ${formatCompactChips(totalChips.vaultClaimableChips)}`
+                    : null,
+                totalChips.clanClaimableChips > 0
+                    ? `Clan ${formatCompactChips(totalChips.clanClaimableChips)}`
+                    : null,
+                totalChips.legacyClaimableChips > 0
+                    ? `Legacy ${formatCompactChips(totalChips.legacyClaimableChips)}`
+                    : null,
+            ].filter(Boolean) as string[],
+        [
+            totalChips.clanClaimableChips,
+            totalChips.legacyClaimableChips,
+            totalChips.vaultClaimableChips,
+        ],
+    );
+
+    const claimsHubHint =
+        totalChips.unclaimedChips > 0 || totalChips.vaultTotalChips > 0
+            ? [
+                  totalChips.unclaimedChips > 0
+                      ? `${formatCompactChips(totalChips.unclaimedChips)} unclaimed`
+                      : null,
+                  totalChips.vaultTotalChips > 0
+                      ? `${formatCompactChips(totalChips.vaultTotalChips)} in vault`
+                      : null,
+              ]
+                  .filter(Boolean)
+                  .join(" · ")
+            : "Top up match vault, withdraw & claim prizes";
 
     const copyAddress = async () => {
         if (!address) return;
@@ -281,6 +320,7 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                 style={{ background: 'rgba(6, 8, 14, 0.55)' }}
             />
             <div className="cb-wallet-root" role="dialog" aria-modal="true" aria-label="Wallet">
+                <HudCornerTicks />
                 <header className="cb-nav">
                     {!isHome ? (
                         <button type="button" className="cb-icon-btn" aria-label="Back" onClick={() => setScreen(backTarget)}>
@@ -297,7 +337,7 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                 aria-label={hasActiveSession ? "Session Active" : "Session Inactive"}
                             >
                                 {hasActiveSession && (
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
+                                    <span className="hud-status-breath absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
                                 )}
                                 <span className={`cb-session-dot ${hasActiveSession ? "active" : "inactive"}`} />
                             </span>
@@ -340,10 +380,8 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                         </div>
                     )}
                     {!isHome && <h1 className="cb-nav-title">{title}</h1>}
-                    <button type="button" className="cb-icon-btn" aria-label="Close wallet" onClick={onClose}>
-                        <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                            <path d="M18 6 6 18M6 6l12 12" />
-                        </svg>
+                    <button type="button" className="cb-icon-btn panel-close-3077" aria-label="Close wallet" onClick={onClose}>
+                        <CloseReticleIcon className="w-4 h-4" />
                     </button>
                 </header>
 
@@ -401,37 +439,277 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                             <div className="cb-section">
                                 <div className="cb-section-head">
                                     <span>Assets</span>
-                                    <button type="button" className="cb-link" onClick={() => void refresh()}>
-                                        {loading ? "Updating…" : "Refresh"}
+                                    <button
+                                        type="button"
+                                        className="cb-link"
+                                        onClick={() => void Promise.all([refresh(), totalChips.refresh()])}
+                                    >
+                                        {loading || totalChips.loading ? "Updating…" : "Refresh"}
                                     </button>
                                 </div>
                                 <div className="cb-card">
-                                    {(tokens as { key: string; label: string; formatted: string; unpriced?: boolean }[]).map(
-                                        (t) => (
+                                    {tokens.map((t) => {
+                                        const isChips = t.key === "chips";
+                                        const amountText = loading
+                                            ? "…"
+                                            : isChips
+                                              ? formatCompactChips(t.raw)
+                                              : t.formatted;
+                                        const secondaryText = isChips
+                                            ? totalChips.walletChips >= 1000
+                                                ? `${totalChips.walletChips.toLocaleString()} CHIPS`
+                                                : "On-chain"
+                                            : t.unpriced || t.key === "eth"
+                                              ? "—"
+                                              : `$${Number(t.formatted).toFixed(2)}`;
+                                        return (
                                             <button
                                                 key={t.key}
                                                 type="button"
                                                 className="cb-asset-row"
                                                 onClick={() => setScreen("send")}
                                             >
-                                                <TokenIcon kind={t.key as "eth" | "usdc" | "chips"} />
+                                                <TokenIcon kind={t.key} />
                                                 <div className="cb-asset-meta">
                                                     <div className="cb-asset-name">
                                                         {t.label}
                                                         {t.unpriced && <span className="cb-badge">Unpriced</span>}
                                                     </div>
                                                     <div className="cb-asset-sub">
-                                                        {t.key === "chips" ? "Game token · Base" : "Base"}
+                                                        {isChips ? "In Wallet · Spendable on Base" : "Base"}
                                                     </div>
                                                 </div>
                                                 <div className="cb-asset-bal">
-                                                    <div className="cb-asset-amt">{loading ? "…" : t.formatted}</div>
-                                                    <div className="cb-asset-fiat">
-                                                        {t.unpriced || t.key === "eth" ? "—" : `$${Number(t.formatted).toFixed(2)}`}
-                                                    </div>
+                                                    <div className="cb-asset-amt">{amountText}</div>
+                                                    <div className="cb-asset-fiat">{secondaryText}</div>
                                                 </div>
                                             </button>
-                                        ),
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="cb-section">
+                                <div className="cb-section-head">
+                                    <span>CHIPS Breakdown</span>
+                                    <button type="button" className="cb-link" onClick={() => setScreen("claims")}>
+                                        Total {totalChips.totalFormatted} · Claim Hub
+                                    </button>
+                                </div>
+                                <div className="cb-card">
+                                    <button
+                                        type="button"
+                                        className="cb-asset-row"
+                                        onClick={() => setScreen("send")}
+                                    >
+                                        <div
+                                            className="cb-asset-icon"
+                                            style={{
+                                                background: "#09131f",
+                                                border: "1px solid rgba(0, 229, 255, 0.45)",
+                                            }}
+                                        >
+                                            <ChipsHexIcon className="w-4 h-4 text-cyan-300" active />
+                                        </div>
+                                        <div className="cb-asset-meta">
+                                            <div className="cb-asset-name">In Wallet</div>
+                                            <div className="cb-asset-sub">On-chain spendable CHIPS</div>
+                                        </div>
+                                        <div className="cb-asset-bal">
+                                            <div className="cb-asset-amt">
+                                                {formatCompactChips(totalChips.walletChips)}
+                                            </div>
+                                            <div className="cb-asset-fiat">
+                                                {totalChips.walletChips >= 1000
+                                                    ? `${totalChips.walletChips.toLocaleString()} CHIPS`
+                                                    : "Spendable"}
+                                            </div>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className="cb-asset-row"
+                                        onClick={() => setScreen("claims")}
+                                    >
+                                        <div
+                                            className="cb-asset-icon"
+                                            style={{
+                                                background: "#0b1a29",
+                                                border: "1px solid rgba(56, 189, 248, 0.45)",
+                                            }}
+                                        >
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                className="w-4 h-4 text-cyan-300"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            >
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                            </svg>
+                                        </div>
+                                        <div className="cb-asset-meta">
+                                            <div className="cb-asset-name">Arena Match Vault</div>
+                                            <div className="cb-asset-sub">
+                                                {totalChips.vaultReservedChips > 0
+                                                    ? `Reusable 0-gas · ${formatCompactChips(totalChips.vaultReservedChips)} locked`
+                                                    : "Reusable 0-gas match balance"}
+                                            </div>
+                                        </div>
+                                        <div className="cb-asset-bal">
+                                            <div className="cb-asset-amt">
+                                                {formatCompactChips(totalChips.vaultAvailableChips)}
+                                            </div>
+                                            <div className="cb-asset-fiat">
+                                                {totalChips.vaultAvailableChips >= 1000
+                                                    ? `${totalChips.vaultAvailableChips.toLocaleString()} CHIPS`
+                                                    : "Ready"}
+                                            </div>
+                                        </div>
+                                    </button>
+
+                                    {totalChips.vaultReservedChips > 0 && (
+                                        <div className="cb-asset-row static">
+                                            <div
+                                                className="cb-asset-icon"
+                                                style={{
+                                                    background: "#1c1507",
+                                                    border: "1px solid rgba(251, 191, 36, 0.45)",
+                                                }}
+                                            >
+                                                <svg
+                                                    viewBox="0 0 24 24"
+                                                    className="w-4 h-4 text-amber-300"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                >
+                                                    <circle cx="12" cy="12" r="9" />
+                                                    <path d="M12 7v5l3 2" />
+                                                </svg>
+                                            </div>
+                                            <div className="cb-asset-meta">
+                                                <div className="cb-asset-name">
+                                                    Locked in Match
+                                                    <span className="cb-badge">Active</span>
+                                                </div>
+                                                <div className="cb-asset-sub">
+                                                    Reserved for open search or table
+                                                </div>
+                                            </div>
+                                            <div className="cb-asset-bal">
+                                                <div className="cb-asset-amt">
+                                                    {formatCompactChips(totalChips.vaultReservedChips)}
+                                                </div>
+                                                <div className="cb-asset-fiat status-pending">
+                                                    {`${totalChips.vaultReservedChips.toLocaleString()} CHIPS`}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <button
+                                        type="button"
+                                        className="cb-asset-row"
+                                        onClick={() => setScreen("claims")}
+                                    >
+                                        <div
+                                            className="cb-asset-icon"
+                                            style={{
+                                                background: "#071f17",
+                                                border: "1px solid rgba(52, 211, 153, 0.45)",
+                                            }}
+                                        >
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                className="w-4 h-4 text-emerald-300"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            >
+                                                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                                                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                                                <path d="M4 22h16" />
+                                                <path d="M10 14.66V17c0 .55-.45 1-1 1H7" />
+                                                <path d="M14 14.66V17c0 .55.45 1 1 1h2" />
+                                                <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+                                            </svg>
+                                        </div>
+                                        <div className="cb-asset-meta">
+                                            <div className="cb-asset-name">
+                                                Unclaimed Rewards
+                                                {totalChips.unclaimedChips > 0 && (
+                                                    <span className="cb-badge">Claimable</span>
+                                                )}
+                                            </div>
+                                            <div className="cb-asset-sub">
+                                                {unclaimedSourceParts.length > 0
+                                                    ? unclaimedSourceParts.join(" · ")
+                                                    : "Claim Hub · Match & Clan prizes"}
+                                            </div>
+                                        </div>
+                                        <div className="cb-asset-bal">
+                                            <div className="cb-asset-amt">
+                                                {formatCompactChips(totalChips.unclaimedChips)}
+                                            </div>
+                                            <div
+                                                className={`cb-asset-fiat ${
+                                                    totalChips.unclaimedChips > 0 ? "status-confirmed" : ""
+                                                }`}
+                                            >
+                                                {totalChips.unclaimedChips > 0
+                                                    ? totalChips.unclaimedChips >= 1000
+                                                        ? `${totalChips.unclaimedChips.toLocaleString()} ready`
+                                                        : "Tap to claim"
+                                                    : "None pending"}
+                                            </div>
+                                        </div>
+                                    </button>
+
+                                    {totalChips.escrowChips > 0 && (
+                                        <div className="cb-asset-row static">
+                                            <div
+                                                className="cb-asset-icon"
+                                                style={{
+                                                    background: "#121722",
+                                                    border: "1px solid rgba(148, 163, 184, 0.35)",
+                                                }}
+                                            >
+                                                <svg
+                                                    viewBox="0 0 24 24"
+                                                    className="w-4 h-4 text-cyan-300"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                >
+                                                    <path d="M4 9l1.2-4.2A1 1 0 0 1 6.2 4h11.6a1 1 0 0 1 1 .8L20 9" />
+                                                    <path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" />
+                                                    <path d="M4 9h16" />
+                                                </svg>
+                                            </div>
+                                            <div className="cb-asset-meta">
+                                                <div className="cb-asset-name">Marketplace Escrow</div>
+                                                <div className="cb-asset-sub">Spendable in Marketplace</div>
+                                            </div>
+                                            <div className="cb-asset-bal">
+                                                <div className="cb-asset-amt">
+                                                    {formatCompactChips(totalChips.escrowChips)}
+                                                </div>
+                                                <div className="cb-asset-fiat">
+                                                    {`${totalChips.escrowChips.toLocaleString()} CHIPS`}
+                                                </div>
+                                            </div>
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -524,7 +802,7 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                         </svg>
                                     }
                                     title="Vault & Claim Hub"
-                                    hint="Top up match vault, withdraw & claim prizes"
+                                    hint={claimsHubHint}
                                     onClick={() => setScreen("claims")}
                                 />
                                 <MoreRow

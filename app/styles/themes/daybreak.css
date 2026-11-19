@@ -303,6 +303,8 @@ body.theme-daybreak :is(.ludo-market-scope, .ludo-settings-scope, .ludo-rankings
 
 /* ─── Daybreak override for ClanPanel badges, inputs & alerts ─── */
 body.theme-daybreak .ludo-clan-scope :is(input, textarea)::placeholder { color: rgba(23, 23, 23, 0.42); }
+body.theme-daybreak .ludo-clan-scope :is(.bg-black\/45) { background-color: rgba(23, 23, 23, 0.06); }
+body.theme-daybreak .ludo-clan-scope :is(.bg-white\/\[0\.03\], .bg-white\/\[0\.05\], .bg-white\/\[0\.06\]) { background-color: #ffffff; box-shadow: 0 18px 38px -14px rgba(23, 23, 23, 0.22), inset 0 2px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(23, 23, 23, 0.04); }
 body.theme-daybreak .ludo-clan-scope :is(.text-emerald-300) { color: #15803d; }
 body.theme-daybreak .ludo-clan-scope :is(.bg-cyan-500\/10) { background-color: rgba(14, 165, 183, 0.12); }
 body.theme-daybreak .ludo-clan-scope :is(.bg-amber-500\/10) { background-color: rgba(180, 83, 9, 0.08); }

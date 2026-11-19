@@ -6,6 +6,7 @@ import { motion, useAnimation, AnimatePresence } from 'framer-motion';
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { useAudio } from '../hooks/useAudio';
 import { usePreferences } from '@/hooks/usePreferences';
+import { prefersReducedMotion } from '@/lib/motion';
 
 interface LudoDiceProps {
     onRoll: (value: number) => void;
@@ -29,7 +30,13 @@ const COLOR_MAP: Record<string, string> = {
     red: '#ef4444',
     blue: '#3b82f6',
     yellow: '#f59e0b',
-    purple: '#a855f7'
+};
+
+const COLOR_MAP_3077: Record<string, string> = {
+    green: '#00FF66',
+    red: '#FF0055',
+    blue: '#0099FF',
+    yellow: '#FFD000',
 };
 
 // Dice skins (equipped from the Marketplace): face + pip colors.
@@ -37,6 +44,12 @@ const DICE_SKINS: Record<string, { face: string; pip: string; edge: string }> = 
     classic: { face: '#ffffff', pip: '#0F172A', edge: 'rgba(0,0,0,0.1)' },
     midnight: { face: '#0b1220', pip: '#22d3ee', edge: 'rgba(34,211,238,0.35)' },
     gold: { face: '#451a03', pip: '#fcd34a', edge: 'rgba(252,211,77,0.35)' },
+};
+
+const DICE_3077_SKIN = {
+    face: 'linear-gradient(145deg, #161E2C 0%, #0A0E16 62%, #05070B 100%)',
+    pip: '#00E5FF',
+    edge: 'rgba(0, 229, 255, 0.52)',
 };
 
 const FACE_MAP = [
@@ -58,12 +71,16 @@ export default function LudoDice({
     const { playDiceRoll, playDiceLand } = useSoundEffects();
     const { triggerHaptic } = useAudio();
     const { preferences } = usePreferences();
-    const diceSkin = DICE_SKINS[preferences.diceStyle] || DICE_SKINS.classic;
+    const is3077 = preferences.theme === '3077';
+    const isTacticalClassic = is3077 && preferences.diceStyle === 'classic';
+    const diceSkin = isTacticalClassic ? DICE_3077_SKIN : (DICE_SKINS[preferences.diceStyle] || DICE_SKINS.classic);
     const controls = useAnimation();
+    const [critKey, setCritKey] = useState(0);
     
     // Track rotation persistently to enable smooth continuous tumbling
     const rotationRef = useRef({ x: 0, y: 0 });
     const wasExternalRolling = useRef(false);
+    const pendingCritRef = useRef(false);
 
     const getRotationForValue = (val: number) => {
         const face = FACE_MAP.find(f => f.num === val) || FACE_MAP[0];
@@ -81,6 +98,7 @@ export default function LudoDice({
     useEffect(() => {
         if (isRolling && !wasExternalRolling.current) {
             // Roll just started
+            pendingCritRef.current = true;
             playDiceRoll();
             triggerHaptic(40);
 
@@ -123,6 +141,13 @@ export default function LudoDice({
             });
             
             rotationRef.current = { x: targetX, y: targetY };
+
+            if (pendingCritRef.current) {
+                pendingCritRef.current = false;
+                if (currentValue === 6 && !prefersReducedMotion()) {
+                    setCritKey((k) => k + 1);
+                }
+            }
         }
     }, [currentValue, isRolling, controls]);
 
@@ -133,7 +158,7 @@ export default function LudoDice({
         onRoll(0); // Pass 0 or dummy to trigger the engine's random roll
     };
 
-    const accentColor = COLOR_MAP[activeColor] || '#ffffff';
+    const accentColor = (is3077 ? COLOR_MAP_3077 : COLOR_MAP)[activeColor] || '#00E5FF';
 
     return (
         <motion.div
@@ -147,6 +172,27 @@ export default function LudoDice({
             }}
             transition={{ duration: 0.85, times: [0, 0.45, 0.68, 0.85, 1], ease: 'easeOut' }}
         >
+            {/* Critical-Roll 6 dual shockwave burst (one-shot, compositor-only) */}
+            {critKey > 0 && (
+                <React.Fragment key={critKey}>
+                    <motion.span
+                        aria-hidden="true"
+                        className="absolute w-14 h-14 rounded-full pointer-events-none"
+                        style={{ border: `2.5px solid ${accentColor}`, top: '50%', left: '50%', marginTop: -28, marginLeft: -28 }}
+                        initial={{ scale: 0.4, opacity: 0.95 }}
+                        animate={{ scale: 2.5, opacity: 0 }}
+                        transition={{ duration: 0.65, ease: 'easeOut' }}
+                    />
+                    <motion.span
+                        aria-hidden="true"
+                        className="absolute w-12 h-12 rounded-full pointer-events-none"
+                        style={{ border: '2px solid #F59E0B', top: '50%', left: '50%', marginTop: -24, marginLeft: -24 }}
+                        initial={{ scale: 0.35, opacity: 0.9 }}
+                        animate={{ scale: 2.05, opacity: 0 }}
+                        transition={{ duration: 0.52, ease: 'easeOut', delay: 0.06 }}
+                    />
+                </React.Fragment>
+            )}
             {/* Turn-pass flash ring: one-shot expanding halo on arrival */}
             <motion.span
                 className="absolute w-16 h-16 rounded-full pointer-events-none"
@@ -201,21 +247,38 @@ export default function LudoDice({
                                 transform={getFaceTransform(i)}
                                 faceColor={diceSkin.face}
                                 pipColor={diceSkin.pip}
+                                edgeColor={diceSkin.edge}
+                                isTacticalFace={isTacticalClassic}
                             />
                         ))}
                     </button>
                 </motion.div>
             </div>
 
-            {/* Drop Shadow */}
-            <motion.div 
-                className="w-10 h-1.5 rounded-[100%] bg-black/60 blur-sm pointer-events-none mt-4"
-                animate={{
-                    scale: isRolling ? [1, 0.7, 1] : 1,
-                    opacity: isRolling ? 0.3 : 0.6
-                }}
-                transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
-            />
+            {/* Drop Shadow / 3077 Holographic Emitter Pad */}
+            {is3077 ? (
+                <motion.div
+                    className="w-11 h-1.5 rounded-full pointer-events-none mt-4"
+                    style={{
+                        backgroundColor: accentColor,
+                        boxShadow: `0 0 12px ${accentColor}`,
+                    }}
+                    animate={{
+                        scale: isRolling ? [0.8, 0.55, 0.8] : 1,
+                        opacity: isRolling ? 0.28 : 0.55,
+                    }}
+                    transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
+                />
+            ) : (
+                <motion.div 
+                    className="w-10 h-1.5 rounded-[100%] bg-black/60 blur-sm pointer-events-none mt-4"
+                    animate={{
+                        scale: isRolling ? [1, 0.7, 1] : 1,
+                        opacity: isRolling ? 0.3 : 0.6
+                    }}
+                    transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
+                />
+            )}
 
             <style jsx>{`
                 .ludo-dice-container {
@@ -239,19 +302,41 @@ function getFaceTransform(index: number) {
     ][index];
 }
 
-function DiceFace({ num, transform, faceColor, pipColor }: { num: number, transform: string, faceColor: string, pipColor: string }) {
+function DiceFace({
+    num,
+    transform,
+    faceColor,
+    pipColor,
+    edgeColor = 'rgba(0,0,0,0.08)',
+    isTacticalFace = false,
+}: {
+    num: number;
+    transform: string;
+    faceColor: string;
+    pipColor: string;
+    edgeColor?: string;
+    isTacticalFace?: boolean;
+}) {
     return (
         <div
-            className="absolute inset-0 w-12 h-12 flex items-center justify-center p-1 rounded-lg border shadow-[inset_0_-2px_4px_rgba(0,0,0,0.1),inset_0_1px_2px_rgba(255,255,255,1),0_1px_4px_rgba(0,0,0,0.1)]"
+            className={`absolute inset-0 w-12 h-12 flex items-center justify-center p-1 border ${
+                isTacticalFace
+                    ? 'rounded-md shadow-[inset_0_0_8px_rgba(0,229,255,0.18),inset_0_1px_1px_rgba(255,255,255,0.16),0_1px_4px_rgba(0,0,0,0.6)]'
+                    : 'rounded-lg shadow-[inset_0_-2px_4px_rgba(0,0,0,0.1),inset_0_1px_2px_rgba(255,255,255,1),0_1px_4px_rgba(0,0,0,0.1)]'
+            }`}
             style={{
                 transform,
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
                 background: faceColor,
-                borderColor: 'rgba(0,0,0,0.08)'
+                borderColor: isTacticalFace ? edgeColor : 'rgba(0,0,0,0.08)',
             }}
         >
-            <svg viewBox="0 0 100 100" className="w-full h-full opacity-90 drop-shadow-sm">
+            <svg
+                viewBox="0 0 100 100"
+                className={`w-full h-full ${isTacticalFace ? 'opacity-95' : 'opacity-90 drop-shadow-sm'}`}
+                style={isTacticalFace ? { filter: 'drop-shadow(0 0 3px rgba(0, 229, 255, 0.75))' } : undefined}
+            >
                 {DOT_POSITIONS[num as keyof typeof DOT_POSITIONS].map(([cx, cy], i) => (
                     <circle key={i} cx={cx} cy={cy} r="8.5" fill={pipColor} />
                 ))}

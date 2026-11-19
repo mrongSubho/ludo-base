@@ -13,7 +13,7 @@ export interface Preferences {
 }
 
 const DEFAULTS: Preferences = {
-    theme: 'retro',
+    theme: '3077',
     sfx: true,
     music: true,
     haptics: true,
@@ -67,7 +67,7 @@ function snapshot(): Preferences {
     };
 
     const raw = [
-        getVal('ludo-theme', 'retro'),
+        getVal('ludo-theme', '3077'),
         getVal('ludo-sfx', 'on'),
         getVal('ludo-music', 'on'),
         getVal('ludo-haptic', 'on'),
@@ -76,12 +76,12 @@ function snapshot(): Preferences {
     ].join('|');
     if (cachedSnapshot && cachedRaw === raw) return cachedSnapshot;
 
-    // Legacy 'dark'/'ui' cookies migrate to Retro-Futurism (the default);
+    // Legacy 'dark'/'ui' cookies migrate to Retro-Futurism;
     // legacy 'porcelain' cookies migrate to Daybreak.
-    // Valid themes: 3077 (cyber-tactical) | retro (cosmic dark) | light (daybreak).
-    const themeRaw = raw.split('|')[0] ?? 'retro';
-    let theme = 'retro';
-    if (themeRaw === '3077') theme = '3077';
+    // Valid themes: 3077 (flagship cyber-tactical, default) | retro (cosmic dark) | light (daybreak).
+    const themeRaw = raw.split('|')[0] ?? '3077';
+    let theme = '3077';
+    if (themeRaw === 'retro' || themeRaw === 'dark' || themeRaw === 'ui') theme = 'retro';
     else if (themeRaw === 'light' || themeRaw === 'porcelain') theme = 'light';
     const sfx = (raw.split('|')[1] ?? 'on') === 'on';
     const music = (raw.split('|')[2] ?? 'on') === 'on';
@@ -103,9 +103,9 @@ function snapshot(): Preferences {
 function applyBodyClasses(p: Preferences): void {
     if (typeof document === 'undefined') return;
     document.body.classList.remove('theme-retro-futurism', 'theme-daybreak', 'theme-3077');
-    if (p.theme === '3077') document.body.classList.add('theme-3077');
+    if (p.theme === 'retro') document.body.classList.add('theme-retro-futurism');
     else if (p.theme === 'light') document.body.classList.add('theme-daybreak');
-    else document.body.classList.add('theme-retro-futurism');
+    else document.body.classList.add('theme-3077');
     document.body.classList.toggle('token-style-orb', p.tokenStyle === 'orb');
 }
 

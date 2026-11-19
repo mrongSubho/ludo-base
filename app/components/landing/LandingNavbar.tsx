@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { usePreferences } from '@/hooks/usePreferences';
+import { BrandMark3077Icon, ChevronGlyphIcon, OverdriveBoltIcon, PhoneLinkIcon } from '../icons';
 
 interface LandingNavbarProps {
   onEnterArena: () => void;
@@ -33,7 +34,7 @@ export default function LandingNavbar({ onEnterArena, onOpenQrModal }: LandingNa
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-surface-recessed border border-accent/40 flex items-center justify-center text-accent shadow-[0_0_12px_rgba(0,229,255,0.25)]">
-              <span className="text-base font-bold">❖</span>
+              <BrandMark3077Icon className="w-5 h-5" />
             </div>
             <span className="text-lg font-extrabold uppercase tracking-widest text-ink-strong">
               Ludo <span className="text-accent">3077</span>
@@ -100,17 +101,18 @@ export default function LandingNavbar({ onEnterArena, onOpenQrModal }: LandingNa
             title="Mobile QR Code"
             aria-label="Open mobile QR code"
           >
-            📱
+            <PhoneLinkIcon className="w-4 h-4" />
           </button>
 
           {/* Primary Arena Entry CTA */}
           <button
             type="button"
             onClick={onEnterArena}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-ludo-sm uppercase tracking-widest label-chrome font-black bg-accent text-surface-page hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,229,255,0.4)]"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-ludo-sm uppercase tracking-widest label-chrome font-bold bg-accent text-surface-page hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,229,255,0.4)]"
           >
-            <span>⚡ ENTER ARENA</span>
-            <span>→</span>
+            <OverdriveBoltIcon className="w-4 h-4" />
+            <span>ENTER ARENA</span>
+            <ChevronGlyphIcon direction="right" className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

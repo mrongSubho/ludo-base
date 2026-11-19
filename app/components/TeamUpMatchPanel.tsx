@@ -12,10 +12,11 @@ import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { LobbyState, LobbySlot } from '@/lib/types';
 import { canStartMatch } from '@/lib/gameLogic';
 import { useSoundEffects } from '../hooks/useSoundEffects';
-import { FiX } from 'react-icons/fi';
 import { PanelTabs } from './PanelTabs';
 import { Button } from './Button';
 import { useToast } from './Toast';
+import { HudCornerTicks, HudSectionLabel } from './HudPrimitives';
+import { CloseReticleIcon, SquadRoomIcon } from './icons';
 
 interface TeamUpMatchPanelProps {
     onClose: () => void;
@@ -97,26 +98,10 @@ const COLOR_DOT: Record<string, string> = {
 // inside `.ludo-teamup-scope` is re-asserted in globals.css (the global
 // unlayered reset zeroes Tailwind utilities).
 
-// Icon tile: cyan glow square shared with the other synced panels.
+// Icon tile: chamfered tactical square shared with synced panels.
 const TeamTile = () => (
-    <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-cyan-300">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-        </svg>
-    </div>
-);
-
-// Section label: pill + gradient rule (marketplace vocabulary)
-const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
-    <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
-            {children}
-        </span>
-        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-        {right}
+    <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
+        <SquadRoomIcon className="w-4 h-4 text-cyan-300" />
     </div>
 );
 
@@ -792,13 +777,14 @@ export const TeamUpMatchPanel = ({
                         className="ludo-teamup-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                         style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
                     >
+                        <HudCornerTicks />
                         {/* Authentic Subdued Cosmic Orbs */}
                         <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                         <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
                         {/* Handle Bar */}
                         <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                            <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                            <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
                         </div>
 
                         {/* Header */}
@@ -813,15 +799,15 @@ export const TeamUpMatchPanel = ({
                                     size="icon"
                                     onClick={handleClose}
                                     aria-label="Close team up"
-                                    className="bg-surface-hover border border-line-soft shrink-0"
+                                    className="panel-close-3077 bg-surface-hover border border-line-soft shrink-0"
                                 >
-                                    <FiX className="icon-md" />
+                                    <CloseReticleIcon className="icon-md" />
                                 </Button>
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
                                 <span className="flex items-center gap-1.5">
-                                    <span className={`w-1.5 h-1.5 rounded-full ${isLobbyConnected ? 'bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)] animate-pulse' : 'bg-white/25'}`} />
-                                    <span className={`text-ludo-sm font-black tracking-wide uppercase ${isLobbyConnected ? 'text-cyan-300' : 'text-white/40'}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${isLobbyConnected ? 'hud-status-breath bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)]' : 'bg-white/25'}`} />
+                                    <span className={`text-ludo-sm font-extrabold tracking-wide uppercase ${isLobbyConnected ? 'text-cyan-300' : 'text-white/40'}`}>
                                         {isLobbyConnected ? 'Online' : 'Offline'}
                                     </span>
                                 </span>
@@ -897,9 +883,9 @@ export const TeamUpMatchPanel = ({
                             <>
                             {view === 'console' && (
                                 <div className="flex-1 min-h-0 flex flex-col gap-2 animate-in fade-in duration-200 px-5 pt-2 pb-2">
-                                    <SectionLabel>
+                                    <HudSectionLabel className="mt-1 mb-1">
                                         {joinedCount} of {totalSeats} players
-                                    </SectionLabel>
+                                    </HudSectionLabel>
                                     <TeamSplitView
                                         mode={matchType}
                                         slots={lobbyState?.slots ?? [
@@ -1042,7 +1028,7 @@ export const TeamUpMatchPanel = ({
                                             onClick={() => setInvitePopup(null)}
                                             aria-label="Close invite sheet"
                                             className="h-8 w-8 rounded-full p-0 justify-center"
-                                            leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-sm"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>}
+                                            leftIcon={<CloseReticleIcon className="icon-sm" />}
                                         />
                                     </div>
                                     {roomCodeValue && (

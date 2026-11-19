@@ -12,6 +12,9 @@ import { supabase } from '@/lib/supabase';
 import { LuTrophy, LuTrendingUp, LuUsers, LuSearch, LuChevronRight, LuX } from 'react-icons/lu';
 import { PanelTabs } from './PanelTabs';
 import { Button } from './Button';
+import { HudCornerTicks, HudSectionLabel } from './HudPrimitives';
+import { ApexRankIcon, CloseReticleIcon } from './icons';
+import RankTierIcon from './RankTierIcon';
 
 // ─── Theme-agnostic contract (holds for current + future themes) ───────────
 // Same as marketplace/settings: this panel always renders on the shared
@@ -145,11 +148,11 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
     };
 
     const avatar = (p: any, box: string, text: string) => (
-        <div className={`${box} rounded-full border-2 border-white/10 overflow-hidden bg-cyan-900/50 flex-shrink-0`}>
+        <div className={`hud-avatar-frame ${box} rounded-full border-2 border-white/10 overflow-hidden bg-cyan-900/50 flex-shrink-0`}>
             {p.avatar_url ? (
                 <img src={p.avatar_url} alt="" className="w-full h-full object-cover" width={96} height={96} />
             ) : (
-                <div className={`w-full h-full flex items-center justify-center text-white/30 font-black ${text}`}>{p.username?.[0]?.toUpperCase() || 'L'}</div>
+                <div className={`w-full h-full flex items-center justify-center text-white/30 font-extrabold ${text}`}>{p.username?.[0]?.toUpperCase() || 'L'}</div>
             )}
         </div>
     );
@@ -163,21 +166,22 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(i, 8) * 0.04 }}
                 onClick={() => onOpenProfile(p.wallet_address)}
-                className={`group relative rounded-2xl bg-white/[0.04] border overflow-hidden cursor-pointer transition-all hover:bg-white/[0.07] active:scale-[0.99] ${isMe ? 'border-cyan-500/40 bg-cyan-500/10 shadow-[0_0_20px_rgba(34,211,238,0.1)]' : 'border-white/10 hover:border-white/25'}`}
+                className={`card-3077 group relative rounded-2xl bg-white/[0.04] border overflow-hidden cursor-pointer transition-all hover:bg-white/[0.07] active:scale-[0.99] ${isMe ? 'border-cyan-400/45 bg-accent-soft shadow-[0_0_20px_rgba(0,229,255,0.1)]' : 'border-white/10 hover:border-white/25'}`}
             >
                 <div className={`absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-full ${TIER_BEAM[p.rank_tier || 'Bronze'] ?? TIER_BEAM.Bronze}`} />
                 <div className="flex items-center gap-3 p-3">
-                    <div className="w-7 flex-shrink-0 text-center text-white/25 font-black italic text-base font-mono">#{rank}</div>
+                    <div className="w-7 flex-shrink-0 text-center text-white/25 font-extrabold italic text-base font-mono">#{rank}</div>
                     {avatar(p, 'w-10 h-10', 'text-sm')}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                             <h4 className="text-white font-bold truncate text-ludo-md">{p.username || `${p.wallet_address.slice(0, 6)}...`}</h4>
                             {isMe && (
-                                <span className="shrink-0 bg-cyan-500 text-white text-ludo-xs font-black px-1.5 py-0.5 rounded uppercase tracking-wider">YOU</span>
+                                <span className="shrink-0 bg-accent text-accent-ink text-ludo-xs font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">YOU</span>
                             )}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            <span className={`text-ludo-xs font-black uppercase tracking-widest ${getTierColor(p.rank_tier || 'Bronze')}`}>{p.rank_tier || 'Bronze'} {p.subRank}</span>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <RankTierIcon tier={p.rank_tier || 'Bronze'} className="w-3 h-3 shrink-0" />
+                            <span className={`text-ludo-xs font-extrabold uppercase tracking-widest ${getTierColor(p.rank_tier || 'Bronze')}`}>{p.rank_tier || 'Bronze'} {p.subRank}</span>
                             <span className="text-ludo-xs text-white/25 font-bold uppercase tracking-widest">Lv.{p.level}</span>
                         </div>
                     </div>
@@ -214,21 +218,22 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                 className="ludo-rankings-scope absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
                                 style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13, 13, 13, 0.92))', backdropFilter: 'blur(32px)' }}
                             >
+                                <HudCornerTicks />
                                 {/* Authentic Subdued Cosmic Orbs */}
                                 <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
                                 <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
 
                                 {/* Drag Handle */}
                                 <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                                    <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                                    <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
                                 </div>
 
                                 {/* Header */}
                                 <div className="px-5 pb-3 border-b border-white/10 relative z-10">
                                     <div className="flex items-center justify-between mb-1 mt-1">
                                         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                            <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
-                                                <LuTrophy className="w-4 h-4 text-cyan-300" />
+                                            <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
+                                                <ApexRankIcon className="w-4 h-4 text-cyan-300" active />
                                             </div>
                                             Rankings
                                         </h2>
@@ -237,9 +242,9 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                             size="icon"
                                             onClick={onClose}
                                             aria-label="Close rankings"
-                                            className="bg-surface-hover border border-line-soft"
+                                            className="panel-close-3077 bg-surface-hover border border-line-soft"
                                         >
-                                            <LuX className="icon-md" />
+                                            <CloseReticleIcon className="icon-md" />
                                         </Button>
                                     </div>
                                     <div className="flex items-center gap-2 px-0.5">
@@ -306,11 +311,11 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
                                                     <button
                                                         key={p.wallet_address}
                                                         onClick={() => onOpenProfile(p.wallet_address)}
-                                                        className={`relative rounded-2xl border bg-white/[0.04] hover:bg-white/[0.07] transition-all flex flex-col items-center overflow-hidden ${lead ? 'py-3 border-white/20' : 'py-2.5 border-white/10'} ${isMe ? '!border-cyan-500/50' : ''}`}
+                                                        className={`card-3077 relative rounded-2xl border bg-white/[0.04] hover:bg-white/[0.07] transition-all flex flex-col items-center overflow-hidden ${lead ? 'py-3 border-white/20' : 'py-2.5 border-white/10'} ${isMe ? '!border-cyan-400/50' : ''}`}
                                                     >
                                                         <div className="absolute top-0 inset-x-8 h-[2px] rounded-full" style={{ background: MEDAL[rank - 1], boxShadow: `0 0 12px ${MEDAL[rank - 1]}` }} />
                                                         {lead && <LuTrophy className="w-3.5 h-3.5 mb-1" style={{ color: MEDAL[0] }} />}
-                                                        <div className={`${lead ? 'w-14 h-14' : 'w-11 h-11'} rounded-full overflow-hidden border-2 bg-cyan-900/50`} style={{ borderColor: `${MEDAL[rank - 1]}66` }}>
+                                                        <div className={`hud-avatar-frame ${lead ? 'w-14 h-14' : 'w-11 h-11'} rounded-full overflow-hidden border-2 bg-cyan-900/50`} style={{ borderColor: `${MEDAL[rank - 1]}66` }}>
                                                             {p.avatar_url ? (
                                                                 <img src={p.avatar_url} alt="" className="w-full h-full object-cover" width={96} height={96} />
                                                             ) : (
@@ -332,12 +337,9 @@ export default function RankingsPanel({ isOpen, onClose, onOpenProfile }: Rankin
 
                                 {/* List */}
                                 <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2 relative z-10">
-                                    <div className="mt-1 mb-1 flex items-center gap-2.5">
-                                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono">
-                                            {showPodium ? 'THE CHASE' : `${filteredPlayers.length} PLAYERS`}
-                                        </span>
-                                        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-                                    </div>
+                                    <HudSectionLabel className="mt-1 mb-1">
+                                        {showPodium ? 'THE CHASE' : `${filteredPlayers.length} PLAYERS`}
+                                    </HudSectionLabel>
                                     {isBooting || (activeFilter === 'friends' && friendsLoading) ? (
                                         <div className="h-full flex flex-col items-center justify-center gap-4 py-16">
                                             <ThinkingOrb state="working" size={32} />

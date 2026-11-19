@@ -77,6 +77,21 @@ export function useWalletAssets() {
         void refresh();
     }, [refresh]);
 
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const onRefresh = () => {
+            void refresh();
+        };
+        window.addEventListener("ludo-chips-refresh", onRefresh);
+        window.addEventListener("ludo-arena-vault-updated", onRefresh);
+        window.addEventListener("ludo-clan-claims-updated", onRefresh);
+        return () => {
+            window.removeEventListener("ludo-chips-refresh", onRefresh);
+            window.removeEventListener("ludo-arena-vault-updated", onRefresh);
+            window.removeEventListener("ludo-clan-claims-updated", onRefresh);
+        };
+    }, [refresh]);
+
     const tokens: TokenBalance[] = [
         {
             key: "eth",

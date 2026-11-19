@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
+import { CheckGlyphIcon, CloseReticleIcon } from '../icons';
 
 interface LandingQrModalProps {
   isOpen: boolean;
@@ -48,10 +49,10 @@ export default function LandingQrModal({ isOpen, onClose }: LandingQrModalProps)
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 text-ink-muted hover:text-ink-strong text-ludo-lg"
+          className="absolute top-4 right-4 text-ink-muted hover:text-ink-strong p-1.5 rounded-lg"
           aria-label="Close dialog"
         >
-          ✕
+          <CloseReticleIcon className="w-4 h-4" />
         </button>
 
         <div className="flex flex-col items-center gap-1">
@@ -91,9 +92,16 @@ export default function LandingQrModal({ isOpen, onClose }: LandingQrModalProps)
         <button
           type="button"
           onClick={handleCopyLink}
-          className="w-full py-2.5 px-4 rounded-xl text-ludo-sm uppercase font-black tracking-wider bg-accent text-surface-page hover:brightness-110 active:scale-95 transition-all"
+          className="w-full py-2.5 px-4 rounded-xl text-ludo-sm uppercase font-bold tracking-wider bg-accent text-surface-page hover:brightness-110 active:scale-95 transition-all inline-flex items-center justify-center gap-1.5"
         >
-          {copied ? '✓ Link Copied to Clipboard' : 'Copy Arena URL'}
+          {copied ? (
+            <>
+              <CheckGlyphIcon className="w-3.5 h-3.5" />
+              <span>Link Copied to Clipboard</span>
+            </>
+          ) : (
+            'Copy Arena URL'
+          )}
         </button>
       </div>
     </div>
