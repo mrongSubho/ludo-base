@@ -73,14 +73,14 @@ export const BoardHeaderCompact = ({
                         }
                     >
                         <div className="flex items-center gap-1.5 z-10 px-2.5 w-full justify-start">
-                            <ChipsHexIcon className={`w-4 h-4 flex-shrink-0 ${showChips ? 'text-accent' : 'text-amber-400'}`} active />
+                            <ChipsHexIcon className={`w-4 h-4 flex-shrink-0 ${showChips ? 'text-accent' : 'text-warn'}`} active />
                             <span className="text-xs font-extrabold font-mono text-ink-strong tracking-tight tabular-nums truncate max-w-[56px]">
                                 {balanceDisplay}
                             </span>
                         </div>
                     </div>
 
-                    <div className="w-px h-6 bg-white/10 flex-none" />
+                    <div className="w-px h-6 bg-line-soft flex-none" />
 
                     {/* Cluster 2: Center - User Profile */}
                     <div className="flex-1 max-w-[158px] h-[34px] flex items-center justify-center">
@@ -113,7 +113,7 @@ export const BoardHeaderCompact = ({
                         </div>
                     </div>
 
-                    <div className="w-px h-6 bg-white/10 flex-none" />
+                    <div className="w-px h-6 bg-line-soft flex-none" />
 
                     {/* Cluster 3: Right - Actions (DM + Settings) */}
                     <div className="w-[86px] flex-none h-[34px] flex items-center justify-end">
@@ -135,7 +135,7 @@ export const BoardHeaderCompact = ({
                                 )}
                             </button>
 
-                            <div className="w-px h-4 bg-white/20 mx-0.5"></div>
+                            <div className="w-px h-4 bg-line-strong mx-0.5"></div>
 
                             <button
                                 className="w-7 h-7 flex items-center justify-center rounded-full text-ink-muted hover:text-ink-strong hover:bg-surface-hover transition-all"

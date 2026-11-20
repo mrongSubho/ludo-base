@@ -241,7 +241,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     className={`text-ludo-xs uppercase font-bold text-center ${
                         is3077
                             ? 'font-mono text-ink-muted tracking-[0.22em]'
-                            : 'text-white/50 tracking-[0.3em] drop-shadow-md'
+                            : 'text-ink-muted tracking-[0.3em] drop-shadow-md'
                     }`}
                 >
                     {is3077 ? '// SWIPE OR SELECT DEPLOYMENT //' : 'Swipe to choose'}
@@ -273,7 +273,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                         <motion.div
                             animate={{ x: [-5, 5, -5] }}
                             transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
-                            className="absolute top-1/2 -translate-y-1/2 -left-20 p-3 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
+                            className="absolute top-1/2 -translate-y-1/2 -left-20 p-3 text-ink-muted z-20 cursor-pointer hover:text-ink-strong hover:scale-110 active:scale-90 transition-all"
                             onClick={() => stepMode(-1, 'y')}
                         >
                             <ChevronLeft />
@@ -281,7 +281,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                         <motion.div
                             animate={{ x: [5, -5, 5] }}
                             transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
-                            className="absolute top-1/2 -translate-y-1/2 -right-20 p-3 text-white/50 z-20 cursor-pointer drop-shadow-[0_0_8px_rgba(255,255,255,0.2)] hover:text-white hover:scale-110 active:scale-90 transition-all"
+                            className="absolute top-1/2 -translate-y-1/2 -right-20 p-3 text-ink-muted z-20 cursor-pointer hover:text-ink-strong hover:scale-110 active:scale-90 transition-all"
                             onClick={() => stepMode(1, 'y')}
                         >
                             <ChevronRight />
@@ -405,7 +405,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                             className={`text-ludo-xs uppercase font-bold text-center ${
                                 is3077
                                     ? 'font-mono text-ink-muted tracking-[0.2em]'
-                                    : 'text-white/40 tracking-[0.25em]'
+                                    : 'text-ink-faint tracking-[0.25em]'
                             }`}
                         >
                             {is3077 ? MODE_BLURB_3077[activeId] : MODE_BLURB[activeId]}
@@ -464,7 +464,7 @@ const DiceFace = ({
         >
             {/* 3077 Corner Chamfer Accent Ticks */}
             {is3077 && (
-                <div className="pointer-events-none absolute inset-1 border border-white/5 rounded-lg" aria-hidden="true" />
+                <div className="pointer-events-none absolute inset-1 border border-line-soft rounded-lg" aria-hidden="true" />
             )}
 
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
@@ -502,7 +502,7 @@ const DiceFace = ({
                         className={`block leading-[1.05] whitespace-normal text-center ${
                             is3077
                                 ? 'text-ludo-xs sm:text-ludo-sm font-bold tracking-wider uppercase'
-                                : 'text-ludo-lg md:text-base lg:text-lg font-extrabold italic tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-cyan-400'
+                                : 'text-ludo-lg md:text-base lg:text-lg font-extrabold italic tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-accent'
                         }`}
                     >
                         {face.label}
@@ -528,7 +528,7 @@ const DiceDots = ({
     const Dot = ({ t, l }: { t: string; l: string }) =>
         is3077 ? (
             <div
-                className="absolute w-[14px] h-[14px] rounded-full border border-white/25"
+                className="absolute w-[14px] h-[14px] rounded-full border border-line-strong"
                 style={{
                     top: t,
                     left: l,

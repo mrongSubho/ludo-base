@@ -226,14 +226,14 @@ export function RankTierIcon({
  * Returns the thematic text color class matching the rank tier.
  */
 export function getTierColorClass(tier?: string | null, isAi = false): string {
-    if (isAi) return 'text-amber-400/80';
+    if (isAi) return 'text-warn';
     const norm = (tier || '').toLowerCase().trim();
     if (norm.includes('master')) return 'text-orange-400';
-    if (norm.includes('diamond')) return 'text-cyan-300';
+    if (norm.includes('diamond')) return 'text-accent';
     if (norm.includes('platinum')) return 'text-blue-400';
     if (norm.includes('gold')) return 'text-yellow-400';
-    if (norm.includes('silver')) return 'text-slate-300';
-    return 'text-amber-500/90';
+    if (norm.includes('silver')) return 'text-ink-muted';
+    return 'text-warn';
 }
 
 export default RankTierIcon;

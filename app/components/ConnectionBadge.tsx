@@ -39,14 +39,14 @@ export function ConnectionBadge({
 
     if (compact) {
         const connectionClass = {
-            off: 'text-white/45 border-white/10 bg-white/5',
-            ok: 'text-emerald-300 border-emerald-400/25 bg-emerald-400/10',
-            warn: 'text-amber-300 border-amber-400/30 bg-amber-400/10 animate-pulse',
-            end: 'text-white/60 border-white/15 bg-white/10',
+            off: 'text-ink-faint border-line-soft bg-surface-recessed',
+            ok: 'text-positive border-positive/30 bg-positive/10',
+            warn: 'text-warn border-warn/35 bg-warn/10 animate-pulse',
+            end: 'text-ink-muted border-line-soft bg-surface-panel',
         }[tone];
         return (
             <span
-                className={`rounded-full border px-1.5 py-0.5 text-ludo-xs font-black tracking-[0.16em] whitespace-nowrap ${connectionClass}`}
+                className={`rounded-full border px-1.5 py-0.5 text-ludo-xs font-bold label-chrome tracking-[0.16em] whitespace-nowrap ${connectionClass}`}
                 role="status"
                 aria-live="polite"
                 aria-label={`Match connection: ${label}`}

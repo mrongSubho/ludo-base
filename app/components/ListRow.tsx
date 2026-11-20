@@ -19,7 +19,7 @@ import React from "react";
  */
 export interface ListRowProps {
   icon?: React.ReactNode;
-  /** Background classes for the icon tile, e.g. `bg-cyan-500/15 text-cyan-300`. */
+  /** Background classes for the icon tile, e.g. `bg-accent-soft text-accent`. */
   tint?: string;
   label: string;
   hint?: string;
@@ -37,21 +37,21 @@ export function ListRow({ icon, tint, label, hint, trailing, onClick, last = fal
         </div>
       )}
       <div className="flex-1 flex flex-col min-w-0 text-left">
-        <span className="text-ludo-md font-bold text-white truncate">{label}</span>
-        {hint && <span className="text-ludo-xs font-bold text-white/35 truncate">{hint}</span>}
+        <span className="text-ludo-md font-bold text-ink-strong truncate">{label}</span>
+        {hint && <span className="text-ludo-xs font-bold text-ink-faint truncate">{hint}</span>}
       </div>
       {trailing}
     </>
   );
 
-  const divider = last ? "" : "border-b border-white/5";
+  const divider = last ? "" : "border-b border-line-soft";
 
   if (onClick) {
     return (
       <button
         type="button"
         onClick={onClick}
-        className={`w-full flex items-center gap-3 p-3.5 hover:bg-white/5 active:bg-white/10 transition-colors text-left ${divider}`}
+        className={`w-full flex items-center gap-3 p-3.5 hover:bg-surface-hover active:bg-surface-active transition-colors text-left ${divider}`}
       >
         {inner}
       </button>

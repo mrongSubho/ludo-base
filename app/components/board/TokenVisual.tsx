@@ -134,8 +134,7 @@ export function Token({
             {/* Pulse wrapper: draggable pulse lives here so CSS transform
                 can never wipe the root's counter-rotation */}
             <div
-                className={isDraggable ? 'ludo-token-pulse' : ''}
-                style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                className={`${isDraggable ? 'ludo-token-pulse ' : ''}w-full h-full flex items-center justify-center`}
             >
             <AnimatePresence mode="wait">
                 <motion.div
@@ -206,8 +205,8 @@ const ShatterFX = ({ pt, color }: { pt: Point; color: PlayerColor }) => {
                 />
             ))}
             <motion.div
-                className="absolute left-1/2 top-1/2 rounded-full"
-                style={{ width: 26, height: 26, marginLeft: -13, marginTop: -13, border: `2px solid ${light}` }}
+                className="absolute left-1/2 top-1/2 rounded-full w-[26px] h-[26px] -ml-[13px] -mt-[13px]"
+                style={{ border: `2px solid ${light}` }}
                 initial={{ scale: 0.4, opacity: 0.9 }}
                 animate={{ scale: 1.9, opacity: 0 }}
                 transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -357,21 +356,20 @@ const RunHomeGhost = ({ color, fromPos, cc, counterRotationDeg, onDone }: {
                 position: 'relative', zIndex: 80, pointerEvents: 'none',
             }}
         >
-            <div ref={travelRef} style={{ width: '100%', height: '100%' }}>
+            <div ref={travelRef} className="w-full h-full">
                 <div
+                    className="w-full h-full"
                     style={{
-                        width: '100%', height: '100%',
                         transform: `rotate(${counterRotationDeg}deg)`,
                     }}
                 >
                     <div
                         ref={hopRef}
-                        className={`ludo-token ${color}-token relative`}
-                        style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        className={`ludo-token ${color}-token relative w-full h-full flex items-center justify-center`}
                     >
                         <ChessPiece color={color} size="board" />
                         <span
-                            className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-1 py-0.5 text-ludo-xs font-mono font-bold rounded bg-black/85 text-cyan-400 border border-cyan-500/50 shadow-sm pointer-events-none animate-bounce"
+                            className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-1 py-0.5 text-ludo-xs font-mono font-bold rounded bg-surface-panel text-accent border border-accent/50 shadow-sm pointer-events-none animate-bounce"
                             style={{ lineHeight: '11px' }}
                         >
                             (T_T)

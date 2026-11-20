@@ -27,14 +27,14 @@ export function EmptyState({
     onAction?: () => void;
     tone?: 'empty' | 'error';
 }) {
-    const accent = tone === 'error' ? 'text-amber-300' : 'text-cyan-300';
+    const accent = tone === 'error' ? 'text-warn' : 'text-accent';
     return (
-        <div className="flex flex-col items-center justify-center gap-2 px-6 py-10 text-center rounded-2xl border border-white/10 bg-white/[0.04]">
-            <p className={`text-ludo-xs font-black uppercase tracking-[0.28em] ${accent}`}>
+        <div className="flex flex-col items-center justify-center gap-2 px-6 py-10 text-center rounded-2xl border border-line-soft bg-surface-recessed">
+            <p className={`text-ludo-xs font-bold label-chrome uppercase tracking-[0.28em] ${accent}`}>
                 {title}
             </p>
             {body && (
-                <p className="text-ludo-md font-medium leading-relaxed text-white/55 max-w-[280px]">
+                <p className="text-ludo-md font-medium leading-relaxed text-ink-muted max-w-[280px]">
                     {body}
                 </p>
             )}

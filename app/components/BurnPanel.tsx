@@ -17,14 +17,14 @@ export function BurnPanel({ onClose }: { onClose: () => void }) {
             subtitle={
                 <>
                     <span
-                        className="text-ludo-sm font-black tracking-wide uppercase"
+                        className="text-ludo-sm font-bold label-chrome tracking-wide uppercase"
                         style={{ color: "var(--accent)" }}
                     >
                         CHIPS supply
                     </span>
                     <span className="w-0.5 h-0.5 rounded-full" style={{ background: "var(--ink-muted)" }} />
                     <span
-                        className="text-ludo-sm font-black tracking-wide uppercase"
+                        className="text-ludo-sm font-bold label-chrome tracking-wide uppercase"
                         style={{ color: "var(--ink-muted)" }}
                     >
                         Live chain data

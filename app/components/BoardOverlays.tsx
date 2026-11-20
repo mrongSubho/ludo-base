@@ -38,11 +38,11 @@ export function StatusNotification({ message }: StatusNotificationProps) {
                         className={`capture-toast capture-toast-${tone}`}
                     >
                         {tone === 'bomb' ? (
-                            <ProximityMineIcon className="w-4 h-4 text-red-400 shrink-0" />
+                            <ProximityMineIcon className="w-4 h-4 text-negative shrink-0" />
                         ) : tone === 'capture' ? (
-                            <ArenaBladesIcon className="w-4 h-4 text-amber-300 shrink-0" active />
+                            <ArenaBladesIcon className="w-4 h-4 text-warn shrink-0" active />
                         ) : (
-                            <OverdriveBoltIcon className="w-4 h-4 text-cyan-300 shrink-0" active />
+                            <OverdriveBoltIcon className="w-4 h-4 text-accent shrink-0" active />
                         )}
                         <span>{message}</span>
                     </motion.div>
@@ -82,7 +82,7 @@ export function IdleWarningOverlay({ idleWarning, myPlayer, onCancelAfk }: IdleW
                     className="idle-warning-card panel-shell-3077 relative overflow-hidden w-full max-w-[300px] p-6 text-center flex flex-col items-center gap-3.5"
                 >
                     <HudCornerTicks />
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-red-500/15 border border-red-400/35 text-ludo-xs font-mono font-bold uppercase tracking-[0.18em] text-red-400">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-negative/15 border border-negative/35 text-ludo-xs font-mono font-bold uppercase tracking-[0.18em] text-negative">
                         <WarningHexIcon className="w-3.5 h-3.5" />
                         Pilot Idle Detected
                     </span>
@@ -109,7 +109,7 @@ export function IdleWarningOverlay({ idleWarning, myPlayer, onCancelAfk }: IdleW
                                 strokeDashoffset={dashOffset}
                             />
                         </svg>
-                        <span className="absolute font-mono font-extrabold text-lg tabular-nums text-red-400">
+                        <span className="absolute font-mono font-extrabold text-lg tabular-nums text-negative">
                             {idleWarning.timeLeft}s
                         </span>
                     </div>
@@ -158,7 +158,7 @@ export function CelebrationOverlay({ winner, onReset }: CelebrationOverlayProps)
                         className="winner-card"
                     >
                         <span className="celebration-tile">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-amber-300">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-warn">
                                 <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
                                 <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
                                 <path d="M4 22h16"></path>

@@ -35,7 +35,7 @@ function SectionLabel({ children, p }: { children: React.ReactNode; p: BurnPaint
     return (
         <div className="flex items-center gap-2.5 mb-2">
             <span
-                className="px-2 py-0.5 rounded-md text-ludo-xs font-black tracking-[0.18em] font-mono uppercase"
+                className="px-2 py-0.5 rounded-md text-ludo-xs font-bold label-chrome tracking-[0.18em] font-mono uppercase"
                 style={{ background: p.blueSoft, color: p.blue, border: `1px solid ${p.line}` }}
             >
                 {children}
@@ -88,7 +88,7 @@ function MetricRow({
                 )}
             </div>
             <div
-                className="text-ludo-lg font-black tabular-nums shrink-0 text-right"
+                className="text-ludo-lg font-bold label-chrome tabular-nums shrink-0 text-right"
                 style={{ color: p.ink, maxWidth: "42%" }}
             >
                 <span className="block truncate">{value}</span>

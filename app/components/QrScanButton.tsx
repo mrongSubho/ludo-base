@@ -76,7 +76,7 @@ export default function QrScanButton({
                 {!scanning ? (
                     <button
                         type="button"
-                        className="rounded-lg border border-white/15 px-3 py-2 text-ludo-sm uppercase font-bold"
+                        className="rounded-lg border border-line-soft bg-surface-recessed hover:bg-surface-hover text-ink-strong px-3 py-2 text-ludo-sm uppercase font-bold"
                         onClick={startCamera}
                     >
                         Scan QR
@@ -84,13 +84,13 @@ export default function QrScanButton({
                 ) : (
                     <button
                         type="button"
-                        className="rounded-lg border border-amber-400/40 px-3 py-2 text-ludo-sm uppercase font-bold text-amber-200"
+                        className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-ludo-sm uppercase font-bold text-warn"
                         onClick={stop}
                     >
                         Stop camera
                     </button>
                 )}
-                <label className="rounded-lg border border-white/15 px-3 py-2 text-ludo-sm uppercase font-bold cursor-pointer">
+                <label className="rounded-lg border border-line-soft bg-surface-recessed hover:bg-surface-hover text-ink-strong px-3 py-2 text-ludo-sm uppercase font-bold cursor-pointer">
                     From image
                     <input
                         type="file"
@@ -105,9 +105,10 @@ export default function QrScanButton({
             </div>
             <div
                 id={divId}
-                style={{ width: "100%", minHeight: scanning ? 220 : 0, overflow: "hidden", borderRadius: 12 }}
+                className="w-full overflow-hidden rounded-xl"
+                style={{ minHeight: scanning ? 220 : 0 }}
             />
-            {err && <p className="text-ludo-sm text-amber-200/80">{err}</p>}
+            {err && <p className="text-ludo-sm text-warn">{err}</p>}
         </div>
     );
 }

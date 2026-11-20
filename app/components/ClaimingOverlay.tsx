@@ -70,7 +70,7 @@ export function ClaimingOverlay({
                         </div>
                         <div className="flex flex-col items-center text-center">
                             <span
-                                className="text-xs font-mono font-black tracking-widest uppercase animate-pulse"
+                                className="text-xs font-mono font-bold label-chrome tracking-widest uppercase animate-pulse"
                                 style={{ color: 'var(--claiming-overlay-title, #67e8f9)' }}
                             >
                                 {title}

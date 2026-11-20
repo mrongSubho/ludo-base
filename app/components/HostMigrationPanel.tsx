@@ -21,6 +21,8 @@
  */
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { HudCornerTicks } from './HudPrimitives';
+import Button from './Button';
 
 export type HostElectPhase = 'electing' | 'verifying' | 'handed' | 'refused';
 
@@ -111,36 +113,29 @@ export const HostMigrationPanel = ({ onQuit, onElect }: HostMigrationPanelProps)
             <div className="fixed inset-0 z-[1000] flex justify-center pointer-events-none">
                 <div className="w-full max-w-[500px] relative h-full">
                     <div
-                        className="ludo-migrate-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-[0_2xl] overflow-hidden"
-                        style={{
-                            background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))',
-                            backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))',
-                            backdropFilter: 'blur(32px)'
-                        }}
+                        className="ludo-migrate-scope panel-shell-3077 pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-line-soft rounded-[28px] flex flex-col shadow-2xl overflow-hidden"
                     >
-                        {/* Cosmic Orbs */}
-                        <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                        <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+                        <HudCornerTicks />
 
                         {/* Handle Bar */}
                         <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                            <div className="w-12 h-1.5 bg-white/20 rounded-full" />
+                            <div className="w-12 h-1.5 bg-line-strong rounded-full" />
                         </div>
 
                         {/* Header */}
-                        <div className="px-5 pb-3 border-b border-white/10 relative z-10">
+                        <div className="px-5 pb-3 border-b border-line-soft relative z-10">
                             <div className="flex items-center justify-between mb-1 mt-1">
-                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                <h2 className="text-xl font-bold text-ink-strong flex items-center gap-2">
                                     <MigrateTile />
                                     Host Migrating
                                 </h2>
                             </div>
                             <div className="flex items-center gap-2 px-0.5">
-                                <span className={`text-ludo-sm font-black tracking-wide uppercase ${phase === 'refused' ? 'text-rose-300' : 'text-amber-300'}`}>
+                                <span className={`text-ludo-sm font-bold label-chrome tracking-wide uppercase ${phase === 'refused' ? 'text-negative' : 'text-warn'}`}>
                                     {statusLine}
                                 </span>
-                                <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase">
+                                <span className="w-0.5 h-0.5 rounded-full bg-line-strong" />
+                                <span className="text-ludo-sm font-bold label-chrome text-ink-muted tracking-wide uppercase">
                                     Wager is safe
                                 </span>
                             </div>
@@ -150,7 +145,7 @@ export const HostMigrationPanel = ({ onQuit, onElect }: HostMigrationPanelProps)
                         <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col items-center justify-center px-5 pt-3 pb-4 relative z-10">
                             {/* Radar Loader (Consistent with QuickMatchPanel) */}
                             <div className="relative w-48 h-48 flex items-center justify-center mb-2">
-                                <div className="absolute inset-0 border border-amber-500/10 rounded-full" />
+                                <div className="absolute inset-0 border border-warn/15 rounded-full" />
                                 <motion.div
                                     animate={{ rotate: 360 }}
                                     transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
@@ -159,11 +154,11 @@ export const HostMigrationPanel = ({ onQuit, onElect }: HostMigrationPanelProps)
                                         background: 'conic-gradient(from 0deg, transparent 60%, rgba(251, 191, 36, 0.15) 100%)'
                                     }}
                                 />
-                                <div className="relative z-10 w-24 h-24 bg-white/5 rounded-full border border-white/10 flex items-center justify-center backdrop-blur-xl">
+                                <div className="relative z-10 w-24 h-24 bg-surface-recessed rounded-full border border-line-soft flex items-center justify-center backdrop-blur-xl">
                                     <motion.div
                                         animate={{ opacity: [0.4, 1, 0.4] }}
                                         transition={{ duration: 2, repeat: Infinity }}
-                                        className={phase === 'handed' ? 'text-green-400' : phase === 'refused' ? 'text-rose-400' : 'text-amber-400'}
+                                        className={phase === 'handed' ? 'text-positive' : phase === 'refused' ? 'text-negative' : 'text-warn'}
                                     >
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-10 h-10">
                                             {phase === 'handed'
@@ -175,44 +170,49 @@ export const HostMigrationPanel = ({ onQuit, onElect }: HostMigrationPanelProps)
                             </div>
 
                             <div className="text-center max-w-[280px]">
-                                <p className="text-lg font-bold text-white mb-2 italic">
+                                <p className="text-lg font-bold text-ink-strong mb-2 italic">
                                     {phase === 'handed' ? 'Host Re-assigned' : phase === 'refused' ? 'Host Unavailable' : 'Connection Lost'}
                                 </p>
-                                <p className="text-sm text-white/50 leading-relaxed mb-6">
+                                <p className="text-sm text-ink-muted leading-relaxed mb-6">
                                     {detail}
                                 </p>
                                 {phase === 'handed' && candidate && (
-                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/20 rounded-xl">
-                                        <span className="text-ludo-xs font-black text-green-400 uppercase tracking-widest">
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-positive/10 border border-positive/25 rounded-xl">
+                                        <span className="text-ludo-xs font-bold label-chrome text-positive uppercase tracking-widest">
                                             New authority · {candidate.slice(0, 6)}…{candidate.slice(-4)}
                                         </span>
                                     </div>
                                 )}
                                 {phase !== 'handed' && (
-                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500/10 border border-cyan-500/20 rounded-xl">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                                        <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-widest">Wager is Safe</span>
+                                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent-soft border border-accent/25 rounded-xl">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                                        <span className="text-ludo-xs font-bold label-chrome text-accent uppercase tracking-widest">Wager is Safe</span>
                                     </div>
                                 )}
                             </div>
                         </div>
 
                         {/* Footer / Actions */}
-                        <div className="px-5 pt-3 pb-5 border-t border-white/10 bg-black/20 backdrop-blur-sm relative z-10 flex flex-col gap-2">
-                            <button
+                        <div className="px-5 pt-3 pb-5 border-t border-line-soft bg-surface-recessed backdrop-blur-sm relative z-10 flex flex-col gap-2">
+                            <Button
+                                variant="primary"
+                                size="lg"
+                                fullWidth
                                 onClick={() => setSnoozed(true)}
-                                className="w-full py-3 rounded-2xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 text-sm font-black uppercase tracking-[0.2em] hover:bg-cyan-500/25 transition-all active:scale-95 flex items-center justify-center gap-2"
+                                className="label-chrome uppercase tracking-[0.2em]"
                             >
                                 Keep Waiting
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                size="lg"
+                                fullWidth
                                 onClick={onQuit}
-                                className="w-full py-3 rounded-2xl bg-white/5 border border-white/10 text-white text-sm font-black uppercase tracking-[0.2em] hover:bg-white/10 transition-all active:scale-95 flex items-center justify-center gap-2 group"
+                                className="label-chrome uppercase tracking-[0.2em]"
                             >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4 text-white/40 group-hover:text-white"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 Quit Match
-                            </button>
-                            <p className="text-center mt-1 text-ludo-xs text-white/20 uppercase font-black tracking-widest">
+                            </Button>
+                            <p className="text-center mt-1 text-ludo-xs text-ink-faint uppercase font-bold label-chrome tracking-widest">
                                 No coins are deducted if you leave
                             </p>
                         </div>
@@ -226,8 +226,8 @@ export const HostMigrationPanel = ({ onQuit, onElect }: HostMigrationPanelProps)
 };
 
 const MigrateTile = () => (
-    <div className="w-7 h-7 rounded-xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(251,191,36,0.25)]">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4 text-amber-300">
+    <div className="w-7 h-7 rounded-xl bg-warn/15 border border-warn/40 flex items-center justify-center shadow-[0_0_16px_rgba(251,191,36,0.2)]">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-4 h-4 text-warn">
             <path d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
     </div>

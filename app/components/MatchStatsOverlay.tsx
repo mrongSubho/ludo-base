@@ -345,8 +345,8 @@ export function MatchStatsOverlay({
                                             <div
                                                 className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-mono font-extrabold shrink-0 ${
                                                     row.won
-                                                        ? 'bg-amber-400/20 border border-amber-400/40 text-amber-300'
-                                                        : 'bg-white/5 border border-white/10 text-white/40'
+                                                        ? 'bg-warn/20 border border-warn/40 text-warn'
+                                                        : 'bg-surface-recessed border border-line-soft text-ink-faint'
                                                 }`}
                                                 aria-label={`Rank ${idx + 1}`}
                                             >
@@ -374,7 +374,7 @@ export function MatchStatsOverlay({
                                                 title={isClickable ? 'Inspect combatant profile' : undefined}
                                             >
                                                 <div
-                                                    className="hud-avatar-frame w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden border transition-colors group-hover:border-cyan-300"
+                                                    className="hud-avatar-frame w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden border transition-colors group-hover:border-accent"
                                                     style={{
                                                         borderColor: accent,
                                                         backgroundColor: `${accent}20`,
@@ -392,7 +392,7 @@ export function MatchStatsOverlay({
                                                         />
                                                     ) : (
                                                         <span
-                                                            className="text-ludo-xs font-black uppercase"
+                                                            className="text-ludo-xs font-bold label-chrome uppercase"
                                                             style={{ color: accent }}
                                                         >
                                                             {displayName.slice(0, 1)}
@@ -403,21 +403,21 @@ export function MatchStatsOverlay({
                                                 <div className="min-w-0">
                                                     <div className="flex items-center gap-1.5">
                                                         <span
-                                                            className={`text-ludo-xs font-bold text-white truncate transition-colors ${
+                                                            className={`text-ludo-xs font-bold text-ink-strong truncate transition-colors ${
                                                                 isClickable
-                                                                    ? 'group-hover:text-cyan-300 group-hover:underline'
+                                                                    ? 'group-hover:text-accent group-hover:underline'
                                                                     : ''
                                                             }`}
                                                         >
                                                             {displayName}
                                                         </span>
                                                         {isMe && (
-                                                            <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-ludo-xs font-mono font-black uppercase shrink-0">
+                                                            <span className="px-1.5 py-0.2 rounded bg-accent-soft text-accent text-ludo-xs font-mono font-bold label-chrome uppercase shrink-0">
                                                                 You
                                                             </span>
                                                         )}
                                                         {row.player.isAi && (
-                                                            <span className="px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 text-ludo-xs font-mono font-black uppercase shrink-0">
+                                                            <span className="px-1.5 py-0.2 rounded bg-warn/20 text-warn text-ludo-xs font-mono font-bold label-chrome uppercase shrink-0">
                                                                 AI
                                                             </span>
                                                         )}
@@ -445,47 +445,47 @@ export function MatchStatsOverlay({
                                         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                                             <div className="flex items-center gap-1 sm:gap-1.5 text-ludo-xs font-mono">
                                                 <span
-                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-emerald-300"
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft font-bold text-positive"
                                                     title="Tokens Home"
                                                 >
-                                                    <FiHome className="w-3 h-3 text-emerald-400 shrink-0" />
-                                                    <span className="tabular-nums font-black">{row.home}/4</span>
-                                                    <span className="hidden sm:inline text-ludo-xs text-white/40 uppercase tracking-tight">
+                                                    <FiHome className="w-3 h-3 text-positive shrink-0" />
+                                                    <span className="tabular-nums font-bold">{row.home}/4</span>
+                                                    <span className="hidden sm:inline text-ludo-xs text-ink-faint uppercase tracking-tight">
                                                         Home
                                                     </span>
                                                 </span>
 
                                                 <span
-                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-amber-300"
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft font-bold text-warn"
                                                     title="Captures / Kicks made"
                                                 >
-                                                    <LuSwords className="w-3 h-3 text-amber-400 shrink-0" />
-                                                    <span className="tabular-nums font-black">{row.kicks}</span>
-                                                    <span className="hidden sm:inline text-ludo-xs text-white/40 uppercase tracking-tight">
+                                                    <LuSwords className="w-3 h-3 text-warn shrink-0" />
+                                                    <span className="tabular-nums font-bold">{row.kicks}</span>
+                                                    <span className="hidden sm:inline text-ludo-xs text-ink-faint uppercase tracking-tight">
                                                         Kicked
                                                     </span>
                                                 </span>
 
                                                 <span
-                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-red-300"
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft font-bold text-negative"
                                                     title="Times token was captured / kicked"
                                                 >
-                                                    <LuShieldAlert className="w-3 h-3 text-red-400 shrink-0" />
-                                                    <span className="tabular-nums font-black">{row.gotKicked}</span>
-                                                    <span className="hidden sm:inline text-ludo-xs text-white/40 uppercase tracking-tight">
+                                                    <LuShieldAlert className="w-3 h-3 text-negative shrink-0" />
+                                                    <span className="tabular-nums font-bold">{row.gotKicked}</span>
+                                                    <span className="hidden sm:inline text-ludo-xs text-ink-faint uppercase tracking-tight">
                                                         Captured
                                                     </span>
                                                 </span>
                                             </div>
 
                                             {row.won ? (
-                                                <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/30 text-ludo-xs font-mono font-extrabold text-amber-400 uppercase shrink-0">
+                                                <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md bg-warn/10 border border-warn/30 text-ludo-xs font-mono font-extrabold text-warn uppercase shrink-0">
                                                     <LuTrophy className="w-3 h-3 shrink-0" />
                                                     {isPaid && estClaim > 0 ? (
                                                         <span>
                                                             {formatChips(Math.floor(estClaim))} CHIPS
                                                             {winnerCount > 1 && (
-                                                                <span className="hidden sm:inline text-ludo-xs text-amber-400/70 ml-1">
+                                                                <span className="hidden sm:inline text-ludo-xs text-warn/80 ml-1">
                                                                     ({payoutShareLabel(shape, idx + 1, winnerCount)})
                                                                 </span>
                                                             )}
@@ -495,7 +495,7 @@ export function MatchStatsOverlay({
                                                     )}
                                                 </span>
                                             ) : (
-                                                <span className="px-1.5 sm:px-2 py-0.5 text-ludo-xs font-mono font-bold text-white/35 uppercase shrink-0">
+                                                <span className="px-1.5 sm:px-2 py-0.5 text-ludo-xs font-mono font-bold text-ink-faint uppercase shrink-0">
                                                     Defeated
                                                 </span>
                                             )}
@@ -535,7 +535,7 @@ export function MatchStatsOverlay({
                             <div className={`match-stats-claim ${iWon ? 'ready' : 'dim'}`}>
                                 <div className="match-stats-claim-head">
                                     <span className="match-stats-claim-tag inline-flex items-center gap-1">
-                                        <ChipsHexIcon className="w-3.5 h-3.5 text-amber-400" active />
+                                        <ChipsHexIcon className="w-3.5 h-3.5 text-warn" active />
                                         CHIPS
                                     </span>
                                     <span className="match-stats-claim-amount">
@@ -608,8 +608,8 @@ export function MatchStatsOverlay({
                             <div className="match-stats-claim" style={{ textAlign: 'left' }}>
                                 <button
                                     type="button"
-                                    className="match-stats-cta ghost"
-                                    style={{ width: '100%', marginBottom: showReceipt ? '8px' : 0 }}
+                                    className="match-stats-cta ghost w-full"
+                                    style={showReceipt ? { marginBottom: '8px' } : undefined}
                                     onClick={() => setShowReceipt((v) => !v)}
                                     aria-expanded={showReceipt}
                                 >

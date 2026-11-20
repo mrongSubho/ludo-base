@@ -4,11 +4,11 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { useAppSession } from '@/hooks/useAppSession';
+import { HudCornerTicks } from './HudPrimitives';
+import Button from './Button';
 
 // ─── Theme-agnostic contract ────────────────────────────────────────────────
-// `ludo-invite-scope` carries daybreak/retro remaps (globals.css). Surfaces use
-// --panel-bg; ink uses white-* (remapped on light); accents use cyan/amber
-// classes already wired for this scope. No hardcoded slate/black fills.
+// Uses panel-shell-3077 + semantic tokens across retro-futurism and daybreak.
 
 type InviteRow = {
     id?: string;
@@ -232,77 +232,79 @@ export const InviteNotification = () => {
             aria-live="polite"
         >
             <div
-                className="ludo-invite-scope pointer-events-auto w-full max-w-[380px] rounded-[28px] border border-white/10 shadow-2xl overflow-hidden relative"
-                style={{
-                    background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))',
-                    backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.94))',
-                    backdropFilter: 'blur(32px)',
-                    WebkitBackdropFilter: 'blur(32px)',
-                }}
+                className="ludo-invite-scope panel-shell-3077 pointer-events-auto w-full max-w-[380px] rounded-[28px] border border-line-soft shadow-2xl overflow-hidden relative"
             >
+                <HudCornerTicks />
                 {phase === 'card' && (
-                    <div className="absolute top-0 left-5 right-5 h-0.5 rounded-full bg-white/10 overflow-hidden pointer-events-none">
+                    <div className="absolute top-0 left-5 right-5 h-0.5 rounded-full bg-surface-recessed overflow-hidden pointer-events-none">
                         <div
-                            className="h-full bg-cyan-400/80 transition-[width] duration-200 ease-linear"
-                            style={{ width: `${(secsLeft / INVITE_LIFETIME_S) * 100}%` }}
+                            className="h-full w-full bg-accent origin-left transition-transform duration-200 ease-linear"
+                            style={{ transform: `scaleX(${Math.max(0, Math.min(1, secsLeft / INVITE_LIFETIME_S))})` }}
                         />
                     </div>
                 )}
 
                 {phase === 'joining' ? (
                     <div className="flex flex-col items-center text-center px-6 py-8 gap-3">
-                        <div className="w-10 h-10 border-[3px] border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
-                        <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300">
+                        <div className="w-10 h-10 border-[3px] border-accent/20 border-t-accent rounded-full animate-spin" />
+                        <p className="text-ludo-xs font-bold label-chrome uppercase tracking-[0.3em] text-accent">
                             Joining room
                         </p>
-                        <p className="text-2xl font-black text-white tracking-[0.22em]">
+                        <p className="text-2xl font-bold label-chrome text-ink-strong tracking-[0.22em]">
                             {invite.room_code}
                         </p>
-                        <p className="text-ludo-sm text-white/40 font-bold uppercase tracking-wider">
+                        <p className="text-ludo-sm text-ink-faint font-bold uppercase tracking-wider">
                             Seating you with {hostName}…
                         </p>
-                        <button
+                        <Button
+                            variant="secondary"
+                            size="md"
+                            fullWidth
                             onClick={handleCancelJoin}
-                            className="mt-2 w-full py-3 rounded-2xl bg-white/5 border border-white/10 text-white/60 text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all active:scale-[0.99]"
+                            className="mt-2 label-chrome uppercase tracking-[0.2em]"
                         >
                             Cancel
-                        </button>
+                        </Button>
                     </div>
                 ) : phase === 'error' ? (
                     <div className="flex flex-col items-center text-center px-6 py-7 gap-2.5">
-                        <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-amber-300">
+                        <p className="text-ludo-xs font-bold label-chrome uppercase tracking-[0.3em] text-warn">
                             Room unavailable
                         </p>
-                        <p className="text-ludo-md font-bold text-white/80 leading-relaxed">
+                        <p className="text-ludo-md font-bold text-ink-strong leading-relaxed">
                             {joinError || 'Join failed.'}
                         </p>
                         <div className="flex gap-2 w-full mt-2">
-                            <button
+                            <Button
+                                variant="primary"
+                                size="md"
                                 onClick={() => {
                                     if (!invite) return;
                                     joinedCodeRef.current = null;
                                     startJoin(invite);
                                 }}
-                                className="flex-1 py-3 rounded-2xl bg-cyan-400 text-black text-xs font-black uppercase tracking-[0.2em] hover:bg-cyan-300 active:scale-[0.99] transition-all"
+                                className="flex-1 label-chrome uppercase tracking-[0.2em]"
                             >
                                 Try again
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                size="md"
                                 onClick={dismissAll}
-                                className="flex-1 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/60 text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all active:scale-[0.99]"
+                                className="flex-1 label-chrome uppercase tracking-[0.2em]"
                             >
                                 Close
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 ) : (
                     <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/10 to-transparent pointer-events-none" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-accent/10 to-transparent pointer-events-none" />
 
                         <div className="relative flex items-center gap-3 px-5 pt-5">
                             <div className="relative w-12 h-12 shrink-0">
-                                <div className="absolute inset-0 bg-cyan-500/20 rounded-full animate-pulse" />
-                                <div className="w-full h-full rounded-full border-2 border-cyan-400/50 overflow-hidden bg-white/10">
+                                <div className="absolute inset-0 bg-accent-soft rounded-full animate-pulse" />
+                                <div className="w-full h-full rounded-full border-2 border-accent/50 overflow-hidden bg-surface-recessed">
                                     {hostProfile?.avatar_url ? (
                                         <img
                                             loading="lazy"
@@ -314,7 +316,7 @@ export const InviteNotification = () => {
                                             height={96}
                                         />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-xl font-black text-cyan-400">
+                                        <div className="w-full h-full flex items-center justify-center text-xl font-bold label-chrome text-accent">
                                             {hostName[0]?.toUpperCase() || 'H'}
                                         </div>
                                     )}
@@ -322,23 +324,23 @@ export const InviteNotification = () => {
                             </div>
 
                             <div className="flex-1 min-w-0">
-                                <span className="flex items-center gap-1.5 text-ludo-xs font-black text-cyan-300 tracking-[0.2em] uppercase mb-1">
-                                    <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse" />
+                                <span className="flex items-center gap-1.5 text-ludo-xs font-bold label-chrome text-accent tracking-[0.2em] uppercase mb-1">
+                                    <span className="w-1 h-1 rounded-full bg-accent animate-pulse" />
                                     Incoming Signal
                                 </span>
-                                <h4 className="text-white font-bold text-base leading-tight truncate">
-                                    {hostName} <span className="text-white/40 font-medium">invites you</span>
+                                <h4 className="text-ink-strong font-bold text-base leading-tight truncate">
+                                    {hostName} <span className="text-ink-faint font-medium">invites you</span>
                                 </h4>
                                 <div className="flex gap-3 mt-1">
-                                    <span className="text-ludo-xs font-bold text-white/40 uppercase tracking-widest">
+                                    <span className="text-ludo-xs font-bold text-ink-faint uppercase tracking-widest">
                                         {matchLabel}
                                     </span>
-                                    <span className="text-ludo-xs font-bold text-amber-400 uppercase tracking-widest">
+                                    <span className="text-ludo-xs font-bold text-warn uppercase tracking-widest">
                                         {feeLabel}
                                     </span>
                                 </div>
                                 {shortOnCoins && phase === 'card' && (
-                                    <p className="mt-1.5 text-ludo-xs font-bold text-amber-300 leading-snug">
+                                    <p className="mt-1.5 text-ludo-xs font-bold text-warn leading-snug">
                                         You have {myCoins?.toLocaleString() ?? 0} · entry is {fee.toLocaleString()}. Host can lower the fee.
                                     </p>
                                 )}
@@ -346,19 +348,23 @@ export const InviteNotification = () => {
                         </div>
 
                         <div className="relative flex gap-2 px-5 pt-4 pb-5">
-                            <button
+                            <Button
+                                variant="primary"
+                                size="md"
                                 onClick={handleAccept}
                                 disabled={secsLeft <= 0}
-                                className="invite-accept-btn flex-1 py-3 bg-cyan-500 text-slate-950 text-sm font-black uppercase tracking-[0.16em] rounded-2xl hover:bg-cyan-400 transition-all active:scale-95 shadow-lg shadow-cyan-500/20 disabled:opacity-40 disabled:cursor-not-allowed tabular-nums"
+                                className="invite-accept-btn flex-1 label-chrome uppercase tracking-[0.16em] tabular-nums"
                             >
                                 {acceptLabel}
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                size="md"
                                 onClick={handleIgnore}
-                                className="px-5 py-3 bg-white/5 border border-white/10 text-white/60 text-sm font-black uppercase tracking-[0.2em] rounded-2xl hover:bg-white/10 hover:text-white transition-all active:scale-95"
+                                className="px-5 label-chrome uppercase tracking-[0.2em]"
                             >
                                 Ignore
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}

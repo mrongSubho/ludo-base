@@ -40,7 +40,7 @@ export interface ErrorCardProps {
 }
 
 const BTN_BASE =
-    'flex-1 py-3 rounded-2xl text-xs font-black uppercase tracking-[0.18em] transition-all hover:brightness-95 active:scale-95';
+    'flex-1 py-3 rounded-2xl text-xs font-bold label-chrome uppercase tracking-[0.18em] transition-all hover:brightness-95 active:scale-95';
 
 export default function ErrorCard({ kicker, copy, heading, raw, stack, actions }: ErrorCardProps) {
     return (
@@ -54,14 +54,14 @@ export default function ErrorCard({ kicker, copy, heading, raw, stack, actions }
             }}
         >
             <p
-                className="text-ludo-xs font-black uppercase tracking-[0.3em]"
+                className="text-ludo-xs font-bold label-chrome uppercase tracking-[0.3em]"
                 style={{ color: 'var(--err-kicker)' }}
             >
                 {kicker}
             </p>
             {heading && (
                 <h1
-                    className="text-lg font-black uppercase tracking-tight"
+                    className="text-lg font-bold label-chrome uppercase tracking-tight"
                     style={{ color: 'var(--err-ink)' }}
                 >
                     {heading}

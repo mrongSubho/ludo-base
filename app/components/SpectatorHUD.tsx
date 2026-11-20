@@ -563,9 +563,8 @@ export const SpectatorHUD = ({
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             style={{
                 height: `${drawerHeight}px`,
-                backgroundColor: '#090d16',
             }}
-            className={`fixed inset-x-2.5 bottom-3 lg:inset-x-auto lg:left-auto lg:right-4 lg:bottom-4 lg:w-[332px] z-[120] flex flex-col pointer-events-auto rounded-[22px] border border-cyan-400/25 shadow-[0_12px_40px_rgba(0,0,0,0.85)] overflow-hidden ${
+            className={`panel-shell-3077 bg-surface-panel fixed inset-x-2.5 bottom-3 lg:inset-x-auto lg:left-auto lg:right-4 lg:bottom-4 lg:w-[332px] z-[120] flex flex-col pointer-events-auto rounded-[22px] border border-accent/30 shadow-[0_12px_40px_rgba(0,0,0,0.6)] overflow-hidden ${
                 isDragging ? 'select-none' : 'transition-[height] duration-150 ease-out'
             }`}
         >
@@ -580,8 +579,8 @@ export const SpectatorHUD = ({
                             exit={{ opacity: 0, scale: 0.9, y: -12 }}
                             className={`px-3.5 py-2 rounded-2xl border shadow-xl flex items-center gap-2 text-center ${
                                 res.status === 'won'
-                                    ? 'bg-emerald-500 border-emerald-300 text-slate-950'
-                                    : 'bg-slate-800 border-white/20 text-white'
+                                    ? 'bg-positive border-positive text-accent-ink'
+                                    : 'bg-surface-panel border-line-strong text-ink-strong'
                             }`}
                         >
                             <FiAward className="w-4 h-4 shrink-0" />
@@ -599,22 +598,22 @@ export const SpectatorHUD = ({
                 onPointerMove={handleDragMove}
                 onPointerUp={handleDragEnd}
                 onPointerCancel={handleDragEnd}
-                className="shrink-0 relative z-20 touch-none cursor-ns-resize bg-[#0d1422] border-b border-white/10"
+                className="shrink-0 relative z-20 touch-none cursor-ns-resize bg-surface-recessed border-b border-line-soft"
             >
                 <div className="w-full flex justify-center pt-1.5 pb-0.5 pointer-events-none">
-                    <div className="w-10 h-1 rounded-full bg-white/30" />
+                    <div className="w-10 h-1 rounded-full bg-line-strong" />
                 </div>
 
                 <div className="flex items-center justify-between gap-2 px-3.5 pb-2 pt-0.5">
                     <div className="flex items-center gap-2 min-w-0">
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${windowOpen ? 'bg-pink-400 animate-pulse' : 'bg-cyan-400'}`} />
-                        <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-[0.14em] truncate">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${windowOpen ? 'bg-pink-400 animate-pulse' : 'bg-accent'}`} />
+                        <span className="text-ludo-xs font-bold text-accent uppercase tracking-[0.14em] truncate">
                             {isOneLine
                                 ? (windowOpen ? `Bet Live · ${(timeLeft / 1000).toFixed(0)}s` : `Watch #${roomCode}`)
                                 : `Live Sync · #${roomCode}`}
                         </span>
                         {!isOneLine && windowOpen && (
-                            <span className="text-ludo-xs font-mono font-bold text-pink-300 tabular-nums shrink-0">
+                            <span className="text-ludo-xs font-mono font-bold text-pink-400 tabular-nums shrink-0">
                                 {(timeLeft / 1000).toFixed(0)}s
                             </span>
                         )}
@@ -629,7 +628,7 @@ export const SpectatorHUD = ({
                             onClick={toggleCollapse}
                             aria-label={isOneLine ? 'Expand Watch & Bet drawer' : 'Collapse to one line'}
                             title={isOneLine ? 'Expand panel' : 'Collapse to one line'}
-                            className="w-7 h-7 rounded-full bg-[#172033] border border-white/15 flex items-center justify-center text-white/80 hover:text-white hover:border-cyan-400/50 transition-all active:scale-95"
+                            className="w-7 h-7 rounded-full bg-surface-panel border border-line-soft flex items-center justify-center text-ink-muted hover:text-ink-strong hover:border-accent/50 transition-all active:scale-95"
                         >
                             {isOneLine ? <FiChevronUp className="w-4 h-4" /> : <FiChevronDown className="w-4 h-4" />}
                         </button>
@@ -639,7 +638,7 @@ export const SpectatorHUD = ({
                                 onClick={() => onClose()}
                                 aria-label="Exit watch mode"
                                 title="Exit watch mode"
-                                className="w-7 h-7 rounded-full bg-[#172033] border border-white/15 flex items-center justify-center text-white/80 hover:text-white hover:bg-red-600 hover:border-red-400 transition-all active:scale-95"
+                                className="w-7 h-7 rounded-full bg-surface-panel border border-line-soft flex items-center justify-center text-ink-muted hover:text-ink-strong hover:bg-negative/15 hover:border-negative transition-all active:scale-95"
                             >
                                 <FiX className="w-4 h-4" />
                             </button>
@@ -651,14 +650,14 @@ export const SpectatorHUD = ({
             {!isOneLine && (
                 <>
                     {/* Mobile Sub-tabs (< lg) */}
-                    <div className="grid grid-cols-2 gap-1.5 px-3 pt-2 pb-1 shrink-0 lg:hidden bg-[#090d16] relative z-20">
+                    <div className="grid grid-cols-2 gap-1.5 px-3 pt-2 pb-1 shrink-0 lg:hidden bg-surface-panel relative z-20">
                         <button
                             type="button"
                             onClick={() => setMobileTab('bet')}
                             className={`py-1.5 px-2.5 rounded-xl text-ludo-xs font-bold uppercase tracking-wider transition-all ${
                                 mobileTab === 'bet'
-                                    ? 'bg-[#12263a] text-cyan-200 border border-cyan-400/50'
-                                    : 'bg-[#101726] text-white/60 border border-white/10 hover:text-white'
+                                    ? 'bg-accent-soft text-accent border border-accent/50'
+                                    : 'bg-surface-recessed text-ink-muted border border-line-soft hover:text-ink-strong'
                             }`}
                         >
                             Bet &amp; Oracle
@@ -668,8 +667,8 @@ export const SpectatorHUD = ({
                             onClick={() => setMobileTab('comm')}
                             className={`py-1.5 px-2.5 rounded-xl text-ludo-xs font-bold uppercase tracking-wider transition-all ${
                                 mobileTab === 'comm'
-                                    ? 'bg-[#12263a] text-cyan-200 border border-cyan-400/50'
-                                    : 'bg-[#101726] text-white/60 border border-white/10 hover:text-white'
+                                    ? 'bg-accent-soft text-accent border border-accent/50'
+                                    : 'bg-surface-recessed text-ink-muted border border-line-soft hover:text-ink-strong'
                             }`}
                         >
                             Comm ({chatMessages.length})
@@ -677,14 +676,14 @@ export const SpectatorHUD = ({
                     </div>
 
                     {/* Solid Body Content */}
-                    <div className="flex-1 min-h-0 flex flex-col gap-2.5 p-3 overflow-y-auto no-scrollbar bg-[#090d16] relative z-10">
+                    <div className="flex-1 min-h-0 flex flex-col gap-2.5 p-3 overflow-y-auto no-scrollbar bg-surface-panel relative z-10">
                         {/* ── Oracle & Betting Sections ──────────────────── */}
                         <div className={`flex-col gap-2.5 ${mobileTab === 'bet' ? 'flex' : 'hidden lg:flex'}`}>
                             {/* AI Oracle Engine */}
-                            <div className="px-3.5 py-2.5 rounded-2xl border border-white/10 bg-[#101726]">
+                            <div className="px-3.5 py-2.5 rounded-2xl border border-line-soft bg-surface-recessed">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <FiTrendingUp className="w-3.5 h-3.5 text-cyan-400" />
-                                    <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-[0.16em]">
+                                    <FiTrendingUp className="w-3.5 h-3.5 text-accent" />
+                                    <span className="text-ludo-xs font-bold text-accent uppercase tracking-[0.16em]">
                                         AI Oracle Engine
                                     </span>
                                 </div>
@@ -695,17 +694,17 @@ export const SpectatorHUD = ({
                                             <div key={color} className="flex items-center gap-2">
                                                 <div
                                                     className="w-2 h-2 rounded-full shrink-0"
-                                                    style={{ background: COLOR_STYLES[color]?.bg ?? '#fff' }}
+                                                    style={{ background: COLOR_STYLES[color]?.bg ?? 'var(--ink-strong)' }}
                                                 />
-                                                <span className="text-ludo-xs font-mono uppercase text-white/75 w-10 truncate">
+                                                <span className="text-ludo-xs font-mono uppercase text-ink-muted w-10 truncate">
                                                     {color}
                                                 </span>
-                                                <div className="flex-1 h-1.5 rounded-full bg-[#1a2235] overflow-hidden">
+                                                <div className="flex-1 h-1.5 rounded-full bg-surface-panel overflow-hidden">
                                                     <motion.div
-                                                        className="h-full rounded-full"
-                                                        animate={{ width: `${pct * 100}%` }}
+                                                        className="h-full w-full rounded-full origin-left"
+                                                        animate={{ scaleX: Math.max(0, Math.min(1, pct)) }}
                                                         transition={{ duration: 0.6, ease: 'easeOut' }}
-                                                        style={{ background: COLOR_STYLES[color]?.bg ?? '#fff' }}
+                                                        style={{ background: COLOR_STYLES[color]?.bg ?? 'var(--accent)' }}
                                                     />
                                                 </div>
                                                 <span
@@ -721,47 +720,49 @@ export const SpectatorHUD = ({
 
                             {/* Pari-Mutuel Winner Betting Pool */}
                             <div
-                                className="px-3.5 py-3 rounded-2xl border flex flex-col gap-2.5 transition-all"
-                                style={{
-                                    backgroundColor: windowOpen ? '#190f1f' : '#101726',
-                                    borderColor: windowOpen ? '#ec489980' : 'rgba(255, 255, 255, 0.1)',
-                                }}
+                                className={`px-3.5 py-3 rounded-2xl border flex flex-col gap-2.5 transition-all ${
+                                    windowOpen
+                                        ? 'bg-pink-500/10 border-pink-500/45'
+                                        : 'bg-surface-recessed border-line-soft'
+                                }`}
                             >
                                 <div className="flex items-center justify-between gap-2">
-                                    <span className="text-ludo-xs font-bold text-white/85 uppercase tracking-[0.14em] truncate">
+                                    <span className="text-ludo-xs font-bold text-ink-strong uppercase tracking-[0.14em] truncate">
                                         {windowOpen ? 'WINNER POOL OPEN' : 'POOL LOCKED'}
                                     </span>
                                     {windowOpen ? (
                                         <div className="flex items-center gap-1 shrink-0">
                                             <FiZap className="w-3.5 h-3.5 text-pink-400" />
-                                            <span className="text-ludo-xs font-mono font-bold text-pink-300 tabular-nums">
+                                            <span className="text-ludo-xs font-mono font-bold text-pink-400 tabular-nums">
                                                 {(timeLeft / 1000).toFixed(0)}s
                                             </span>
                                         </div>
                                     ) : (
-                                        <span className="text-ludo-xs font-mono font-bold text-white/50 shrink-0">
+                                        <span className="text-ludo-xs font-mono font-bold text-ink-faint shrink-0">
                                             {poolSummary.totalPot.toLocaleString()} CHIPS
                                         </span>
                                     )}
                                 </div>
 
                                 {windowOpen && (
-                                    <div className="w-full h-1.5 rounded-full bg-[#2a1933] overflow-hidden">
-                                        <motion.div
-                                            className="h-full rounded-full"
-                                            style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg, #ec4899, #f97316)' }}
-                                            transition={{ duration: 0.1 }}
+                                    <div className="w-full h-1.5 rounded-full bg-surface-panel overflow-hidden">
+                                        <div
+                                            className="h-full w-full rounded-full origin-left transition-transform duration-100"
+                                            style={{
+                                                transform: `scaleX(${Math.max(0, Math.min(1, progressPct / 100))})`,
+                                                background: 'linear-gradient(90deg, #ec4899, #f97316)',
+                                            }}
                                         />
                                     </div>
                                 )}
 
                                 {/* Vault Balance & Pool Info Strip */}
-                                <div className="flex items-center justify-between text-ludo-xs font-mono text-white/65 bg-black/30 rounded-xl px-2.5 py-1.5 border border-white/5">
+                                <div className="flex items-center justify-between text-ludo-xs font-mono text-ink-muted bg-surface-panel rounded-xl px-2.5 py-1.5 border border-line-soft">
                                     <span className="truncate">
-                                        Vault: <strong className="text-cyan-300">{vault.availableChips.toLocaleString()}</strong>
+                                        Vault: <strong className="text-accent">{vault.availableChips.toLocaleString()}</strong>
                                     </span>
                                     <span className="truncate text-right">
-                                        Pool: <strong className="text-amber-300">{formatCompactChips(poolSummary.totalPot)}</strong>
+                                        Pool: <strong className="text-warn">{formatCompactChips(poolSummary.totalPot)}</strong>
                                     </span>
                                 </div>
 
@@ -779,11 +780,11 @@ export const SpectatorHUD = ({
                                                 type="button"
                                                 disabled={isBetting || !windowOpen}
                                                 onClick={() => void placeBet(choice.value, choice.label, 'winner')}
-                                                className="px-2.5 py-2 min-h-[46px] rounded-xl text-ludo-xs font-bold border transition-all flex flex-col justify-between gap-1 active:scale-95 disabled:opacity-55 text-left"
+                                                className={`px-2.5 py-2 min-h-[46px] rounded-xl text-ludo-xs font-bold border transition-all flex flex-col justify-between gap-1 active:scale-95 disabled:opacity-55 text-left text-ink-strong ${
+                                                    isPicked ? 'bg-pink-500/20' : 'bg-surface-panel hover:bg-surface-hover'
+                                                }`}
                                                 style={{
-                                                    backgroundColor: isPicked ? '#3b1530' : '#24172b',
-                                                    borderColor: isPicked ? '#ec4899' : `${COLOR_STYLES[primaryColor]?.bg ?? '#fff'}55`,
-                                                    color: '#fff',
+                                                    borderColor: isPicked ? '#ec4899' : `${COLOR_STYLES[primaryColor]?.bg ?? 'var(--line-strong)'}66`,
                                                 }}
                                             >
                                                 <span className="flex items-center justify-between gap-1 w-full">
@@ -791,20 +792,20 @@ export const SpectatorHUD = ({
                                                         {choice.colors.map((c) => (
                                                             <span
                                                                 key={c}
-                                                                className="w-2.5 h-2.5 rounded-full shrink-0 border border-white/30"
+                                                                className="w-2.5 h-2.5 rounded-full shrink-0 border border-line-strong"
                                                                 style={{ background: COLOR_STYLES[c]?.bg ?? '#fff' }}
                                                             />
                                                         ))}
                                                         <span className="capitalize truncate">{choice.label}</span>
                                                     </span>
-                                                    <span className="font-mono text-white/70 shrink-0">
+                                                    <span className="font-mono text-ink-muted shrink-0">
                                                         {stats.sharePct > 0 ? `${stats.sharePct}%` : '0%'}
                                                     </span>
                                                 </span>
-                                                <span className="text-ludo-xs font-mono text-white/60 flex items-center justify-between w-full">
+                                                <span className="text-ludo-xs font-mono text-ink-faint flex items-center justify-between w-full">
                                                     <span>{formatCompactChips(stats.amount)}</span>
                                                     {myStakeOnSide > 0 && (
-                                                        <span className="text-emerald-300 font-bold">
+                                                        <span className="text-positive font-bold">
                                                             You: {formatCompactChips(myStakeOnSide)}
                                                         </span>
                                                     )}
@@ -829,12 +830,11 @@ export const SpectatorHUD = ({
                                                             setCustomMode(false);
                                                             setBetAmount(p);
                                                         }}
-                                                        className="py-1.5 min-h-[34px] rounded-lg text-ludo-xs font-mono font-bold uppercase border transition-all"
-                                                        style={{
-                                                            backgroundColor: active ? '#3b1530' : '#201326',
-                                                            borderColor: active ? '#ec4899' : '#3a2244',
-                                                            color: active ? '#f9a8d4' : 'rgba(255,255,255,0.75)',
-                                                        }}
+                                                        className={`py-1.5 min-h-[34px] rounded-lg text-ludo-xs font-mono font-bold uppercase border transition-all ${
+                                                            active
+                                                                ? 'bg-pink-500/20 border-pink-500 text-pink-400'
+                                                                : 'bg-surface-panel border-line-soft text-ink-muted hover:text-ink-strong'
+                                                        }`}
                                                     >
                                                         {p >= 1000 ? `${p / 1000}K` : p}
                                                     </button>
@@ -848,12 +848,11 @@ export const SpectatorHUD = ({
                                                     const parsed = Math.floor(Number(customInput));
                                                     if (Number.isFinite(parsed) && parsed > 0) setBetAmount(parsed);
                                                 }}
-                                                className="py-1.5 min-h-[34px] rounded-lg text-ludo-xs font-mono font-bold uppercase border transition-all"
-                                                style={{
-                                                    backgroundColor: customMode ? '#3b1530' : '#201326',
-                                                    borderColor: customMode ? '#ec4899' : '#3a2244',
-                                                    color: customMode ? '#f9a8d4' : 'rgba(255,255,255,0.75)',
-                                                }}
+                                                className={`py-1.5 min-h-[34px] rounded-lg text-ludo-xs font-mono font-bold uppercase border transition-all ${
+                                                    customMode
+                                                        ? 'bg-pink-500/20 border-pink-500 text-pink-400'
+                                                        : 'bg-surface-panel border-line-soft text-ink-muted hover:text-ink-strong'
+                                                }`}
                                             >
                                                 Custom
                                             </button>
@@ -879,15 +878,15 @@ export const SpectatorHUD = ({
                                                     autoCorrect="off"
                                                     autoCapitalize="none"
                                                     spellCheck={false}
-                                                    className="flex-1 min-w-0 bg-[#090d16] border border-pink-500/45 rounded-xl px-2.5 py-1.5 text-ludo-xs font-mono text-white placeholder-white/35 outline-none focus:border-pink-400"
+                                                    className="flex-1 min-w-0 bg-surface-panel border border-pink-500/45 rounded-xl px-2.5 py-1.5 text-ludo-xs font-mono text-ink-strong placeholder:text-ink-faint outline-none focus:border-pink-400"
                                                 />
-                                                <span className="text-ludo-xs font-mono text-white/60 shrink-0">
+                                                <span className="text-ludo-xs font-mono text-ink-muted shrink-0">
                                                     CHIPS
                                                 </span>
                                             </div>
                                         )}
 
-                                        <div className="text-ludo-xs font-mono text-white/55 flex items-center justify-between gap-2">
+                                        <div className="text-ludo-xs font-mono text-ink-muted flex items-center justify-between gap-2">
                                             <span className="truncate">
                                                 {betStatusStep
                                                     ? betStatusStep
@@ -896,7 +895,7 @@ export const SpectatorHUD = ({
                                                       : 'Wallet will prompt CHIPS Vault top-up'}
                                             </span>
                                             {walletChips != null && (
-                                                <span className="shrink-0 text-white/45">
+                                                <span className="shrink-0 text-ink-faint">
                                                     Wallet: {formatCompactChips(walletChips)}
                                                 </span>
                                             )}
@@ -905,7 +904,7 @@ export const SpectatorHUD = ({
                                 )}
 
                                 {!windowOpen && (
-                                    <p className="text-ludo-xs text-white/60 text-center font-bold uppercase tracking-wider py-1">
+                                    <p className="text-ludo-xs text-ink-muted text-center font-bold uppercase tracking-wider py-1">
                                         {effectiveWindow
                                             ? effectiveWindow.status === 'settled'
                                                 ? 'Pool Settled · Winnings in Claim Hub'
@@ -915,7 +914,7 @@ export const SpectatorHUD = ({
                                 )}
 
                                 {totalMyStaked > 0 && (
-                                    <div className="text-ludo-xs font-mono text-emerald-300/90 text-center border-t border-white/10 pt-1.5">
+                                    <div className="text-ludo-xs font-mono text-positive text-center border-t border-line-soft pt-1.5">
                                         Your active wager: {totalMyStaked.toLocaleString()} CHIPS · 5% fee on win, 100% refund if unopposed
                                     </div>
                                 )}
@@ -923,20 +922,20 @@ export const SpectatorHUD = ({
 
                             {/* Followed Predictors */}
                             {followedBets.length > 0 && (
-                                <div className="px-3.5 py-2.5 rounded-2xl border border-yellow-500/35 bg-[#1b180e] flex flex-col gap-1.5">
-                                    <span className="text-ludo-xs font-bold text-yellow-300 uppercase tracking-[0.16em]">
+                                <div className="px-3.5 py-2.5 rounded-2xl border border-warn/35 bg-warn/10 flex flex-col gap-1.5">
+                                    <span className="text-ludo-xs font-bold text-warn uppercase tracking-[0.16em]">
                                         Following · Tap to mirror
                                     </span>
                                     {followedBets.slice(0, 3).map(b => (
                                         <div key={b.id} className="flex items-center gap-2">
-                                            <span className="flex-1 min-w-0 text-ludo-xs font-bold text-white/85 truncate capitalize">
+                                            <span className="flex-1 min-w-0 text-ludo-xs font-bold text-ink-strong truncate capitalize">
                                                 {b.bet_value}
                                             </span>
                                             <button
                                                 type="button"
                                                 onClick={() => void placeBet(b.bet_value, b.bet_value, b.bet_type as BetType)}
                                                 disabled={isBetting || !windowOpen}
-                                                className="shrink-0 px-3 min-h-[34px] rounded-lg text-ludo-xs font-bold uppercase tracking-wider bg-[#2b2310] border border-yellow-500/50 text-yellow-200 hover:bg-yellow-400 hover:text-slate-950 active:scale-95 transition-all disabled:opacity-40"
+                                                className="shrink-0 px-3 min-h-[34px] rounded-lg text-ludo-xs font-bold uppercase tracking-wider bg-surface-panel border border-warn/50 text-warn hover:bg-warn hover:text-accent-ink active:scale-95 transition-all disabled:opacity-40"
                                             >
                                                 Mirror
                                             </button>
@@ -948,15 +947,15 @@ export const SpectatorHUD = ({
 
                         {/* ── Global Network Chat (solid surface) ──────────── */}
                         <div
-                            className={`flex-1 min-h-[140px] rounded-2xl border border-white/10 bg-[#101726] flex-col overflow-hidden ${
+                            className={`flex-1 min-h-[140px] rounded-2xl border border-line-soft bg-surface-recessed flex-col overflow-hidden ${
                                 mobileTab === 'comm' ? 'flex' : 'hidden lg:flex'
                             }`}
                         >
-                            <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/10 bg-[#141d30] shrink-0">
-                                <span className="text-ludo-xs font-bold text-cyan-300 uppercase tracking-widest">
+                            <div className="flex items-center justify-between px-3.5 py-2 border-b border-line-soft bg-surface-panel shrink-0">
+                                <span className="text-ludo-xs font-bold text-accent uppercase tracking-widest">
                                     Global Comm
                                 </span>
-                                <span className="text-ludo-xs font-mono font-bold text-cyan-300 bg-[#0d2238] px-2 py-0.5 rounded-full">
+                                <span className="text-ludo-xs font-mono font-bold text-accent bg-accent-soft px-2 py-0.5 rounded-full">
                                     {chatMessages.length}
                                 </span>
                             </div>
@@ -969,7 +968,7 @@ export const SpectatorHUD = ({
                                                 key={msg.id}
                                                 initial={{ opacity: 0, scale: 0.95 }}
                                                 animate={{ opacity: 1, scale: 1 }}
-                                                className="text-center text-ludo-xs font-bold uppercase tracking-wider text-pink-300 py-0.5"
+                                                className="text-center text-ludo-xs font-bold uppercase tracking-wider text-pink-400 py-0.5"
                                             >
                                                 {msg.text}
                                             </motion.div>
@@ -980,24 +979,24 @@ export const SpectatorHUD = ({
                                                 animate={{ opacity: 1, x: 0 }}
                                                 className="flex flex-col relative pl-2"
                                             >
-                                                <div className="absolute left-0 top-0.5 bottom-0.5 w-[2px] bg-cyan-400/50 rounded-full" />
-                                                <span className="text-ludo-xs font-bold text-white/55 uppercase tracking-wider">{msg.author}</span>
-                                                <span className="text-ludo-sm font-medium text-white/95 leading-snug">{msg.text}</span>
+                                                <div className="absolute left-0 top-0.5 bottom-0.5 w-[2px] bg-accent/50 rounded-full" />
+                                                <span className="text-ludo-xs font-bold text-ink-faint uppercase tracking-wider">{msg.author}</span>
+                                                <span className="text-ludo-sm font-medium text-ink-strong leading-snug">{msg.text}</span>
                                             </motion.div>
                                         )
                                     ))}
                                 </AnimatePresence>
                                 {chatMessages.length === 0 && (
-                                    <div className="h-full flex flex-col items-center justify-center py-4 opacity-50">
-                                        <FiMessageSquare className="w-5 h-5 mb-1.5 text-white" />
-                                        <p className="text-ludo-xs text-white font-bold uppercase tracking-wider text-center">
+                                    <div className="h-full flex flex-col items-center justify-center py-4 opacity-60">
+                                        <FiMessageSquare className="w-5 h-5 mb-1.5 text-ink-muted" />
+                                        <p className="text-ludo-xs text-ink-muted font-bold uppercase tracking-wider text-center">
                                             Establish uplink to broadcast
                                         </p>
                                     </div>
                                 )}
                             </div>
 
-                            <div className="flex items-center gap-2 px-2.5 py-2 border-t border-white/10 bg-[#141d30] shrink-0">
+                            <div className="flex items-center gap-2 px-2.5 py-2 border-t border-line-soft bg-surface-panel shrink-0">
                                 <textarea
                                     value={chatInput}
                                     onChange={e => setChatInput(e.target.value)}
@@ -1015,14 +1014,14 @@ export const SpectatorHUD = ({
                                     autoCapitalize="sentences"
                                     spellCheck={false}
                                     enterKeyHint="send"
-                                    className="flex-1 bg-[#090d16] border border-white/15 rounded-xl px-3 py-1.5 text-ludo-xs font-medium text-white placeholder-white/35 outline-none focus:border-cyan-400/60 transition-all"
+                                    className="flex-1 bg-surface-recessed border border-line-soft rounded-xl px-3 py-1.5 text-ludo-xs font-medium text-ink-strong placeholder:text-ink-faint outline-none focus:border-accent/60 transition-all"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => void sendChat()}
                                     disabled={!chatInput.trim()}
                                     aria-label="Send broadcast message"
-                                    className="w-8 h-8 rounded-xl bg-[#10263b] border border-cyan-400/40 flex items-center justify-center text-cyan-300 hover:bg-[#173552] transition-all disabled:opacity-35"
+                                    className="w-8 h-8 rounded-xl bg-accent-soft border border-accent/40 flex items-center justify-center text-accent hover:bg-accent hover:text-accent-ink transition-all disabled:opacity-35"
                                 >
                                     <FiSend className="w-3.5 h-3.5" />
                                 </button>

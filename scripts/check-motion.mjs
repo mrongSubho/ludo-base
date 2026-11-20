@@ -58,8 +58,7 @@ const KNOWN_CSS_SELECTOR = new Map([
 ]);
 
 const KNOWN_FRAMER_SITE = new Map([
-    // Progress bars (bet-window): width/height IS the content.
-    ['app/components/SpectatorHUD.tsx', 'bet-window progress bar animates width'],
+    // Progress bars now animate compositor scaleX / scaleY rather than width/height.
 ]);
 
 const KNOWN_WILL_CHANGE = new Map([

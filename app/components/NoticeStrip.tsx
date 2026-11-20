@@ -5,9 +5,9 @@ import type { NoticeLevel, OpsNotice } from '@/lib/notices';
 import { filterActiveNotices, parseNoticeBundle, defaultSeedNotices } from '@/lib/notices';
 
 const LEVEL_CLASS: Record<NoticeLevel, string> = {
-    info: 'border-cyan-400/30 bg-cyan-400/10 text-cyan-200',
-    warn: 'border-amber-400/35 bg-amber-400/10 text-amber-200',
-    critical: 'border-red-400/40 bg-red-500/15 text-red-200',
+    info: 'border-accent/35 bg-accent-soft text-accent',
+    warn: 'border-warn/35 bg-warn/10 text-warn',
+    critical: 'border-negative/40 bg-negative/15 text-negative',
 };
 
 /**
@@ -54,7 +54,7 @@ export function NoticeStrip({ className = '' }: { className?: string }) {
                     data-notice={n.id}
                 >
                     <div className="flex-1 min-w-0">
-                        <div className="font-black uppercase tracking-[0.12em] text-ludo-xs">{n.title}</div>
+                        <div className="font-bold label-chrome uppercase tracking-[0.12em] text-ludo-xs">{n.title}</div>
                         <div className="opacity-90 mt-0.5">{n.body}</div>
                         {n.href && (
                             <a

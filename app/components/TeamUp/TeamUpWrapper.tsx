@@ -78,10 +78,10 @@ export const TeamUpWrapper = ({
               initial={{ y: -20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.5 }}
-              className="absolute top-4 right-4 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-md"
+              className="absolute top-4 right-4 z-40 flex items-center gap-2 px-3 py-1.5 rounded-full bg-positive/10 border border-positive/25 backdrop-blur-md"
             >
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-ludo-xs font-bold text-emerald-400 uppercase tracking-widest">
+              <div className="w-2 h-2 rounded-full bg-positive animate-pulse" />
+              <span className="text-ludo-xs font-bold text-positive uppercase tracking-widest">
                 {isFallback ? 'Lobby Secured' : 'Edge Verified UDP'}
               </span>
             </motion.div>
