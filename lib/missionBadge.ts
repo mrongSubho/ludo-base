@@ -24,7 +24,7 @@ export interface MissionBadgeStyle {
     bg: string;
 }
 
-const DEFAULT_BADGE: MissionBadgeStyle = { key: 'default', color: 'text-white/60', bg: 'bg-white/5' };
+const DEFAULT_BADGE: MissionBadgeStyle = { key: 'default', color: 'text-ink-muted', bg: 'bg-surface-panel' };
 
 /**
  * Badge style for a catalog `mission_id`.
@@ -35,25 +35,25 @@ const DEFAULT_BADGE: MissionBadgeStyle = { key: 'default', color: 'text-white/60
 export function missionBadgeFor(missionId: string): MissionBadgeStyle {
     const id = missionId ?? '';
     if (id.startsWith('daily_bonus')) {
-        return { key: 'bonus', color: 'text-yellow-400', bg: 'bg-yellow-500/20' };
+        return { key: 'bonus', color: 'text-warn', bg: 'bg-warn/15' };
     }
     if (id.includes('play')) {
-        return { key: 'play', color: 'text-cyan-400', bg: 'bg-white/5' };
+        return { key: 'play', color: 'text-accent', bg: 'bg-accent-soft' };
     }
     if (id.includes('win')) {
-        return { key: 'win', color: 'text-yellow-400', bg: 'bg-yellow-500/20' };
+        return { key: 'win', color: 'text-warn', bg: 'bg-warn/15' };
     }
     if (id.includes('capture') || id.includes('pvp')) {
-        return { key: 'capture', color: 'text-orange-400', bg: 'bg-orange-500/20' };
+        return { key: 'capture', color: 'text-negative', bg: 'bg-negative/15' };
     }
     if (id.includes('poke')) {
-        return { key: 'poke', color: 'text-cyan-400', bg: 'bg-white/5' };
+        return { key: 'poke', color: 'text-accent', bg: 'bg-accent-soft' };
     }
     if (id.includes('predict') || id.includes('spectate')) {
-        return { key: 'predict', color: 'text-pink-400', bg: 'bg-pink-500/20' };
+        return { key: 'predict', color: 'text-positive', bg: 'bg-positive/15' };
     }
     if (id.includes('dm') || id.includes('friend')) {
-        return { key: 'social', color: 'text-cyan-400', bg: 'bg-white/5' };
+        return { key: 'social', color: 'text-accent', bg: 'bg-accent-soft' };
     }
     // Unknown/future catalog id — stay on a neutral badge, never undefined.
     return { ...DEFAULT_BADGE };

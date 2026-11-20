@@ -1,60 +1,59 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- legacy wire/UI types */
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useMissionVoucherClaim } from '@/hooks/useMissionVoucher';
 import { missionClaimAddress } from '@/lib/missionVoucher';
 import { isMissionSystemConfigured } from '@/lib/missionSystem';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
 import { useGuestWall } from '@/hooks/GuestWallContext';
-import { useIsMobileView } from '@/hooks/useIsMobileView';
 import { PanelChildTabs, TabCount } from './PanelTabs';
 import { OnboardingPanel } from './OnboardingPanel';
 import { ThinkingOrb } from './ThinkingOrb';
-import { LuShieldCheck, LuGift, LuDices, LuTrophy, LuSwords, LuBell, LuEye, LuUsers, LuTarget, LuClock } from 'react-icons/lu';
+import {
+    LuShieldCheck,
+    LuGift,
+    LuDices,
+    LuTrophy,
+    LuSwords,
+    LuBell,
+    LuEye,
+    LuUsers,
+    LuTarget,
+    LuClock,
+} from 'react-icons/lu';
 import { missionBadgeFor, type MissionBadgeKey } from '@/lib/missionBadge';
 import { Button } from './Button';
 import { useToast } from './Toast';
 import { useMissionOnChainState } from '@/hooks/useMissionOnChainState';
 import { MissionCard } from './MissionCard';
-import { HudCornerTicks, HudSectionLabel } from './HudPrimitives';
-import { CloseReticleIcon, DirectiveTargetIcon } from './icons';
-
-// ─── Mission panel (moved out of Arena) ─────────────────────────────────────
-// Daily / weekly / onboard missions + claim. Arena stays live-only.
+import { GamePanelShell } from './GamePanelShell';
+import { HudSectionLabel } from './HudPrimitives';
+import { CheckGlyphIcon, ChipsHexIcon, DirectiveTargetIcon } from './icons';
 
 type MissionTab = 'daily' | 'weekly' | 'onboard';
+type NavTab =
+    | 'friends'
+    | 'leaderboard'
+    | 'mission'
+    | 'arena'
+    | 'marketplace'
+    | 'settings'
+    | 'messages'
+    | 'wallet'
+    | 'profile'
+    | 'clan'
+    | null;
 
-const MissionTile = () => (
-    <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
-        <DirectiveTargetIcon className="w-4 h-4 text-cyan-300" />
-    </div>
-);
-
-/**
- * Icon per badge key. The *style* (bg/color) comes from the pure, unit-tested
- * `missionBadgeFor()` in lib/missionBadge.ts — keyed off `mission_id` and total
- * by construction (it always ends in a default).
- *
- * Regression history: this panel used to switch on a `type` wire field left
- * over from the old hardcoded DAILY_MISSIONS table. Commit 1084c72 ("missions
- * on CHIPS, single reward source") replaced that source with `mission_catalog`
- * (migration 202609300003), which has no `type` column — so the switch fell
- * through for every mission, the badge was undefined, and `badge.bg` threw
- * "Cannot read properties of undefined (reading 'bg')" on the first mission
- * row, taking the whole Mission panel down for signed-in users.
- */
 const MISSION_BADGE_ICON: Record<MissionBadgeKey, React.ReactNode> = {
-    bonus: <LuGift className="w-[22px] h-[22px]" />,
-    play: <LuDices className="w-[22px] h-[22px]" />,
-    win: <LuTrophy className="w-[22px] h-[22px]" />,
-    capture: <LuSwords className="w-[22px] h-[22px]" />,
-    poke: <LuBell className="w-[22px] h-[22px]" />,
-    predict: <LuEye className="w-[22px] h-[22px]" />,
-    social: <LuUsers className="w-[22px] h-[22px]" />,
-    default: <LuTarget className="w-[22px] h-[22px]" />,
+    bonus: <LuGift className="w-5 h-5" />,
+    play: <LuDices className="w-5 h-5" />,
+    win: <LuTrophy className="w-5 h-5" />,
+    capture: <LuSwords className="w-5 h-5" />,
+    poke: <LuBell className="w-5 h-5" />,
+    predict: <LuEye className="w-5 h-5" />,
+    social: <LuUsers className="w-5 h-5" />,
+    default: <LuTarget className="w-5 h-5" />,
 };
 
 interface Mission {
@@ -64,7 +63,6 @@ interface Mission {
     target: number;
     progress?: number;
     is_claimed?: boolean;
-    /** CHIPS (whole). The coin economy is frozen; see 202609300001. */
     rewardType: 'chips';
     rewardAmount: number;
     category?: 'daily' | 'weekly';
@@ -74,17 +72,14 @@ interface Mission {
 interface MissionPanelProps {
     isOpen: boolean;
     onClose: () => void;
-    onSwitchTab?: (tab: any) => void;
+    onSwitchTab?: (tab: NavTab) => void;
 }
 
 function getDailyResetString(): string {
     const now = new Date();
-    const nextMidnight = new Date(Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate() + 1,
-        0, 0, 0, 0
-    ));
+    const nextMidnight = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0),
+    );
     const diffMs = Math.max(0, nextMidnight.getTime() - now.getTime());
     const totalSecs = Math.floor(diffMs / 1000);
     const hours = Math.floor(totalSecs / 3600);
@@ -96,21 +91,24 @@ function getDailyResetString(): string {
 function getWeeklyResetString(): string {
     const now = new Date();
     const currentDay = now.getUTCDay();
-    const daysUntilNextMonday = currentDay === 0 ? 1 : (8 - currentDay);
-    const nextMonday = new Date(Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate() + daysUntilNextMonday,
-        0, 0, 0, 0
-    ));
+    const daysUntilNextMonday = currentDay === 0 ? 1 : 8 - currentDay;
+    const nextMonday = new Date(
+        Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate() + daysUntilNextMonday,
+            0,
+            0,
+            0,
+            0,
+        ),
+    );
     const diffMs = Math.max(0, nextMonday.getTime() - now.getTime());
     const totalSecs = Math.floor(diffMs / 1000);
     const days = Math.floor(totalSecs / 86400);
     const hours = Math.floor((totalSecs % 86400) / 3600);
     const minutes = Math.floor((totalSecs % 3600) / 60);
-    if (days > 0) {
-        return `${days}d ${String(hours).padStart(2, '0')}h`;
-    }
+    if (days > 0) return `${days}d ${String(hours).padStart(2, '0')}h`;
     return `${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
 }
 
@@ -118,7 +116,6 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
     const { address, isGuest } = useCurrentUser();
     const { ensureAppSession } = useAppSession();
     const { guard } = useGuestWall();
-    const isMobile = useIsMobileView();
     const toast = useToast();
 
     const [activeMissionTab, setActiveMissionTab] = useState<MissionTab>('daily');
@@ -136,13 +133,9 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
         }
 
         const updateTimer = () => {
-            if (activeMissionTab === 'daily') {
-                setResetTimerStr(getDailyResetString());
-            } else if (activeMissionTab === 'weekly') {
-                setResetTimerStr(getWeeklyResetString());
-            } else {
-                setResetTimerStr('');
-            }
+            if (activeMissionTab === 'daily') setResetTimerStr(getDailyResetString());
+            else if (activeMissionTab === 'weekly') setResetTimerStr(getWeeklyResetString());
+            else setResetTimerStr('');
         };
 
         updateTimer();
@@ -150,9 +143,6 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
         return () => clearInterval(interval);
     }, [isOpen, activeMissionTab]);
 
-    // On-chain mission state overlay (MissionSystem contract, Base Sepolia).
-    // When configured it is the payout authority; the panel then reflects
-    // authoritative progress/completion and a completed mission is "Received".
     const onChain = useMissionOnChainState(address, missions.map((m) => m.id));
 
     const fetchMissions = useCallback(async () => {
@@ -166,15 +156,9 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                 return;
             }
             setMissionsLocked(false);
-            // The session travels in a HEADER, never the query string — a URL is
-            // logged by proxies and leaks via Referer, which is why no route in
-            // this repo may read ?sessionId=. This call used to put it in the URL,
-            // where the route could not see it, so every signed-in panel 401'd and
-            // rendered an empty list with no error.
-            const response = await fetch(
-                `/api/missions/list?wallet=${encodeURIComponent(address)}`,
-                { headers: { Authorization: `Bearer ${sessionId}`, 'x-session-id': sessionId } }
-            );
+            const response = await fetch(`/api/missions/list?wallet=${encodeURIComponent(address)}`, {
+                headers: { Authorization: `Bearer ${sessionId}`, 'x-session-id': sessionId },
+            });
             if (response.ok) {
                 setMissions(await response.json());
             }
@@ -197,12 +181,13 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
         return () => window.removeEventListener('mission-update', handleUpdate);
     }, [isOpen, fetchMissions]);
 
+    if (!isOpen) return null;
+
     const handleClaim = async (missionId: string) => {
         if (!address || claimingId) return;
         if (!guard('arena-claim')) return;
         setClaimingId(missionId);
         try {
-            // 1. For daily_bonus, if not yet completed on-chain, trigger oracle to record progress
             if (missionId === 'daily_bonus') {
                 const oc = onChain.configured ? onChain.states['daily_bonus'] : undefined;
                 if (!oc?.completed) {
@@ -228,7 +213,6 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                 }
             }
 
-            // 2. Execute on-chain pull claim (user prompts MetaMask and pays gas)
             if (isMissionSystemConfigured() || missionClaimAddress()) {
                 const tx = await claimVoucher(missionId);
                 if (tx) {
@@ -240,11 +224,8 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                 }
                 return;
             }
-            // Coin rewards are retired (202609300001). Rewards are CHIPS and
-            // are only claimable when MissionSystem or MissionClaim is configured for the chain.
             toast('Mission rewards require the CHIPS contract to be configured.', 'error');
         } catch (err) {
-            console.error('Claim error:', err);
             toast(err instanceof Error && err.message ? err.message : 'Claim failed — try again.', 'error');
         } finally {
             setClaimingId(null);
@@ -262,336 +243,225 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
         activeMissionTab === 'onboard'
             ? []
             : missions.filter((m) =>
-                  activeMissionTab === 'daily' ? m.id.startsWith('daily') : !m.id.startsWith('daily')
+                  activeMissionTab === 'daily' ? m.id.startsWith('daily') : !m.id.startsWith('daily'),
               );
 
-    // A mission counts as "done" when the on-chain contract says claimed
-    // (authoritative) or, when the contract is not configured, via the DB row.
     const isMissionDone = (m: Mission) => {
         const oc = onChain.configured ? onChain.states[m.id] : undefined;
         if (oc) return oc.claimed;
         if (m.id === 'daily_bonus' || m.id.startsWith('daily_bonus')) {
-            return Boolean((m as any).is_claimed);
+            return Boolean(m.is_claimed);
         }
-        // A target of 0 is valid (daily_bonus) and must not be coerced to 1.
         const target = typeof m.target === 'number' ? m.target : 1;
-        return (m.progress ?? 0) >= target || Boolean((m as any).is_claimed);
+        return (m.progress ?? 0) >= target || Boolean(m.is_claimed);
     };
     const dailyLeft = missions.filter((m) => m.id.startsWith('daily') && !isMissionDone(m)).length;
     const weeklyLeft = missions.filter((m) => !m.id.startsWith('daily') && !isMissionDone(m)).length;
 
     return (
-        <AnimatePresence initial={false}>
-            {isOpen && (
-                <>
-                    <div
-                        className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
-                        onClick={onClose}
-                    />
-                    <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
-                        <motion.div
-                            initial={isMobile ? false : { opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={isMobile ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0, y: 20 }}
-                            transition={
-                                isMobile
-                                    ? { duration: 0 }
-                                    : { type: 'tween', duration: 0.22, ease: [0.22, 1, 0.36, 1] }
-                            }
-                            className="w-full max-w-[500px] relative h-full pointer-events-auto panel-motion-host"
-                        >
-                            <div
-                                className="ludo-arena-scope ludo-mission-scope absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
-                                style={{
-                                    background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))',
-                                    backgroundColor: 'var(--panel-bg, rgba(13, 13, 13, 0.92))',
-                                    backdropFilter: 'blur(32px)',
-                                }}
-                            >
-                                <HudCornerTicks />
-                                <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                                <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+        <GamePanelShell
+            scopeClass="ludo-arena-scope ludo-mission-scope"
+            kicker="// DIRECTIVES"
+            hideOrbs
+            onClose={onClose}
+            title={
+                <span className="flex items-center gap-2">
+                    <span className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-accent/40 flex items-center justify-center text-accent shrink-0">
+                        <DirectiveTargetIcon className="w-4 h-4" active />
+                    </span>
+                    <span>Missions</span>
+                </span>
+            }
+            subtitle={
+                <span className="flex items-center gap-2 px-0.5 text-ludo-xs font-mono uppercase tracking-[0.14em]">
+                    <span className="font-bold text-accent tabular-nums">
+                        {dailyLeft + weeklyLeft} missions left
+                    </span>
+                    {onChain.configured && (
+                        <>
+                            <span className="text-ink-faint" aria-hidden="true">·</span>
+                            <span className="inline-flex items-center gap-1 font-bold text-ink-muted">
+                                <span className="hud-status-breath w-1.5 h-1.5 rounded-full bg-accent" />
+                                on-chain
+                            </span>
+                        </>
+                    )}
+                </span>
+            }
+        >
+            <PanelChildTabs
+                ariaLabel="Mission cadence"
+                value={activeMissionTab}
+                onPick={setActiveMissionTab}
+                options={[
+                    {
+                        value: 'daily',
+                        label: 'daily',
+                        pill: <TabCount active={activeMissionTab === 'daily'}>{dailyLeft}</TabCount>,
+                    },
+                    {
+                        value: 'weekly',
+                        label: 'weekly',
+                        pill: <TabCount active={activeMissionTab === 'weekly'}>{weeklyLeft}</TabCount>,
+                    },
+                    { value: 'onboard', label: 'onboard' },
+                ]}
+            />
 
-                                <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                                    <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
+            {activeMissionTab === 'onboard' ? (
+                <OnboardingPanel />
+            ) : (
+                <div className="flex flex-col gap-2.5 pb-2">
+                    <HudSectionLabel
+                        right={
+                            resetTimerStr ? (
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-surface-recessed border border-line-soft text-ludo-xs font-mono font-bold text-ink-muted tracking-wider shrink-0">
+                                    <LuClock className="w-3 h-3 text-accent shrink-0" />
+                                    <span className="text-ink-faint uppercase">Resets in</span>
+                                    <span className="text-accent font-mono tabular-nums">{resetTimerStr}</span>
                                 </div>
+                            ) : undefined
+                        }
+                    >
+                        {visibleMissions.length} mission{visibleMissions.length === 1 ? '' : 's'}
+                    </HudSectionLabel>
 
-                                <div className="px-5 pb-3 border-b border-white/10 relative z-10">
-                                    <div className="flex items-center justify-between mb-1 mt-1">
-                                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                            <MissionTile />
-                                            Missions
-                                        </h2>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={onClose}
-                                            aria-label="Close missions"
-                                            className="panel-close-3077 bg-surface-hover border border-line-soft shrink-0"
-                                        >
-                                            <CloseReticleIcon className="icon-md" />
-                                        </Button>
-                                    </div>
-                                    <div className="flex items-center gap-2 px-0.5">
-                                        <span className="text-ludo-sm font-black text-cyan-300 tracking-wide uppercase tabular-nums">
-                                            {dailyLeft + weeklyLeft} missions left
-                                        </span>
-                                        {onChain.configured && (
-                                            <span className="ml-2 inline-flex items-center gap-1 text-ludo-xs font-bold text-cyan-400/80 tracking-wider uppercase">
-                                                <span className="hud-status-breath w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                                                on-chain
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="flex-1 min-h-0 flex flex-col overflow-hidden relative z-10">
-                                    <div className="px-5 pt-2">
-                                        <PanelChildTabs
-                                            ariaLabel="Mission cadence"
-                                            value={activeMissionTab}
-                                            onPick={setActiveMissionTab}
-                                            options={[
-                                                {
-                                                    value: 'daily',
-                                                    label: 'daily',
-                                                    pill: (
-                                                        <TabCount active={activeMissionTab === 'daily'}>
-                                                            {dailyLeft}
-                                                        </TabCount>
-                                                    ),
-                                                },
-                                                {
-                                                    value: 'weekly',
-                                                    label: 'weekly',
-                                                    pill: (
-                                                        <TabCount active={activeMissionTab === 'weekly'}>
-                                                            {weeklyLeft}
-                                                        </TabCount>
-                                                    ),
-                                                },
-                                                { value: 'onboard', label: 'onboard' },
-                                            ]}
-                                        />
-                                    </div>
-                                    <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2 relative">
-                                        {activeMissionTab === 'onboard' ? (
-                                            <OnboardingPanel />
-                                        ) : (
-                                            <>
-                                                <HudSectionLabel
-                                                    className="mt-1 mb-1"
-                                                    right={
-                                                        resetTimerStr ? (
-                                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/10 text-ludo-xs font-mono font-bold text-white/50 tracking-wider shrink-0">
-                                                                <LuClock className="w-3 h-3 text-cyan-400 shrink-0" />
-                                                                <span className="text-white/40 uppercase">Resets in</span>
-                                                                <span className="text-cyan-300 font-mono tabular-nums">{resetTimerStr}</span>
-                                                            </div>
-                                                        ) : undefined
-                                                    }
-                                                >
-                                                    {visibleMissions.length} mission
-                                                    {visibleMissions.length === 1 ? '' : 's'} left
-                                                </HudSectionLabel>
-                                                {isLoadingMissions && missions.length === 0 ? (
-                                                    <div className="flex items-center justify-center py-16">
-                                                        <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
-                                                    </div>
-                                                ) : missionsLocked ? (
-                                                    <div className="flex flex-col items-center justify-center text-center py-12 px-6">
-                                                        <div className="w-16 h-16 rounded-3xl bg-cyan-500/10 border border-cyan-400/20 flex items-center justify-center mb-4 text-cyan-400 shadow-[0_0_16px_rgba(34,211,238,0.2)]">
-                                                            <LuShieldCheck className="w-7 h-7" />
-                                                        </div>
-                                                        <h3 className="text-white font-black text-sm mb-1">
-                                                            Session Inactive
-                                                        </h3>
-                                                        <p className="text-white/50 text-xs max-w-[240px] mb-4">
-                                                            Missions require an active session to track objectives and verify claim vouchers.
-                                                        </p>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="primary"
-                                                            onClick={async () => {
-                                                                const sid = await ensureAppSession({ context: 'missions', force: true });
-                                                                if (sid) {
-                                                                    void fetchMissions();
-                                                                }
-                                                            }}
-                                                            className="uppercase tracking-widest text-xs px-5 py-2 font-black"
-                                                        >
-                                                            Activate Session
-                                                        </Button>
-                                                    </div>
-                                                ) : visibleMissions.length === 0 ? (
-                                                    <div className="flex flex-col items-center justify-center text-center py-16 px-6">
-                                                        <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
-                                                            <LuShieldCheck className="w-7 h-7" />
-                                                        </div>
-                                                        <h3 className="text-white font-black text-sm mb-1">
-                                                            {isGuest
-                                                                ? 'Connect wallet to track missions'
-                                                                : 'All Caught Up!'}
-                                                        </h3>
-                                                        <p className="text-white/40 text-xs max-w-[220px]">
-                                                            {isGuest
-                                                                ? 'Connect a wallet to start earning mission rewards.'
-                                                                : 'Check back later for new missions.'}
-                                                        </p>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col gap-2 pb-2">
-                                                        <AnimatePresence mode="popLayout">
-                                                            {visibleMissions.map((mission) => {
-                                                                // On-chain overlay: when the contract is configured and this
-                                                                // mission was read, use its authoritative progress/completion.
-                                                                const oc =
-                                                                    onChain.configured ? onChain.states[mission.id] : undefined;
-                                                                const useOnChain = Boolean(oc);
-                                                                const rawProgress = useOnChain
-                                                                    ? oc!.progress
-                                                                    : (mission.progress || 0);
-                                                                const rawTarget =
-                                                                    typeof mission.target === 'number' ? mission.target : 1;
-                                                                const onChainCompleted = useOnChain && oc!.completed;
-                                                                const onChainClaimed = useOnChain && oc!.claimed;
-                                                                const dbClaimed = Boolean((mission as any).is_claimed);
-                                                                const isClaimed = useOnChain ? onChainClaimed : dbClaimed;
-                                                                const isDailyBonus = mission.id === 'daily_bonus' || mission.id.startsWith('daily_bonus');
-                                                                const isCompleted = isDailyBonus
-                                                                    ? !isClaimed
-                                                                    : (onChainCompleted || rawProgress >= rawTarget || isClaimed);
-
-                                                                // Normalize target and progress for display:
-                                                                // For daily_bonus: new day unclaimed shows 0/0 (empty bar), already claimed shows 1/1 (full bar).
-                                                                let targetVal: number;
-                                                                let progressVal: number;
-
-                                                                if (isDailyBonus) {
-                                                                    if (isClaimed) {
-                                                                        targetVal = 1;
-                                                                        progressVal = 1;
-                                                                    } else {
-                                                                        targetVal = 0;
-                                                                        progressVal = 0;
-                                                                    }
-                                                                } else {
-                                                                    targetVal = rawTarget <= 0 ? 1 : rawTarget;
-                                                                    progressVal = (isCompleted || isClaimed) ? Math.max(rawProgress, targetVal) : rawProgress;
-                                                                }
-                                                                const badge = missionBadgeFor(mission.id);
-
-                                                                return (
-                                                                    <motion.div
-                                                                        layout
-                                                                        initial={{ opacity: 0, scale: 0.95 }}
-                                                                        animate={{ opacity: 1, scale: 1 }}
-                                                                        exit={{ opacity: 0, scale: 0.95 }}
-                                                                        key={mission.id}
-                                                                    >
-                                                                        <MissionCard
-                                                                            title={mission.title}
-                                                                            description={mission.description}
-                                                                            icon={MISSION_BADGE_ICON[badge.key]}
-                                                                            iconContainerClassName={`${badge.bg} ${badge.color} border-white/5`}
-                                                                            rewardAmount={mission.rewardAmount}
-                                                                            rewardTone={mission.rewardType === 'chips' ? 'chips' : 'amber'}
-                                                                            rewardIcon={
-                                                                                mission.rewardType === 'chips' ? (
-                                                                                    <svg
-                                                                                        viewBox="0 0 24 24"
-                                                                                        fill="none"
-                                                                                        stroke="currentColor"
-                                                                                        strokeWidth="2.5"
-                                                                                        strokeLinecap="round"
-                                                                                        strokeLinejoin="round"
-                                                                                        className="w-3 h-3 text-yellow-400"
-                                                                                    >
-                                                                                        <circle cx="12" cy="12" r="8" />
-                                                                                        <line x1="12" y1="8" x2="12" y2="16" />
-                                                                                        <path d="M16 12H8" />
-                                                                                    </svg>
-                                                                                ) : (
-                                                                                    <svg
-                                                                                        viewBox="0 0 24 24"
-                                                                                        fill="none"
-                                                                                        stroke="currentColor"
-                                                                                        strokeWidth="2.5"
-                                                                                        strokeLinecap="round"
-                                                                                        strokeLinejoin="round"
-                                                                                        className="w-3 h-3 text-cyan-400"
-                                                                                    >
-                                                                                        <path d="M6 3h12l4 6-10 13L2 9z" />
-                                                                                        <path d="M11 3 8 9l4 13 4-13-3-6" />
-                                                                                    </svg>
-                                                                                )
-                                                                            }
-                                                                            progress={progressVal}
-                                                                            target={targetVal}
-                                                                            isCompleted={isCompleted}
-                                                                            isClaimed={isClaimed}
-                                                                            isClaiming={claimingId === mission.id}
-                                                                            actionSlot={
-                                                                                <Button
-                                                                                    variant="secondary"
-                                                                                    size="sm"
-                                                                                    loading={claimingId === mission.id}
-                                                                                    loadingIcon={<ThinkingOrb state="solving" size={20} />}
-                                                                                    disabled={isClaimed}
-                                                                                    onClick={
-                                                                                        isClaimed
-                                                                                            ? undefined
-                                                                                            : isCompleted
-                                                                                              ? () => handleClaim(mission.id)
-                                                                                              : () => handleGo(mission.id)
-                                                                                    }
-                                                                                    className={`min-w-[70px] rounded-xl ${
-                                                                                        isClaimed
-                                                                                            ? 'opacity-60 cursor-not-allowed border-white/10 bg-white/5 text-white/50'
-                                                                                            : isCompleted
-                                                                                              ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]'
-                                                                                              : ''
-                                                                                    }`}
-                                                                                >
-                                                                                    {isClaimed ? (
-                                                                                        <span className="flex items-center gap-1 text-white/60">
-                                                                                            CLAIMED{' '}
-                                                                                            <svg
-                                                                                                viewBox="0 0 24 24"
-                                                                                                fill="none"
-                                                                                                stroke="currentColor"
-                                                                                                strokeWidth="3"
-                                                                                                strokeLinecap="round"
-                                                                                                strokeLinejoin="round"
-                                                                                                className="icon-sm text-green-400"
-                                                                                            >
-                                                                                                <polyline points="20 6 9 17 4 12" />
-                                                                                            </svg>
-                                                                                        </span>
-                                                                                    ) : isCompleted ? (
-                                                                                        'CLAIM'
-                                                                                    ) : (
-                                                                                        'GO'
-                                                                                    )}
-                                                                                </Button>
-                                                                            }
-                                                                        />
-                                                                    </motion.div>
-                                                                );
-                                                            })}
-                                                        </AnimatePresence>
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
+                    {isLoadingMissions && missions.length === 0 ? (
+                        <div className="flex items-center justify-center py-16">
+                            <div className="w-8 h-8 border-2 border-line-soft border-t-accent rounded-full animate-spin" />
+                        </div>
+                    ) : missionsLocked ? (
+                        <div className="flex flex-col items-center justify-center text-center py-12 px-6 rounded-2xl bg-surface-recessed border border-line-soft">
+                            <div className="w-12 h-12 rounded-2xl bg-accent-soft border border-accent/35 flex items-center justify-center mb-3 text-accent">
+                                <LuShieldCheck className="w-6 h-6" />
                             </div>
-                        </motion.div>
-                    </div>
-                </>
+                            <h3 className="text-ink-strong font-extrabold text-ludo-md mb-1">
+                                Session Inactive
+                            </h3>
+                            <p className="text-ink-muted text-ludo-xs max-w-[240px] mb-4">
+                                Missions require an active session to track objectives and verify claim vouchers.
+                            </p>
+                            <Button
+                                size="sm"
+                                variant="primary"
+                                onClick={async () => {
+                                    const sid = await ensureAppSession({ context: 'missions', force: true });
+                                    if (sid) {
+                                        void fetchMissions();
+                                    }
+                                }}
+                                className="uppercase tracking-widest"
+                            >
+                                Activate Session
+                            </Button>
+                        </div>
+                    ) : visibleMissions.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center text-center py-14 px-6 rounded-2xl bg-surface-recessed border border-line-soft">
+                            <div className="w-12 h-12 rounded-2xl bg-surface-panel border border-line-soft flex items-center justify-center mb-3 text-ink-faint">
+                                <LuShieldCheck className="w-6 h-6" />
+                            </div>
+                            <h3 className="text-ink-strong font-extrabold text-ludo-md mb-1">
+                                {isGuest ? 'Connect wallet to track missions' : 'All Caught Up!'}
+                            </h3>
+                            <p className="text-ink-faint text-ludo-xs max-w-[220px]">
+                                {isGuest
+                                    ? 'Connect a wallet to start earning mission rewards.'
+                                    : 'Check back later for new missions.'}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-2">
+                            {visibleMissions.map((mission) => {
+                                const oc = onChain.configured ? onChain.states[mission.id] : undefined;
+                                const useOnChain = Boolean(oc);
+                                const rawProgress = useOnChain ? oc!.progress : mission.progress || 0;
+                                const rawTarget = typeof mission.target === 'number' ? mission.target : 1;
+                                const onChainCompleted = useOnChain && oc!.completed;
+                                const onChainClaimed = useOnChain && oc!.claimed;
+                                const dbClaimed = Boolean(mission.is_claimed);
+                                const isClaimed = useOnChain ? onChainClaimed : dbClaimed;
+                                const isDailyBonus =
+                                    mission.id === 'daily_bonus' || mission.id.startsWith('daily_bonus');
+                                const isCompleted = isDailyBonus
+                                    ? !isClaimed
+                                    : onChainCompleted || rawProgress >= rawTarget || isClaimed;
+
+                                let targetVal: number;
+                                let progressVal: number;
+                                if (isDailyBonus) {
+                                    targetVal = isClaimed ? 1 : 0;
+                                    progressVal = isClaimed ? 1 : 0;
+                                } else {
+                                    targetVal = rawTarget <= 0 ? 1 : rawTarget;
+                                    progressVal =
+                                        isCompleted || isClaimed
+                                            ? Math.max(rawProgress, targetVal)
+                                            : rawProgress;
+                                }
+                                const badge = missionBadgeFor(mission.id);
+
+                                return (
+                                    <MissionCard
+                                        key={mission.id}
+                                        title={mission.title}
+                                        description={mission.description}
+                                        icon={MISSION_BADGE_ICON[badge.key]}
+                                        iconContainerClassName={`${badge.bg} ${badge.color} border-line-soft`}
+                                        rewardAmount={mission.rewardAmount}
+                                        rewardTone={mission.rewardType === 'chips' ? 'chips' : 'amber'}
+                                        rewardIcon={
+                                            mission.rewardType === 'chips' ? (
+                                                <ChipsHexIcon className="w-3 h-3 text-accent" active />
+                                            ) : (
+                                                <LuTrophy className="w-3 h-3 text-warn" />
+                                            )
+                                        }
+                                        progress={progressVal}
+                                        target={targetVal}
+                                        isCompleted={isCompleted}
+                                        isClaimed={isClaimed}
+                                        isClaiming={claimingId === mission.id}
+                                        actionSlot={
+                                            <Button
+                                                variant={isCompleted && !isClaimed ? 'primary' : 'secondary'}
+                                                size="sm"
+                                                loading={claimingId === mission.id}
+                                                loadingIcon={<ThinkingOrb state="solving" size={20} />}
+                                                disabled={isClaimed}
+                                                onClick={
+                                                    isClaimed
+                                                        ? undefined
+                                                        : isCompleted
+                                                          ? () => void handleClaim(mission.id)
+                                                          : () => handleGo(mission.id)
+                                                }
+                                                className={`min-w-[74px] rounded-xl ${
+                                                    isClaimed
+                                                        ? 'opacity-60 cursor-not-allowed'
+                                                        : isCompleted
+                                                          ? 'bg-positive border-positive text-accent-ink hover:brightness-110'
+                                                          : ''
+                                                }`}
+                                            >
+                                                {isClaimed ? (
+                                                    <span className="inline-flex items-center gap-1 text-ink-muted">
+                                                        CLAIMED
+                                                        <CheckGlyphIcon className="w-3 h-3 text-positive" />
+                                                    </span>
+                                                ) : isCompleted ? (
+                                                    'CLAIM'
+                                                ) : (
+                                                    'GO'
+                                                )}
+                                            </Button>
+                                        }
+                                    />
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
             )}
-        </AnimatePresence>
+        </GamePanelShell>
     );
 }
-

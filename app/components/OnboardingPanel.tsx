@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useWriteContract } from 'wagmi';
 import type { Address, Hex } from 'viem';
 import { encodeFunctionData } from 'viem';
@@ -15,11 +14,8 @@ import Button from './Button';
 import { useMissionOnChainState } from '@/hooks/useMissionOnChainState';
 import { ClaimingOverlay } from './ClaimingOverlay';
 import { showTxPrompt, updateAuthPromptStatus } from '@/hooks/useAuthPrompt';
-
-// ─── OnboardingPanel ─────────────────────────────────────────────────────────
-// CHIPS onboarding tracks (planning 7.7): progress, claim CTA, referral code.
-// Content block — mounts inside Arena missions or standalone. Terminal-glass
-// vocabulary (white-ink + cyan). No emoji.
+import { HudCornerTicks, HudProgressGauge, HudSectionLabel } from './HudPrimitives';
+import { CheckGlyphIcon, ChipsHexIcon } from './icons';
 
 interface TrackRow {
     track: string;
@@ -77,7 +73,6 @@ export const OnboardingPanel = () => {
     const { writeContractAsync } = useWriteContract();
 
     const [tracks, setTracks] = useState<TrackRow[]>([]);
-    /** Full catalog always visible (locked until progress exists). */
     const catalog: TrackRow[] = React.useMemo(() => {
         const byId = new Map(tracks.map((x) => [x.track, x]));
         return (Object.keys(ONBOARDING_TRACKS) as OnboardingTrack[]).map((key) => {
@@ -97,6 +92,7 @@ export const OnboardingPanel = () => {
             };
         });
     }, [tracks]);
+
     const [welcomeClaimed, setWelcomeClaimed] = useState(false);
     const [referral, setReferral] = useState<ReferralResponse | null>(null);
     const [locked, setLocked] = useState(false);
@@ -106,10 +102,6 @@ export const OnboardingPanel = () => {
     const [bindState, setBindState] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
 
-    // On-chain overlay: onboarding missions live on MissionSystem (pays CHIPS on
-    // completion). When configured + read, its completion is authoritative and the
-    // reward is already paid, so we show "Received" and suppress the legacy voucher
-    // claim (avoids a double payout). Otherwise the DB/voucher path is unchanged.
     const onChain = useMissionOnChainState(address, ONBOARDING_TRACK_KEYS);
 
     const load = useCallback(async () => {
@@ -171,9 +163,9 @@ export const OnboardingPanel = () => {
                 let hidePrompt: (() => void) | undefined;
                 try {
                     hidePrompt = showTxPrompt({
-                        context: "mission-claim",
-                        title: "CLAIM ONBOARDING REWARD",
-                        statusText: "Please approve the transaction in your wallet to claim your reward on-chain.",
+                        context: 'mission-claim',
+                        title: 'CLAIM ONBOARDING REWARD',
+                        statusText: 'Please approve the transaction in your wallet to claim your reward on-chain.',
                     });
                     const claimArgs = [
                         data.voucher.wallet,
@@ -200,7 +192,7 @@ export const OnboardingPanel = () => {
                             args: claimArgs,
                         });
                     }
-                    updateAuthPromptStatus("Reward transaction submitted! Confirming on-chain...", "Confirming On-Chain");
+                    updateAuthPromptStatus('Reward transaction submitted! Confirming on-chain...', 'Confirming On-Chain');
                     setNotice('Claim submitted on-chain');
                 } catch {
                     setNotice('Voucher issued — claim on-chain later');
@@ -259,11 +251,11 @@ export const OnboardingPanel = () => {
 
     if (isGuest || locked) {
         return (
-            <div className="flex flex-col items-center justify-center text-center py-12 px-6">
-                <h3 className="text-white font-black text-sm mb-1 uppercase tracking-wider">
+            <div className="flex flex-col items-center justify-center text-center py-12 px-6 rounded-2xl bg-surface-recessed border border-line-soft">
+                <h3 className="text-ink-strong font-extrabold text-ludo-md mb-1 uppercase tracking-wider">
                     {isGuest ? 'Connect wallet for onboarding' : 'Session Inactive'}
                 </h3>
-                <p className="text-white/40 text-xs max-w-[240px] mb-4">
+                <p className="text-ink-faint text-ludo-xs max-w-[240px] mb-4">
                     {isGuest
                         ? 'Connect a wallet to track onboarding rewards and referrals.'
                         : 'Activate your session to track onboarding rewards and referrals.'}
@@ -278,7 +270,7 @@ export const OnboardingPanel = () => {
                                 void load();
                             }
                         }}
-                        className="uppercase tracking-widest text-xs px-5 py-2 font-black"
+                        className="uppercase tracking-widest"
                     >
                         Activate Session
                     </Button>
@@ -287,351 +279,374 @@ export const OnboardingPanel = () => {
         );
     }
 
-    return (
-        <div className="flex flex-col gap-2 pb-2">
-            {/* Mission-quality section labels + cards (match MissionPanel) */}
-            {(() => {
-                const coreTracks = catalog.filter((x) => x.core);
-                const extTracks = catalog.filter((x) => !x.core);
-                const coreSum = coreTracks.reduce((s, x) => s + (x.reward || 0), 0);
-                const extSum = extTracks.reduce((s, x) => s + (x.reward || 0), 0);
+    const coreTracks = catalog.filter((x) => x.core);
+    const extTracks = catalog.filter((x) => !x.core);
+    const coreSum = coreTracks.reduce((s, x) => s + (x.reward || 0), 0);
+    const extSum = extTracks.reduce((s, x) => s + (x.reward || 0), 0);
 
-                const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
-                    <div className="flex items-center gap-2.5 mb-2">
-                        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
-                            {children}
-                        </span>
-                        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-                        {right}
-                    </div>
-                );
+    const TrackIcon = ({ track }: { track: string }) => {
+        const dice = (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <path d="M7 7h.01M17 7h.01M12 12h.01M7 17h.01M17 17h.01" />
+            </svg>
+        );
+        const trophy = (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0V4M3 5h4v4A5 5 0 0 1 3 5M21 5h-4v4a5 5 0 0 0 4-4" />
+            </svg>
+        );
+        const flame = (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M17 10C15 8 13.97 3 13.97 3 10 5.25 10 10 10 10c-3-2-2.5-6.5-2.5-6.5C4 6.5 4 11 4 14a8 8 0 0 0 16 0c0-2.5-1.5-4-3-4z" />
+            </svg>
+        );
+        const users = (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+        );
+        const clock = (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 6v6l4 2" />
+            </svg>
+        );
+        const calendar = (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <path d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+        );
+        const chat = (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+        );
+        const target = (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="6" />
+                <circle cx="12" cy="12" r="2" />
+            </svg>
+        );
 
-                const TrackIcon = ({ track }: { track: string }) => {
-                    // Same SVG language as MissionPanel getTypeBadge (24-view, stroke icons).
-                    const dice = (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                            <path d="M7 7h.01M17 7h.01M12 12h.01M7 17h.01M17 17h.01" />
-                        </svg>
-                    );
-                    const trophy = (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0V4M3 5h4v4A5 5 0 0 1 3 5M21 5h-4v4a5 5 0 0 0 4-4" />
-                        </svg>
-                    );
-                    const flame = (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <path d="M17 10C15 8 13.97 3 13.97 3 10 5.25 10 10 10 10c-3-2-2.5-6.5-2.5-6.5C4 6.5 4 11 4 14a8 8 0 0 0 16 0c0-2.5-1.5-4-3-4z" />
-                        </svg>
-                    );
-                    const users = (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                            <circle cx="9" cy="7" r="4" />
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-                        </svg>
-                    );
-                    const clock = (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="M12 6v6l4 2" />
-                        </svg>
-                    );
-                    const calendar = (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <rect x="3" y="4" width="18" height="18" rx="2" />
-                            <path d="M16 2v4M8 2v4M3 10h18" />
-                        </svg>
-                    );
-                    const chat = (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                        </svg>
-                    );
-                    const target = (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[22px] h-[22px]">
-                            <circle cx="12" cy="12" r="10" />
-                            <circle cx="12" cy="12" r="6" />
-                            <circle cx="12" cy="12" r="2" />
-                        </svg>
-                    );
+        const map: Record<string, { badge: string; icon: React.ReactNode }> = {
+            tutorial: { badge: 'bg-accent-soft text-accent border-accent/35', icon: target },
+            ai_classic: { badge: 'bg-accent-soft text-accent border-accent/35', icon: dice },
+            ai_power: { badge: 'bg-warn/15 text-warn border-warn/35', icon: flame },
+            ai_snakes: { badge: 'bg-positive/15 text-positive border-positive/35', icon: dice },
+            pvp: { badge: 'bg-negative/15 text-negative border-negative/35', icon: trophy },
+            playtime: { badge: 'bg-warn/15 text-warn border-warn/35', icon: clock },
+            social: { badge: 'bg-accent-soft text-accent border-accent/35', icon: users },
+            day2: { badge: 'bg-positive/15 text-positive border-positive/35', icon: calendar },
+            day3: { badge: 'bg-positive/15 text-positive border-positive/35', icon: calendar },
+            friend_dm: { badge: 'bg-accent-soft text-accent border-accent/35', icon: chat },
+            clan: { badge: 'bg-warn/15 text-warn border-warn/35', icon: users },
+        };
+        const b = map[track] || { badge: 'bg-surface-panel text-ink-strong border-line-soft', icon: dice };
+        return (
+            <div className={`w-11 h-11 flex items-center justify-center rounded-xl shrink-0 border ${b.badge}`}>
+                {b.icon}
+            </div>
+        );
+    };
 
-                    const map: Record<string, { bg: string; color: string; icon: React.ReactNode }> = {
-                        tutorial: { bg: 'bg-cyan-500/15', color: 'text-cyan-300', icon: target },
-                        ai_classic: { bg: 'bg-indigo-500/15', color: 'text-indigo-300', icon: dice },
-                        ai_power: { bg: 'bg-violet-500/15', color: 'text-violet-300', icon: flame },
-                        ai_snakes: { bg: 'bg-emerald-500/15', color: 'text-emerald-300', icon: dice },
-                        pvp: { bg: 'bg-rose-500/15', color: 'text-rose-300', icon: trophy },
-                        playtime: { bg: 'bg-amber-500/15', color: 'text-amber-300', icon: clock },
-                        social: { bg: 'bg-sky-500/15', color: 'text-sky-300', icon: users },
-                        day2: { bg: 'bg-teal-500/15', color: 'text-teal-300', icon: calendar },
-                        day3: { bg: 'bg-teal-500/15', color: 'text-teal-300', icon: calendar },
-                        friend_dm: { bg: 'bg-fuchsia-500/15', color: 'text-fuchsia-300', icon: chat },
-                        clan: { bg: 'bg-orange-500/15', color: 'text-orange-300', icon: users },
-                    };
-                    const b = map[track] || { bg: 'bg-white/10', color: 'text-white', icon: dice };
-                    return (
-                        <div className={`w-12 h-12 flex items-center justify-center rounded-2xl flex-shrink-0 ${b.bg} ${b.color} shadow-inner border border-white/5`}>
-                            {b.icon}
-                        </div>
-                    );
-                };
+    const TrackCard = (x: TrackRow) => {
+        const oc = onChain.configured ? onChain.states[x.track] : undefined;
+        const useOnChain = Boolean(oc);
+        const rawProgress = useOnChain ? oc!.progress : (x.progress || 0);
+        const rawTarget = typeof x.target === 'number' ? x.target : 1;
+        const targetVal = rawTarget <= 0 ? 1 : rawTarget;
+        const isCompleted = useOnChain ? oc!.completed : rawProgress >= rawTarget;
+        const isClaimed = useOnChain ? oc!.claimed : x.is_claimed;
+        const claimable = !isClaimed && (isCompleted || x.claimable);
+        const progressVal = (isCompleted || isClaimed) ? Math.max(rawProgress, targetVal) : rawProgress;
+        const progressPercent = Math.min((progressVal / Math.max(targetVal, 1)) * 100, 100);
 
-                const TrackCard = (x: TrackRow) => {
-                    // On-chain overlay (MissionSystem is the payout authority for onboarding):
-                    const oc = onChain.configured ? onChain.states[x.track] : undefined;
-                    const useOnChain = Boolean(oc);
-                    const rawProgress = useOnChain ? oc!.progress : (x.progress || 0);
-                    const rawTarget = typeof x.target === 'number' ? x.target : 1;
-                    const targetVal = rawTarget <= 0 ? 1 : rawTarget;
-                    const isCompleted = useOnChain ? oc!.completed : rawProgress >= rawTarget;
-                    const isClaimed = useOnChain ? oc!.claimed : x.is_claimed;
-                    const claimable = !isClaimed && (isCompleted || x.claimable);
-                    const progressVal = (isCompleted || isClaimed) ? Math.max(rawProgress, targetVal) : rawProgress;
-                    const progressPercent = Math.min((progressVal / Math.max(targetVal, 1)) * 100, 100);
-                    return (
-                        <motion.div
-                            layout
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            key={x.track}
-                            className="flex flex-col gap-3 bg-white/[0.04] border border-white/10 p-4 rounded-2xl hover:bg-white/[0.07] hover:border-white/25 transition-colors relative overflow-hidden"
-                        >
-                            {/* Full-Card Tactical Radar + ThinkingOrb Claiming Overlay */}
-                            <ClaimingOverlay isClaiming={claimingId === x.track} />
-                            {isCompleted && (
-                                <div className="absolute inset-0 bg-green-500/5 opacity-50 blur-xl pointer-events-none" />
-                            )}
-                            <div className="flex items-start gap-4">
-                                <TrackIcon track={x.track} />
-                                <div className="flex flex-col flex-1 min-w-0 pt-0.5">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <h3 className={`font-bold text-ludo-lg truncate ${isCompleted ? 'text-green-300' : 'text-white'}`}>
-                                            {x.label}
-                                        </h3>
-                                        <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 flex-shrink-0">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-cyan-400">
-                                                <path d="M6 3h12l4 6-10 13L2 9z" />
-                                                <path d="M11 3 8 9l4 13 4-13-3-6" />
-                                            </svg>
-                                            <span className="text-ludo-sm font-black leading-none text-cyan-400">{x.reward}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Task details, directly above the progress bar. Always rendered
-                                as a single line — every task carries it, and no progress value
-                                can change the card's height. */}
-                            <div className="flex flex-col gap-2">
-                                <p className="text-ludo-sm font-medium text-white/60 leading-snug">
-                                    {x.desc}
-                                </p>
-                                <div className="flex items-center gap-4">
-                                    <div className="flex-1">
-                                        <div className="flex items-end justify-between mb-1.5 px-0.5">
-                                            <span className="text-ludo-xs uppercase font-bold text-white/40 tracking-wider">Progress</span>
-                                            <span className={`text-xs font-black tabular-nums ${isCompleted ? 'text-green-400' : 'text-white'}`}>
-                                                {progressVal} <span className="text-white/30 text-ludo-xs">/ {targetVal}</span>
-                                            </span>
-                                        </div>
-                                        <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                                            <div
-                                                className={`h-full rounded-full transition-all duration-1000 ease-out ${isClaimed ? 'bg-white/20' : isCompleted ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-cyan-600'}`}
-                                                style={{ width: `${progressPercent}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    loading={claimingId === x.track}
-                                    disabled={isClaimed || !claimable}
-                                    onClick={claimable ? () => handleClaim(x.track) : undefined}
-                                    className={`min-w-[70px] rounded-xl ${isClaimed ? 'opacity-60 cursor-not-allowed border-white/10 bg-white/5 text-white/50' : claimable ? 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]' : ''}`}
-                                >
-                                    {isClaimed ? (
-                                        <span className="flex items-center gap-1 text-white/60">
-                                            CLAIMED{' '}
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm text-green-400">
-                                                <polyline points="20 6 9 17 4 12" />
-                                            </svg>
-                                        </span>
-                                    ) : claimable ? (
-                                        'CLAIM'
-                                    ) : (
-                                        'GO'
-                                    )}
-                                </Button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    );
-                };
+        return (
+            <div
+                key={x.track}
+                className="card-3077 flex flex-col gap-2.5 bg-surface-recessed border border-line-soft p-3.5 rounded-2xl hover:bg-surface-hover hover:border-line-strong transition-colors relative overflow-hidden"
+            >
+                <HudCornerTicks />
+                <ClaimingOverlay isClaiming={claimingId === x.track} />
+                {isCompleted && !isClaimed && (
+                    <div className="absolute inset-0 bg-positive/10 opacity-40 pointer-events-none" />
+                )}
 
-                return (
-                    <>
-                        {onChain.configured && (
-                            <div className="flex items-center gap-1.5 pb-1 text-ludo-xs font-black text-cyan-400/80 uppercase tracking-wider">
-                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                                on-chain
-                            </div>
-                        )}
-                        {/* Welcome — same card language as the tracks below: icon row
-                            (title + gem reward chip + the details line every task
-                            carries) over the progress/action row, so the claim button
-                            sits exactly where the GO/CLAIM buttons do. */}
-                        <motion.div
-                            layout
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="flex flex-col gap-3 bg-white/[0.04] border border-white/10 p-4 rounded-2xl hover:bg-white/[0.07] hover:border-white/25 transition-colors relative overflow-hidden"
-                        >
-                            <ClaimingOverlay isClaiming={claimingId === WELCOME_ID} />
-                            {welcomeClaimed && (
-                                <div className="absolute inset-0 bg-green-500/5 opacity-50 blur-xl pointer-events-none" />
-                            )}
-                            <div className="flex items-start gap-4">
-                                <div className="w-12 h-12 flex items-center justify-center rounded-2xl flex-shrink-0 bg-cyan-500/15 text-cyan-300 shadow-inner border border-white/5">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-[22px] h-[22px]">
-                                        <path d="M20 12v10H4V12" /><path d="M2 7h20v5H2z" /><path d="M12 22V7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
-                                    </svg>
-                                </div>
-                                <div className="flex flex-col flex-1 min-w-0 pt-0.5">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <h3 className={`font-bold text-ludo-lg truncate ${welcomeClaimed ? 'text-green-300' : 'text-white'}`}>
-                                            Welcome grant
-                                        </h3>
-                                        <div className="flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-lg border border-white/5 flex-shrink-0">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3 text-cyan-400">
-                                                <path d="M6 3h12l4 6-10 13L2 9z" />
-                                                <path d="M11 3 8 9l4 13 4-13-3-6" />
-                                            </svg>
-                                            <span className="text-ludo-sm font-black leading-none text-cyan-400">{WELCOME_REWARD}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* Task details, directly above the progress bar — same line,
-                                same placement, as every track card in this list. */}
-                            <div className="flex flex-col gap-2">
-                                <p className="text-ludo-sm font-medium text-white/60 leading-snug">
-                                    {WELCOME_GRANT_DESC}
-                                </p>
-                                <div className="flex items-center gap-4">
-                                    <div className="flex-1">
-                                        <div className="flex items-end justify-between mb-1.5 px-0.5">
-                                            <span className="text-ludo-xs uppercase font-bold text-white/40 tracking-wider">Progress</span>
-                                            <span className={`text-xs font-black tabular-nums ${welcomeClaimed ? 'text-green-400' : 'text-white'}`}>
-                                                {welcomeClaimed ? 1 : 0} <span className="text-white/30 text-ludo-xs">/ 1</span>
-                                            </span>
-                                        </div>
-                                        <div className="w-full h-2 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                                            <div
-                                                className={`h-full rounded-full transition-all duration-1000 ease-out ${welcomeClaimed ? 'bg-white/20' : 'bg-cyan-600'}`}
-                                                style={{ width: `${welcomeClaimed ? 100 : 0}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    loading={claimingId === WELCOME_ID}
-                                    disabled={welcomeClaimed}
-                                    onClick={() => handleClaim(WELCOME_ID)}
-                                    className={`min-w-[70px] rounded-xl ${welcomeClaimed ? 'opacity-60 cursor-not-allowed border-white/10 bg-white/5 text-white/50' : 'bg-positive/80 border-positive text-white hover:bg-positive shadow-[0_0_15px_color-mix(in_srgb,var(--positive)_30%,transparent)]'}`}
-                                >
-                                    {welcomeClaimed ? (
-                                        <span className="flex items-center gap-1 text-white/60">
-                                            CLAIMED{' '}
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm text-green-400">
-                                                <polyline points="20 6 9 17 4 12" />
-                                            </svg>
-                                        </span>
-                                    ) : (
-                                        'CLAIM'
-                                    )}
-                                </Button>
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        <SectionLabel right={<span className="text-ludo-xs font-black text-cyan-300 tabular-nums">{coreSum || 1000} CHIPS</span>}>
-                            Core package
-                        </SectionLabel>
-                        <p className="text-ludo-sm text-white/45 mb-2 -mt-1">Finish core missions to unlock extended rewards.</p>
-                        <div className="flex flex-col gap-2">
-                            <AnimatePresence mode="popLayout">{coreTracks.map(TrackCard)}</AnimatePresence>
-                        </div>
-
-                        <div className="mt-3">
-                            <SectionLabel right={<span className="text-ludo-xs font-black text-white/50 tabular-nums">{extSum} CHIPS</span>}>
-                                Extended missions
-                            </SectionLabel>
-                            <p className="text-ludo-sm text-white/45 mb-2 -mt-1">Unlocks after the core package is claimed.</p>
-                            <div className="flex flex-col gap-2">
-                                <AnimatePresence mode="popLayout">{extTracks.map(TrackCard)}</AnimatePresence>
-                            </div>
-                        </div>
-
-                        {notice && <div className="text-ludo-sm text-cyan-300/90 text-center pt-2">{notice}</div>}
-
-                        {/* Invite — last, same card shell */}
-                        <div className="mt-4">
-                            <SectionLabel right={referral ? (
-                                <span className="text-ludo-xs font-black text-white/50 tabular-nums">
-                                    {referral.successful} ok / {referral.unsuccessful} dead / {referral.slotsRemaining} slots
+                <div className="flex items-start gap-3 relative z-[1]">
+                    <TrackIcon track={x.track} />
+                    <div className="flex flex-col flex-1 min-w-0 pt-0.5">
+                        <div className="flex items-start justify-between gap-2">
+                            <h3
+                                className={`font-bold text-ludo-md truncate ${
+                                    isCompleted ? 'text-positive' : 'text-ink-strong'
+                                }`}
+                            >
+                                {x.label}
+                            </h3>
+                            <div className="flex items-center gap-1.5 bg-surface-panel px-2.5 py-1 rounded-lg border border-line-soft shrink-0">
+                                <ChipsHexIcon className="w-3 h-3 text-accent" active />
+                                <span className="text-ludo-xs font-extrabold font-mono leading-none text-accent tabular-nums">
+                                    {x.reward}
                                 </span>
-                            ) : undefined}>
-                                Invite
-                            </SectionLabel>
-                            <div className="bg-white/[0.04] border border-white/10 p-4 rounded-2xl flex flex-col gap-3">
-                                <p className="text-ludo-sm font-medium text-white/60 leading-snug">
-                                    Share your code. Early referees earn 50 CHIPS, then 10 after top slots fill.
-                                </p>
-                                <div className="flex items-center gap-2">
-                                    <div
-                                        onClick={copyCode}
-                                        className="flex-1 px-3 py-2.5 rounded-xl bg-black/40 border border-cyan-400/30 font-mono text-cyan-300 text-sm cursor-pointer select-all"
-                                    >
-                                        {referral?.code || '—'}
-                                    </div>
-                                    <button
-                                        onClick={copyCode}
-                                        className="px-3 py-2.5 rounded-xl bg-white/10 text-white text-ludo-sm font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all border border-white/10"
-                                    >
-                                        {copied ? 'Copied' : 'Copy'}
-                                    </button>
-                                </div>
-                                {referral?.referrer ? (
-                                    <div className="text-ludo-xs text-white/40 font-mono">Referred by {referral.referrer.slice(0, 10)}…</div>
-                                ) : (
-                                    <div className="flex items-center gap-2">
-                                        <input
-                                            value={referralCodeInput}
-                                            onChange={(e) => setReferralCodeInput(e.target.value)}
-                                            placeholder="REFERRAL CODE"
-                                            maxLength={32}
-                                            autoComplete="off"
-                                            autoCorrect="off"
-                                            autoCapitalize="none"
-                                            spellCheck={false}
-                                            className="flex-1 px-3 py-2.5 rounded-xl bg-black/40 border border-white/10 text-white text-ludo-sm font-mono uppercase tracking-wider placeholder:text-white/25 focus:outline-none focus:border-cyan-400/50"
-                                        />
-                                        <button
-                                            onClick={bindReferral}
-                                            disabled={!referralCodeInput.trim()}
-                                            className="px-3 py-2.5 rounded-xl bg-white/10 text-white text-ludo-sm font-black uppercase tracking-[0.18em] hover:bg-white/20 transition-all border border-white/10 disabled:opacity-40"
-                                        >
-                                            Bind
-                                        </button>
-                                    </div>
-                                )}
-                                {bindState && <div className="text-ludo-xs text-cyan-300/80">{bindState}</div>}
                             </div>
                         </div>
-                    </>
-                );
-            })()}
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-2 relative z-[1]">
+                    <p className="text-ludo-xs font-medium text-ink-muted leading-snug">{x.desc}</p>
+                    <div className="flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-end justify-between mb-1 px-0.5">
+                                <span className="text-ludo-xs uppercase font-bold font-mono text-ink-faint tracking-wider">
+                                    Progress
+                                </span>
+                                <span
+                                    className={`text-ludo-xs font-extrabold font-mono tabular-nums ${
+                                        isCompleted ? 'text-positive' : 'text-ink-strong'
+                                    }`}
+                                >
+                                    {progressVal}{' '}
+                                    <span className="text-ink-faint">/ {targetVal}</span>
+                                </span>
+                            </div>
+                            <HudProgressGauge
+                                percent={progressPercent}
+                                tone={isClaimed ? 'muted' : isCompleted ? 'positive' : 'accent'}
+                            />
+                        </div>
+
+                        <Button
+                            variant={claimable ? 'primary' : 'secondary'}
+                            size="sm"
+                            loading={claimingId === x.track}
+                            disabled={isClaimed || !claimable}
+                            onClick={claimable ? () => void handleClaim(x.track) : undefined}
+                            className={`min-w-[74px] rounded-xl shrink-0 ${
+                                isClaimed
+                                    ? 'opacity-60 cursor-not-allowed'
+                                    : claimable
+                                      ? 'bg-positive text-accent-ink border-positive hover:brightness-110'
+                                      : ''
+                            }`}
+                        >
+                            {isClaimed ? (
+                                <span className="inline-flex items-center gap-1 text-ink-muted">
+                                    CLAIMED
+                                    <CheckGlyphIcon className="w-3 h-3 text-positive" />
+                                </span>
+                            ) : claimable ? (
+                                'CLAIM'
+                            ) : (
+                                'GO'
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="flex flex-col gap-2.5 pb-2">
+            {onChain.configured && (
+                <div className="flex items-center gap-1.5 text-ludo-xs font-mono font-bold text-accent uppercase tracking-wider">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                    on-chain verified
+                </div>
+            )}
+
+            {/* Welcome Grant */}
+            <div className="card-3077 flex flex-col gap-2.5 bg-surface-recessed border border-line-soft p-3.5 rounded-2xl hover:bg-surface-hover hover:border-line-strong transition-colors relative overflow-hidden">
+                <HudCornerTicks />
+                <ClaimingOverlay isClaiming={claimingId === WELCOME_ID} />
+                {welcomeClaimed && (
+                    <div className="absolute inset-0 bg-positive/10 opacity-35 pointer-events-none" />
+                )}
+                <div className="flex items-start gap-3 relative z-[1]">
+                    <div className="w-11 h-11 flex items-center justify-center rounded-xl shrink-0 bg-accent-soft text-accent border border-accent/35">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-5 h-5">
+                            <path d="M20 12v10H4V12" />
+                            <path d="M2 7h20v5H2z" />
+                            <path d="M12 22V7" />
+                            <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                            <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                        </svg>
+                    </div>
+                    <div className="flex flex-col flex-1 min-w-0 pt-0.5">
+                        <div className="flex items-start justify-between gap-2">
+                            <h3
+                                className={`font-bold text-ludo-md truncate ${
+                                    welcomeClaimed ? 'text-positive' : 'text-ink-strong'
+                                }`}
+                            >
+                                Welcome grant
+                            </h3>
+                            <div className="flex items-center gap-1.5 bg-surface-panel px-2.5 py-1 rounded-lg border border-line-soft shrink-0">
+                                <ChipsHexIcon className="w-3 h-3 text-accent" active />
+                                <span className="text-ludo-xs font-extrabold font-mono leading-none text-accent tabular-nums">
+                                    {WELCOME_REWARD}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-2 relative z-[1]">
+                    <p className="text-ludo-xs font-medium text-ink-muted leading-snug">
+                        {WELCOME_GRANT_DESC}
+                    </p>
+                    <div className="flex items-center gap-3">
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-end justify-between mb-1 px-0.5">
+                                <span className="text-ludo-xs uppercase font-bold font-mono text-ink-faint tracking-wider">
+                                    Progress
+                                </span>
+                                <span
+                                    className={`text-ludo-xs font-extrabold font-mono tabular-nums ${
+                                        welcomeClaimed ? 'text-positive' : 'text-ink-strong'
+                                    }`}
+                                >
+                                    {welcomeClaimed ? 1 : 0}{' '}
+                                    <span className="text-ink-faint">/ 1</span>
+                                </span>
+                            </div>
+                            <HudProgressGauge
+                                percent={welcomeClaimed ? 100 : 0}
+                                tone={welcomeClaimed ? 'positive' : 'accent'}
+                            />
+                        </div>
+
+                        <Button
+                            variant={welcomeClaimed ? 'secondary' : 'primary'}
+                            size="sm"
+                            loading={claimingId === WELCOME_ID}
+                            disabled={welcomeClaimed}
+                            onClick={() => void handleClaim(WELCOME_ID)}
+                            className={`min-w-[74px] rounded-xl shrink-0 ${
+                                welcomeClaimed
+                                    ? 'opacity-60 cursor-not-allowed'
+                                    : 'bg-positive text-accent-ink border-positive hover:brightness-110'
+                            }`}
+                        >
+                            {welcomeClaimed ? (
+                                <span className="inline-flex items-center gap-1 text-ink-muted">
+                                    CLAIMED
+                                    <CheckGlyphIcon className="w-3 h-3 text-positive" />
+                                </span>
+                            ) : (
+                                'CLAIM'
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            <HudSectionLabel
+                right={
+                    <span className="text-ludo-xs font-mono font-bold text-accent tabular-nums">
+                        {coreSum || 1000} CHIPS
+                    </span>
+                }
+            >
+                Core package
+            </HudSectionLabel>
+            <p className="text-ludo-xs text-ink-faint -mt-1">
+                Finish core missions to unlock extended rewards.
+            </p>
+            <div className="flex flex-col gap-2">{coreTracks.map(TrackCard)}</div>
+
+            <div className="mt-2 flex flex-col gap-1.5">
+                <HudSectionLabel
+                    right={
+                        <span className="text-ludo-xs font-mono font-bold text-ink-muted tabular-nums">
+                            {extSum} CHIPS
+                        </span>
+                    }
+                >
+                    Extended missions
+                </HudSectionLabel>
+                <p className="text-ludo-xs text-ink-faint -mt-0.5">
+                    Unlocks after the core package is claimed.
+                </p>
+                <div className="flex flex-col gap-2">{extTracks.map(TrackCard)}</div>
+            </div>
+
+            {notice && (
+                <div className="text-ludo-sm font-mono font-bold text-accent text-center pt-1">
+                    {notice}
+                </div>
+            )}
+
+            {/* Invite & Referrals */}
+            <div className="mt-2 flex flex-col gap-2">
+                <HudSectionLabel
+                    right={
+                        referral ? (
+                            <span className="text-ludo-xs font-mono font-bold text-ink-muted tabular-nums">
+                                {referral.successful} ok / {referral.unsuccessful} dead / {referral.slotsRemaining} slots
+                            </span>
+                        ) : undefined
+                    }
+                >
+                    Invite
+                </HudSectionLabel>
+                <div className="bg-surface-recessed border border-line-soft p-3.5 rounded-2xl flex flex-col gap-2.5">
+                    <p className="text-ludo-xs font-medium text-ink-muted leading-snug">
+                        Share your code. Early referees earn 50 CHIPS, then 10 after top slots fill.
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <div
+                            onClick={() => void copyCode()}
+                            className="flex-1 px-3 py-2 rounded-xl bg-surface-panel border border-accent/35 font-mono text-accent text-ludo-md cursor-pointer select-all truncate"
+                        >
+                            {referral?.code || '—'}
+                        </div>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => void copyCode()}
+                            className="uppercase tracking-[0.16em]"
+                        >
+                            {copied ? 'Copied' : 'Copy'}
+                        </Button>
+                    </div>
+                    {referral?.referrer ? (
+                        <div className="text-ludo-xs text-ink-faint font-mono">
+                            Referred by {referral.referrer.slice(0, 10)}…
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <input
+                                value={referralCodeInput}
+                                onChange={(e) => setReferralCodeInput(e.target.value)}
+                                placeholder="REFERRAL CODE"
+                                maxLength={32}
+                                autoComplete="off"
+                                autoCorrect="off"
+                                autoCapitalize="none"
+                                spellCheck={false}
+                                className="flex-1 px-3 py-2 rounded-xl bg-surface-panel border border-line-soft text-ink-strong text-ludo-sm font-mono uppercase tracking-wider placeholder:text-ink-faint focus:outline-none focus:border-accent"
+                            />
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => void bindReferral()}
+                                disabled={!referralCodeInput.trim()}
+                                className="uppercase tracking-[0.16em]"
+                            >
+                                Bind
+                            </Button>
+                        </div>
+                    )}
+                    {bindState && <div className="text-ludo-xs font-mono text-accent">{bindState}</div>}
+                </div>
+            </div>
         </div>
     );
 };

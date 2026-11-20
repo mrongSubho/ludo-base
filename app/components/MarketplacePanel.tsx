@@ -11,11 +11,13 @@ import { buildPurchaseIntentMessage } from '@/lib/purchaseIntent';
 import { marketplaceTotalChips } from '@/lib/marketplacePrices';
 import { getShowcased, setShowcased } from '@/lib/showcase';
 import { useGuestWall } from '@/hooks/GuestWallContext';
+import { GamePanelShell } from './GamePanelShell';
 import { PanelTabs, TabCount } from './PanelTabs';
 import { Button } from './Button';
 import { Chip } from './Chip';
-import { HudCornerTicks, HudProgressGauge } from './HudPrimitives';
-import { ArmoryCrateIcon, ChipsHexIcon, CloseReticleIcon } from './icons';
+import { HudCornerTicks, HudProgressGauge, HudSectionLabel } from './HudPrimitives';
+import { ThinkingOrb } from './ThinkingOrb';
+import { ArmoryCrateIcon, CheckGlyphIcon, ChipsHexIcon } from './icons';
 
 type MarketTab = 'themes' | 'dices' | 'tokens' | 'items';
 type Rarity = 'common' | 'rare' | 'legendary';
@@ -84,8 +86,9 @@ function chipsBaseToWhole(v: unknown): number {
         return 0;
     }
 }
+
 const TokenIcon = () => (
-    <ChipsHexIcon className="w-3.5 h-3.5 text-cyan-300" active />
+    <ChipsHexIcon className="w-3.5 h-3.5 text-accent" active />
 );
 
 // ─── Real item previews ─────────────────────────────────────────────────────
@@ -108,7 +111,7 @@ const OrbPreview = ({ size = 44 }: { size?: number }) => (
             width: size, height: size,
             background: 'radial-gradient(circle at 38% 35%, #60a5fa 0%, #3b82f6 30%, #2563eb 65%, #1d4ed8 100%)',
             border: '1.5px solid rgba(255,255,255,0.6)',
-            boxShadow: '0 6px 16px rgba(0,0,0,0.45), inset 0 -3px 6px rgba(0,0,0,0.35), inset 0 3px 6px rgba(255,255,255,0.25)'
+            boxShadow: '0 6px 16px rgba(0,0,0,0.45), inset 0 -3px 6px rgba(0,0,0,0.35), inset 0 3px 6px rgba(255,255,255,0.25)',
         }}
     />
 );
@@ -116,12 +119,25 @@ const OrbPreview = ({ size = 44 }: { size?: number }) => (
 /** Faceted relic gem for collectible items (they carry no previewIcon) */
 const ItemRelic = ({ px, tint }: { px: number; tint: string }) => (
     <div className="relative flex items-center justify-center" style={{ width: px, height: px }}>
-        <div className={`absolute inset-[8%] rotate-45 rounded-[22%] ${tint} border border-white/40`} />
-        <div className="absolute inset-[8%] rotate-45 rounded-[22%] bg-gradient-to-br from-white/50 via-transparent to-black/50" />
-        <div className="absolute left-[1%] top-1/2 w-[98%] h-px bg-white/25 -rotate-45" />
-        <div className="absolute left-[30%] top-[20%] w-[13%] h-[13%] rounded-full bg-white/90 blur-[1px]" />
+        <div
+            className={`absolute inset-[8%] rotate-45 rounded-[22%] ${tint}`}
+            style={{ border: '1px solid rgba(255,255,255,0.4)' }}
+        />
+        <div
+            className="absolute inset-[8%] rotate-45 rounded-[22%]"
+            style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.48), transparent 52%, rgba(0,0,0,0.48))' }}
+        />
+        <div
+            className="absolute left-[1%] top-1/2 w-[98%] h-px -rotate-45"
+            style={{ background: 'rgba(255,255,255,0.25)' }}
+        />
+        <div
+            className="absolute left-[30%] top-[20%] w-[13%] h-[13%] rounded-full blur-[1px]"
+            style={{ background: 'rgba(255,255,255,0.9)' }}
+        />
     </div>
 );
+
 /** Micro-board swatch: 5x5 Ludo motif (path ring + home courts) — reads as a theme, not an icon */
 const TEAM_DOTS = ['#ef4444', '#22c55e', '#eab308', '#3b82f6'];
 const TEAM_DOTS_3077 = ['#ff0055', '#00ff66', '#ffd000', '#0099ff'];
@@ -142,46 +158,48 @@ const ThemeSwatch = ({ mode = 'retro', light: propLight, size = 52 }: { mode?: '
         else cells.push(base);
     }
     return (
-        <div className={`relative rounded-xl overflow-hidden shadow-lg ${is3077 ? 'border border-cyan-400/50 shadow-[0_0_15px_rgba(0,229,255,0.25)]' : 'border border-white/25'}`} style={{ width: size, height: size, background: light ? '#e8e6f0' : is3077 ? '#07080b' : '#0a0b14' }}>
+        <div
+            className={`relative rounded-xl overflow-hidden shadow-lg border ${is3077 ? 'border-accent/50 shadow-[0_0_15px_rgba(0,229,255,0.25)]' : 'border-line-soft'}`}
+            style={{ width: size, height: size, background: light ? '#e8e6f0' : is3077 ? '#07080b' : '#0a0b14' }}
+        >
             <div className="grid grid-cols-5 w-full h-full" style={{ gap: 1.5, padding: 5 }}>
                 {cells.map((c, i) => (
                     <div key={i} className="rounded-[2px]" style={{ background: c }} />
                 ))}
             </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-black/30 pointer-events-none" />
+            <div
+                className="absolute inset-0 pointer-events-none"
+                style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.28), transparent 50%, rgba(0,0,0,0.28))' }}
+            />
         </div>
     );
 };
 
 // ─── Category meta (icons + labels) ─────────────────────────────────────────
-const CheckIcon = ({ className = 'w-3 h-3' }: { className?: string }) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12"></polyline></svg>
-);
-
 const TAB_META: { id: MarketTab; label: string; icon: React.ReactNode }[] = [
     {
         id: 'themes', label: 'Themes',
-        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>,
     },
     {
         id: 'dices', label: 'Dices',
-        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><rect x="3" y="3" width="18" height="18" rx="4" /><circle cx="8.5" cy="8.5" r="1.4" fill="currentColor" stroke="none" /><circle cx="15.5" cy="15.5" r="1.4" fill="currentColor" stroke="none" /><circle cx="15.5" cy="8.5" r="1.4" fill="currentColor" stroke="none" /><circle cx="8.5" cy="15.5" r="1.4" fill="currentColor" stroke="none" /></svg>
+        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><rect x="3" y="3" width="18" height="18" rx="4" /><circle cx="8.5" cy="8.5" r="1.4" fill="currentColor" stroke="none" /><circle cx="15.5" cy="15.5" r="1.4" fill="currentColor" stroke="none" /><circle cx="15.5" cy="8.5" r="1.4" fill="currentColor" stroke="none" /><circle cx="8.5" cy="15.5" r="1.4" fill="currentColor" stroke="none" /></svg>,
     },
     {
         id: 'tokens', label: 'Tokens',
-        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></svg>
+        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></svg>,
     },
     {
         id: 'items', label: 'Items',
-        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="w-4 h-4"><path d="M12 2l8 4.5v9L12 20l-8-4.5v-9L12 2z" /><path d="M12 11L4 6.5M12 11l8-4.5M12 11v9" /></svg>
+        icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="w-4 h-4"><path d="M12 2l8 4.5v9L12 20l-8-4.5v-9L12 2z" /><path d="M12 11L4 6.5M12 11l8-4.5M12 11v9" /></svg>,
     },
 ];
 
 const RARITY_RANK: Record<Rarity, number> = { common: 1, rare: 2, legendary: 3 };
 const RARITY_BEAM: Record<Rarity, string> = {
-    common: 'bg-white/25',
-    rare: 'bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.9)]',
-    legendary: 'bg-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.9)]',
+    common: 'bg-line-strong',
+    rare: 'bg-accent shadow-[0_0_12px_rgba(0,229,255,0.7)]',
+    legendary: 'bg-warn shadow-[0_0_12px_rgba(245,158,11,0.75)]',
 };
 
 const SORT_LABELS: Record<SortKey, string> = {
@@ -191,7 +209,8 @@ const SORT_LABELS: Record<SortKey, string> = {
     rarity: 'Top rarity',
 };
 
-/** Compact coin formatting: 1100 → "1.1K" (keeps footer buttons from overflowing) */const formatCompact = (n: number) => {
+/** Compact coin formatting: 1100 → "1.1K" (keeps footer buttons from overflowing) */
+const formatCompact = (n: number) => {
     if (n >= 1000) {
         const v = n / 1000;
         return `${Number.isInteger(v) ? v : v.toFixed(1)}K`;
@@ -200,8 +219,8 @@ const SORT_LABELS: Record<SortKey, string> = {
 };
 
 const RARITY_HALO: Record<Rarity, string> = {
-    common: 'rgba(255,255,255,0.10)',
-    rare: 'rgba(34,211,238,0.28)',
+    common: 'rgba(148,163,184,0.16)',
+    rare: 'rgba(0,229,255,0.28)',
     legendary: 'rgba(245,158,11,0.34)',
 };
 
@@ -233,7 +252,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             traits: [{ trait_type: 'Style', value: 'Cyber-Tactical', rarity_percent: 100 }],
             activity: [{ event: 'Created', from: 'Protocol 3077', to: 'Arena', date: 'Genesis' }],
             chainInfo: { address: '0x307...777', standard: 'SBT', network: 'Base' },
-            previewColor: 'bg-[#07080b]'
+            previewColor: 'bg-[#07080b]',
         },
         {
             id: 'theme-retro', type: 'themes', kind: 'theme', equipValue: 'retro',
@@ -246,7 +265,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             traits: [{ trait_type: 'Style', value: 'Terminal', rarity_percent: 100 }],
             activity: [{ event: 'Created', from: 'System', to: 'Player', date: 'Genesis' }],
             chainInfo: { address: '0x000...000', standard: 'SBT', network: 'Base' },
-            previewColor: 'bg-[#0a0b14]'
+            previewColor: 'bg-[#0a0b14]',
         },
         {
             id: 'theme-daybreak', type: 'themes', kind: 'theme', equipValue: 'light',
@@ -259,7 +278,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             traits: [{ trait_type: 'Style', value: 'Daybreak', rarity_percent: 35 }],
             activity: [{ event: 'Created', from: 'System', to: 'Market', date: 'Genesis' }],
             chainInfo: { address: '0x111...222', standard: 'ERC-1155', network: 'Base' },
-            previewColor: 'bg-[#e8e6f0]'
+            previewColor: 'bg-[#e8e6f0]',
         },
         // ─── Dices (equip = real dice skin in matches) ───
         {
@@ -273,7 +292,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             traits: [{ trait_type: 'Finish', value: 'Ivory', rarity_percent: 100 }],
             activity: [{ event: 'Created', from: 'System', to: 'Player', date: 'Genesis' }],
             chainInfo: { address: '0x000...000', standard: 'SBT', network: 'Base' },
-            previewColor: 'bg-white/10', previewIcon: <DicePreview face="#ffffff" pip="#0F172A" />
+            previewColor: 'bg-surface-recessed', previewIcon: <DicePreview face="#ffffff" pip="#0F172A" />,
         },
         {
             id: 'dice-midnight', type: 'dices', kind: 'dice', equipValue: 'midnight',
@@ -286,7 +305,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             traits: [{ trait_type: 'Finish', value: 'Void', rarity_percent: 25 }],
             activity: [{ event: 'Created', from: 'System', to: 'Market', date: 'Genesis' }],
             chainInfo: { address: '0x333...444', standard: 'ERC-1155', network: 'Base' },
-            previewColor: 'bg-[#0b1220]', previewIcon: <DicePreview face="#0b1220" pip="#22d3ee" />
+            previewColor: 'bg-[#0b1220]', previewIcon: <DicePreview face="#0b1220" pip="#22d3ee" />,
         },
         {
             id: 'dice-gold', type: 'dices', kind: 'dice', equipValue: 'gold',
@@ -299,7 +318,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             traits: [{ trait_type: 'Material', value: '24k Gold', rarity_percent: 3 }],
             activity: [{ event: 'Created', from: 'System', to: 'Market', date: 'Genesis' }],
             chainInfo: { address: '0x555...666', standard: 'ERC-721', network: 'Base' },
-            previewColor: 'bg-[#451a03]', previewIcon: <DicePreview face="#451a03" pip="#fcd34a" />
+            previewColor: 'bg-[#451a03]', previewIcon: <DicePreview face="#451a03" pip="#fcd34a" />,
         },
         // ─── Tokens (equip = real pawn style in matches) ───
         {
@@ -313,7 +332,8 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             traits: [{ trait_type: 'Set', value: 'Full Chess', rarity_percent: 100 }],
             activity: [{ event: 'Created', from: 'System', to: 'Player', date: 'Genesis' }],
             chainInfo: { address: '0x000...000', standard: 'SBT', network: 'Base' },
-            previewColor: 'bg-white/5', previewIcon: <img loading="lazy" decoding="async" src="/tokens/king.png" alt="Chess" style={{ width: 44, height: 44, objectFit: 'contain' }} />
+            previewColor: 'bg-surface-recessed',
+            previewIcon: <img loading="lazy" decoding="async" src="/tokens/king.png" alt="Chess" width={44} height={44} style={{ width: 44, height: 44, objectFit: 'contain' }} />,
         },
         {
             id: 'tokens-orb', type: 'tokens', kind: 'tokens', equipValue: 'orb',
@@ -326,7 +346,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             traits: [{ trait_type: 'Core', value: 'Arcane', rarity_percent: 25 }],
             activity: [{ event: 'Created', from: 'System', to: 'Market', date: 'Genesis' }],
             chainInfo: { address: '0x777...888', standard: 'ERC-1155', network: 'Base' },
-            previewColor: 'bg-white/5', previewIcon: <OrbPreview size={44} />
+            previewColor: 'bg-surface-recessed', previewIcon: <OrbPreview size={44} />,
         },
         // ─── Items (collectibles: own + showcase, no equip) ───
         {
@@ -338,14 +358,14 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             stats: [{ label: 'Clarity', value: '98%' }, { label: 'Durability', value: 'Hard' }],
             traits: [
                 { trait_type: 'Element', value: 'Ice', rarity_percent: 25 },
-                { trait_type: 'Transparency', value: '98%', rarity_percent: 15 }
+                { trait_type: 'Transparency', value: '98%', rarity_percent: 15 },
             ],
             activity: [
                 { event: 'Sale', from: '0x441...111', to: '0x222...333', price: 175, date: '6h ago' },
-                { event: 'Created', from: 'System', to: '0x441...111', date: '1w ago' }
+                { event: 'Created', from: 'System', to: '0x441...111', date: '1w ago' },
             ],
             chainInfo: { address: '0x123...456', standard: 'ERC-1155', network: 'Base' },
-            previewColor: 'bg-cyan-500/30'
+            previewColor: 'bg-accent/25',
         },
         {
             id: 's2', type: 'items', kind: 'item', name: 'Magma',
@@ -356,14 +376,14 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             stats: [{ label: 'Heat', value: 'High' }, { label: 'Mass', value: 'Heavy' }],
             traits: [
                 { trait_type: 'Element', value: 'Fire', rarity_percent: 25 },
-                { trait_type: 'Temperature', value: 'Extreme', rarity_percent: 10 }
+                { trait_type: 'Temperature', value: 'Extreme', rarity_percent: 10 },
             ],
             activity: [
                 { event: 'Transfer', from: '0x888...999', to: '0x222...333', date: '12h ago' },
-                { event: 'Sale', from: '0x555...666', to: '0x888...999', price: 290, date: '1d ago' }
+                { event: 'Sale', from: '0x555...666', to: '0x888...999', price: 290, date: '1d ago' },
             ],
             chainInfo: { address: '0x987...654', standard: 'ERC-1155', network: 'Base' },
-            previewColor: 'bg-orange-600'
+            previewColor: 'bg-orange-600/80',
         },
         {
             id: 's3', type: 'items', kind: 'item', name: 'Void',
@@ -374,18 +394,18 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             stats: [{ label: 'Stealth', value: '100' }, { label: 'Gravity', value: 'Stable' }],
             traits: [
                 { trait_type: 'Material', value: 'Dark Matter', rarity_percent: 1 },
-                { trait_type: 'Reflection', value: '0%', rarity_percent: 1 }
+                { trait_type: 'Reflection', value: '0%', rarity_percent: 1 },
             ],
             activity: [
                 { event: 'Sale', from: '0xaaa...bbb', to: '0xccc...ddd', price: 1950, date: '3d ago' },
-                { event: 'Created', from: 'System', to: '0xaaa...bbb', date: '1mo ago' }
+                { event: 'Created', from: 'System', to: '0xaaa...bbb', date: '1mo ago' },
             ],
             chainInfo: { address: '0xabc...def', standard: 'ERC-1155', network: 'Base' },
-            previewColor: 'bg-black'
+            previewColor: 'bg-[#050608]',
         },
-        { id: 's4', type: 'items', kind: 'item', name: 'Neon-X', description: 'Electric skin.', lore: 'Pulsing neon.', price: 100, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 80, volume: 2000, owners: 4100 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-cyan-600' },
-        { id: 's5', type: 'items', kind: 'item', name: 'Cyber-V', description: 'Matrix skin.', lore: 'The digital frontier.', price: 240, owned: false, rarity: 'rare', collection: 'Core', creator: 'G', collectionStats: { floor: 200, volume: 1800, owners: 1900 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-cyan-500' },
-        { id: 's6', type: 'items', kind: 'item', name: 'Steel-Z', description: 'Metal skin.', lore: 'Cold steel.', price: 60, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 45, volume: 900, owners: 5200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-gray-500' },
+        { id: 's4', type: 'items', kind: 'item', name: 'Neon-X', description: 'Electric skin.', lore: 'Pulsing neon.', price: 100, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 80, volume: 2000, owners: 4100 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-sky-600/70' },
+        { id: 's5', type: 'items', kind: 'item', name: 'Cyber-V', description: 'Matrix skin.', lore: 'The digital frontier.', price: 240, owned: false, rarity: 'rare', collection: 'Core', creator: 'G', collectionStats: { floor: 200, volume: 1800, owners: 1900 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-accent/40' },
+        { id: 's6', type: 'items', kind: 'item', name: 'Steel-Z', description: 'Metal skin.', lore: 'Cold steel.', price: 60, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 45, volume: 900, owners: 5200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-slate-600/70' },
     ]);
 
     // ─── Mode + navigation state ───
@@ -553,12 +573,12 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
 
             const newActivity: MarketActivity = {
-                event: 'Sale', from: 'Market', to: 'Player', price: item.price, date: 'Just now'
+                event: 'Sale', from: 'Market', to: 'Player', price: item.price, date: 'Just now',
             };
             setMarketData(prev => prev.map(m =>
                 m.id === item.id
                     ? { ...m, owned: true, activity: [newActivity, ...m.activity] }
-                    : m
+                    : m,
             ));
 
             setIsProcessing(false);
@@ -592,7 +612,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             setMarketData(prev => prev.map(item =>
                 boughtIds.has(item.id)
                     ? { ...item, owned: true, activity: [{ event: 'Sale', from: 'Market', to: 'Player', price: item.price, date: now }, ...item.activity] }
-                    : item
+                    : item,
             ));
             setIsProcessing(false);
             setSuccessNote(`${missing.length} piece${missing.length > 1 ? 's' : ''} added — set complete.`);
@@ -618,7 +638,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 const newActivity: MarketActivity = {
                     event: 'List', from: 'Player', to: 'Market', price: priceNum,
                     duration: listingDuration === '7d' ? '7 Days' : listingDuration === '30d' ? '30 Days' : 'Indefinite',
-                    date: 'Just now'
+                    date: 'Just now',
                 };
                 return { ...item, price: priceNum, activity: [newActivity, ...item.activity] };
             }
@@ -645,41 +665,36 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         const c = {} as Record<MarketTab, { total: number; owned: number }>;
         for (const t of TAB_META) {
             const items = marketData.filter(i => i.type === t.id);
-            c[t.id] = { total: items.length, owned: items.filter(i => isOwnedId(i.id)).length };
+            c[t.id] = { total: items.length, owned: items.filter(i => ownedIds.includes(i.id)).length };
         }
         return c;
-         
     }, [marketData, ownedIds]);
 
     const totalOwned = TAB_META.reduce((n, t) => n + counts[t.id].owned, 0);
 
-    const matchesSearch = (item: MarketItem) => {
-        const q = search.trim().toLowerCase();
-        if (!q) return true;
-        return (
-            item.name.toLowerCase().includes(q) ||
-            item.collection.toLowerCase().includes(q) ||
-            item.traits.some(t => t.value.toLowerCase().includes(q) || t.trait_type.toLowerCase().includes(q))
-        );
-    };
-
     const visibleItems = useMemo(() => {
+        const q = search.trim().toLowerCase();
         let items = marketData.filter(i => i.type === activeTab);
-        if (mode === 'loadout') items = items.filter(i => isOwnedId(i.id));
-        else if (statusFilter === 'sale') items = items.filter(i => !isOwnedId(i.id));
-        else if (statusFilter === 'owned') items = items.filter(i => isOwnedId(i.id));
+        if (mode === 'loadout') items = items.filter(i => ownedIds.includes(i.id));
+        else if (statusFilter === 'sale') items = items.filter(i => !ownedIds.includes(i.id));
+        else if (statusFilter === 'owned') items = items.filter(i => ownedIds.includes(i.id));
         if (rarityFilter !== 'all') items = items.filter(i => i.rarity === rarityFilter);
-        items = items.filter(matchesSearch);
+        if (q) {
+            items = items.filter(item =>
+                item.name.toLowerCase().includes(q) ||
+                item.collection.toLowerCase().includes(q) ||
+                item.traits.some(t => t.value.toLowerCase().includes(q) || t.trait_type.toLowerCase().includes(q)),
+            );
+        }
         const sorted = [...items];
         if (sort === 'price-asc') sorted.sort((a, b) => a.price - b.price);
         else if (sort === 'price-desc') sorted.sort((a, b) => b.price - a.price);
         else if (sort === 'rarity') sorted.sort((a, b) => RARITY_RANK[b.rarity] - RARITY_RANK[a.rarity]);
         return sorted;
-         
     }, [marketData, ownedIds, activeTab, mode, statusFilter, rarityFilter, search, sort]);
 
     const tabItems = useMemo(() => marketData.filter(i => i.type === activeTab), [marketData, activeTab]);
-    const missing = useMemo(() => tabItems.filter(i => !isOwnedId(i.id)), [tabItems, ownedIds]);
+    const missing = useMemo(() => tabItems.filter(i => !ownedIds.includes(i.id)), [tabItems, ownedIds]);
     const missingTotal = missing.reduce((n, i) => n + i.price, 0);
     const cheapestMissing = missing.length ? [...missing].sort((a, b) => a.price - b.price)[0] : null;
 
@@ -717,7 +732,17 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         }
         if (item.type === 'tokens' && item.id === 'tokens-orb') return <OrbPreview size={px} />;
         if (item.type === 'tokens') {
-            return <img loading="lazy" decoding="async" src="/tokens/king.png" alt={item.name} style={{ width: px, height: px, objectFit: 'contain' }} />;
+            return (
+                <img
+                    loading="lazy"
+                    decoding="async"
+                    src="/tokens/king.png"
+                    alt={item.name}
+                    width={px}
+                    height={px}
+                    style={{ width: px, height: px, objectFit: 'contain' }}
+                />
+            );
         }
         if (item.type === 'themes') return <ThemeSwatch mode={item.equipValue as '3077' | 'retro' | 'light'} size={px} />;
         if (item.kind === 'item') return <ItemRelic px={px} tint={item.previewColor} />;
@@ -727,8 +752,11 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
     /** Rarity halo + pedestal shadow shared by cards and hero */
     const previewStage = (haloPx: string, rarity: Rarity) => (
         <>
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl pointer-events-none" style={{ width: haloPx, height: haloPx, background: RARITY_HALO[rarity] }} />
-            <div className="absolute bottom-[16%] left-1/2 -translate-x-1/2 w-[58%] h-[10px] rounded-full bg-black/60 blur-[6px] pointer-events-none" />
+            <div
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl pointer-events-none"
+                style={{ width: haloPx, height: haloPx, background: RARITY_HALO[rarity] }}
+            />
+            <div className="absolute bottom-[16%] left-1/2 -translate-x-1/2 w-[58%] h-[10px] rounded-full bg-black/55 blur-[6px] pointer-events-none" />
         </>
     );
 
@@ -744,826 +772,818 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         setIsSelling(true);
     };
 
+    if (!isOpen) return null;
+
+    const rarityPillClass = (rarity: Rarity) => {
+        if (rarity === 'legendary') return 'border-warn/50 text-warn bg-warn/15';
+        if (rarity === 'rare') return 'border-accent/45 text-accent bg-accent-soft';
+        return 'border-line-soft text-ink-muted bg-surface-recessed';
+    };
+
     return (
-        <>
-            {isOpen && (
-                <>
-                    {/* Backdrop */}
-                    <div className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent" />
+        <GamePanelShell
+            scopeClass="ludo-market-scope"
+            kicker="// ARMORY & LOADOUT"
+            title={(
+                <span className="inline-flex items-center gap-2">
+                    <span className="hud-chamfer-sm w-6 h-6 rounded-lg bg-accent-soft border border-accent/35 flex items-center justify-center">
+                        <ArmoryCrateIcon className="w-3.5 h-3.5 text-accent" />
+                    </span>
+                    <span>{selectedItem ? (isSelling ? 'List for Sale' : 'Inspect Asset') : 'Marketplace'}</span>
+                </span>
+            )}
+            subtitle={(
+                <span className="inline-flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1">
+                        <TokenIcon />
+                        <span className="font-bold text-accent tracking-wide">BASE NETWORK</span>
+                    </span>
+                    <span className="w-1 h-1 rounded-full bg-line-strong" />
+                    <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-recessed border border-line-soft"
+                        title="Escrowed CHIPS available for purchases"
+                    >
+                        <ChipsHexIcon className="w-3 h-3 text-warn shrink-0" active />
+                        <span className="font-extrabold text-ink-strong tabular-nums">
+                            {balance.toLocaleString()} CHIPS
+                        </span>
+                    </span>
+                </span>
+            )}
+            onClose={onClose}
+            hideOrbs
+        >
+            <div ref={panelRef} className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
+                {/* ─── Transaction overlays ─── */}
+                {isProcessing && (
+                    <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-8 text-center bg-surface-panel/95 backdrop-blur-md">
+                        <div className="mb-5">
+                            <ThinkingOrb state="searching" size={64} tone="accent" label="Updating vault inventory" />
+                        </div>
+                        <h3 className="text-xl font-extrabold text-ink-strong mb-2 uppercase tracking-tight">Updating your vault</h3>
+                        <p className="text-sm text-ink-muted max-w-[240px]">Writing to your inventory on Base…</p>
+                    </div>
+                )}
 
-                    {/* Panel */}
-                    <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
-                        <div className="w-full max-w-[500px] relative h-full">
-                            <div
-                                ref={panelRef}
-                                className="ludo-market-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
-                                style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
-                            >
-                                <HudCornerTicks />
-                                {/* Cosmic orbs */}
-                                <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                                <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+                {transactionResult === 'success' && (
+                    <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-8 text-center bg-surface-panel/95 backdrop-blur-md">
+                        <div className="w-20 h-20 bg-positive/15 border border-positive/35 rounded-full flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(34,197,94,0.2)]">
+                            <CheckGlyphIcon className="w-10 h-10 text-positive" />
+                        </div>
+                        <h3 className="text-2xl font-extrabold text-ink-strong mb-2 uppercase tracking-tight">Success!</h3>
+                        <p className="text-ink-muted mb-8 max-w-[260px] text-sm">{successNote || 'Done.'}</p>
+                        <div className="w-full max-w-[280px]">
+                            <Button variant="primary" size="lg" fullWidth onClick={handleCloseDetail} className="uppercase">
+                                CONTINUE
+                            </Button>
+                        </div>
+                    </div>
+                )}
 
-                                {/* Drag Handle */}
-                                <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                                    <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
+                {/* ─── Browse view (Store vs Loadout) ─── */}
+                {!selectedItem ? (
+                    <>
+                        {/* Mode switcher: STORE vs LOADOUT */}
+                        <div className="px-5 pt-3 relative z-10 shrink-0">
+                            <PanelTabs
+                                value={mode}
+                                onPick={switchMode}
+                                options={[
+                                    { value: 'market', label: 'Store', badge: <TabCount active={mode === 'market'}>{marketData.length}</TabCount> },
+                                    { value: 'loadout', label: 'Loadout', badge: <TabCount active={mode === 'loadout'}>{totalOwned}</TabCount> },
+                                ]}
+                            />
+                        </div>
+
+                        {/* Category rail */}
+                        <div className="px-5 pt-3 relative z-10 shrink-0">
+                            <div ref={railRef} className="market-cat-rail flex gap-2 w-full">
+                                {TAB_META.map(t => {
+                                    const active = activeTab === t.id;
+                                    const n = mode === 'loadout' ? counts[t.id].owned : counts[t.id].total;
+                                    return (
+                                        <Chip
+                                            key={t.id}
+                                            ref={active ? activeChipRef : undefined}
+                                            type="filter"
+                                            active={active}
+                                            onClick={() => setActiveTab(t.id)}
+                                            className="chip-market flex-1 min-w-0 justify-center whitespace-nowrap"
+                                        >
+                                            <span className={`market-chip-icon shrink-0 ${active ? 'is-active' : ''}`}>{t.icon}</span>
+                                            {t.label}
+                                            <span className={`market-chip-count shrink-0 px-1.5 rounded-md text-ludo-xs font-mono ${active ? 'is-active' : ''}`}>{n}</span>
+                                        </Chip>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Toolbar: search / sort / filter / density */}
+                        <div className="px-5 pt-3 relative z-10 shrink-0">
+                            <div className="flex items-stretch gap-1.5">
+                                <div className="search-shell flex w-[124px] items-center gap-1.5 bg-surface-recessed border border-line-soft rounded-lg pl-2 pr-1 h-9 focus-within:border-accent/60 transition-colors overflow-hidden">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3.5 h-3.5 shrink-0 text-ink-faint">
+                                        <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.5" y2="16.5" />
+                                    </svg>
+                                    <textarea
+                                        value={search}
+                                        rows={1}
+                                        onChange={e => setSearch(e.target.value)}
+                                        placeholder="Search"
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        autoCapitalize="none"
+                                        spellCheck={false}
+                                        enterKeyHint="search"
+                                        className="flex-1 min-w-0 resize-none overflow-hidden bg-transparent border-0 p-0 text-ludo-sm font-bold text-ink-strong placeholder:text-ink-faint outline-none focus:outline-none focus-visible:outline-none focus:ring-0 shadow-none"
+                                    />
+                                    {search && (
+                                        <button
+                                            onClick={() => setSearch('')}
+                                            className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-surface-hover text-ink-muted hover:text-ink-strong"
+                                            aria-label="Clear search"
+                                        >
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="w-2.5 h-2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                        </button>
+                                    )}
                                 </div>
 
-                                {/* ─── Transaction overlays ─── */}
-                                {isProcessing && (
-                                    <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-8 text-center" style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, #1c1c1c)' }}>
-                                        <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                                        <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
-                                        <div className="relative mb-6">
-                                            <div className="w-20 h-20 bg-cyan-600 rounded-full flex items-center justify-center animate-pulse">
-                                                <div className="w-12 h-12 bg-white rounded-full" />
-                                            </div>
-                                            <div className="absolute inset-0 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
-                                        </div>
-                                        <h3 className="text-xl font-black text-white mb-2">Updating your vault</h3>
-                                        <p className="text-sm text-white/40 max-w-[220px]">Writing to your inventory on Base…</p>
-                                    </div>
-                                )}
+                                <div className="relative flex-1 min-w-0">
+                                    <select
+                                        value={sort}
+                                        onChange={e => setSort(e.target.value as SortKey)}
+                                        className="appearance-none w-full h-9 bg-surface-recessed border border-line-soft rounded-lg pl-2 pr-6 text-ludo-sm font-bold text-ink-strong truncate focus:outline-none focus:border-accent/60 transition-colors"
+                                        aria-label="Sort items"
+                                    >
+                                        {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
+                                            <option key={k} value={k} className="bg-surface-panel text-ink-strong">{SORT_LABELS[k]}</option>
+                                        ))}
+                                    </select>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"><polyline points="6 9 12 15 18 9" /></svg>
+                                </div>
 
-                                {transactionResult === 'success' && (
-                                    <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center p-8 text-center" style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, #1c1c1c)' }}>
-                                        <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                                        <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
-                                        <div className="w-24 h-24 bg-green-500/10 rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(34,197,94,0.2)]">
-                                            <CheckIcon className="w-12 h-12 text-green-500" />
+                                <button
+                                    onClick={() => setFilterOpen(true)}
+                                    className={`relative shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center transition-colors ${activeFilterCount > 0 ? 'border-accent/60 bg-accent-soft text-accent' : 'border-line-soft bg-surface-recessed text-ink-muted hover:text-ink-strong'}`}
+                                    aria-label="Open filters"
+                                >
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-[18px] h-[18px]"><line x1="4" y1="6" x2="20" y2="6" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="18" x2="14" y2="18" /></svg>
+                                    {activeFilterCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-accent text-accent-ink text-ludo-xs font-extrabold flex items-center justify-center">
+                                            {activeFilterCount}
+                                        </span>
+                                    )}
+                                </button>
+
+                                <div className="flex shrink-0 items-center h-9 bg-surface-recessed border border-line-soft rounded-lg p-0.5 gap-0.5">
+                                    {(['comfort', 'compact'] as const).map(d => (
+                                        <button
+                                            key={d}
+                                            onClick={() => setDensity(d)}
+                                            className={`shrink-0 h-full aspect-square rounded-md flex items-center justify-center transition-colors ${density === d ? 'bg-surface-active text-ink-strong' : 'text-ink-muted hover:text-ink-strong hover:bg-surface-hover'}`}
+                                            aria-label={d === 'comfort' ? 'Comfortable grid' : 'Compact grid'}
+                                        >
+                                            {d === 'comfort' ? (
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-[18px] h-[18px]"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+                                            ) : (
+                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-[18px] h-[18px]"><rect x="3" y="3" width="5" height="5" rx="1" /><rect x="10" y="3" width="5" height="5" rx="1" /><rect x="17" y="3" width="5" height="5" rx="1" /><rect x="3" y="10" width="5" height="5" rx="1" /><rect x="10" y="10" width="5" height="5" rx="1" /><rect x="17" y="10" width="5" height="5" rx="1" /><rect x="3" y="17" width="5" height="5" rx="1" /><rect x="10" y="17" width="5" height="5" rx="1" /><rect x="17" y="17" width="5" height="5" rx="1" /></svg>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="mt-2.5 mb-0.5">
+                                <HudSectionLabel
+                                    right={mode === 'loadout' ? <span className="text-ludo-xs font-bold uppercase tracking-widest text-ink-faint">in your vault</span> : undefined}
+                                >
+                                    {visibleItems.length} {visibleItems.length === 1 ? 'PIECE' : 'PIECES'}
+                                </HudSectionLabel>
+                            </div>
+                        </div>
+
+                        {/* Scrollable grid */}
+                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2 relative z-10">
+                            {visibleItems.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center text-center py-14 px-6">
+                                    <div className="w-16 h-16 rounded-2xl bg-surface-recessed border border-line-soft flex items-center justify-center mb-4 text-ink-faint">
+                                        {TAB_META.find(t => t.id === activeTab)?.icon}
+                                    </div>
+                                    <h3 className="text-ink-strong font-extrabold text-sm mb-1">
+                                        {mode === 'loadout' ? `No ${activeTab} in your vault yet` : 'Nothing matches those filters'}
+                                    </h3>
+                                    <p className="text-ink-muted text-xs mb-5 max-w-[220px]">
+                                        {mode === 'loadout'
+                                            ? 'Grab gear from the store — anything you buy lands here, ready to equip.'
+                                            : 'Try a different search or clear the active filters.'}
+                                    </p>
+                                    {mode === 'loadout' ? (
+                                        <Button variant="secondary" size="md" onClick={() => switchMode('market')} className="px-5 uppercase tracking-widest">
+                                            Browse store
+                                        </Button>
+                                    ) : (
+                                        <Button variant="secondary" size="md" onClick={() => { setSearch(''); setStatusFilter('all'); setRarityFilter('all'); }} className="px-5 uppercase tracking-widest">
+                                            Clear filters
+                                        </Button>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className={`grid ${density === 'comfort' ? 'grid-cols-2 gap-3' : 'grid-cols-3 gap-2'} pb-2`}>
+                                    {visibleItems.map(item => {
+                                        const owned = isOwnedId(item.id);
+                                        const equipped = isEquipped(item);
+                                        const isLoadout = mode === 'loadout';
+                                        const showcased = showcasedId === item.id;
+                                        const marked = isLoadout && (equipped || showcased);
+                                        // Quick action: store is BUY/SELL only, loadout is ACTIVATE/SHOWCASE only.
+                                        const quickLabel = !isLoadout
+                                            ? (owned ? 'SELL' : `BUY · ${formatCompact(item.price)}`)
+                                            : (item.equipValue ? (equipped ? null : 'ACTIVATE') : (showcased ? null : 'SHOWCASE'));
+                                        const runQuick = (e: React.MouseEvent) => {
+                                            e.stopPropagation();
+                                            if (!isLoadout) {
+                                                if (!owned) {
+                                                    // Broke? Fall through to inspect where the shortfall is explained.
+                                                    if (wallet && balance >= item.price) buyItem(item);
+                                                    else setSelectedItem(item);
+                                                } else openSell(item);
+                                            } else if ((item.equipValue && !equipped) || (!item.equipValue && !showcased)) {
+                                                setConfirmItem(item);
+                                            }
+                                        };
+                                        const onTap = () => {
+                                            if (isLoadout && ((item.equipValue && !equipped) || (!item.equipValue && !showcased))) setConfirmItem(item);
+                                            else setSelectedItem(item);
+                                        };
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                onClick={onTap}
+                                                className={`card-3077 group relative rounded-2xl bg-surface-panel border border-line-soft overflow-hidden cursor-pointer transition-all hover:border-line-strong hover:bg-surface-hover active:scale-[0.98] ${marked ? 'ring-1 ring-positive/60 shadow-[0_0_20px_rgba(74,222,128,0.16)]' : ''}`}
+                                            >
+                                                {/* rarity beam */}
+                                                <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-full z-20 ${RARITY_BEAM[item.rarity]}`} />
+                                                {/* preview stage: halo + pedestal + oversized art */}
+                                                <div className={`relative ${item.previewColor} aspect-[5/4] flex items-center justify-center overflow-hidden`}>
+                                                    <div
+                                                        className="absolute inset-0 pointer-events-none"
+                                                        style={{ background: 'radial-gradient(circle at 50% 30%, rgba(255,255,255,0.12), transparent 65%)' }}
+                                                    />
+                                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/45 pointer-events-none" />
+                                                    {item.rarity === 'legendary' && <div className="absolute inset-0 bg-warn/10 pointer-events-none" />}
+                                                    {previewStage(density === 'comfort' ? '120px' : '88px', item.rarity)}
+                                                    {/* rarity sigil */}
+                                                    <div className={`absolute top-2 left-2.5 z-20 rounded-md flex items-center justify-center font-extrabold backdrop-blur-sm border ${density === 'comfort' ? 'w-5 h-5 text-ludo-xs' : 'w-4 h-4 text-ludo-xs'} ${rarityPillClass(item.rarity)}`}>
+                                                        {item.rarity === 'common' ? 'C' : item.rarity === 'rare' ? 'R' : 'L'}
+                                                    </div>
+                                                    <div className="relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 drop-shadow-[0_10px_16px_rgba(0,0,0,0.5)]">
+                                                        {itemPreview(item, density === 'comfort' ? 76 : 60)}
+                                                    </div>
+                                                    {/* store: tiny owned badge */}
+                                                    {!isLoadout && owned && (
+                                                        <div className="absolute top-2 right-2 z-20 px-1.5 py-0.5 rounded-md bg-surface-panel/90 border border-line-soft backdrop-blur-sm text-ludo-xs font-extrabold tracking-[0.14em] text-ink-strong">
+                                                            OWNED
+                                                        </div>
+                                                    )}
+                                                    {/* loadout mark: active gear or showcased relic */}
+                                                    {marked && (
+                                                        <>
+                                                            <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-positive/20 border border-positive/60 text-positive text-ludo-xs font-extrabold uppercase tracking-[0.14em] shadow-lg whitespace-nowrap backdrop-blur-sm">
+                                                                {equipped ? 'Active' : 'Showcasing'}
+                                                            </div>
+                                                            <div className="porcelain-holo-tick absolute top-2 right-2 w-5 h-5 rounded-full bg-positive flex items-center justify-center shadow-lg z-20">
+                                                                <CheckGlyphIcon className="w-3 h-3 text-accent-ink" />
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                {/* body: title + price */}
+                                                <div className={density === 'comfort' ? 'p-3' : 'p-2'}>
+                                                    <h3 className={`font-extrabold text-ink-strong ${density === 'comfort' ? 'text-ludo-md leading-tight line-clamp-2 min-h-[2.1em]' : 'text-ludo-sm truncate'}`}>
+                                                        {item.name}
+                                                    </h3>
+                                                    <div className="flex items-center gap-1 mt-1">
+                                                        <ChipsHexIcon className="w-3.5 h-3.5 text-warn shrink-0" active />
+                                                        <span className={`font-extrabold text-ink-strong font-mono tabular-nums ${density === 'comfort' ? 'text-ludo-md' : 'text-ludo-sm'}`}>
+                                                            {item.price.toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                {/* hover quick-action rail */}
+                                                {quickLabel && (
+                                                    <div className="absolute inset-x-0 bottom-0 z-20 translate-y-[102%] group-hover:translate-y-0 group-focus-within:translate-y-0 transition-transform duration-200">
+                                                        <Button
+                                                            variant="secondary" size="sm" fullWidth onClick={runQuick}
+                                                            className="rounded-none tracking-[0.16em] uppercase"
+                                                        >
+                                                            {quickLabel}
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Set-completion bar (store only) */}
+                        {mode === 'market' && tabItems.length > 0 && (
+                            <div className="px-5 pb-3 pt-1 relative z-10 shrink-0">
+                                {missing.length === 0 ? (
+                                    <div className="flex items-center gap-3 rounded-2xl border border-positive/35 bg-positive/10 px-4 py-2.5">
+                                        <div className="w-8 h-8 rounded-full bg-positive/20 flex items-center justify-center shrink-0">
+                                            <CheckGlyphIcon className="w-4 h-4 text-positive" />
                                         </div>
-                                        <h3 className="text-3xl font-black text-white mb-2 uppercase tracking-tight">Success!</h3>
-                                        <p className="text-white/60 mb-8 max-w-[250px]">{successNote || 'Done.'}</p>
-                                        <div className="w-full space-y-3">
-                                            <Button variant="primary" size="lg" fullWidth onClick={handleCloseDetail} className="shadow-xl uppercase">
-                                                CONTINUE
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-extrabold text-positive uppercase tracking-[0.14em]">Set complete</div>
+                                            <div className="text-ludo-sm font-bold text-ink-muted truncate">
+                                                Every {TAB_SINGULAR[activeTab]} piece is yours. Flex accordingly.
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="relative rounded-2xl border border-line-soft bg-surface-recessed px-4 py-2.5 shadow-lg">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <span className="shrink-0 text-ludo-xs font-extrabold uppercase tracking-[0.16em] text-ink-muted">
+                                                {TAB_META.find(t => t.id === activeTab)?.label} set
+                                            </span>
+                                            <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-surface-panel border border-line-soft text-ludo-xs font-extrabold font-mono text-ink-strong">
+                                                {tabItems.length - missing.length}/{tabItems.length}
+                                            </span>
+                                            <div className="flex-1 min-w-0 text-right">
+                                                {cheapestMissing && (
+                                                    <span className="block truncate text-ludo-xs font-bold text-ink-faint">
+                                                        next: <span className="text-ink-strong">{cheapestMissing.name}</span>
+                                                        {' · '}<span className="text-warn font-mono">{formatCompact(cheapestMissing.price)}</span>
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex-1 min-w-0">
+                                                <HudProgressGauge
+                                                    percent={((tabItems.length - missing.length) / tabItems.length) * 100}
+                                                    tone="accent"
+                                                />
+                                                <div className="mt-1.5 text-ludo-xs font-bold text-ink-faint truncate">
+                                                    {missing.length} to go · {formatCompact(missingTotal)} total
+                                                </div>
+                                            </div>
+                                            <Button
+                                                variant="primary" size="sm"
+                                                onClick={() => handleCompleteSet(missing, missingTotal)}
+                                                disabled={balance < missingTotal}
+                                                className="shrink-0 min-w-[92px] px-3 flex-col leading-tight shadow-md"
+                                            >
+                                                {balance >= missingTotal ? (
+                                                    <>
+                                                        <span className="text-ludo-sm font-extrabold uppercase tracking-[0.12em]">Complete</span>
+                                                        <span className="text-ludo-xs font-bold font-mono opacity-80">{formatCompact(missingTotal)} CHIPS</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <span className="text-ludo-sm font-extrabold uppercase tracking-[0.12em]">Locked</span>
+                                                        <span className="text-ludo-xs font-bold font-mono opacity-80">need {formatCompact(missingTotal - balance)}</span>
+                                                    </>
+                                                )}
                                             </Button>
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        )}
+                    </>
+                ) : !isSelling ? (
+                    /* ─── Inspect detail view ─── */
+                    (() => {
+                        const owned = isOwnedId(selectedItem.id);
+                        const equipped = isEquipped(selectedItem);
+                        const showcased = showcasedId === selectedItem.id;
+                        const isLoadout = mode === 'loadout';
+                        const sale = lastSale(selectedItem);
+                        const canAfford = balance >= selectedItem.price;
+                        const liveTheme = marketData.find(i => i.kind === 'theme' && i.equipValue === preferences.theme);
+                        const liveDice = marketData.find(i => i.kind === 'dice' && i.equipValue === preferences.diceStyle);
+                        const liveTokens = marketData.find(i => i.kind === 'tokens' && i.equipValue === preferences.tokenStyle);
+                        const inMatch: { label: string; value: string; live: boolean }[] = (() => {
+                            if (selectedItem.kind === 'theme') return [
+                                { label: 'Role', value: 'Arena skin — board, panels, ambient glow', live: false },
+                                { label: 'Wearing now', value: liveTheme ? liveTheme.name : '—', live: true },
+                                { label: 'Swap', value: 'Instant, anytime — even mid-session', live: false },
+                            ];
+                            if (selectedItem.kind === 'dice') return [
+                                { label: 'Role', value: 'Your roll — every turn you take', live: false },
+                                { label: 'Rolling now', value: liveDice ? liveDice.name : '—', live: true },
+                                { label: 'Odds', value: 'Cosmetic only — never touches the RNG', live: false },
+                            ];
+                            if (selectedItem.kind === 'tokens') return [
+                                { label: 'Role', value: 'Your pawns — all four carry it', live: false },
+                                { label: 'Wearing now', value: liveTokens ? liveTokens.name : '—', live: true },
+                                { label: 'Ranks', value: 'Chess set evolves Pawn → King with progress', live: false },
+                            ];
+                            return [
+                                { label: 'Role', value: 'Vault relic — prestige, no in-match effect', live: false },
+                                { label: 'Showcasing', value: showcasedId ? (marketData.find(i => i.id === showcasedId)?.name ?? '—') : 'None yet', live: true },
+                                { label: 'Rarity check', value: `${selectedItem.collectionStats.owners.toLocaleString()} owners hold this collection`, live: false },
+                            ];
+                        })();
+                        const statusLive = equipped || showcased;
 
-                                {/* ─── Header ─── */}
-                                <div className="px-5 pb-3 border-b border-white/10 relative z-10">
-                                    <div className="flex items-center justify-between mb-2 mt-1">
-                                        <div className="flex flex-col">
-                                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                                <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
-                                                    <ArmoryCrateIcon className="w-4 h-4 text-cyan-300" />
-                                                </div>
-                                                Marketplace
-                                            </h2>
-                                            <div className="flex items-center gap-2 mt-1 px-0.5">
-                                                <span className="flex items-center gap-1">
-                                                    <TokenIcon />
-                                                    <span className="text-ludo-sm font-black text-cyan-300 tracking-wide">BASE NETWORK</span>
-                                                </span>
-                                                <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                                <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/40 border border-white/10" title="Escrowed CHIPS available for purchases">
-                                                    <ChipsHexIcon className="w-3 h-3 text-amber-400 shrink-0" active />
-                                                    <span className="text-ludo-sm font-extrabold text-white tabular-nums">{balance.toLocaleString()} CHIPS</span>
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close marketplace" className="panel-close-3077 bg-surface-hover border border-line-soft">
-                                            <CloseReticleIcon className="icon-md" />
-                                        </Button>
-                                    </div>
-
-                                    {/* Mode switcher: STORE vs LOADOUT */}
-                                    <PanelTabs
-                                        value={mode}
-                                        onPick={switchMode}
-                                        options={[
-                                            { value: 'market', label: 'Store', badge: <TabCount active={mode === 'market'}>{marketData.length}</TabCount> },
-                                            { value: 'loadout', label: 'Loadout', badge: <TabCount active={mode === 'loadout'}>{totalOwned}</TabCount> },
-                                        ]}
-                                    />
+                        return (
+                            <>
+                                {/* Sub-bar: Back + rarity */}
+                                <div className="flex items-center justify-between py-2.5 px-5 border-b border-line-soft bg-surface-recessed/70 shrink-0">
+                                    <Button variant="ghost" size="sm" onClick={handleCloseDetail} aria-label="Back to catalog">
+                                        <span className="inline-flex items-center gap-1.5 text-ink-strong">
+                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
+                                            Back
+                                        </span>
+                                    </Button>
+                                    <span className={`px-2.5 py-1 rounded-full text-ludo-xs font-extrabold uppercase tracking-widest border ${rarityPillClass(selectedItem.rarity)}`}>
+                                        {selectedItem.rarity}
+                                    </span>
                                 </div>
 
-                                {/* ─── Category rail: separated browse zone with real air ─── */}
-                                {!selectedItem && (
-                                    <div className="px-5 pt-3 relative z-10">
-                                        {/* Category chips fill the row equally (flex-1) — no scroll
-                                            rail, and the icon + label + count stay on ONE line:
-                                            `.chip` and the Chip's inner `truncate` span are both
-                                            whitespace-nowrap, and the icon/count are shrink-0.
-                                            min-w-0 lets an over-long label ellipsize instead of
-                                            pushing the chip wider than its quarter of the row. */}
+                                <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-6">
+                                    {/* Hero */}
+                                    <div className={`relative mt-4 rounded-3xl ${selectedItem.previewColor} border border-line-soft overflow-hidden`}>
+                                        <HudCornerTicks />
                                         <div
-                                            ref={railRef}
-                                            className="market-cat-rail flex gap-2 w-full"
-                                        >
-                                            {TAB_META.map(t => {
-                                                const active = activeTab === t.id;
-                                                const n = mode === 'loadout' ? counts[t.id].owned : counts[t.id].total;
-                                                return (
-                                                    <Chip
-                                                        key={t.id}
-                                                        ref={active ? activeChipRef : undefined}
-                                                        type="filter"
-                                                        active={active}
-                                                        onClick={() => setActiveTab(t.id)}
-                                                        className="chip-market flex-1 min-w-0 justify-center whitespace-nowrap"
-                                                    >
-                                                        <span className={`market-chip-icon shrink-0 ${active ? 'is-active' : ''}`}>{t.icon}</span>
-                                                        {t.label}
-                                                        <span className={`market-chip-count shrink-0 px-1.5 rounded-md text-ludo-xs font-mono ${active ? 'is-active' : ''}`}>{n}</span>
-                                                    </Chip>
-                                                );
-                                            })}
+                                            className="absolute inset-0 pointer-events-none"
+                                            style={{ background: 'radial-gradient(circle at 50% 28%, rgba(255,255,255,0.14), transparent 65%)' }}
+                                        />
+                                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/55 pointer-events-none" />
+                                        {previewStage('190px', selectedItem.rarity)}
+                                        <div className="relative h-52 flex items-center justify-center">
+                                            {itemPreview(selectedItem, selectedItem.type === 'themes' ? 104 : 88)}
+                                        </div>
+                                        {isLoadout && (equipped || showcased) && (
+                                            <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-positive/25 border border-positive/60 text-positive text-ludo-xs font-extrabold uppercase tracking-widest shadow-lg backdrop-blur-sm">
+                                                {equipped ? 'Active' : 'Showcasing'}
+                                            </div>
+                                        )}
+                                        {!isLoadout && owned && (
+                                            <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-surface-panel/90 border border-line-soft text-ink-strong text-ludo-xs font-extrabold uppercase tracking-widest shadow-lg backdrop-blur-sm">
+                                                Owned
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Title */}
+                                    <div className="mt-4">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-ludo-xs text-ink-faint font-bold uppercase tracking-wider">{selectedItem.collection}</span>
+                                            <span className="w-1 h-1 bg-line-strong rounded-full" />
+                                            <span className="text-ludo-xs text-accent font-bold">@{selectedItem.creator}</span>
+                                        </div>
+                                        <h1 className="text-2xl font-extrabold text-ink-strong">{selectedItem.name}</h1>
+                                        <p className="text-ink-muted text-ludo-md leading-relaxed mt-1.5">{selectedItem.description}</p>
+                                    </div>
+
+                                    {/* In match */}
+                                    <div className="mt-4 rounded-2xl border border-accent/25 bg-accent-soft/40 p-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h4 className="text-ludo-xs text-accent font-extrabold uppercase tracking-widest">In match</h4>
+                                            <span className="flex items-center gap-1.5">
+                                                <span className={`w-1.5 h-1.5 rounded-full ${statusLive ? 'bg-positive shadow-[0_0_8px_rgba(74,222,128,0.8)]' : owned ? 'bg-warn shadow-[0_0_8px_rgba(251,191,36,0.8)]' : 'bg-line-strong'}`} />
+                                                <span className="text-ludo-xs font-extrabold uppercase tracking-widest text-ink-muted">
+                                                    {statusLive ? 'Live' : owned ? 'In vault' : 'Not owned'}
+                                                </span>
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            {inMatch.map((row, i) => (
+                                                <div key={i} className="flex items-start justify-between gap-3">
+                                                    <span className="text-ludo-xs font-bold text-ink-faint uppercase tracking-wider shrink-0">{row.label}</span>
+                                                    <span className={`text-ludo-sm font-bold text-right leading-snug ${row.live ? 'text-accent' : 'text-ink-strong'}`}>{row.value}</span>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                )}
 
-                                {/* ─── Toolbar: compact row, icon is a static flex child ─── */}
-                                {!selectedItem && (
-                                    <div className="px-5 pt-3 relative z-10">
-                                        <div className="flex items-stretch gap-1.5">
-                                            {/* Search: icon is a static flex child — can never overlap text */}
-                                            <div className="search-shell flex w-[118px] items-center gap-1.5 bg-black/40 border border-white/10 rounded-lg pl-2 pr-1 h-9 focus-within:border-cyan-500/60 transition-colors overflow-hidden">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-3.5 h-3.5 shrink-0 text-white/35">
-                                                    <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.5" y2="16.5" />
-                                                </svg>
-                                                <textarea
-                                                    value={search}
-                                                    rows={1}
-                                                    onChange={e => setSearch(e.target.value)}
-                                                    placeholder="Search"
-                                                    autoComplete="off"
-                                                    autoCorrect="off"
-                                                    autoCapitalize="none"
-                                                    spellCheck={false}
-                                                    enterKeyHint="search"
-                                                    className="flex-1 min-w-0 resize-none overflow-hidden bg-transparent border-0 p-0 text-ludo-sm font-bold text-white placeholder:text-white/25 outline-none focus:outline-none focus-visible:outline-none focus:ring-0 shadow-none"
-                                                />
-                                                {search && (
-                                                    <button onClick={() => setSearch('')} className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-surface-hover text-ink-muted hover:text-ink-strong" aria-label="Clear search">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="w-2.5 h-2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div className="relative flex-1 min-w-0">
-                                                <select
-                                                    value={sort}
-                                                    onChange={e => setSort(e.target.value as SortKey)}
-                                                    className="appearance-none w-full h-9 bg-black/40 border border-white/10 rounded-lg pl-2 pr-6 text-ludo-sm font-bold text-white/80 truncate focus:outline-none focus:border-cyan-500/60 transition-colors"
-                                                    aria-label="Sort items"
-                                                >
-                                                    {(Object.keys(SORT_LABELS) as SortKey[]).map(k => (
-                                                        <option key={k} value={k} className="bg-zinc-900">{SORT_LABELS[k]}</option>
-                                                    ))}
-                                                </select>
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none"><polyline points="6 9 12 15 18 9" /></svg>
-                                            </div>
-                                            <button
-                                                onClick={() => setFilterOpen(true)}
-                                                className={`relative shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center ${activeFilterCount > 0 ? 'border-accent/60 bg-accent-soft text-accent' : 'border-white/20 bg-surface-recessed text-ink-strong hover:text-white'}`}
-                                                aria-label="Open filters"
-                                            >
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="w-[18px] h-[18px]"><line x1="4" y1="6" x2="20" y2="6" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="18" x2="14" y2="18" /></svg>
-                                                {activeFilterCount > 0 && (
-                                                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-400 text-black text-ludo-xs font-black flex items-center justify-center">{activeFilterCount}</span>
-                                                )}
-                                            </button>
-                                            <div className="flex shrink-0 items-center h-9 bg-black/40 border border-white/15 rounded-lg p-0.5 gap-0.5">
-                                                {(['comfort', 'compact'] as const).map(d => (
-                                                    <button
-                                                        key={d}
-                                                        onClick={() => setDensity(d)}
-                                                        className={`shrink-0 h-full aspect-square rounded-md flex items-center justify-center ${density === d ? 'bg-surface-active text-white' : 'text-ink-muted hover:text-white hover:bg-white/5'}`}
-                                                        aria-label={d === 'comfort' ? 'Comfortable grid' : 'Compact grid'}
-                                                    >
-                                                        {d === 'comfort' ? (
-                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-[18px] h-[18px]"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
-                                                        ) : (
-                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="w-[18px] h-[18px]"><rect x="3" y="3" width="5" height="5" rx="1" /><rect x="10" y="3" width="5" height="5" rx="1" /><rect x="17" y="3" width="5" height="5" rx="1" /><rect x="3" y="10" width="5" height="5" rx="1" /><rect x="10" y="10" width="5" height="5" rx="1" /><rect x="17" y="10" width="5" height="5" rx="1" /><rect x="3" y="17" width="5" height="5" rx="1" /><rect x="10" y="17" width="5" height="5" rx="1" /><rect x="17" y="17" width="5" height="5" rx="1" /></svg>
-                                                        )}
-                                                    </button>
+                                    {/* Price box */}
+                                    <div className="mt-4 rounded-2xl border border-line-soft bg-surface-recessed p-4">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-ludo-xs text-ink-faint font-extrabold uppercase tracking-widest">{owned ? 'You own this' : 'Price'}</span>
+                                            {sale !== undefined && <span className="text-ludo-xs font-bold text-ink-faint font-mono">last sale {sale.toLocaleString()}</span>}
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <ChipsHexIcon className="w-4 h-4 text-warn shrink-0" active />
+                                            <span className="porcelain-hero text-3xl font-extrabold text-ink-strong font-mono tabular-nums">{selectedItem.price.toLocaleString()}</span>
+                                            <span className="text-sm font-bold text-ink-muted">CHIPS</span>
+                                        </div>
+                                        {!owned && !canAfford && (
+                                            <p className="mt-1.5 text-ludo-sm font-bold text-negative">
+                                                You need {(selectedItem.price - balance).toLocaleString()} more CHIPS (escrowed).
+                                            </p>
+                                        )}
+                                        {transactionResult === 'error' && (
+                                            <p className="mt-1.5 text-ludo-sm font-bold text-negative">
+                                                Purchase failed — check your connection and try again.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    {/* Traits */}
+                                    {selectedItem.traits.length > 0 && (
+                                        <div className="mt-5">
+                                            <h4 className="text-ludo-xs text-ink-faint font-extrabold uppercase tracking-widest mb-2">Properties</h4>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {selectedItem.traits.map((trait, i) => (
+                                                    <div key={i} className="bg-surface-recessed border border-accent/25 rounded-xl p-2.5 flex flex-col items-center text-center">
+                                                        <span className="text-ludo-xs text-accent font-extrabold uppercase mb-0.5">{trait.trait_type}</span>
+                                                        <span className="text-ludo-xs text-ink-strong font-bold mb-1 truncate w-full">{trait.value}</span>
+                                                        <span className="text-ludo-xs text-ink-muted font-mono">{trait.rarity_percent}%</span>
+                                                    </div>
                                                 ))}
                                             </div>
                                         </div>
-                                        {/* section label with room to breathe */}
-                                        <div className="mt-2 mb-0.5 flex items-center gap-2.5">
-                                            <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono">
-                                                {visibleItems.length} {visibleItems.length === 1 ? 'PIECE' : 'PIECES'}
-                                            </span>
-                                            <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-                                            {mode === 'loadout' && <span className="text-ludo-xs font-bold uppercase tracking-widest text-white/30">in your vault</span>}
-                                        </div>
-                                    </div>
-                                )}
+                                    )}
 
-                                {/* ─── Grid ─── */}
-                                <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar pt-2 px-5 mb-2 relative z-10">
-                                    {visibleItems.length === 0 ? (
-                                        <div className="flex flex-col items-center justify-center text-center py-16 px-6">
-                                            <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/30">
-                                                {TAB_META.find(t => t.id === activeTab)?.icon}
-                                            </div>
-                                            <h3 className="text-white font-black text-sm mb-1">
-                                                {mode === 'loadout' ? `No ${activeTab} in your vault yet` : 'Nothing matches those filters'}
-                                            </h3>
-                                            <p className="text-white/40 text-xs mb-5 max-w-[220px]">
-                                                {mode === 'loadout'
-                                                    ? 'Grab gear from the store — anything you buy lands here, ready to equip.'
-                                                    : 'Try a different search or clear the active filters.'}
-                                            </p>
-                                            {mode === 'loadout' ? (
-                                                <Button variant="secondary" size="md" onClick={() => switchMode('market')} className="px-5 uppercase tracking-widest">
-                                                    Browse store
-                                                </Button>
-                                            ) : (
-                                                <Button variant="secondary" size="md" onClick={() => { setSearch(''); setStatusFilter('all'); setRarityFilter('all'); }} className="px-5 uppercase tracking-widest">
-                                                    Clear filters
-                                                </Button>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className={`grid ${density === 'comfort' ? 'grid-cols-2 gap-3' : 'grid-cols-3 gap-2'} pb-2`}>
-                                            {visibleItems.map(item => {
-                                                const owned = isOwnedId(item.id);
-                                                const equipped = isEquipped(item);
-                                                const isLoadout = mode === 'loadout';
-                                                const showcased = showcasedId === item.id;
-                                                const marked = isLoadout && (equipped || showcased);
-                                                // Quick action: store is BUY/SELL only, loadout is ACTIVATE/SHOWCASE only.
-                                                const quickLabel = !isLoadout
-                                                    ? (owned ? 'SELL' : `BUY · ${formatCompact(item.price)}`)
-                                                    : (item.equipValue ? (equipped ? null : 'ACTIVATE') : (showcased ? null : 'SHOWCASE'));
-                                                const runQuick = (e: React.MouseEvent) => {
-                                                    e.stopPropagation();
-                                                    if (!isLoadout) {
-                                                        if (!owned) {
-                                                            // Broke? Fall through to inspect where the shortfall is explained.
-                                                            if (wallet && balance >= item.price) buyItem(item);
-                                                            else setSelectedItem(item);
-                                                        }
-                                                        else openSell(item);
-                                                    } else if ((item.equipValue && !equipped) || (!item.equipValue && !showcased)) {
-                                                        setConfirmItem(item);
-                                                    }
-                                                };
-                                                const onTap = () => {
-                                                    if (isLoadout && ((item.equipValue && !equipped) || (!item.equipValue && !showcased))) setConfirmItem(item);
-                                                    else setSelectedItem(item);
-                                                };
-                                                return (
-                                                    <div
-                                                        key={item.id}
-                                                        onClick={onTap}
-                                                        className={`card-3077 group relative rounded-2xl bg-white/[0.04] border border-white/10 overflow-hidden cursor-pointer transition-all hover:border-white/25 hover:bg-white/[0.07] active:scale-[0.98] ${marked ? 'ring-1 ring-green-400/60 shadow-[0_0_20px_rgba(74,222,128,0.15)]' : ''}`}
-                                                    >
-                                                        {/* rarity beam */}
-                                                        <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-full z-20 ${RARITY_BEAM[item.rarity]}`} />
-                                                        {/* preview stage: halo + pedestal + oversized art */}
-                                                        <div className={`relative ${item.previewColor} ${density === 'comfort' ? 'aspect-[5/4]' : 'aspect-[5/4]'} flex items-center justify-center overflow-hidden`}>
-                                                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.12),transparent_65%)] pointer-events-none" />
-                                                            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/55 pointer-events-none" />
-                                                            {item.rarity === 'legendary' && <div className="absolute inset-0 bg-amber-400/10 pointer-events-none" />}
-                                                            {previewStage(density === 'comfort' ? '120px' : '88px', item.rarity)}
-                                                            {/* rarity sigil floats on the art — frees the full row for the name */}
-                                                            <div className={`absolute top-2 left-2.5 z-20 rounded-md flex items-center justify-center font-extrabold backdrop-blur-sm border ${density === 'comfort' ? 'w-5 h-5 text-ludo-xs' : 'w-4 h-4 text-ludo-xs'} ${item.rarity === 'legendary' ? 'bg-amber-400/25 border-amber-300/60 text-amber-100' : item.rarity === 'rare' ? 'bg-cyan-400/25 border-cyan-300/50 text-cyan-100' : 'bg-black/40 border-white/20 text-white/60'}`}>
-                                                                {item.rarity === 'common' ? 'C' : item.rarity === 'rare' ? 'R' : 'L'}
-                                                            </div>
-                                                            <div className="relative z-10 transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 drop-shadow-[0_10px_16px_rgba(0,0,0,0.5)]">
-                                                                {itemPreview(item, density === 'comfort' ? 76 : 60)}
-                                                            </div>
-                                                            {/* store: tiny owned badge (no equipped tag, no tick) */}
-                                                            {!isLoadout && owned && (
-                                                                <div className="absolute top-2 right-2 z-20 px-1.5 py-0.5 rounded-md bg-black/55 border border-white/15 backdrop-blur-sm text-ludo-xs font-extrabold tracking-[0.14em] text-white/75">
-                                                                    OWNED
-                                                                </div>
-                                                            )}
-                                                            {/* loadout mark: active gear or showcased relic */}
-                                                            {marked && (
-                                                                <>
-                                                                    <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-ludo-xs font-extrabold uppercase tracking-[0.16em] shadow-lg whitespace-nowrap backdrop-blur-sm">
-                                                                        {equipped ? 'Active' : 'Showcasing'}
-                                                                    </div>
-                                                                    <div className="porcelain-holo-tick absolute top-2 right-2 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center shadow-lg z-20">
-                                                                        <CheckIcon className="w-3 h-3 text-white" />
-                                                                    </div>
-                                                                </>
-                                                            )}
+                                    {/* Lore */}
+                                    <div className="mt-4 rounded-2xl bg-accent-soft/25 border border-accent/20 p-4">
+                                        <h4 className="text-ludo-xs text-accent font-extrabold uppercase tracking-widest mb-1.5">Item Lore</h4>
+                                        <p className="text-xs text-ink-muted italic leading-relaxed">{selectedItem.lore}</p>
+                                    </div>
+
+                                    {/* Activity */}
+                                    {selectedItem.activity.length > 0 && (
+                                        <div className="mt-5">
+                                            <h4 className="text-ludo-xs text-ink-faint font-extrabold uppercase tracking-widest mb-2">Activity</h4>
+                                            <div className="bg-surface-recessed border border-line-soft rounded-2xl overflow-hidden text-ludo-xs">
+                                                {selectedItem.activity.slice(0, 5).map((act, i) => (
+                                                    <div key={i} className={`flex items-center justify-between px-4 py-3 ${i !== 0 ? 'border-t border-line-soft' : ''}`}>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${act.event === 'Created' ? 'bg-positive' : act.event === 'Sale' ? 'bg-accent' : act.event === 'List' ? 'bg-warn' : 'bg-line-strong'}`} />
+                                                            <span className="text-ink-strong font-bold">{act.event}</span>
                                                         </div>
-                                                        {/* body: title + price only */}
-                                                        <div className={`${density === 'comfort' ? 'p-3' : 'p-2'}`}>
-                                                            <h3 className={`font-extrabold text-white ${density === 'comfort' ? 'text-ludo-md leading-tight line-clamp-2 min-h-[2.1em]' : 'text-ludo-sm truncate'}`}>{item.name}</h3>
-                                                            <div className="flex items-center gap-1 mt-1">
-                                                                <ChipsHexIcon className="w-3.5 h-3.5 text-amber-400 shrink-0" active />
-                                                                <span className={`font-extrabold text-white font-mono tabular-nums ${density === 'comfort' ? 'text-ludo-md' : 'text-ludo-sm'}`}>{item.price.toLocaleString()}</span>
-                                                            </div>
+                                                        <div className="flex items-center gap-2 font-mono text-ink-muted">
+                                                            {act.price !== undefined && <span className="text-ink-strong font-bold">{act.price.toLocaleString()} coins</span>}
+                                                            <span className="text-ink-faint">{act.date}</span>
                                                         </div>
-                                                        {/* hover quick-action rail */}
-                                                        {quickLabel && (
-                                                            <div className="absolute inset-x-0 bottom-0 z-20 translate-y-[102%] group-hover:translate-y-0 group-focus-within:translate-y-0 transition-transform duration-200">
-                                                                <Button
-                                                                    variant="secondary" size="sm" fullWidth onClick={runQuick}
-                                                                    className="rounded-none tracking-[0.16em] uppercase"
-                                                                >
-                                                                    {quickLabel}
-                                                                </Button>
-                                                            </div>
-                                                        )}
                                                     </div>
-                                                );
-                                            })}
+                                                ))}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* ─── Set-completion bar (store only). shrink-0: never
-                                    squished by the grid on short viewports; the panel
-                                    bottom reserve (globals.css sandwich geometry) keeps
-                                    it above the fixed footer. ─── */}
-                                {mode === 'market' && !selectedItem && tabItems.length > 0 && (
-                                    <div className="px-5 pb-3 pt-1 relative z-10 shrink-0">
-                                        {missing.length === 0 ? (
-                                            <div className="flex items-center gap-3 rounded-2xl border border-green-400/30 bg-green-500/10 px-4 py-2.5">
-                                                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-                                                    <CheckIcon className="w-4 h-4 text-green-300" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-xs font-black text-green-200 uppercase tracking-[0.14em]">Set complete</div>
-                                                    <div className="text-ludo-sm font-bold text-green-200/60 truncate">Every {TAB_SINGULAR[activeTab]} piece is yours. Flex accordingly.</div>
-                                                </div>
+                                {/* Footer */}
+                                <div className="px-5 py-4 border-t border-line-soft bg-surface-panel/95 backdrop-blur-md shrink-0">
+                                    {!isLoadout ? (
+                                        owned ? (
+                                            <Button variant="primary" size="lg" fullWidth onClick={() => setIsSelling(true)} className="uppercase">
+                                                SELL
+                                            </Button>
+                                        ) : (
+                                            <Button
+                                                variant="primary" size="lg" fullWidth
+                                                onClick={handleBuy}
+                                                disabled={!canAfford || !wallet}
+                                            >
+                                                {!wallet ? 'CONNECT WALLET TO BUY' : `BUY · ${selectedItem.price.toLocaleString()} COINS`}
+                                            </Button>
+                                        )
+                                    ) : selectedItem.equipValue ? (
+                                        equipped ? (
+                                            <div className="w-full py-3.5 rounded-2xl bg-positive/15 border border-positive/40 text-positive font-extrabold text-sm uppercase tracking-widest text-center">
+                                                Active in matches
                                             </div>
                                         ) : (
-                                            <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.06] to-black/60 px-4 pt-2 pb-2 shadow-[0_-6px_24px_rgba(0,0,0,0.45)]">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <span className="shrink-0 text-ludo-xs font-black uppercase tracking-[0.16em] text-white/55">
-                                                        {TAB_META.find(t => t.id === activeTab)?.label} set
-                                                    </span>
-                                                    <span className="shrink-0 px-1.5 py-0.5 rounded-md bg-white/10 text-ludo-xs font-black font-mono text-white/80">
-                                                        {tabItems.length - missing.length}/{tabItems.length}
-                                                    </span>
-                                                    <div className="flex-1 min-w-0 text-right">
-                                                        {cheapestMissing && (
-                                                            <span className="block truncate text-ludo-xs font-bold text-white/40">
-                                                                next: <span className="text-white/70">{cheapestMissing.name}</span>
-                                                                {' · '}<span className="text-yellow-300 font-mono">{formatCompact(cheapestMissing.price)}</span>
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex-1 min-w-0">
-                                                        <HudProgressGauge
-                                                            percent={((tabItems.length - missing.length) / tabItems.length) * 100}
-                                                            tone="accent"
-                                                        />
-                                                        <div className="mt-1.5 text-ludo-xs font-bold text-white/35 truncate">
-                                                            {missing.length} to go · {formatCompact(missingTotal)} total
-                                                        </div>
-                                                    </div>
-                                                    <Button
-                                                        variant="primary" size="sm"
-                                                        onClick={() => handleCompleteSet(missing, missingTotal)}
-                                                        disabled={balance < missingTotal}
-                                                        className={`shrink-0 min-w-[92px] px-3 flex-col leading-tight ${balance >= missingTotal ? 'shadow-[0_4px_20px_rgba(255,255,255,0.25)]' : ''}`}
-                                                    >
-                                                        {balance >= missingTotal ? (
-                                                            <>
-                                                                <span className="text-ludo-sm font-black uppercase tracking-[0.12em]">Complete</span>
-                                                                <span className="text-ludo-xs font-black font-mono opacity-70">{formatCompact(missingTotal)} CHIPS</span>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <span className="text-ludo-sm font-black uppercase tracking-[0.12em]">Locked</span>
-                                                                <span className="text-ludo-xs font-bold font-mono opacity-70">need {formatCompact(missingTotal - balance)}</span>
-                                                            </>
-                                                        )}
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* ─── Activation ritual (loadout tap on inactive gear / unshowcased relic) ─── */}
-                                {confirmItem && (() => {
-                                    const isGear = !!confirmItem.equipValue;
-                                    const slotLabel = TAB_SINGULAR[confirmItem.type];
-                                    const verb = isGear ? 'Activate' : 'Showcase';
-                                    const currentGear = isGear ? loadoutSlots.find(s => s.tab === confirmItem.type)?.item : undefined;
-                                    const currentRelic = !isGear && showcasedId ? marketData.find(i => i.id === showcasedId) : undefined;
-                                    const current = isGear ? currentGear : currentRelic;
-                                    const swapping = current && current.id !== confirmItem.id;
-                                    return (
-                                        <div className="absolute inset-0 z-[125] flex flex-col justify-end">
-                                            <div className="absolute inset-0 bg-black/65 backdrop-blur-[2px]" onClick={() => setConfirmItem(null)} />
-                                            <div className="relative rounded-t-[24px] border-t border-cyan-400/25 bg-[#151515] p-5 pb-7 shadow-[0_-20px_60px_rgba(34,211,238,0.15)]">
-                                                <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
-                                                <div className="text-center text-ludo-xs font-black uppercase tracking-[0.24em] text-cyan-300 mb-4">
-                                                    {verb} {slotLabel}
-                                                </div>
-                                                {/* swap preview: current → incoming */}
-                                                <div className="flex items-center justify-center gap-4 mb-4">
-                                                    <div className="flex flex-col items-center gap-1.5">
-                                                        <div className={`w-14 h-14 rounded-2xl ${current?.previewColor ?? 'bg-white/5'} border border-white/10 flex items-center justify-center overflow-hidden opacity-60`}>
-                                                            {current ? itemPreview(current, 34) : null}
-                                                        </div>
-                                                        <span className="text-ludo-xs font-bold text-white/35 max-w-[72px] truncate">{current?.name ?? 'Empty'}</span>
-                                                    </div>
-                                                    <div className="flex flex-col items-center gap-1 pb-4">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-cyan-300"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                                                        <span className="text-ludo-xs font-black uppercase tracking-widest text-white/30">replaces</span>
-                                                    </div>
-                                                    <div className="flex flex-col items-center gap-1.5">
-                                                        <div className={`w-14 h-14 rounded-2xl ${confirmItem.previewColor} border border-cyan-400/60 flex items-center justify-center overflow-hidden shadow-[0_0_24px_rgba(34,211,238,0.3)]`}>
-                                                            {itemPreview(confirmItem, 34)}
-                                                        </div>
-                                                        <span className="text-ludo-xs font-black text-white max-w-[72px] truncate">{confirmItem.name}</span>
-                                                    </div>
-                                                </div>
-                                                <p className="text-center text-ludo-sm font-bold text-white/45 mb-4 px-4">
-                                                    {isGear ? (
-                                                        swapping ? (
-                                                            <>{confirmItem.name} becomes your active {slotLabel.toLowerCase()}. {current?.name} stays in your vault.</>
-                                                        ) : (
-                                                            <>{confirmItem.name} becomes your active {slotLabel.toLowerCase()}.</>
-                                                        )
-                                                    ) : (
-                                                        swapping ? (
-                                                            <>{confirmItem.name} becomes your showcased relic. Replaces {current?.name}.</>
-                                                        ) : (
-                                                            <>{confirmItem.name} becomes your showcased relic.</>
-                                                        )
-                                                    )}
-                                                </p>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        variant="secondary" size="lg"
-                                                        onClick={() => setConfirmItem(null)}
-                                                        className="flex-1 uppercase tracking-widest"
-                                                    >
-                                                        Keep current
-                                                    </Button>
-                                                    <Button
-                                                        data-testid="confirm-activate"
-                                                        variant="primary" size="lg"
-                                                        onClick={confirmActivation}
-                                                        className="flex-1 uppercase tracking-widest"
-                                                    >
-                                                        {verb === 'Activate' ? 'ACTIVATE' : 'SHOWCASE'}
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })()}
-
-                                {/* ─── Filter sheet ─── */}
-                                {filterOpen && (
-                                    <div className="absolute inset-0 z-[125] flex flex-col justify-end">
-                                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" onClick={() => setFilterOpen(false)} />
-                                        <div className="relative rounded-t-[24px] border-t border-white/10 bg-[#161616] p-5 pb-8">
-                                            <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
-                                            <div className="flex items-center justify-between mb-4">
-                                                <h3 className="text-base font-black text-white uppercase tracking-wide">Filters</h3>
-                                                <Button variant="ghost" size="sm" onClick={() => { setStatusFilter('all'); setRarityFilter('all'); }} className="text-accent uppercase tracking-widest">
-                                                    Clear all
-                                                </Button>
-                                            </div>
-                                            {mode === 'market' && (
-                                                <div className="mb-4">
-                                                    <div className="text-ludo-xs font-black uppercase tracking-widest text-white/35 mb-2">Status</div>
-                                                    <div className="flex gap-2">
-                                                        {([['all', 'All'], ['sale', 'For sale'], ['owned', 'Owned by you']] as [StatusFilter, string][]).map(([v, label]) => (
-                                                            <Chip
-                                                                key={v}
-                                                                type="filter"
-                                                                size="sm"
-                                                                active={statusFilter === v}
-                                                                onClick={() => setStatusFilter(v)}
-                                                                className="flex-1 justify-center rounded-xl py-2.5 text-xs"
-                                                            >
-                                                                {label}
-                                                            </Chip>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <div className="mb-5">
-                                                <div className="text-ludo-xs font-black uppercase tracking-widest text-white/35 mb-2">Rarity</div>
-                                                <div className="flex gap-2">
-                                                    {([['all', 'All'], ['common', 'Common'], ['rare', 'Rare'], ['legendary', 'Legendary']] as ['all' | Rarity, string][]).map(([v, label]) => (
-                                                        <Chip
-                                                            key={v}
-                                                            type="filter"
-                                                            size="sm"
-                                                            active={rarityFilter === v}
-                                                            onClick={() => setRarityFilter(v)}
-                                                            className="flex-1 justify-center rounded-xl py-2.5 text-xs"
-                                                        >
-                                                            {label}
-                                                        </Chip>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <Button variant="primary" size="lg" fullWidth onClick={() => setFilterOpen(false)} className="uppercase tracking-wide">
-                                                Show {visibleItems.length} {visibleItems.length === 1 ? 'piece' : 'pieces'}
+                                            <Button variant="primary" size="lg" fullWidth onClick={() => setConfirmItem(selectedItem)} className="uppercase">
+                                                ACTIVATE
                                             </Button>
+                                        )
+                                    ) : showcased ? (
+                                        <div className="w-full py-3.5 rounded-2xl bg-positive/15 border border-positive/40 text-positive font-extrabold text-sm uppercase tracking-widest text-center">
+                                            Showcasing in vault
                                         </div>
+                                    ) : (
+                                        <Button variant="primary" size="lg" fullWidth onClick={() => setConfirmItem(selectedItem)} className="uppercase">
+                                            SHOWCASE
+                                        </Button>
+                                    )}
+                                </div>
+                            </>
+                        );
+                    })()
+                ) : (
+                    /* ─── Sell / List view ─── */
+                    <>
+                        <div className="flex items-center justify-between py-2.5 px-5 border-b border-line-soft bg-surface-recessed/70 shrink-0">
+                            <Button variant="ghost" size="sm" onClick={() => setIsSelling(false)} aria-label="Back to inspect">
+                                <span className="inline-flex items-center gap-1.5 text-ink-strong">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
+                                    Back to inspect
+                                </span>
+                            </Button>
+                            <span className="text-ludo-xs font-extrabold uppercase tracking-widest text-ink-faint">Marketplace Listing</span>
+                        </div>
+
+                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-5 pb-6">
+                            <div className="flex items-center gap-4 bg-surface-recessed p-4 rounded-2xl border border-line-soft mb-6">
+                                <div className={`w-16 h-16 rounded-2xl ${selectedItem.previewColor} flex items-center justify-center shadow-lg border border-line-soft overflow-hidden shrink-0`}>
+                                    {itemPreview(selectedItem, 36)}
+                                </div>
+                                <div className="min-w-0">
+                                    <h4 className="text-sm font-extrabold text-ink-strong truncate">{selectedItem.name}</h4>
+                                    <p className="text-ludo-xs text-ink-faint font-bold tracking-wider uppercase">{selectedItem.collection}</p>
+                                </div>
+                            </div>
+
+                            <div className="mb-5">
+                                <label className="text-ludo-xs text-ink-faint font-extrabold uppercase tracking-widest mb-2 block">Set price (coins)</label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        inputMode="numeric"
+                                        autoComplete="off"
+                                        autoCorrect="off"
+                                        autoCapitalize="none"
+                                        spellCheck={false}
+                                        placeholder="0"
+                                        value={sellPrice}
+                                        onChange={e => setSellPrice(e.target.value.replace(/\D/g, ''))}
+                                        className="w-full bg-surface-recessed border border-line-soft rounded-2xl p-5 pr-20 text-3xl font-mono font-extrabold text-ink-strong focus:outline-none focus:border-accent/60 transition-all placeholder:text-ink-faint"
+                                    />
+                                    <div className="absolute right-5 top-1/2 -translate-y-1/2 text-sm font-extrabold text-ink-faint uppercase">coins</div>
+                                </div>
+                            </div>
+
+                            <div className="mb-6">
+                                <label className="text-ludo-xs text-ink-faint font-extrabold uppercase tracking-widest mb-2 block">Duration</label>
+                                <div className="flex bg-surface-recessed p-1 rounded-2xl border border-line-soft gap-1">
+                                    {(['7d', '30d', 'indefinite'] as const).map(d => (
+                                        <Chip
+                                            key={d}
+                                            type="filter"
+                                            size="sm"
+                                            active={listingDuration === d}
+                                            onClick={() => setListingDuration(d)}
+                                            className="flex-1 justify-center rounded-xl py-2.5 tracking-wider"
+                                        >
+                                            {d === '7d' ? '7 Days' : d === '30d' ? '30 Days' : 'No expiry'}
+                                        </Chip>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="rounded-2xl border border-line-soft bg-surface-recessed p-4 mb-6">
+                                <div className="flex justify-between text-ludo-sm font-medium mb-2">
+                                    <span className="text-ink-muted">Marketplace fee</span>
+                                    <span className="text-ink-strong font-mono">2.5%</span>
+                                </div>
+                                <div className="h-px bg-line-soft my-2" />
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-extrabold text-ink-strong uppercase tracking-wider">You receive</span>
+                                    <span className="text-2xl font-extrabold font-mono text-positive">
+                                        {sellPrice && Number(sellPrice) > 0 ? (Number(sellPrice) * 0.975).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'} <span className="text-ludo-xs">coins</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <Button
+                                variant="primary" size="lg" fullWidth
+                                onClick={handleConfirmListing}
+                                disabled={!sellPrice || Number(sellPrice) <= 0}
+                                className="uppercase"
+                            >
+                                CONFIRM LISTING
+                            </Button>
+                        </div>
+                    </>
+                )}
+
+                {/* ─── Activation ritual drawer (loadout tap on inactive gear / unshowcased relic) ─── */}
+                {confirmItem && (() => {
+                    const isGear = !!confirmItem.equipValue;
+                    const slotLabel = TAB_SINGULAR[confirmItem.type];
+                    const verb = isGear ? 'Activate' : 'Showcase';
+                    const currentGear = isGear ? loadoutSlots.find(s => s.tab === confirmItem.type)?.item : undefined;
+                    const currentRelic = !isGear && showcasedId ? marketData.find(i => i.id === showcasedId) : undefined;
+                    const current = isGear ? currentGear : currentRelic;
+                    const swapping = current && current.id !== confirmItem.id;
+                    return (
+                        <div className="absolute inset-0 z-[125] flex flex-col justify-end">
+                            <div className="absolute inset-0 bg-surface-page/75 backdrop-blur-[2px]" onClick={() => setConfirmItem(null)} />
+                            <div className="relative rounded-t-[24px] border-t border-accent/35 bg-surface-panel p-5 pb-7 shadow-2xl">
+                                <div className="w-10 h-1 rounded-full bg-line-strong mx-auto mb-4" />
+                                <div className="text-center text-ludo-xs font-extrabold uppercase tracking-[0.24em] text-accent mb-4">
+                                    {verb} {slotLabel}
+                                </div>
+                                {/* swap preview: current → incoming */}
+                                <div className="flex items-center justify-center gap-4 mb-4">
+                                    <div className="flex flex-col items-center gap-1.5">
+                                        <div className={`w-14 h-14 rounded-2xl ${current?.previewColor ?? 'bg-surface-recessed'} border border-line-soft flex items-center justify-center overflow-hidden opacity-70`}>
+                                            {current ? itemPreview(current, 34) : null}
+                                        </div>
+                                        <span className="text-ludo-xs font-bold text-ink-faint max-w-[72px] truncate">{current?.name ?? 'Empty'}</span>
                                     </div>
-                                )}
-
-                                {/* ─── Inspect sheet ─── */}
-                                {selectedItem && (() => {
-                                    const owned = isOwnedId(selectedItem.id);
-                                    const equipped = isEquipped(selectedItem);
-                                    const showcased = showcasedId === selectedItem.id;
-                                    const isLoadout = mode === 'loadout';
-                                    const sale = lastSale(selectedItem);
-                                    const canAfford = balance >= selectedItem.price;
-                                    // Live "in match" context: what this piece does (or replaces) right now.
-                                    const liveTheme = marketData.find(i => i.kind === 'theme' && i.equipValue === preferences.theme);
-                                    const liveDice = marketData.find(i => i.kind === 'dice' && i.equipValue === preferences.diceStyle);
-                                    const liveTokens = marketData.find(i => i.kind === 'tokens' && i.equipValue === preferences.tokenStyle);
-                                    const inMatch: { label: string; value: string; live: boolean }[] = (() => {
-                                        if (selectedItem.kind === 'theme') return [
-                                            { label: 'Role', value: 'Arena skin — board, panels, ambient glow', live: false },
-                                            { label: 'Wearing now', value: liveTheme ? liveTheme.name : '—', live: true },
-                                            { label: 'Swap', value: 'Instant, anytime — even mid-session', live: false },
-                                        ];
-                                        if (selectedItem.kind === 'dice') return [
-                                            { label: 'Role', value: 'Your roll — every turn you take', live: false },
-                                            { label: 'Rolling now', value: liveDice ? liveDice.name : '—', live: true },
-                                            { label: 'Odds', value: 'Cosmetic only — never touches the RNG', live: false },
-                                        ];
-                                        if (selectedItem.kind === 'tokens') return [
-                                            { label: 'Role', value: 'Your pawns — all four carry it', live: false },
-                                            { label: 'Wearing now', value: liveTokens ? liveTokens.name : '—', live: true },
-                                            { label: 'Ranks', value: 'Chess set evolves Pawn → King with progress', live: false },
-                                        ];
-                                        return [
-                                            { label: 'Role', value: 'Vault relic — prestige, no in-match effect', live: false },
-                                            { label: 'Showcasing', value: showcasedId ? (marketData.find(i => i.id === showcasedId)?.name ?? '—') : 'None yet', live: true },
-                                            { label: 'Rarity check', value: `${selectedItem.collectionStats.owners.toLocaleString()} owners hold this collection`, live: false },
-                                        ];
-                                    })();
-                                    const statusLive = equipped || showcased;
-                                    return (
-                                        <div className="absolute inset-0 z-[120] flex flex-col rounded-[24px] overflow-hidden shadow-2xl border border-white/10" style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, #1c1c1c)' }}>
-                                            <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                                            <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
-                                            {/* header */}
-                                            <div className="flex items-center justify-between py-4 px-5 border-b border-white/10 bg-white/5 backdrop-blur-xl z-20">
-                                                <div className="flex items-center gap-3">
-                                                    <Button variant="ghost" size="icon" onClick={handleCloseDetail} aria-label="Back">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                                                    </Button>
-                                                    <h2 className="text-base font-black text-white tracking-tight">Inspect</h2>
-                                                </div>
-                                                <span className={`px-2.5 py-1 rounded-full text-ludo-xs font-extrabold uppercase tracking-widest border ${selectedItem.rarity === 'legendary' ? 'border-amber-400/50 text-amber-300 bg-amber-400/10' : selectedItem.rarity === 'rare' ? 'border-cyan-400/50 text-cyan-300 bg-cyan-400/10' : 'border-white/15 text-white/50 bg-white/5'}`}>
-                                                    {selectedItem.rarity}
-                                                </span>
-                                            </div>
-
-                                            {/* scrollable */}
-                                            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pb-40">
-                                                {/* hero */}
-                                                <div className={`relative mt-5 rounded-3xl ${selectedItem.previewColor} border border-white/10 overflow-hidden`}>
-                                                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_28%,rgba(255,255,255,0.14),transparent_65%)] pointer-events-none" />
-                                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 pointer-events-none" />
-                                                    {previewStage('190px', selectedItem.rarity)}
-                                                    <div className="relative h-56 flex items-center justify-center">
-                                                        {itemPreview(selectedItem, selectedItem.type === 'themes' ? 104 : 88)}
-                                                    </div>
-                                                    {isLoadout && (equipped || showcased) && (
-                                                        <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-green-500/25 border border-green-400/60 text-green-200 text-ludo-xs font-black uppercase tracking-widest shadow-lg backdrop-blur-sm">
-                                                            {equipped ? 'Active' : 'Showcasing'}
-                                                        </div>
-                                                    )}
-                                                    {!isLoadout && owned && (
-                                                        <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/55 border border-white/15 text-white/75 text-ludo-xs font-black uppercase tracking-widest shadow-lg backdrop-blur-sm">
-                                                            Owned
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* title */}
-                                                <div className="mt-4">
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-ludo-xs text-white/40 font-bold uppercase tracking-wider">{selectedItem.collection}</span>
-                                                        <span className="w-1 h-1 bg-white/20 rounded-full" />
-                                                        <span className="text-ludo-xs text-cyan-400 font-bold">@{selectedItem.creator}</span>
-                                                    </div>
-                                                    <h1 className="text-2xl font-black text-white">{selectedItem.name}</h1>
-                                                    <p className="text-white/45 text-ludo-md leading-relaxed mt-1.5">{selectedItem.description}</p>
-                                                </div>
-
-                                                {/* in match — what this piece actually does */}
-                                                <div className="mt-4 rounded-2xl border border-cyan-500/15 bg-cyan-500/[0.04] p-4">
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <h4 className="text-ludo-xs text-cyan-300 font-black uppercase tracking-widest">In match</h4>
-                                                        <span className="flex items-center gap-1.5">
-                                                            <span className={`w-1.5 h-1.5 rounded-full ${statusLive ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.9)]' : owned ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]' : 'bg-white/25'}`} />
-                                                            <span className="text-ludo-xs font-black uppercase tracking-widest text-white/45">
-                                                                {statusLive ? 'Live' : owned ? 'In vault' : 'Not owned'}
-                                                            </span>
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex flex-col gap-2">
-                                                        {inMatch.map((row, i) => (
-                                                            <div key={i} className="flex items-start justify-between gap-3">
-                                                                <span className="text-ludo-xs font-bold text-white/35 uppercase tracking-wider shrink-0">{row.label}</span>
-                                                                <span className={`text-ludo-sm font-bold text-right leading-snug ${row.live ? 'text-cyan-200' : 'text-white/75'}`}>{row.value}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                {/* price box */}
-                                                <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-ludo-xs text-white/35 font-black uppercase tracking-widest">{owned ? 'You own this' : 'Price'}</span>
-                                                        {sale !== undefined && <span className="text-ludo-xs font-bold text-white/35 font-mono">last sale {sale.toLocaleString()}</span>}
-                                                    </div>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className="w-4 h-4 rounded-full bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.7)]" />
-                                                        <span className="porcelain-hero text-3xl font-black text-white font-mono">{selectedItem.price.toLocaleString()}</span>
-                                                        <span className="text-sm font-bold text-white/35">CHIPS</span>
-                                                    </div>
-                                                    {!owned && !canAfford && (
-                                                        <p className="mt-1.5 text-ludo-sm font-bold text-red-300/90">You need {(selectedItem.price - balance).toLocaleString()} more CHIPS (escrowed).</p>
-                                                    )}
-                                                    {transactionResult === 'error' && (
-                                                        <p className="mt-1.5 text-ludo-sm font-bold text-red-300/90">Purchase failed — check your connection and try again.</p>
-                                                    )}
-                                                </div>
-
-                                                {/* traits */}
-                                                {selectedItem.traits.length > 0 && (
-                                                    <div className="mt-5">
-                                                        <h4 className="text-ludo-xs text-white/35 font-black uppercase tracking-widest mb-2">Properties</h4>
-                                                        <div className="grid grid-cols-3 gap-2">
-                                                            {selectedItem.traits.map((trait, i) => (
-                                                                <div key={i} className="bg-white/5 border border-cyan-600/20 rounded-xl p-2.5 flex flex-col items-center text-center">
-                                                                    <span className="text-ludo-xs text-cyan-400/60 font-black uppercase mb-0.5">{trait.trait_type}</span>
-                                                                    <span className="text-ludo-xs text-white font-bold mb-1 truncate w-full">{trait.value}</span>
-                                                                    <span className="text-ludo-xs text-cyan-400 font-mono">{trait.rarity_percent}%</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* lore */}
-                                                <div className="mt-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/10 p-4">
-                                                    <h4 className="text-ludo-xs text-cyan-400 font-black uppercase tracking-widest mb-1.5">Item Lore</h4>
-                                                    <p className="text-xs text-white/60 italic leading-relaxed">{selectedItem.lore}</p>
-                                                </div>
-
-                                                {/* activity */}
-                                                {selectedItem.activity.length > 0 && (
-                                                    <div className="mt-5">
-                                                        <h4 className="text-ludo-xs text-white/35 font-black uppercase tracking-widest mb-2">Activity</h4>
-                                                        <div className="bg-white/5 border border-white/5 rounded-2xl overflow-hidden text-ludo-xs">
-                                                            {selectedItem.activity.slice(0, 5).map((act, i) => (
-                                                                <div key={i} className={`flex items-center justify-between px-4 py-3 ${i !== 0 ? 'border-t border-white/5' : ''}`}>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className={`w-1.5 h-1.5 rounded-full ${act.event === 'Created' ? 'bg-green-400' : act.event === 'Sale' ? 'bg-cyan-400' : act.event === 'List' ? 'bg-orange-400' : 'bg-white/20'}`} />
-                                                                        <span className="text-white font-bold">{act.event}</span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2 font-mono text-white/50">
-                                                                        {act.price !== undefined && <span className="text-white font-bold">{act.price.toLocaleString()} coins</span>}
-                                                                        <span className="text-white/25">{act.date}</span>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* footer: store = buy/sell only · loadout = activate/showcase only */}
-                                            <div className="absolute bottom-0 inset-x-0 p-5 pb-7 bg-gradient-to-t from-black/70 via-black/40 to-transparent z-40">
-                                                {!isLoadout ? (
-                                                    owned ? (
-                                                        <Button variant="primary" size="lg" fullWidth onClick={() => setIsSelling(true)} className="shadow-xl uppercase">
-                                                            SELL
-                                                        </Button>
-                                                    ) : (
-                                                        <Button
-                                                            variant="primary" size="lg" fullWidth
-                                                            onClick={handleBuy}
-                                                            disabled={!canAfford || !wallet}
-                                                        >
-                                                            {!wallet ? 'CONNECT WALLET TO BUY' : `BUY · ${selectedItem.price.toLocaleString()} COINS`}
-                                                        </Button>
-                                                    )
-                                                ) : selectedItem.equipValue ? (
-                                                    equipped ? (
-                                                        <div className="w-full py-4 rounded-2xl bg-positive/15 border border-positive/40 text-positive font-black text-sm uppercase tracking-widest text-center">
-                                                            Active in matches
-                                                        </div>
-                                                    ) : (
-                                                        <Button variant="primary" size="lg" fullWidth onClick={() => setConfirmItem(selectedItem)} className="uppercase">
-                                                            ACTIVATE
-                                                        </Button>
-                                                    )
-                                                ) : showcased ? (
-                                                    <div className="w-full py-4 rounded-2xl bg-green-500/15 border border-green-400/40 text-green-300 font-black text-sm uppercase tracking-widest text-center">
-                                                        Showcasing in vault
-                                                    </div>
-                                                ) : (
-                                                    <Button variant="primary" size="lg" fullWidth onClick={() => setConfirmItem(selectedItem)} className="uppercase">
-                                                        SHOWCASE
-                                                    </Button>
-                                                )}
-                                            </div>
-
-                                            {/* sell overlay */}
-                                            {isSelling && (
-                                                <div className="absolute inset-0 z-[130] flex flex-col overflow-hidden rounded-[24px] border border-white/10" style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, #1c1c1c)' }}>
-                                                    <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                                                    <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
-                                                    <div className="flex items-center justify-between py-4 px-5 border-b border-white/10 bg-white/5 backdrop-blur-xl z-20">
-                                                        <div className="flex items-center gap-3">
-                                                            <Button variant="ghost" size="icon" onClick={() => setIsSelling(false)} aria-label="Back to inspect">
-                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                                                            </Button>
-                                                            <h3 className="text-base font-black text-white tracking-tight">List for Sale</h3>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar relative z-10 px-5 pt-6 pb-32">
-                                                        <div className="flex items-center gap-4 bg-white/5 p-4 rounded-3xl border border-white/10 mb-6">
-                                                            <div className={`w-16 h-16 rounded-2xl ${selectedItem.previewColor} flex items-center justify-center shadow-lg border border-white/5 overflow-hidden`}>
-                                                                {itemPreview(selectedItem, 36)}
-                                                            </div>
-                                                            <div>
-                                                                <h4 className="text-sm font-black text-white">{selectedItem.name}</h4>
-                                                                <p className="text-ludo-xs text-white/40 font-bold tracking-wider uppercase">{selectedItem.collection}</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="mb-5">
-                                                            <label className="text-ludo-xs text-white/30 font-black uppercase tracking-widest mb-2 block">Set price (coins)</label>
-                                                            <div className="relative">
-                                                                <input
-                                                                    type="text"
-                                                                    inputMode="numeric"
-                                                                    autoComplete="off"
-                                                                    autoCorrect="off"
-                                                                    autoCapitalize="none"
-                                                                    spellCheck={false}
-                                                                    placeholder="0"
-                                                                    value={sellPrice}
-                                                                    onChange={e => setSellPrice(e.target.value.replace(/\D/g, ''))}
-                                                                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-3xl font-mono font-black text-white focus:outline-none focus:border-cyan-600/50 transition-all placeholder:text-white/10"
-                                                                />
-                                                                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-sm font-black text-white/25 uppercase">coins</div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="mb-6">
-                                                            <label className="text-ludo-xs text-white/30 font-black uppercase tracking-widest mb-2 block">Duration</label>
-                                                            <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10">
-                                                                {(['7d', '30d', 'indefinite'] as const).map(d => (
-                                                                    <Chip
-                                                                        key={d}
-                                                                        type="filter"
-                                                                        size="sm"
-                                                                        active={listingDuration === d}
-                                                                        onClick={() => setListingDuration(d)}
-                                                                        className="flex-1 justify-center rounded-xl py-3 tracking-wider"
-                                                                    >
-                                                                        {d === '7d' ? '7 Days' : d === '30d' ? '30 Days' : 'No expiry'}
-                                                                    </Chip>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 mb-6">
-                                                            <div className="flex justify-between text-ludo-sm font-medium mb-2">
-                                                                <span className="text-white/40">Marketplace fee</span>
-                                                                <span className="text-white font-mono">2.5%</span>
-                                                            </div>
-                                                            <div className="h-px bg-white/10 my-2" />
-                                                            <div className="flex justify-between items-center">
-                                                                <span className="text-xs font-black text-white uppercase tracking-wider">You receive</span>
-                                                                <span className="text-2xl font-black font-mono text-positive">
-                                                                    {sellPrice && Number(sellPrice) > 0 ? (Number(sellPrice) * 0.975).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'} <span className="text-ludo-xs">coins</span>
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <Button
-                                                            variant="primary" size="lg" fullWidth
-                                                            onClick={handleConfirmListing}
-                                                            disabled={!sellPrice || Number(sellPrice) <= 0}
-                                                            className="uppercase"
-                                                        >
-                                                            CONFIRM LISTING
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            )}
+                                    <div className="flex flex-col items-center gap-1 pb-4">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-accent"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
+                                        <span className="text-ludo-xs font-extrabold uppercase tracking-widest text-ink-faint">replaces</span>
+                                    </div>
+                                    <div className="flex flex-col items-center gap-1.5">
+                                        <div className={`w-14 h-14 rounded-2xl ${confirmItem.previewColor} border border-accent/60 flex items-center justify-center overflow-hidden shadow-[0_0_24px_rgba(0,229,255,0.28)]`}>
+                                            {itemPreview(confirmItem, 34)}
                                         </div>
-                                    );
-                                })()}
+                                        <span className="text-ludo-xs font-extrabold text-ink-strong max-w-[72px] truncate">{confirmItem.name}</span>
+                                    </div>
+                                </div>
+                                <p className="text-center text-ludo-sm font-bold text-ink-muted mb-4 px-4">
+                                    {isGear ? (
+                                        swapping ? (
+                                            <>{confirmItem.name} becomes your active {slotLabel.toLowerCase()}. {current?.name} stays in your vault.</>
+                                        ) : (
+                                            <>{confirmItem.name} becomes your active {slotLabel.toLowerCase()}.</>
+                                        )
+                                    ) : (
+                                        swapping ? (
+                                            <>{confirmItem.name} becomes your showcased relic. Replaces {current?.name}.</>
+                                        ) : (
+                                            <>{confirmItem.name} becomes your showcased relic.</>
+                                        )
+                                    )}
+                                </p>
+                                <div className="flex gap-2">
+                                    <Button
+                                        variant="secondary" size="lg"
+                                        onClick={() => setConfirmItem(null)}
+                                        className="flex-1 uppercase tracking-widest"
+                                    >
+                                        Keep current
+                                    </Button>
+                                    <Button
+                                        data-testid="confirm-activate"
+                                        variant="primary" size="lg"
+                                        onClick={confirmActivation}
+                                        className="flex-1 uppercase tracking-widest"
+                                    >
+                                        {verb === 'Activate' ? 'ACTIVATE' : 'SHOWCASE'}
+                                    </Button>
+                                </div>
                             </div>
                         </div>
+                    );
+                })()}
+
+                {/* ─── Filter drawer ─── */}
+                {filterOpen && (
+                    <div className="absolute inset-0 z-[125] flex flex-col justify-end">
+                        <div className="absolute inset-0 bg-surface-page/75 backdrop-blur-[2px]" onClick={() => setFilterOpen(false)} />
+                        <div className="relative rounded-t-[24px] border-t border-line-strong bg-surface-panel p-5 pb-8 shadow-2xl">
+                            <div className="w-10 h-1 rounded-full bg-line-strong mx-auto mb-4" />
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base font-extrabold text-ink-strong uppercase tracking-wide">Filters</h3>
+                                <Button variant="ghost" size="sm" onClick={() => { setStatusFilter('all'); setRarityFilter('all'); }} className="text-accent uppercase tracking-widest">
+                                    Clear all
+                                </Button>
+                            </div>
+                            {mode === 'market' && (
+                                <div className="mb-4">
+                                    <div className="text-ludo-xs font-extrabold uppercase tracking-widest text-ink-faint mb-2">Status</div>
+                                    <div className="flex gap-2">
+                                        {([['all', 'All'], ['sale', 'For sale'], ['owned', 'Owned by you']] as [StatusFilter, string][]).map(([v, label]) => (
+                                            <Chip
+                                                key={v}
+                                                type="filter"
+                                                size="sm"
+                                                active={statusFilter === v}
+                                                onClick={() => setStatusFilter(v)}
+                                                className="flex-1 justify-center rounded-xl py-2.5 text-xs"
+                                            >
+                                                {label}
+                                            </Chip>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            <div className="mb-5">
+                                <div className="text-ludo-xs font-extrabold uppercase tracking-widest text-ink-faint mb-2">Rarity</div>
+                                <div className="flex gap-2">
+                                    {([['all', 'All'], ['common', 'Common'], ['rare', 'Rare'], ['legendary', 'Legendary']] as ['all' | Rarity, string][]).map(([v, label]) => (
+                                        <Chip
+                                            key={v}
+                                            type="filter"
+                                            size="sm"
+                                            active={rarityFilter === v}
+                                            onClick={() => setRarityFilter(v)}
+                                            className="flex-1 justify-center rounded-xl py-2.5 text-xs"
+                                        >
+                                            {label}
+                                        </Chip>
+                                    ))}
+                                </div>
+                            </div>
+                            <Button variant="primary" size="lg" fullWidth onClick={() => setFilterOpen(false)} className="uppercase tracking-wide">
+                                Show {visibleItems.length} {visibleItems.length === 1 ? 'piece' : 'pieces'}
+                            </Button>
+                        </div>
                     </div>
-                </>
-            )}
-        </>
+                )}
+            </div>
+        </GamePanelShell>
     );
 }
