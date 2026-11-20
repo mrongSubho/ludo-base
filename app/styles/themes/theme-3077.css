@@ -290,7 +290,9 @@ body.theme-3077 .footer-nav .nav-item .nav-icon {
 }
 
 body.theme-3077 .footer-nav .nav-item {
-  flex: 1 1 auto;
+  flex: 1 1 0%;
+  width: 100%;
+  min-width: 0;
   padding: 6px 4px;
 }
 

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -7,35 +6,16 @@ import { useAccount } from 'wagmi';
 import { useGameData } from '@/hooks/GameDataContext';
 import { PanelTabs, PanelChildTabs } from './PanelTabs';
 import { ThinkingOrb } from './ThinkingOrb';
-
-// ─── Theme-agnostic contract (holds for current + future themes) ───────────
-// Same as the lobby RankingsPanel (which covers the lobby side — this is the
-// in-game overlay): white-ink + white-opacity surfaces + cyan/medal accents.
-// No font-family is set (inherits the active theme's display font). Spacing
-// inside `.ludo-leaderboard-scope` is re-asserted in globals.css (the global
-// unlayered reset zeroes Tailwind utilities).
-
-// Icon tile: amber glow square (rank accent — pairs with the trophy).
-const BoardTrophyTile = () => (
-    <div className="w-7 h-7 rounded-xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(251,191,36,0.25)]">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-amber-300">
-            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path>
-            <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path>
-            <path d="M4 22h16"></path>
-            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path>
-            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path>
-            <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path>
-        </svg>
-    </div>
-);
+import { GamePanelShell } from './GamePanelShell';
+import { PilotAvatar } from './PilotAvatar';
+import { ApexRankIcon } from './icons';
+import RankTierIcon from './RankTierIcon';
 
 const ITEMS_PER_PAGE = 20;
 
-// getTierFromWins moved to GameDataContext
-
 type LeaderboardTab = 'tier' | 'daily' | 'monthly';
 
-interface LeaderboardEntry {
+interface StandingsEntry {
     id: string;
     name: string;
     avatar: string | null;
@@ -43,8 +23,6 @@ interface LeaderboardEntry {
     rxp: number;
     lastWin: number;
     isCurrentUser?: boolean;
-
-    // Advanced Ranking Fields (Updated)
     tierName: string;
     subRank: string;
     level: number;
@@ -64,24 +42,30 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
     const [scope, setScope] = useState<'global' | 'friends'>('global');
     const [showQuarterInfo, setShowQuarterInfo] = useState(false);
     const currentQuarter = Math.floor(new Date().getMonth() / 3) + 1;
-
     const [currentPage, setCurrentPage] = useState(1);
-    
-    // Format leaders from Context
-    const leaders: LeaderboardEntry[] = rawLeaders.map(player => ({
+
+    const leaders: StandingsEntry[] = rawLeaders.map((player) => ({
         id: player.wallet_address,
-        name: (player.username && !player.username.startsWith('0x')) ? player.username : "User " + player.wallet_address.slice(-4).toUpperCase(),
+        name:
+            player.username && !player.username.startsWith('0x')
+                ? player.username
+                : `User ${player.wallet_address.slice(-4).toUpperCase()}`,
         avatar: player.avatar_url,
         wins: player.total_wins || 0,
         rxp: player.rxp || 1200,
         lastWin: new Date(player.last_played_at || Date.now()).getTime(),
-        isCurrentUser: address ? player.wallet_address.toLowerCase() === address.toLowerCase() : false,
+        isCurrentUser: address
+            ? player.wallet_address.toLowerCase() === address.toLowerCase()
+            : false,
         tierName: player.rank_tier || player.tierName || 'Bronze',
         subRank: player.subRank || '',
-        level: player.level || 1
+        level: player.level || 1,
     }));
 
-    const paginatedLeaders = leaders.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    const paginatedLeaders = leaders.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE,
+    );
     const totalPages = Math.ceil(leaders.length / ITEMS_PER_PAGE) || 1;
 
     useEffect(() => {
@@ -92,282 +76,205 @@ export default function Leaderboard({ isOpen, onClose, onOpenProfile }: Leaderbo
         setCurrentPage(1);
     }, [activeTab, scope]);
 
-    const getRankBadge = (rank: number) => {
-        if (rank === 1) return <div className="w-8 h-8 rounded-full bg-yellow-400/20 text-yellow-400 font-extrabold flex items-center justify-center border border-yellow-400/30 shadow-[0_0_10px_rgba(250,204,21,0.2)]">1</div>;
-        if (rank === 2) return <div className="w-8 h-8 rounded-full bg-slate-300/20 text-slate-300 font-bold flex items-center justify-center border border-slate-300/30">2</div>;
-        if (rank === 3) return <div className="w-8 h-8 rounded-full bg-orange-700/20 text-orange-400 font-bold flex items-center justify-center border border-orange-700/30">3</div>;
-        return <div className="w-8 h-8 text-white/40 font-bold flex items-center justify-center">{rank}</div>;
-    };
-
-    const getTierConfig = (tierName: string) => {
-        switch (tierName) {
-            case 'Arena Master': return { color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', shadow: 'shadow-[0_0_15px_rgba(251,146,60,0.3)]', dot: 'bg-orange-400' };
-            case 'Diamond': return { color: 'text-cyan-300', bg: 'bg-cyan-500/10', border: 'border-cyan-500/20', shadow: 'shadow-[0_0_15px_rgba(103,232,249,0.3)]', dot: 'bg-cyan-300' };
-            case 'Platinum': return { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', shadow: '', dot: 'bg-blue-400' };
-            case 'Gold': return { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', shadow: '', dot: 'bg-yellow-400' };
-            case 'Silver': return { color: 'text-slate-300', bg: 'bg-slate-500/10', border: 'border-slate-500/20', shadow: '', dot: 'bg-slate-300' };
-            case 'Bronze': return { color: 'text-amber-600', bg: 'bg-amber-900/20', border: 'border-amber-900/30', shadow: '', dot: 'bg-amber-600' };
-            default: return { color: 'text-white/40', bg: 'bg-white/5', border: 'border-white/10', shadow: '', dot: 'bg-white/20' };
-        }
-    }
+    if (!isOpen) return null;
 
     return (
-        <>
-            {isOpen && (
-                <>
-                    <div
-                        className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
+        <GamePanelShell
+            scopeClass="ludo-leaderboard-scope"
+            kicker="// MATCH STANDINGS"
+            hideOrbs
+            onClose={onClose}
+            title={
+                <span className="flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-xl bg-accent-soft border border-accent/40 flex items-center justify-center text-accent shrink-0">
+                        <ApexRankIcon className="w-4 h-4" active />
+                    </span>
+                    <span>Ranking</span>
+                </span>
+            }
+            subtitle={
+                <span className="flex items-center gap-2 text-ludo-xs font-mono uppercase tracking-[0.14em]">
+                    <span className="text-ink-muted font-bold tabular-nums">
+                        {leaders.length} ranked
+                    </span>
+                    <span className="text-ink-faint" aria-hidden="true">·</span>
+                    <span className="text-accent font-bold">Q{currentQuarter} Season</span>
+                </span>
+            }
+        >
+            <div className="flex flex-col gap-2">
+                <PanelTabs
+                    value={scope}
+                    onPick={setScope}
+                    options={[
+                        { value: 'global', label: 'Global' },
+                        { value: 'friends', label: 'Friends' },
+                    ]}
+                />
+
+                <div className="relative">
+                    <PanelChildTabs
+                        ariaLabel="Ranking period"
+                        value={activeTab}
+                        onPick={setActiveTab}
+                        options={[
+                            {
+                                value: 'tier',
+                                label: 'tier',
+                                pill: (
+                                    <span
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowQuarterInfo(!showQuarterInfo);
+                                        }}
+                                        className={`px-1.5 py-0.5 rounded-md text-ludo-xs font-mono cursor-pointer ${
+                                            activeTab === 'tier'
+                                                ? 'bg-accent-soft text-accent'
+                                                : 'bg-surface-recessed text-ink-faint'
+                                        }`}
+                                    >
+                                        Q{currentQuarter}
+                                    </span>
+                                ),
+                            },
+                            { value: 'daily', label: 'daily' },
+                            { value: 'monthly', label: 'monthly' },
+                        ]}
                     />
 
-                    <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
-                        <div className="w-full max-w-[500px] relative h-full">
-                            <div
-                                /* Unified global panel layout: top-64, bottom-80 sandwich */
-                                className="ludo-leaderboard-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
-                                style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
+                    <AnimatePresence>
+                        {showQuarterInfo && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                                className="mt-2 p-2.5 bg-surface-panel border border-line-strong rounded-xl text-ludo-xs text-ink-muted"
                             >
-                        {/* Authentic Subdued Cosmic Orbs */}
-                        <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                        <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+                                <span className="font-bold text-ink-strong">Quarterly Resets: </span>
+                                Ranks reset every 3 months (Q1–Q4).
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            </div>
 
-                        <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                            <div className="w-12 h-1.5 bg-white/20 rounded-full" />
-                        </div>
-
-                        <div className="px-5 pb-3 border-b border-white/10 flex flex-col gap-2 relative z-10">
-                            <div className="flex items-center justify-between mb-1 mt-1">
-                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <BoardTrophyTile />
-                                    Leaderboard
-                                </h2>
-                                <button
-                                    onClick={onClose}
-                                    aria-label="Close leaderboard"
-                                    className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
-                                >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                </button>
-                            </div>
-                            <div className="flex items-center gap-2 px-0.5">
-                                <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase tabular-nums">
-                                    {leaders.length} ranked
-                                </span>
-                                <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                <span className="text-ludo-sm font-black text-amber-300 tracking-wide uppercase">
-                                    Q{currentQuarter} season
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-black/50 border border-white/10">
-                                <button
-                                    onClick={() => setScope('global')}
-                                    className={`flex-1 py-1.5 text-ludo-xs font-black uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${scope === 'global' ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
-                                >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                                    Global
-                                </button>
-                                <button
-                                    onClick={() => setScope('friends')}
-                                    className={`flex-1 py-1.5 text-ludo-xs font-black uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-1.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 ${scope === 'friends' ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]' : 'text-white/35 hover:text-white/70'}`}
-                                >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                                    Friends
-                                </button>
-                            </div>
-
-                            {/* Child tabs: text-underline row, subordinate to the
-                                parent segmented block above (no fill, smaller type). */}
-                            <PanelChildTabs
-                                ariaLabel="Leaderboard period"
-                                value={activeTab}
-                                onPick={setActiveTab}
-                                options={[
-                                    {
-                                        value: 'tier', label: 'tier',
-                                        pill: (
-                                            <>
-                                                <span
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setShowQuarterInfo(!showQuarterInfo);
-                                                    }}
-                                                    onMouseEnter={() => setShowQuarterInfo(true)}
-                                                    onMouseLeave={() => setShowQuarterInfo(false)}
-                                                    className={`px-1.5 py-0.5 rounded-md text-ludo-xs font-mono cursor-pointer ${activeTab === 'tier' ? 'bg-cyan-400/20 text-cyan-200' : 'bg-white/5 text-white/30'}`}
-                                                >
-                                                    Q{currentQuarter}
-                                                </span>
-                                                <AnimatePresence>
-                                                    {showQuarterInfo && (
-                                                        <motion.div
-                                                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                                                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                                                            exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                                                            className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-48 p-3 bg-[#1e2030]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl z-50 normal-case tracking-normal text-left"
-                                                        >
-                                                            <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#1e2030] border-t border-l border-white/20 rotate-45" />
-
-                                                            <div className="relative z-10">
-                                                                <div className="flex items-center gap-1.5 mb-1">
-                                                                    <span className="text-white text-xs font-bold w-full truncate">Quarterly Resets</span>
-                                                                </div>
-                                                                <p className="text-ludo-xs text-white/70 leading-snug">
-                                                                    The Tier system ranks players across a 3-month season (Q1-Q4). Ranks reset at the start of the next quarter.
-                                                                </p>
-                                                            </div>
-                                                        </motion.div>
-                                                    )}
-                                                </AnimatePresence>
-                                            </>
-                                        ),
-                                    },
-                                    { value: 'daily', label: 'daily' },
-                                    { value: 'monthly', label: 'monthly' },
-                                ]}
-                            />
-                        </div>
-
-                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-2 pb-4 relative z-10">
-                            {isLoading ? (
-                                <div className="flex flex-col items-center justify-center h-full gap-4">
-                                    <ThinkingOrb state="working" size={32} />
-                                    <p className="text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">Syncing Throne...</p>
-                                </div>
-                            ) : leaders.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-full text-center py-16 px-5">
-                                    <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-white/25">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
-                                            <path d="M6 3h12l4 6-10 13L2 9z"></path>
-                                            <path d="M11 3 8 9l4 13 4-13-3-6"></path>
-                                            <path d="M2 9h20"></path>
-                                        </svg>
-                                    </div>
-                                    <h3 className="text-white font-black text-sm mb-1">The throne is empty</h3>
-                                    <p className="text-white/40 text-xs max-w-[220px]">No records found for this period.</p>
-                                </div>
-                            ) : (
-                                <div className="flex flex-col gap-2 pb-2">
-                                    <AnimatePresence mode="popLayout">
-                                        {paginatedLeaders.map((entry, idx) => {
-                                            const tierStyles = getTierConfig(entry.tierName);
-                                            const isMe = entry.isCurrentUser;
-                                            const rank = (currentPage - 1) * ITEMS_PER_PAGE + idx + 1;
-
-                                            return (
-                                                <motion.div
-                                                    layout
-                                                    initial={{ opacity: 0, scale: 0.95 }}
-                                                    animate={{ opacity: 1, scale: 1 }}
-                                                    exit={{ opacity: 0, scale: 0.95 }}
-                                                    key={entry.id}
-                                                    className={`flex items-center gap-3 p-3 rounded-2xl transition-all ${isMe
-                                                        ? 'bg-white/[0.04] border border-cyan-400/50 shadow-[0_0_20px_rgba(34,211,238,0.2)]'
-                                                        : 'bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] hover:border-white/25'
-                                                        }`}
-                                                >
-                                                    <div className="flex-shrink-0 mr-1">
-                                                        {activeTab === 'tier' ? (
-                                                            <div className="w-8 h-8 text-white/40 font-bold flex items-center justify-center text-sm">{rank}</div>
-                                                        ) : (
-                                                            getRankBadge(rank)
-                                                        )}
-                                                    </div>
-
-                                                    <button
-                                                        onClick={() => onOpenProfile(entry.id)}
-                                                        className="relative hover:scale-105 transition-transform active:scale-95 text-left focus:outline-none focus:ring-2 focus:ring-cyan-500/50 rounded-full"
-                                                    >
-                                                        <div className={`w-12 h-12 rounded-full overflow-hidden bg-cyan-900 flex-shrink-0 border-2 ${isMe ? 'border-cyan-400' : 'border-white/10'}`}>
-                                                            {entry.avatar ? (
-                                                                <img
-                                                                    src={entry.avatar}
-                                                                    alt={entry.name}
-                                                                    className="w-full h-full object-cover"
-                                                                    width={96}
-                                                                    height={96}
-                                                                />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center text-white/20">
-                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        {isMe && (
-                                                            <div className="absolute -bottom-1 -right-1 bg-cyan-600 text-white text-ludo-xs font-bold px-1.5 py-0.5 rounded-md border border-cyan-300">
-                                                                YOU
-                                                            </div>
-                                                        )}
-                                                    </button>
-
-                                                    <button
-                                                        onClick={() => onOpenProfile(entry.id)}
-                                                        className="flex flex-col flex-1 min-w-0 text-left hover:opacity-80 transition-opacity focus:outline-none rounded-lg"
-                                                    >
-                                                        <span className={`font-bold text-ludo-lg truncate w-full ${isMe ? 'text-cyan-100' : 'text-white'}`}>
-                                                            {entry.name}
-                                                        </span>
-
-                                                        {activeTab === 'tier' ? (
-                                                            <div className="flex items-center gap-1.5 mt-0.5">
-                                                                <div className={`w-2 h-2 rounded-full ${tierStyles?.dot} ${tierStyles?.shadow}`} />
-                                                                <span className={`text-ludo-sm font-bold tracking-widest uppercase ${tierStyles?.color}`}>
-                                                                    {entry.tierName} {entry.subRank}
-                                                                </span>
-                                                                <span className="text-ludo-xs text-white/30 font-bold ml-1">Lv.{entry.level}</span>
-                                                            </div>
-                                                        ) : null}
-                                                    </button>
-
-                                                    <div className={`flex flex-col items-end justify-center rounded-2xl px-4 py-2 border ${isMe ? 'bg-cyan-600/50 border-cyan-600/30' : 'bg-black/40 border-white/5'}`}>
-                                                        <span className={`text-lg font-black leading-none ${isMe ? 'text-cyan-300' : 'text-cyan-400'}`}>
-                                                            {activeTab === 'tier' ? entry.rxp : entry.wins}
-                                                        </span>
-                                                        <span className="text-ludo-xs font-bold text-white/30 uppercase tracking-widest mt-1">
-                                                            {activeTab === 'tier' ? 'RXP' : 'Wins'}
-                                                        </span>
-                                                    </div>
-                                                </motion.div>
-                                            );
-                                        })}
-                                    </AnimatePresence>
-
-                                    {totalPages > 1 && (
-                                        <div className="flex justify-center items-center gap-2 mt-1 pt-3 pb-2 border-t border-white/10 shrink-0">
-                                            <button
-                                                disabled={currentPage === 1}
-                                                onClick={() => setCurrentPage(prev => prev - 1)}
-                                                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 border border-white/10 text-white transition-all"
-                                            >
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                                            </button>
-                                            <div className="flex items-center gap-1">
-                                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                                    <button
-                                                        key={page}
-                                                        onClick={() => setCurrentPage(page)}
-                                                        className={`w-8 h-8 flex items-center justify-center rounded-xl text-xs font-bold transition-all ${currentPage === page ? 'bg-cyan-700 text-white shadow-[0_0_10px_rgba(34,211,238,0.4)]' : 'bg-transparent text-white/50 hover:bg-white/5'}`}
-                                                    >
-                                                        {page}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            <button
-                                                disabled={currentPage === totalPages}
-                                                onClick={() => setCurrentPage(prev => prev + 1)}
-                                                className="w-8 h-8 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 border border-white/10 text-white transition-all"
-                                            >
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                            </div>
-                        </div>
+            {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3 rounded-2xl border border-line-soft bg-surface-recessed">
+                    <ThinkingOrb state="working" size={32} />
+                    <p className="text-ink-faint text-ludo-xs font-mono font-bold uppercase tracking-widest">
+                        Syncing Standings…
+                    </p>
+                </div>
+            ) : leaders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center py-12 px-5 rounded-2xl border border-line-soft bg-surface-recessed">
+                    <h3 className="text-ink-strong font-bold text-ludo-md mb-1">The throne is empty</h3>
+                    <p className="text-ink-faint text-ludo-xs max-w-[220px]">
+                        No records found for this period.
+                    </p>
+                </div>
+            ) : (
+                <div className="rounded-2xl border border-line-soft bg-surface-recessed overflow-hidden divide-y divide-line-soft">
+                    <div className="grid grid-cols-[30px_minmax(0,1fr)_36px_62px] items-center gap-2 px-3 py-1.5 bg-surface-panel/90 text-ludo-xs font-mono font-bold uppercase tracking-[0.16em] text-ink-faint">
+                        <span>Pos</span>
+                        <span>Pilot</span>
+                        <span className="text-right">W</span>
+                        <span className="text-right">{activeTab === 'tier' ? 'Pts' : 'Score'}</span>
                     </div>
-                </>
+
+                    {paginatedLeaders.map((entry, idx) => {
+                        const isMe = entry.isCurrentUser;
+                        const rank = (currentPage - 1) * ITEMS_PER_PAGE + idx + 1;
+                        return (
+                            <button
+                                key={entry.id}
+                                type="button"
+                                onClick={() => onOpenProfile(entry.id)}
+                                className={`w-full grid grid-cols-[30px_minmax(0,1fr)_36px_62px] items-center gap-2 px-3 py-2 text-left transition-colors cursor-pointer ${
+                                    isMe
+                                        ? 'bg-accent-soft hover:bg-accent-soft/80'
+                                        : 'odd:bg-transparent even:bg-surface-panel/40 hover:bg-surface-hover'
+                                }`}
+                            >
+                                <span
+                                    className={`font-mono text-ludo-sm font-bold tabular-nums ${
+                                        rank <= 3 || isMe ? 'text-accent' : 'text-ink-faint'
+                                    }`}
+                                >
+                                    {String(rank).padStart(2, '0')}
+                                </span>
+
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <PilotAvatar
+                                        avatarUrl={entry.avatar}
+                                        name={entry.name}
+                                        size="xs"
+                                        tier={entry.tierName}
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                            <span className="text-ludo-md font-bold text-ink-strong truncate leading-tight">
+                                                {entry.name}
+                                            </span>
+                                            {isMe && (
+                                                <span className="shrink-0 bg-accent text-accent-ink text-ludo-xs font-extrabold px-1.5 py-0.5 rounded-sm uppercase tracking-wider leading-none">
+                                                    You
+                                                </span>
+                                            )}
+                                        </div>
+                                        {activeTab === 'tier' && (
+                                            <div className="flex items-center gap-1 mt-0.5 leading-none">
+                                                <RankTierIcon tier={entry.tierName} className="w-3 h-3 shrink-0" />
+                                                <span className="text-ludo-xs font-bold uppercase tracking-wider text-ink-muted truncate">
+                                                    {entry.tierName} {entry.subRank}
+                                                </span>
+                                                <span className="text-ludo-xs font-mono text-ink-faint">
+                                                    · Lv.{entry.level}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <span className="text-right font-mono text-ludo-xs font-bold text-ink-muted tabular-nums">
+                                    {entry.wins}
+                                </span>
+
+                                <span
+                                    className={`text-right font-mono text-ludo-md font-extrabold tabular-nums ${
+                                        isMe ? 'text-accent' : 'text-ink-strong'
+                                    }`}
+                                >
+                                    {(activeTab === 'tier' ? entry.rxp : entry.wins).toLocaleString()}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
             )}
-        </>
+
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-1 text-ludo-xs font-mono text-ink-muted">
+                    <button
+                        type="button"
+                        disabled={currentPage <= 1}
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        className="px-2.5 py-1 rounded-lg bg-surface-recessed border border-line-soft disabled:opacity-40"
+                    >
+                        Prev
+                    </button>
+                    <span>
+                        Page {currentPage} / {totalPages}
+                    </span>
+                    <button
+                        type="button"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        className="px-2.5 py-1 rounded-lg bg-surface-recessed border border-line-soft disabled:opacity-40"
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
+        </GamePanelShell>
     );
 }

@@ -771,9 +771,10 @@ body.theme-daybreak .header {
   transform: translateX(-50%);
   width: 100%;
   max-width: 500px;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 4px;
   padding: 10px 8px;
   /* --safe-bottom is JS-clamped: >48px means an invisible webview toolbar,
      not a real home indicator — FrameProvider zeroes those. */
@@ -803,10 +804,12 @@ body.keyboard-open .app-shell {
 }
 .nav-item {
   display: flex;
-  flex: 1;
+  flex: 1 1 0%;
+  width: 100%;
   min-width: 0;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   padding: 8px 4px;
   border-radius: var(--radius-lg);

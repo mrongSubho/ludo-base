@@ -91,4 +91,22 @@ describe('Pilot Dossier & Public Profile Synchronization', () => {
         assert.match(friendsRoute, /allow_requests === false/);
         assert.match(friendsRoute, /status:\s*403/);
     });
+
+    it('Footer uses Ranking label and equal 5-column sizing; Rankings & Leaderboard use compact sports standings table', () => {
+        const footerSrc = read('app/components/FooterNavPanel.tsx');
+        assert.match(footerSrc, /id:\s*'leaderboard'[^}]*label:\s*'Ranking'/);
+        assert.doesNotMatch(footerSrc, /label:\s*'Leaderboard'/);
+
+        const panelsCss = read('app/styles/panels.css');
+        assert.match(panelsCss, /grid-template-columns:\s*repeat\(5,\s*minmax\(0,\s*1fr\)\)/);
+        const theme3077Css = read('app/styles/themes/theme-3077.css');
+        assert.match(theme3077Css, /flex:\s*1 1 0%/);
+
+        for (const f of ['app/components/RankingsPanel.tsx', 'app/components/Leaderboard.tsx']) {
+            const src = read(f);
+            assert.match(src, /grid-cols-\[30px_minmax\(0,1fr\)_36px_62px\]/);
+            assert.match(src, /<PilotAvatar/);
+            assert.match(src, /<span>Ranking<\/span>/);
+        }
+    });
 });

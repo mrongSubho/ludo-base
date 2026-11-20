@@ -27,7 +27,7 @@ interface FooterNavPanelProps {
 
 const NAV_TABS = [
     { id: 'friends', icon: SquadLinkIcon, label: 'Friends' },
-    { id: 'leaderboard', icon: ApexRankIcon, label: 'Leaderboard' },
+    { id: 'leaderboard', icon: ApexRankIcon, label: 'Ranking' },
     { id: 'clan', icon: SyndicateShieldIcon, label: 'Clan' },
     { id: 'mission', icon: DirectiveTargetIcon, label: 'Mission' },
     { id: 'marketplace', icon: ArmoryCrateIcon, label: 'Market' },
@@ -76,7 +76,7 @@ export const FooterNavPanel = ({
                         {isActive &&
                             (isMobile ? (
                                 <div
-                                    className="footer-active-plate absolute inset-0 border border-white/10 rounded-2xl -z-10"
+                                    className="footer-active-plate absolute inset-0 border border-line-soft rounded-2xl -z-10"
                                     style={{ background: 'var(--nav-active-bg, rgba(13, 13, 13, 0.4))' }}
                                 >
                                     <span className="footer-active-laser" aria-hidden="true" />
@@ -84,7 +84,7 @@ export const FooterNavPanel = ({
                             ) : (
                                 <motion.div
                                     layoutId="active-nav-bg"
-                                    className="footer-active-plate absolute inset-0 border border-white/10 rounded-2xl -z-10 shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
+                                    className="footer-active-plate absolute inset-0 border border-line-soft rounded-2xl -z-10 shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
                                     style={{ background: 'var(--nav-active-bg, rgba(13, 13, 13, 0.4))' }}
                                     transition={{ type: 'spring', stiffness: 350, damping: 25 }}
                                 >
@@ -94,7 +94,7 @@ export const FooterNavPanel = ({
 
                         {/* Hover Background */}
                         {!isActive && (
-                            <div className="absolute inset-0 bg-white/[0.04] border border-white/5 rounded-2xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                            <div className="absolute inset-0 bg-surface-hover border border-line-soft rounded-2xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                         )}
 
                         <div className="relative inline-flex items-center justify-center">
