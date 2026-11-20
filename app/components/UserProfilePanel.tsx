@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 'use client';
 
-import { useChipsBalance } from '@/hooks/useChipsBalance';
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useTotalChips } from '@/hooks/useTotalChips';
+import { formatCompactChips } from '@/lib/chips';
 import { getProgression, getRankProgress } from '@/lib/progression';
 import { supabase } from '@/lib/supabase';
 import { RANGES, FormChart, rangeCutoff } from './FormChart';
@@ -16,89 +15,47 @@ import { useAppSession } from '@/hooks/useAppSession';
 import { useUnsyncedMatches } from '@/hooks/useUnsyncedMatches';
 import { PanelTabs, TabCount } from './PanelTabs';
 import { MatchHistoryTab } from './MatchHistoryTab';
+import { GamePanelShell } from './GamePanelShell';
+import { HudProgressGauge, HudSectionLabel } from './HudPrimitives';
+import { PilotAvatar } from './PilotAvatar';
+import { RankTierIcon } from './RankTierIcon';
+import { Switch } from './Switch';
+import { Button } from './Button';
+import { CheckGlyphIcon, ChipsHexIcon, PilotAvatarFallbackIcon } from './icons';
 import {
-    AVATARS, AvatarDef, encodeAvatar, isDirectImage, isUnlocked,
-    resolveAvatarDef, validateName, NAME_RULES,
+    AVATARS,
+    AvatarSeries,
+    encodeAvatar,
+    isUnlocked,
+    resolveAvatarDef,
+    validateName,
+    NAME_RULES,
 } from '@/lib/avatars';
 
-type ProfileTab = 'overview' | 'history';
+type ProfileTab = 'overview' | 'performance' | 'history';
 
-// ─── Theme-agnostic contract (holds for current + future themes) ───────────
-// Same as marketplace/settings/rankings/friends/messages/arena: this panel
-// always renders on the shared dark-glass sandwich shell, so content uses only
-// white-ink + white-opacity surfaces + cyan/status accents. No font-family is
-// set (inherits the active theme's display font). Spacing inside
-// `.ludo-profile-scope` is re-asserted in globals.css (the global unlayered
-// reset zeroes Tailwind spacing utilities).
-
-// Vault relic catalogue (mirrors the collectible ids in MarketplacePanel —
-// items are showcase-only, never equip). Profile only reads the choice.
-const RELICS: Record<string, { name: string; tint: string; desc: string }> = {
-    s1: { name: 'Crystal', tint: 'bg-cyan-500/30', desc: 'Prismatic ice relic' },
-    s2: { name: 'Magma', tint: 'bg-orange-600', desc: 'Volcanic fire relic' },
-    s3: { name: 'Void', tint: 'bg-black', desc: 'Light-eating relic' },
-    s4: { name: 'Neon-X', tint: 'bg-cyan-600', desc: 'Electric skin' },
-    s5: { name: 'Cyber-V', tint: 'bg-cyan-500', desc: 'Matrix skin' },
-    s6: { name: 'Steel-Z', tint: 'bg-gray-500', desc: 'Cold steel skin' },
+// Vault relic catalogue (mirrors MarketplacePanel showcase SKUs).
+const RELICS: Record<string, { name: string; swatchClass: string; desc: string }> = {
+    s1: { name: 'Crystal', swatchClass: 'bg-accent-soft border-accent/60', desc: 'Prismatic ice relic' },
+    s2: { name: 'Magma', swatchClass: 'bg-warn/25 border-warn/60', desc: 'Volcanic fire relic' },
+    s3: { name: 'Void', swatchClass: 'bg-surface-active border-line-strong', desc: 'Light-eating relic' },
+    s4: { name: 'Neon-X', swatchClass: 'bg-accent/25 border-accent/70', desc: 'Electric skin' },
+    s5: { name: 'Cyber-V', swatchClass: 'bg-positive/25 border-positive/60', desc: 'Matrix skin' },
+    s6: { name: 'Steel-Z', swatchClass: 'bg-surface-hover border-line-strong', desc: 'Cold steel skin' },
 };
 
-const RelicGem = ({ tint, px = 40 }: { tint: string; px?: number }) => (
+const RelicGem = ({ swatchClass, px = 40 }: { swatchClass: string; px?: number }) => (
     <div className="relative flex items-center justify-center shrink-0" style={{ width: px, height: px }}>
-        <div className={`absolute inset-[8%] rotate-45 rounded-[22%] ${tint} border border-white/40`} />
-        <div className="absolute inset-[8%] rotate-45 rounded-[22%] bg-gradient-to-br from-white/50 via-transparent to-black/50" />
-        <div className="absolute left-[30%] top-[20%] w-[13%] h-[13%] rounded-full bg-white/90 blur-[1px]" />
+        <div className={`absolute inset-[10%] rotate-45 rounded-lg border ${swatchClass}`} />
+        <div className="w-2 h-2 rounded-full bg-accent/80 relative z-10" />
     </div>
 );
 
-const ProfileTile = () => (
-    <div className="w-7 h-7 rounded-xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(34,211,238,0.25)]">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-cyan-300">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-        </svg>
-    </div>
-);
-
-// Section label: pill + gradient rule (marketplace vocabulary)
-const SectionLabel = ({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) => (
-    <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
-            {children}
-        </span>
-        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-        {right}
-    </div>
-);
-
-const TIER_GRADIENT: Record<string, string> = {
-    'Arena Master': 'from-orange-400 to-red-600',
-    'Diamond': 'from-cyan-300 to-blue-500',
-    'Platinum': 'from-blue-400 to-indigo-600',
-    'Gold': 'from-yellow-400 to-orange-500',
-    'Silver': 'from-slate-300 to-gray-500',
-    'Bronze': 'from-amber-600 to-orange-800',
-};
-
-// Library avatar face: image mark, monogram initial, or trophy ring.
-const AvatarFace = ({ def, letter, box = 'w-14 h-14' }: {
-    def: AvatarDef | null; letter: string; box?: string;
-}) => {
-    if (def?.kind === 'image' && def.src) {
-        return (
-            <div className={`${box} rounded-full overflow-hidden shrink-0 bg-cyan-900/50 ${def.series === 'trophy' ? 'ring-2 ring-amber-400/70' : ''}`}>
-                <img src={def.src} alt={def.label} className="w-full h-full object-cover" width={96} height={96} />
-            </div>
-        );
-    }
-    if (def?.kind === 'monogram') {
-        return (
-            <div className={`${box} rounded-full overflow-hidden shrink-0 bg-gradient-to-tr ${def.bg || 'from-cyan-600 to-teal-400'} ${def.series === 'trophy' ? 'ring-2 ring-amber-400/70' : ''} flex items-center justify-center`}>
-                <span className="text-white font-black text-xl drop-shadow">{letter}</span>
-            </div>
-        );
-    }
-    return null;
-};
+interface RecentMatchRow {
+    winner_address: string | null;
+    created_at: string | null;
+    game_mode?: string | null;
+}
 
 export default function UserProfilePanel({
     onClose,
@@ -112,6 +69,7 @@ export default function UserProfilePanel({
     onOpenProfile?: (address: string) => void;
 }) {
     const { profile, address, displayName: finalName, isGuest } = useCurrentUser();
+    const totalChips = useTotalChips();
     const { guard } = useGuestWall();
     const { ensureAppSession } = useAppSession();
     const { count: unsyncedCount } = useUnsyncedMatches();
@@ -141,23 +99,34 @@ export default function UserProfilePanel({
     const games = profile?.total_games || 0;
     const winRate = games > 0 ? Math.round((wins / games) * 100) : 0;
     const coins = profile?.coins || 0;
-    const chipsBal = useChipsBalance();
+    const compactChips = formatCompactChips(totalChips.totalChips);
 
-    // ── Identity editor (name + avatar library) ───
+    // ── Identity editor (callsign + avatar customizer) ────────────────────────
     const [editing, setEditing] = useState(false);
+    const [avatarSeries, setAvatarSeries] = useState<AvatarSeries>('legion');
     const [draftName, setDraftName] = useState('');
     const [draftAvatarId, setDraftAvatarId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [savedFlash, setSavedFlash] = useState(false);
+    const [copiedAddr, setCopiedAddr] = useState(false);
 
     const openEditor = () => {
         if (!guard('profile-edit')) return;
         setDraftName(profile?.username && !profile.username.startsWith('0x') ? profile.username : '');
         setDraftAvatarId(avatarDef?.id ?? null);
+        setAvatarSeries(avatarDef?.series ?? 'legion');
         setSaveError(null);
         setEditing(true);
     };
+
+    const draftValidationErr = useMemo(() => {
+        if (!draftName.trim()) return null;
+        return validateName(draftName);
+    }, [draftName]);
+
+    const previewAvatarUrl = draftAvatarId ? encodeAvatar(draftAvatarId) : finalAvatar;
+    const previewName = draftName.trim() || finalName;
 
     const saveIdentity = async () => {
         if (!address || saving) return;
@@ -185,21 +154,87 @@ export default function UserProfilePanel({
                 const data = await response.json().catch(() => ({}));
                 throw new Error(data.error || 'Couldn’t save profile');
             }
-            // The profile realtime channel picks the update up.
+            window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
             setEditing(false);
             setSavedFlash(true);
             setTimeout(() => setSavedFlash(false), 2500);
-        } catch (e: any) {
-            setSaveError(e?.message || 'Couldn\'t save — try again');
+        } catch (e: unknown) {
+            setSaveError(e instanceof Error ? e.message : 'Couldn’t save — try again');
         } finally {
             setSaving(false);
         }
     };
 
-    const [range, setRange] = useState<string>('All');
-    const [recentMatches, setRecentMatches] = useState<{ winner_address: string | null; created_at: string | null; game_mode?: string | null }[]>([]);
+    // ── Persisted privacy toggles ─────────────────────────────────────────────
+    const [isPublic, setIsPublic] = useState<boolean>(profile?.is_public ?? true);
+    const [allowRequests, setAllowRequests] = useState<boolean>(profile?.allow_requests ?? true);
+    const [savingPrivacy, setSavingPrivacy] = useState<'public' | 'requests' | null>(null);
+    const [privacyMsg, setPrivacyMsg] = useState<{ text: string; error?: boolean } | null>(null);
 
-    // Recent matches power both the live streak and the form chart (single query)
+    useEffect(() => {
+        if (typeof profile?.is_public === 'boolean') setIsPublic(profile.is_public);
+        if (typeof profile?.allow_requests === 'boolean') setAllowRequests(profile.allow_requests);
+    }, [profile?.is_public, profile?.allow_requests]);
+
+    const updatePrivacy = async (field: 'public' | 'requests') => {
+        if (!address || savingPrivacy) return;
+        if (!guard('profile-edit')) return;
+
+        const prevPublic = isPublic;
+        const prevRequests = allowRequests;
+        const nextPublic = field === 'public' ? !isPublic : isPublic;
+        const nextRequests = field === 'requests' ? !allowRequests : allowRequests;
+
+        setIsPublic(nextPublic);
+        setAllowRequests(nextRequests);
+        setSavingPrivacy(field);
+        setPrivacyMsg(null);
+
+        try {
+            const sessionId = await ensureAppSession();
+            if (!sessionId) throw new Error('Sign-in required to update privacy settings');
+            const res = await fetch('/api/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    walletAddress: address,
+                    sessionId,
+                    ...(field === 'public' ? { isPublic: nextPublic } : { allowRequests: nextRequests }),
+                }),
+            });
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || 'Could not update privacy setting');
+            }
+            window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
+            setPrivacyMsg({
+                text:
+                    field === 'public'
+                        ? nextPublic
+                            ? 'Dossier set to Public'
+                            : 'Dossier set to Private'
+                        : nextRequests
+                          ? 'Friend requests enabled'
+                          : 'Friend requests paused',
+            });
+            setTimeout(() => setPrivacyMsg(null), 2400);
+        } catch (err: unknown) {
+            setIsPublic(prevPublic);
+            setAllowRequests(prevRequests);
+            setPrivacyMsg({
+                text: err instanceof Error ? err.message : 'Save failed — reverted',
+                error: true,
+            });
+            setTimeout(() => setPrivacyMsg(null), 3000);
+        } finally {
+            setSavingPrivacy(null);
+        }
+    };
+
+    // ── Matches & telemetry ───────────────────────────────────────────────────
+    const [range, setRange] = useState<string>('All');
+    const [recentMatches, setRecentMatches] = useState<RecentMatchRow[]>([]);
+
     useEffect(() => {
         if (!address) return;
         let cancelled = false;
@@ -216,10 +251,11 @@ export default function UserProfilePanel({
                 if (!cancelled) setRecentMatches([]);
             }
         })();
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [address]);
 
-    // Live win streak: consecutive wins, most recent first
     const streak = useMemo(() => {
         const me = (address || '').toLowerCase();
         if (!me) return 0;
@@ -231,17 +267,22 @@ export default function UserProfilePanel({
         return s;
     }, [recentMatches, address]);
 
-    // Form series for the selected range: cumulative +30/win, -15/loss (mirrors RXP)
     const form = useMemo(() => {
         const me = (address || '').toLowerCase();
         const cutoff = rangeCutoff(range);
-        const inRange = recentMatches.filter(m => m.created_at && new Date(m.created_at).getTime() >= cutoff).reverse();
+        const inRange = recentMatches
+            .filter((m) => m.created_at && new Date(m.created_at).getTime() >= cutoff)
+            .reverse();
         let score = 0;
         const pts: number[] = [];
         let w = 0;
         for (const m of inRange) {
-            if (me && (m.winner_address || '').toLowerCase() === me) { score += 30; w++; }
-            else score -= 15;
+            if (me && (m.winner_address || '').toLowerCase() === me) {
+                score += 30;
+                w++;
+            } else {
+                score -= 15;
+            }
             pts.push(score);
         }
         return {
@@ -254,372 +295,679 @@ export default function UserProfilePanel({
         };
     }, [recentMatches, range, address]);
 
-    const [isPublic, setIsPublic] = useState(true);
-    const [allowRequests, setAllowRequests] = useState(true);
-
     const meLc = (address || '').toLowerCase();
-    // total wins / total played per mode (e.g. 12/14)
+    const classicRows = recentMatches.filter((m) => (m.game_mode || 'classic') === 'classic');
+    const powerRows = recentMatches.filter((m) => m.game_mode === 'power');
+    const aiRows = recentMatches.filter((m) => m.game_mode === 'ai' || m.game_mode === 'offline');
+
     const modeForm = {
         classic: winGame(
-            recentMatches.filter((m) => (m.game_mode || 'classic') === 'classic' && (m.winner_address || '').toLowerCase() === meLc).length,
-            Math.max(profile?.total_games ? recentMatches.filter((m) => (m.game_mode || 'classic') === 'classic').length : 0, recentMatches.filter((m) => (m.game_mode || 'classic') === 'classic').length),
+            classicRows.filter((m) => (m.winner_address || '').toLowerCase() === meLc).length,
+            Math.max(profile?.classic_played || 0, classicRows.length),
         ),
         power: winGame(
-            recentMatches.filter((m) => m.game_mode === 'power' && (m.winner_address || '').toLowerCase() === meLc).length,
-            Math.max(0, recentMatches.filter((m) => m.game_mode === 'power').length),
+            powerRows.filter((m) => (m.winner_address || '').toLowerCase() === meLc).length,
+            Math.max(profile?.power_played || 0, powerRows.length),
         ),
         ai: winGame(
-            recentMatches.filter((m) => (m.game_mode === 'ai' || m.game_mode === 'offline') && (m.winner_address || '').toLowerCase() === meLc).length,
-            (profile as any)?.ai_played || 0,
+            aiRows.filter((m) => (m.winner_address || '').toLowerCase() === meLc).length,
+            profile?.ai_played || 0,
         ),
         form: winGame(wins, games),
     };
 
-    const stats = [
-        { v: wins.toLocaleString(), l: 'Wins', c: 'text-white' },
-        { v: `${winRate}%`, l: 'Win rate', c: 'text-cyan-400' },
-        { v: games.toLocaleString(), l: 'Matches', c: 'text-white' },
-        { v: `${streak}`, l: 'Streak', c: 'text-orange-500' },
+    const kpiTiles = [
+        { v: wins.toLocaleString(), l: 'Wins', tone: 'text-ink-strong' },
+        { v: `${winRate}%`, l: 'Win Rate', tone: 'text-accent' },
+        { v: games.toLocaleString(), l: 'Matches', tone: 'text-ink-strong' },
+        { v: `${streak}`, l: streak >= 2 ? 'Hot Streak' : 'Streak', tone: streak >= 2 ? 'text-warn' : 'text-ink-muted' },
     ];
 
+    const seriesAvatars = AVATARS.filter((a) => a.series === avatarSeries);
+
+    const handleCopyAddress = async () => {
+        if (!address || isGuest) return;
+        try {
+            await navigator.clipboard.writeText(address);
+            setCopiedAddr(true);
+            setTimeout(() => setCopiedAddr(false), 1800);
+        } catch {
+            /* ignore clipboard errors */
+        }
+    };
+
     return (
-        <>
-            <div
-                className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
+        <GamePanelShell
+            scopeClass="ludo-profile-scope"
+            kicker="// PILOT DOSSIER"
+            hideOrbs
+            onClose={onClose}
+            title={
+                <span className="flex items-center gap-2">
+                    <span className="w-7 h-7 rounded-xl bg-accent-soft border border-accent/40 flex items-center justify-center text-accent shrink-0">
+                        <PilotAvatarFallbackIcon className="w-4 h-4" active />
+                    </span>
+                    <span>Profile</span>
+                </span>
+            }
+            subtitle={
+                <span className="flex items-center gap-2 min-w-0 text-ludo-xs font-mono uppercase tracking-[0.16em]">
+                    <span className="text-ink-muted font-bold truncate">{finalName}</span>
+                    {profile?.clan_tag && (
+                        <span className="px-1.5 py-0.5 rounded-sm bg-accent-soft border border-accent/35 text-accent font-bold shrink-0">
+                            [{profile.clan_tag}]
+                        </span>
+                    )}
+                    <span className="text-accent font-bold shrink-0">Lv. {progression.level}</span>
+                </span>
+            }
+        >
+            {/* Guest pass -> connect banner */}
+            {isGuest && (
+                <div className="guest-connect-banner flex items-center gap-2.5 pl-3 pr-1.5 py-2 rounded-2xl border border-warn/40 bg-warn/10">
+                    <span className="w-2 h-2 rounded-full bg-warn animate-pulse shrink-0" />
+                    <span className="guest-connect-text flex-1 min-w-0 text-ludo-xs font-bold text-ink-strong leading-tight">
+                        Guest pass — connect a wallet to keep coins, wins &amp; rank.
+                    </span>
+                    <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => {
+                            onClose();
+                            exitGuest();
+                        }}
+                    >
+                        Connect
+                    </Button>
+                </div>
+            )}
+
+            {/* 3-Tab Switcher: Overview | Performance | History */}
+            <PanelTabs<ProfileTab>
+                value={activeTab}
+                onPick={setActiveTab}
+                cols={3}
+                options={[
+                    { value: 'overview', label: 'Overview' },
+                    { value: 'performance', label: 'Performance' },
+                    {
+                        value: 'history',
+                        label: 'History',
+                        badge:
+                            unsyncedCount > 0 ? (
+                                <TabCount active={activeTab === 'history'}>{unsyncedCount}</TabCount>
+                            ) : undefined,
+                    },
+                ]}
             />
 
-            {/* Clipped Container (Fixed Ghost Centering) */}
-            <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
-                <div className="w-full max-w-[500px] relative h-full">
-                    <div
-                        /* Unified global panel layout: top-64, bottom-80 sandwich */
-                        className="ludo-profile-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
-                        style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
-                    >
-                {/* Authentic Subdued Cosmic Orbs */}
-                <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+            {activeTab === 'history' && (
+                <MatchHistoryTab
+                    address={address}
+                    isGuest={isGuest}
+                    onOpenProfile={onOpenProfile}
+                />
+            )}
 
-                {/* Handle Bar */}
-                <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                    <div className="w-12 h-1.5 bg-white/20 rounded-full" />
-                </div>
-
-                {/* Header */}
-                <div className="px-5 pb-3 border-b border-white/10 relative z-10">
-                    <div className="flex items-center justify-between mb-1 mt-1">
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <ProfileTile />
-                            Profile
-                        </h2>
-                        <button
-                            onClick={onClose}
-                            aria-label="Close profile"
-                            className="w-11 h-11 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm shrink-0"
-                        >
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                        </button>
-                    </div>
-                    <div className="flex items-center gap-2 px-0.5">
-                        <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase truncate">
-                            {finalName}
-                        </span>
-                        <span className="w-0.5 h-0.5 rounded-full bg-white/25 shrink-0" />
-                        <span className="text-ludo-sm font-black text-cyan-300 tracking-wide uppercase shrink-0">
-                            Lv. {progression.level}
-                        </span>
-                    </div>
-                </div>
-
-                {/* Guest pass → connect banner (guest-only; replaces the old
-                    floating overlay pill — lives where account things belong) */}
-                {isGuest && (
-                    <div className="guest-connect-banner mx-5 mt-3 relative z-10 flex items-center gap-2.5 pl-3 pr-1.5 py-1.5 rounded-2xl border border-amber-500/30 bg-amber-500/10">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-none" />
-                        <span className="guest-connect-text flex-1 min-w-0 text-ludo-xs font-bold text-amber-200/90 leading-tight">
-                            Guest pass — connect a wallet to keep coins, wins &amp; rank.
-                        </span>
-                        <button
-                            onClick={() => {
-                                onClose();
-                                exitGuest();
-                            }}
-                            className="flex-none px-2.5 py-1 rounded-full bg-white text-black text-ludo-xs font-black uppercase tracking-[0.15em] hover:bg-white/90 active:scale-95 transition-all"
-                        >
-                            Connect
-                        </button>
-                    </div>
-                )}
-
-                {/* Top-Level Profile Tabs (Overview | Match History) */}
-                <div className="px-5 pt-2.5 relative z-10">
-                    <PanelTabs<ProfileTab>
-                        value={activeTab}
-                        onPick={setActiveTab}
-                        cols={2}
-                        options={[
-                            {
-                                value: 'overview',
-                                label: 'Overview',
-                            },
-                            {
-                                value: 'history',
-                                label: 'Match History',
-                                badge:
-                                    unsyncedCount > 0 ? (
-                                        <TabCount active={activeTab === 'history'}>
-                                            {unsyncedCount}
-                                        </TabCount>
-                                    ) : undefined,
-                            },
-                        ]}
-                    />
-                </div>
-
-                {/* Scrollable Content Area */}
-                <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-2">
-                    {activeTab === 'history' ? (
-                        <MatchHistoryTab
-                            address={address}
-                            isGuest={isGuest}
-                            onOpenProfile={onOpenProfile}
+            {activeTab === 'overview' && (
+                <div className="flex flex-col gap-3">
+                    {/* Hero Dossier Card */}
+                    <div className="rounded-2xl bg-surface-recessed border border-line-soft p-3.5 flex items-center gap-3">
+                        <PilotAvatar
+                            avatarUrl={finalAvatar}
+                            name={finalName}
+                            size="lg"
+                            tier={progression.tier}
                         />
-                    ) : (
-                        <>
-                    {/* Identity row: avatar + name/tier + coins */}
-                    <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex items-center gap-3">
-                        {avatarDef ? (
-                            <AvatarFace def={avatarDef} letter={(finalName?.[0] || 'U').toUpperCase()} />
-                        ) : (
-                            <div
-                                className="w-14 h-14 rounded-full bg-gradient-to-tr from-cyan-600 to-teal-400 p-0.5 shrink-0 shadow-lg overflow-hidden"
-                                title="Your Profile Avatar"
-                            >
-                                <div className="w-full h-full bg-cyan-600 rounded-full flex items-center justify-center overflow-hidden">
-                                    {finalAvatar && isDirectImage(finalAvatar) ? (
-                                        <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" width={96} height={96} />
-                                    ) : (
-                                        <span className="text-2xl font-black text-white/80">
-                                            {(finalName?.[0] || 'U').toUpperCase()}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        )}
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 min-w-0">
-                                <h2 className="text-base font-bold text-white truncate">{finalName}</h2>
+                                <h3 className="text-ludo-lg font-extrabold text-ink-strong truncate">
+                                    {finalName}
+                                </h3>
+                                {profile?.clan_tag && (
+                                    <span className="px-1.5 py-0.5 rounded-sm bg-accent-soft border border-accent/35 text-ludo-xs font-mono font-bold text-accent shrink-0">
+                                        [{profile.clan_tag}]
+                                    </span>
+                                )}
                                 <button
+                                    type="button"
                                     onClick={openEditor}
                                     aria-label="Edit name and avatar"
-                                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-white/40 hover:text-white hover:bg-white/10 transition-all"
+                                    className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-surface-hover border border-line-soft text-ink-muted hover:text-ink-strong hover:border-line-strong transition-colors"
                                 >
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        className="w-3.5 h-3.5"
+                                    >
                                         <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                                     </svg>
                                 </button>
                             </div>
                             {savedFlash && (
-                                <div className="text-ludo-xs font-black text-green-400 uppercase tracking-widest mt-0.5">Saved</div>
+                                <div className="text-ludo-xs font-bold text-positive uppercase tracking-[0.16em] mt-0.5">
+                                    Callsign synced
+                                </div>
                             )}
-                            <div className="flex items-center gap-1.5 mt-1">
-                                <span className={`text-ludo-xs font-extrabold uppercase tracking-wider text-transparent bg-clip-text bg-gradient-to-r ${TIER_GRADIENT[progression.tier] || TIER_GRADIENT['Bronze']}`}>
-                                    {progression.tier} {progression.subRank}
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                <span className="inline-flex items-center gap-1 text-ludo-xs font-bold uppercase tracking-wider text-accent">
+                                    <RankTierIcon tier={progression.tier} className="w-3.5 h-3.5 shrink-0" />
+                                    <span>
+                                        {progression.tier} {progression.subRank}
+                                    </span>
                                 </span>
-                                <div className="w-1 h-1 bg-white/30 rounded-full shrink-0" />
-                                <span className="text-ludo-xs text-white/70 font-bold">Lv. {progression.level}</span>
+                                <span className="text-ink-faint" aria-hidden="true">·</span>
+                                <span className="text-ludo-xs text-ink-muted font-mono font-bold">
+                                    Lv. {progression.level}
+                                </span>
+                                {address && !isGuest && (
+                                    <>
+                                        <span className="text-ink-faint" aria-hidden="true">·</span>
+                                        <button
+                                            type="button"
+                                            onClick={handleCopyAddress}
+                                            className="text-ludo-xs font-mono text-ink-faint hover:text-ink-strong transition-colors"
+                                            title="Copy wallet address"
+                                        >
+                                            {copiedAddr
+                                                ? 'Copied'
+                                                : `${address.slice(0, 6)}…${address.slice(-4)}`}
+                                        </button>
+                                    </>
+                                )}
                             </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
+
+                        {/* Unified CHIPS + Coins telemetry pills */}
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
                             <button
                                 type="button"
                                 onClick={onOpenWallet}
-                                title={onOpenWallet ? 'Open wallet' : undefined}
-                                className={`flex items-center gap-1.5 bg-black/40 px-2.5 py-1.5 rounded-full border border-cyan-400/30 transition-colors ${onOpenWallet ? 'cursor-pointer hover:border-cyan-300/60' : ''}`}
+                                title={onOpenWallet ? 'Open Wallet' : 'Total CHIPS across wallet & vaults'}
+                                className={`flex items-center gap-1.5 bg-surface-panel px-2.5 py-1 rounded-full border border-accent/35 transition-colors ${
+                                    onOpenWallet ? 'cursor-pointer hover:border-accent' : 'cursor-default'
+                                }`}
                             >
-                                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-                                <span className="text-xs font-black text-white tabular-nums">{chipsBal.human}</span>
-                                <span className="text-ludo-xs font-black text-cyan-300/80 uppercase">CHIPS</span>
+                                <ChipsHexIcon className="w-3.5 h-3.5 text-accent" active />
+                                <span className="text-ludo-sm font-extrabold text-ink-strong tabular-nums">
+                                    {compactChips}
+                                </span>
+                                <span className="text-ludo-xs font-bold text-accent uppercase tracking-wider">
+                                    CHIPS
+                                </span>
                             </button>
-                            <div className="flex items-center gap-1.5 bg-black/40 px-2 py-0.5 rounded-full border border-white/10">
-                                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.7)]" />
-                                <span className="text-ludo-xs font-bold text-white/70 tabular-nums">{coins.toLocaleString()}</span>
+                            <div className="flex items-center gap-1.5 bg-surface-panel px-2.5 py-0.5 rounded-full border border-line-soft">
+                                <span className="w-1.5 h-1.5 rounded-full bg-warn" />
+                                <span className="text-ludo-xs font-bold text-ink-muted tabular-nums">
+                                    {coins.toLocaleString()} Coins
+                                </span>
                             </div>
                         </div>
                     </div>
 
-                    {onOpenWallet && (
-                        <button
-                            type="button"
-                            onClick={onOpenWallet}
-                            className="w-full rounded-2xl border border-cyan-400/35 bg-cyan-500/15 px-4 py-3 text-ludo-sm font-black uppercase tracking-[0.18em] text-cyan-100 hover:bg-cyan-500/25 transition-colors"
-                        >
-                            Open wallet · assets & activity
-                        </button>
-                    )}
-
-                    {/* Identity editor */}
+                    {/* Identity Editor & Avatar Customizer */}
                     {editing && (
-                        <section>
-                            <SectionLabel>Edit identity</SectionLabel>
-                            <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex flex-col gap-3">
-                                <div>
-                                    <div className="text-ludo-xs font-black uppercase tracking-[0.2em] text-white/40 mb-2">Avatar library</div>
-                                    {(['legion', 'monogram', 'trophy'] as const).map((series) => {
-                                        const items = AVATARS.filter(a => a.series === series);
-                                        if (items.length === 0) return null;
-                                        return (
-                                            <div key={series} className="mb-2 last:mb-0">
-                                                <div className="text-ludo-xs font-black uppercase tracking-widest text-white/30 mb-1.5 capitalize">{series}</div>
-                                                <div className="grid grid-cols-6 gap-1.5">
-                                                    {items.map((item) => {
-                                                        const { ok, hint } = isUnlocked(item, { wins, level: progression.level });
-                                                        const selected = draftAvatarId === item.id;
-                                                        return (
-                                                            <button
-                                                                key={item.id}
-                                                                disabled={!ok}
-                                                                onClick={() => setDraftAvatarId(item.id)}
-                                                                title={ok ? item.label : `${item.label} — ${hint}`}
-                                                                aria-label={item.label}
-                                                                className={`relative aspect-square rounded-xl overflow-hidden border transition-all flex items-center justify-center ${selected ? 'border-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.5)] scale-105' : ok ? 'border-white/10 hover:border-white/30' : 'border-white/5 opacity-40 cursor-not-allowed'}`}
-                                                            >
-                                                                {item.kind === 'image' && item.src ? (
-                                                                    <img src={item.src} alt={item.label} className="w-full h-full object-cover" width={96} height={96} />
-                                                                ) : (
-                                                                    <span className={`w-full h-full bg-gradient-to-tr ${item.bg} flex items-center justify-center text-white font-black text-sm`}>
-                                                                        {(draftName?.[0] || finalName?.[0] || 'U').toUpperCase()}
-                                                                    </span>
-                                                                )}
-                                                                {!ok && (
-                                                                    <span className="absolute inset-x-0 bottom-0 bg-black/70 text-ludo-xs font-black text-amber-300 text-center py-0.5 leading-none">
-                                                                        {hint}
-                                                                    </span>
-                                                                )}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
+                        <section className="flex flex-col gap-2">
+                            <HudSectionLabel>Edit Callsign &amp; Emblem</HudSectionLabel>
+                            <div className="rounded-2xl bg-surface-recessed border border-line-strong p-3.5 flex flex-col gap-3">
+                                {/* Live Header/Lobby Badge Preview */}
+                                <div className="rounded-xl bg-surface-panel border border-line-soft p-2.5 flex items-center justify-between gap-2.5">
+                                    <div className="flex items-center gap-2.5 min-w-0">
+                                        <PilotAvatar
+                                            avatarUrl={previewAvatarUrl}
+                                            name={previewName}
+                                            size="sm"
+                                            tier={progression.tier}
+                                        />
+                                        <div className="min-w-0">
+                                            <div className="text-ludo-xs font-mono uppercase tracking-[0.16em] text-ink-faint">
+                                                Live Badge Preview
                                             </div>
-                                        );
-                                    })}
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                <span className="text-ludo-md font-extrabold text-ink-strong truncate">
+                                                    {previewName}
+                                                </span>
+                                                {profile?.clan_tag && (
+                                                    <span className="px-1 py-0.5 rounded-sm bg-accent-soft text-accent text-ludo-xs font-mono font-bold shrink-0">
+                                                        [{profile.clan_tag}]
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span className="px-2 py-0.5 rounded-full bg-surface-recessed border border-line-soft text-ludo-xs font-mono font-bold text-accent shrink-0">
+                                        Lv.{progression.level}
+                                    </span>
                                 </div>
+
+                                {/* Series Filter Bar */}
                                 <div>
-                                    <div className="text-ludo-xs font-black uppercase tracking-[0.2em] text-white/40 mb-2">Display name</div>
+                                    <div className="flex items-center justify-between mb-2 gap-2">
+                                        <span className="text-ludo-xs font-bold uppercase tracking-[0.18em] text-ink-muted">
+                                            Avatar Series
+                                        </span>
+                                        <div className="flex items-center gap-1 bg-surface-panel p-0.5 rounded-xl border border-line-soft">
+                                            {(['legion', 'monogram', 'trophy'] as const).map((series) => {
+                                                const active = avatarSeries === series;
+                                                return (
+                                                    <button
+                                                        key={series}
+                                                        type="button"
+                                                        onClick={() => setAvatarSeries(series)}
+                                                        className={`px-2 py-1 rounded-lg text-ludo-xs font-bold uppercase tracking-wider transition-colors capitalize ${
+                                                            active
+                                                                ? 'bg-accent-soft text-accent border border-accent/40'
+                                                                : 'text-ink-faint hover:text-ink-strong'
+                                                        }`}
+                                                    >
+                                                        {series}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-6 gap-1.5">
+                                        {seriesAvatars.map((item) => {
+                                            const { ok, hint } = isUnlocked(item, {
+                                                wins,
+                                                level: progression.level,
+                                            });
+                                            const selected = draftAvatarId === item.id;
+                                            return (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    disabled={!ok}
+                                                    onClick={() => setDraftAvatarId(item.id)}
+                                                    title={ok ? item.label : `${item.label} — ${hint}`}
+                                                    aria-label={item.label}
+                                                    className={`relative aspect-square rounded-xl overflow-hidden border transition-all flex items-center justify-center ${
+                                                        selected
+                                                            ? 'border-accent ring-2 ring-accent/50 scale-[1.03]'
+                                                            : ok
+                                                              ? 'border-line-soft hover:border-line-strong'
+                                                              : 'border-line-soft opacity-45 cursor-not-allowed'
+                                                    }`}
+                                                >
+                                                    {item.kind === 'image' && item.src ? (
+                                                        <img
+                                                            src={item.src}
+                                                            alt={item.label}
+                                                            className="w-full h-full object-cover"
+                                                            width={96}
+                                                            height={96}
+                                                        />
+                                                    ) : (
+                                                        <span
+                                                            className={`w-full h-full bg-gradient-to-tr ${item.bg} flex items-center justify-center font-extrabold text-ludo-md`}
+                                                            style={{ color: '#ffffff' }}
+                                                        >
+                                                            {(previewName?.[0] || 'U').toUpperCase()}
+                                                        </span>
+                                                    )}
+                                                    {selected && (
+                                                        <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-accent text-accent-ink flex items-center justify-center shadow">
+                                                            <CheckGlyphIcon className="w-2.5 h-2.5" />
+                                                        </span>
+                                                    )}
+                                                    {!ok && (
+                                                        <span className="absolute inset-x-0 bottom-0 bg-surface-panel/90 text-ludo-xs font-bold text-warn text-center py-0.5 leading-none border-t border-line-soft">
+                                                            {hint}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Callsign Field + Validation */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="text-ludo-xs font-bold uppercase tracking-[0.18em] text-ink-muted">
+                                            Callsign
+                                        </span>
+                                        <span className="text-ludo-xs font-mono text-ink-faint tabular-nums">
+                                            {draftName.trim().length}/{NAME_RULES.max}
+                                        </span>
+                                    </div>
                                     <input
                                         value={draftName}
-                                        onChange={(e) => setDraftName(e.target.value)}
+                                        onChange={(e) => {
+                                            setDraftName(e.target.value);
+                                            if (saveError) setSaveError(null);
+                                        }}
                                         maxLength={NAME_RULES.max}
                                         placeholder={finalName}
                                         autoComplete="off"
                                         autoCorrect="off"
                                         autoCapitalize="none"
                                         spellCheck={false}
-                                        className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2.5 text-sm font-bold text-white placeholder:text-white/25 focus:outline-none focus:border-cyan-500/60 transition-colors"
+                                        className="w-full bg-surface-panel border border-line-soft rounded-xl px-3 py-2 text-ludo-md font-bold text-ink-strong placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors"
                                     />
-                                    <div className="text-ludo-xs font-bold text-white/30 mt-1">{NAME_RULES.help} · unique · one identity per wallet</div>
-                                    {saveError && (
-                                        <div className="text-ludo-sm font-bold text-red-400 mt-1">{saveError}</div>
+                                    <div className="flex items-center justify-between gap-2 mt-1">
+                                        <span className="text-ludo-xs font-bold text-ink-faint">
+                                            {NAME_RULES.help} · unique handle
+                                        </span>
+                                        {draftName.trim().length > 0 && !draftValidationErr && (
+                                            <span className="text-ludo-xs font-bold text-positive shrink-0">
+                                                Valid callsign
+                                            </span>
+                                        )}
+                                    </div>
+                                    {(saveError || draftValidationErr) && (
+                                        <div className="text-ludo-sm font-bold text-negative mt-1">
+                                            {saveError || draftValidationErr}
+                                        </div>
                                     )}
                                 </div>
+
                                 <div className="flex gap-2">
-                                    <button
+                                    <Button
+                                        variant="secondary"
+                                        size="md"
                                         onClick={() => setEditing(false)}
                                         disabled={saving}
-                                        className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/60 text-xs font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white transition-all disabled:opacity-50"
+                                        className="flex-1"
                                     >
                                         Cancel
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button
+                                        variant="primary"
+                                        size="md"
                                         onClick={saveIdentity}
-                                        disabled={saving || !draftName.trim()}
-                                        className="flex-1 py-2.5 rounded-xl bg-white text-black text-xs font-black uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-[0_0_30px_rgba(255,255,255,0.35)] transition-all active:scale-95 disabled:opacity-40"
+                                        loading={saving}
+                                        disabled={saving || !draftName.trim() || !!draftValidationErr}
+                                        className="flex-1"
                                     >
-                                        {saving ? 'Saving…' : 'Save'}
-                                    </button>
+                                        {saving ? 'Saving…' : 'Save Identity'}
+                                    </Button>
                                 </div>
                             </div>
                         </section>
                     )}
 
-                    {/* Level progress bar */}
-                    <section>
-                        <SectionLabel>Level</SectionLabel>
-                        <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex flex-col gap-2">
-                            <div className="flex items-center justify-between">
-                                <span className="text-ludo-xs font-black uppercase tracking-[0.2em] text-cyan-400">Level {progression.level}</span>
-                                <span className="text-ludo-xs font-bold text-white/60 tabular-nums">{progression.currentLxp.toLocaleString()} / {progression.lxpToNextLevel.toLocaleString()} XP</span>
-                            </div>
-                            <div className="h-2.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                                <motion.div
-                                    className="h-full bg-gradient-to-r from-cyan-500 to-teal-400 rounded-full shadow-[0_0_10px_rgba(34,211,238,0.5)]"
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${progression.progressPercentage}%` }}
-                                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                                />
-                            </div>
-                            <div className="text-ludo-xs font-bold text-white/30 uppercase tracking-widest">
-                                {(progression.lxpToNextLevel - progression.currentLxp).toLocaleString()} XP to Lv. {progression.level + 1} • {(profile?.lxp || 0).toLocaleString()} lifetime
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* Rank progress bar */}
-                    <section>
-                        <SectionLabel>Rank</SectionLabel>
-                        <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex flex-col gap-2">
-                            <div className="flex items-center justify-between">
-                                <span className="text-ludo-xs font-black uppercase tracking-[0.2em] text-amber-400">Rank — {progression.tier} {progression.subRank}</span>
-                                <span className="text-ludo-xs font-bold text-white/60 tabular-nums">
-                                    {rank.target === null ? `${rank.current.toLocaleString()} RXP` : `${rank.current.toLocaleString()} / ${rank.target.toLocaleString()} RXP`}
-                                </span>
-                            </div>
-                            <div className="h-2.5 bg-black/40 rounded-full overflow-hidden border border-white/5">
-                                <motion.div
-                                    className="h-full bg-gradient-to-r from-amber-400 to-orange-600 rounded-full shadow-[0_0_10px_rgba(245,158,11,0.5)]"
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${Math.min(100, Math.max(0, rank.pct))}%` }}
-                                    transition={{ duration: 0.8, ease: 'easeOut', delay: 0.15 }}
-                                />
-                            </div>
-                            <div className="text-ludo-xs font-bold text-white/30 uppercase tracking-widest">
-                                {rank.nextLabel === 'MAX' ? 'Top of the arena' : `Next: ${rank.nextLabel} • resets quarterly`}
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* Form chart: price-chart style performance sparkline */}
-                    <section>
-                        <SectionLabel>Form</SectionLabel>
-                        <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex flex-col gap-2">
-                            <div>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                    <span className="porcelain-hero text-2xl font-black text-white tabular-nums leading-none">
-                                        {form.played ? `${form.rate}%` : '–'}
+                    {/* 4-Tile KPI Strip */}
+                    <section className="flex flex-col gap-2">
+                        <HudSectionLabel>Combat Record</HudSectionLabel>
+                        <div className="grid grid-cols-4 gap-2">
+                            {kpiTiles.map((s) => (
+                                <div
+                                    key={s.l}
+                                    className="rounded-xl bg-surface-recessed border border-line-soft p-2.5 flex flex-col items-center justify-center"
+                                >
+                                    <span className={`text-ludo-xl font-extrabold tabular-nums leading-none ${s.tone}`}>
+                                        {s.v}
                                     </span>
-                                    {form.played > 0 && (
-                                        <span className={`text-ludo-sm font-black tabular-nums ${form.positive ? 'text-emerald-400' : 'text-red-400'}`}>
-                                            {form.net > 0 ? `+${form.net}` : `${form.net}`}
-                                        </span>
-                                    )}
+                                    <span className="text-ludo-xs font-bold uppercase tracking-widest text-ink-faint mt-1 text-center">
+                                        {s.l}
+                                    </span>
                                 </div>
-                                <div className="text-ludo-xs font-bold text-white/30 uppercase tracking-widest mt-1">
-                                    {form.played} matches • {range}
+                            ))}
+                        </div>
+                    </section>
+
+                    {/* Clearance & Season Rank (compositor-only gauges) */}
+                    <section className="flex flex-col gap-2">
+                        <HudSectionLabel>Clearance &amp; Rank</HudSectionLabel>
+                        <div className="rounded-2xl bg-surface-recessed border border-line-soft p-3.5 flex flex-col gap-3">
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-ludo-xs font-bold uppercase tracking-[0.18em] text-accent">
+                                        Level {progression.level}
+                                    </span>
+                                    <span className="text-ludo-xs font-mono font-bold text-ink-muted tabular-nums">
+                                        {progression.currentLxp.toLocaleString()} /{' '}
+                                        {progression.lxpToNextLevel.toLocaleString()} XP
+                                    </span>
+                                </div>
+                                <HudProgressGauge percent={progression.progressPercentage} tone="accent" />
+                                <div className="text-ludo-xs font-bold text-ink-faint uppercase tracking-wider">
+                                    {(progression.lxpToNextLevel - progression.currentLxp).toLocaleString()} XP to Lv.{' '}
+                                    {progression.level + 1} · {(profile?.lxp || 0).toLocaleString()} lifetime
                                 </div>
                             </div>
+
+                            <div className="h-px bg-line-soft" />
+
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="inline-flex items-center gap-1.5 text-ludo-xs font-bold uppercase tracking-[0.18em] text-warn">
+                                        <RankTierIcon tier={progression.tier} className="w-3.5 h-3.5 shrink-0" />
+                                        <span>
+                                            {progression.tier} {progression.subRank}
+                                        </span>
+                                    </span>
+                                    <span className="text-ludo-xs font-mono font-bold text-ink-muted tabular-nums">
+                                        {rank.target === null
+                                            ? `${rank.current.toLocaleString()} RXP`
+                                            : `${rank.current.toLocaleString()} / ${rank.target.toLocaleString()} RXP`}
+                                    </span>
+                                </div>
+                                <HudProgressGauge percent={rank.pct} tone="warn" />
+                                <div className="text-ludo-xs font-bold text-ink-faint uppercase tracking-wider">
+                                    {rank.nextLabel === 'MAX'
+                                        ? 'Apex Season Clearance'
+                                        : `Next: ${rank.nextLabel} · resets quarterly`}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Vault Relic Showcase */}
+                    <section className="flex flex-col gap-2">
+                        <HudSectionLabel
+                            right={
+                                showcased ? (
+                                    <span className="px-2 py-0.5 rounded-full bg-accent-soft border border-accent/40 text-ludo-xs font-bold text-accent uppercase tracking-widest">
+                                        Active
+                                    </span>
+                                ) : undefined
+                            }
+                        >
+                            Showcase
+                        </HudSectionLabel>
+                        {showcased ? (
+                            <div className="rounded-2xl bg-surface-recessed border border-line-soft p-3 flex items-center gap-3">
+                                <RelicGem swatchClass={showcased.swatchClass} />
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-ludo-md font-bold text-ink-strong truncate">
+                                        {showcased.name}
+                                    </div>
+                                    <div className="text-ludo-xs font-bold text-ink-faint truncate">
+                                        {showcased.desc}
+                                    </div>
+                                </div>
+                                {onOpenMarketplace && (
+                                    <Button variant="secondary" size="sm" onClick={onOpenMarketplace}>
+                                        Change
+                                    </Button>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="rounded-2xl border border-dashed border-line-soft bg-surface-recessed/50 p-3 flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-surface-panel border border-line-soft flex items-center justify-center shrink-0 text-ink-faint">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        className="w-4 h-4"
+                                    >
+                                        <path d="M6 3h12l4 6-10 13L2 9z" />
+                                    </svg>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-ludo-md font-bold text-ink-muted">No relic showcased</div>
+                                    <div className="text-ludo-xs font-bold text-ink-faint truncate">
+                                        Equip a collectible from Marketplace loadout.
+                                    </div>
+                                </div>
+                                {onOpenMarketplace && (
+                                    <Button variant="secondary" size="sm" onClick={onOpenMarketplace}>
+                                        Market
+                                    </Button>
+                                )}
+                            </div>
+                        )}
+                    </section>
+
+                    {/* Wired Privacy & Comms Controls */}
+                    <section className="flex flex-col gap-2">
+                        <HudSectionLabel
+                            right={
+                                privacyMsg ? (
+                                    <span
+                                        className={`text-ludo-xs font-bold uppercase tracking-wider ${
+                                            privacyMsg.error ? 'text-negative' : 'text-positive'
+                                        }`}
+                                    >
+                                        {privacyMsg.text}
+                                    </span>
+                                ) : undefined
+                            }
+                        >
+                            Privacy &amp; Comms
+                        </HudSectionLabel>
+
+                        <div className="rounded-2xl bg-surface-recessed border border-line-soft overflow-hidden divide-y divide-line-soft">
+                            <div className="flex items-center justify-between gap-3 p-3">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-8 h-8 rounded-xl bg-accent-soft border border-accent/30 text-accent flex items-center justify-center shrink-0">
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            className="w-4 h-4"
+                                        >
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                            <circle cx="12" cy="12" r="3" />
+                                        </svg>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="text-ludo-md font-bold text-ink-strong truncate">
+                                            Public Profile
+                                        </div>
+                                        <div className="text-ludo-xs font-bold text-ink-faint truncate">
+                                            {isPublic
+                                                ? 'Scouts can view stats & form'
+                                                : 'Redacted from non-friend scouts'}
+                                        </div>
+                                    </div>
+                                </div>
+                                <Switch
+                                    on={isPublic}
+                                    onToggle={() => void updatePrivacy('public')}
+                                    label="Public Profile"
+                                    disabled={isGuest || savingPrivacy !== null}
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-between gap-3 p-3">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-8 h-8 rounded-xl bg-positive/15 border border-positive/30 text-positive flex items-center justify-center shrink-0">
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            className="w-4 h-4"
+                                        >
+                                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                                            <circle cx="8.5" cy="7" r="4" />
+                                            <line x1="20" y1="8" x2="20" y2="14" />
+                                            <line x1="23" y1="11" x2="17" y2="11" />
+                                        </svg>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <div className="text-ludo-md font-bold text-ink-strong truncate">
+                                            Allow Requests
+                                        </div>
+                                        <div className="text-ludo-xs font-bold text-ink-faint truncate">
+                                            {allowRequests
+                                                ? 'Pilots can send friend requests'
+                                                : 'Incoming friend requests paused'}
+                                        </div>
+                                    </div>
+                                </div>
+                                <Switch
+                                    on={allowRequests}
+                                    onToggle={() => void updatePrivacy('requests')}
+                                    label="Allow Requests"
+                                    disabled={isGuest || savingPrivacy !== null}
+                                />
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            )}
+
+            {activeTab === 'performance' && (
+                <div className="flex flex-col gap-3.5">
+                    {/* Form Sparkline Card */}
+                    <section className="flex flex-col gap-2">
+                        <HudSectionLabel>Form Telemetry</HudSectionLabel>
+                        <div className="rounded-2xl bg-surface-recessed border border-line-soft p-3.5 flex flex-col gap-2.5">
+                            <div className="flex items-end justify-between gap-2">
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-ludo-3xl font-extrabold text-ink-strong tabular-nums leading-none">
+                                            {form.played ? `${form.rate}%` : '–'}
+                                        </span>
+                                        {form.played > 0 && (
+                                            <span
+                                                className={`px-2 py-0.5 rounded-full text-ludo-xs font-mono font-bold tabular-nums border ${
+                                                    form.positive
+                                                        ? 'bg-positive/15 text-positive border-positive/35'
+                                                        : 'bg-negative/15 text-negative border-negative/35'
+                                                }`}
+                                            >
+                                                {form.net > 0 ? `+${form.net}` : `${form.net}`} RXP
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-ludo-xs font-bold text-ink-faint uppercase tracking-widest mt-1">
+                                        {form.played} matches · {form.wins}W / {Math.max(0, form.played - form.wins)}L ·{' '}
+                                        {range}
+                                    </div>
+                                </div>
+                            </div>
+
                             {form.pts.length > 0 ? (
                                 <FormChart points={form.pts} positive={form.positive} />
                             ) : (
-                                <div className="h-[96px] flex items-center justify-center border border-dashed border-white/10 rounded-xl">
-                                    <span className="text-ludo-xs font-bold text-white/30 uppercase tracking-widest">{recentMatches.length ? 'No matches in this range' : 'Play matches to build form'}</span>
+                                <div className="h-[96px] flex items-center justify-center border border-dashed border-line-soft rounded-xl">
+                                    <span className="text-ludo-xs font-bold text-ink-faint uppercase tracking-widest">
+                                        {recentMatches.length
+                                            ? 'No matches in this range'
+                                            : 'Play matches to build form'}
+                                    </span>
                                 </div>
                             )}
-                            <div className="flex items-center justify-between pt-1">
+
+                            <div className="flex items-center justify-between pt-1 gap-1">
                                 {RANGES.map((r) => (
                                     <button
                                         key={r.id}
+                                        type="button"
                                         onClick={() => setRange(r.id)}
-                                        className={`px-2 py-1 rounded-full text-ludo-xs font-black transition-all ${range === r.id ? 'bg-white/10 text-white' : 'text-white/30 hover:text-white/60'}`}
+                                        className={`flex-1 py-1 rounded-full text-ludo-xs font-bold uppercase tracking-wider transition-colors ${
+                                            range === r.id
+                                                ? 'bg-accent-soft text-accent border border-accent/40'
+                                                : 'text-ink-faint hover:text-ink-strong'
+                                        }`}
                                     >
                                         {r.id}
                                     </button>
@@ -628,139 +976,44 @@ export default function UserProfilePanel({
                         </div>
                     </section>
 
-                    {/* Mode form — Classic · Power · vs AI · Form */}
-                    <section>
-                        <SectionLabel>Mode form</SectionLabel>
-                        <ModeBreakdown stats={modeForm} labels={["Classic", "Power", "vs AI", "Overall"]} />
+                    {/* Mode Breakdown */}
+                    <section className="flex flex-col gap-2">
+                        <HudSectionLabel>Mode Breakdown</HudSectionLabel>
+                        <ModeBreakdown stats={modeForm} labels={['Classic', 'Power', 'vs AI', 'Overall']} />
                     </section>
 
-                    {/* Stat grid */}
-                    <section>
-                        <SectionLabel>Stats</SectionLabel>
-                        <div className="grid grid-cols-4 gap-2">
-                            {stats.map((s) => (
-                                <div key={s.l} className="rounded-xl bg-white/[0.04] border border-white/10 p-2 flex flex-col items-center justify-center">
-                                    <span className={`text-base font-black tabular-nums ${s.c}`}>{s.v}</span>
-                                    <span className="text-ludo-xs font-black uppercase tracking-widest text-white/30 mt-0.5">{s.l}</span>
+                    {/* Detailed Split Telemetry */}
+                    <section className="flex flex-col gap-2">
+                        <HudSectionLabel>Arena Distribution</HudSectionLabel>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="rounded-xl bg-surface-recessed border border-line-soft p-2.5 text-center">
+                                <div className="text-ludo-lg font-extrabold text-ink-strong tabular-nums">
+                                    {(profile?.classic_played ?? classicRows.length).toLocaleString()}
                                 </div>
-                            ))}
-                        </div>
-                    </section>
-
-                    {/* Showcase: single vault relic, set from Marketplace loadout */}
-                    <section>
-                        <SectionLabel
-                            right={
-                                showcased ? (
-                                    <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/40 text-ludo-xs font-black text-cyan-300 uppercase tracking-widest">
-                                        Showcasing
-                                    </span>
-                                ) : undefined
-                            }
-                        >
-                            Showcase
-                        </SectionLabel>
-                        {showcased ? (
-                            <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3 flex items-center gap-3">
-                                <RelicGem tint={showcased.tint} />
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-ludo-md font-bold text-white truncate">{showcased.name}</div>
-                                    <div className="text-ludo-xs font-bold text-white/35 truncate">{showcased.desc}</div>
+                                <div className="text-ludo-xs font-bold uppercase tracking-widest text-ink-faint mt-0.5">
+                                    Classic Played
                                 </div>
-                                {onOpenMarketplace && (
-                                    <button
-                                        onClick={onOpenMarketplace}
-                                        className="shrink-0 px-2 py-1 rounded-full text-ludo-xs font-black uppercase tracking-widest bg-white/5 text-white/40 border border-white/10 hover:text-white/70 transition-all"
-                                    >
-                                        Change
-                                    </button>
-                                )}
                             </div>
-                        ) : (
-                            <div className="rounded-2xl border border-dashed border-white/10 p-3 flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-white/25">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-                                        <path d="M6 3h12l4 6-10 13L2 9z" />
-                                    </svg>
+                            <div className="rounded-xl bg-surface-recessed border border-line-soft p-2.5 text-center">
+                                <div className="text-ludo-lg font-extrabold text-accent tabular-nums">
+                                    {(profile?.power_played ?? powerRows.length).toLocaleString()}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-ludo-md font-bold text-white/60">No relic showcased</div>
-                                    <div className="text-ludo-xs font-bold text-white/35 truncate">Own a collectible, then showcase it from the Market loadout.</div>
+                                <div className="text-ludo-xs font-bold uppercase tracking-widest text-ink-faint mt-0.5">
+                                    Power Played
                                 </div>
-                                {onOpenMarketplace && (
-                                    <button
-                                        onClick={onOpenMarketplace}
-                                        className="shrink-0 px-2 py-1 rounded-full text-ludo-xs font-black uppercase tracking-widest bg-cyan-500/20 text-cyan-200 border border-cyan-500/40 hover:bg-cyan-500/30 transition-all"
-                                    >
-                                        Market
-                                    </button>
-                                )}
                             </div>
-                        )}
-                    </section>
-
-                    {/* Privacy & Social Controls */}
-                    <section>
-                        <SectionLabel>Privacy</SectionLabel>
-
-                        <div className="rounded-2xl bg-white/[0.04] border border-white/10 overflow-hidden">
-                            <div className="flex items-center justify-between p-2.5 border-b border-white/5">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="w-7 h-7 rounded-full bg-white/5 text-cyan-400 flex items-center justify-center shrink-0">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                            <circle cx="12" cy="12" r="3"></circle>
-                                        </svg>
-                                    </div>
-                                    <span className="text-ludo-md font-medium text-white">Public Profile</span>
+                            <div className="rounded-xl bg-surface-recessed border border-line-soft p-2.5 text-center">
+                                <div className="text-ludo-lg font-extrabold text-warn tabular-nums">
+                                    {(profile?.ai_played ?? aiRows.length).toLocaleString()}
                                 </div>
-                                <button
-                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative shrink-0 ${isPublic ? 'bg-cyan-600' : 'bg-white/10'}`}
-                                    onClick={() => setIsPublic(!isPublic)}
-                                >
-                                    <motion.div
-                                        layout
-                                        className="w-4 h-4 bg-white rounded-full shadow-sm"
-                                        animate={{ x: isPublic ? 24 : 0 }}
-                                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                    />
-                                </button>
-                            </div>
-
-                            <div className="flex items-center justify-between p-2.5">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="w-7 h-7 rounded-full bg-teal-500/20 text-teal-400 flex items-center justify-center shrink-0">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-                                            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                            <circle cx="8.5" cy="7" r="4"></circle>
-                                            <line x1="20" y1="8" x2="20" y2="14"></line>
-                                            <line x1="23" y1="11" x2="17" y2="11"></line>
-                                        </svg>
-                                    </div>
-                                    <span className="text-ludo-md font-medium text-white">Allow Requests</span>
+                                <div className="text-ludo-xs font-bold uppercase tracking-widest text-ink-faint mt-0.5">
+                                    Bot Sims
                                 </div>
-                                <button
-                                    className={`w-12 h-6 rounded-full p-1 transition-colors relative shrink-0 ${allowRequests ? 'bg-teal-500' : 'bg-white/10'}`}
-                                    onClick={() => setAllowRequests(!allowRequests)}
-                                >
-                                    <motion.div
-                                        layout
-                                        className="w-4 h-4 bg-white rounded-full shadow-sm"
-                                        animate={{ x: allowRequests ? 24 : 0 }}
-                                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                    />
-                                </button>
                             </div>
                         </div>
-
                     </section>
-                        </>
-                    )}
-
-                    </div>
                 </div>
-            </div>
-        </div>
-    </>
+            )}
+        </GamePanelShell>
     );
 }

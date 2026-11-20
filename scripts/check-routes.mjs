@@ -82,6 +82,7 @@ const MATRIX = {
     // ── Profile / identity ────────────────────────────────────────────────
     'profile':                { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
     'profile/ecdh':           { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
+    'profile/public':         { methods: ['GET'],         auth: 'public',  resource: 'none', serviceRole: true },
     'wallet-links':           { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
 
     // ── Social ────────────────────────────────────────────────────────────

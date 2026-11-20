@@ -14,10 +14,27 @@ export async function GET(request: Request) {
         const expectedWallet = searchParams.get('walletAddress') || undefined;
         const wallet = await requireSessionWallet(request, { scope: 'app', expectedWallet });
         if (!wallet) return NextResponse.json({ error: 'Invalid profile session' }, { status: 401 });
-        const { data, error } = await serviceDb().from('players')
-            .select('wallet_address, username, avatar_url, peer_id, lxp, rxp, coins, status, classic_played, power_played, ai_played, total_wins, total_games, rank_tier, last_played_at, created_at')
+
+        const db = serviceDb();
+        const baseCols = 'wallet_address, username, avatar_url, peer_id, lxp, rxp, coins, status, classic_played, power_played, ai_played, total_wins, total_games, rank_tier, last_played_at, created_at';
+        let { data, error } = await db.from('players')
+            .select(`${baseCols}, is_public, allow_requests`)
             .eq('wallet_address', wallet)
             .maybeSingle();
+
+        // Fallback if privacy columns haven't been pushed to the remote DB yet
+        if (error && /is_public|allow_requests|column/i.test(error.message)) {
+            const fallback = await db.from('players')
+                .select(baseCols)
+                .eq('wallet_address', wallet)
+                .maybeSingle();
+            if (fallback.error) return NextResponse.json({ error: fallback.error.message }, { status: 500 });
+            data = fallback.data
+                ? { ...fallback.data, is_public: true, allow_requests: true }
+                : null;
+            error = null;
+        }
+
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
         if (!data) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
 
@@ -25,6 +42,8 @@ export async function GET(request: Request) {
         const clanInfo = clanMap[wallet.toLowerCase()];
         return NextResponse.json({
             ...data,
+            is_public: data.is_public !== false,
+            allow_requests: data.allow_requests !== false,
             clan_tag: clanInfo?.tag ?? null,
             clan_id: clanInfo?.clanId ?? null,
             clan_name: clanInfo?.name ?? null,
@@ -36,20 +55,22 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
-        const { walletAddress, sessionId, username, avatarUrl, peerId } = await request.json();
+        const { walletAddress, sessionId, username, avatarUrl, peerId, isPublic, allowRequests } = await request.json();
         const authenticatedWallet =
             (await requireSessionWallet(request, { scope: 'app', expectedWallet: walletAddress })) ||
             (await requireAppSession(walletAddress, sessionId));
         if (!authenticatedWallet) return NextResponse.json({ error: 'Invalid profile session' }, { status: 401 });
 
-        const updates: Record<string, string | null> = {};
+        const updates: Record<string, string | boolean | null> = {};
         if (username !== undefined) updates.username = username === null ? null : String(username).slice(0, 80);
         if (avatarUrl !== undefined) updates.avatar_url = avatarUrl === null ? null : String(avatarUrl).slice(0, 500);
         if (peerId !== undefined) updates.peer_id = peerId === null ? null : String(peerId).slice(0, 200);
+        if (typeof isPublic === 'boolean') updates.is_public = isPublic;
+        if (typeof allowRequests === 'boolean') updates.allow_requests = allowRequests;
         if (Object.keys(updates).length === 0) return NextResponse.json({ success: true });
 
         const db = serviceDb();
-        if (updates.username) {
+        if (typeof updates.username === 'string' && updates.username.length > 0) {
             const { data: clash } = await db.from('players').select('wallet_address')
                 .ilike('username', updates.username).neq('wallet_address', authenticatedWallet).limit(1);
             if (clash?.length) return NextResponse.json({ error: 'That name is taken' }, { status: 409 });

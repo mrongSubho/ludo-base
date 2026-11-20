@@ -166,6 +166,19 @@ export async function POST(request: Request) {
                 return NextResponse.json({ success: true, status: 'pending' });
             }
 
+            // Respect target player's privacy preference (`allow_requests = false`)
+            const { data: targetPrefs, error: prefsErr } = await db
+                .from('players')
+                .select('allow_requests')
+                .eq('wallet_address', friend)
+                .maybeSingle();
+            if (!prefsErr && targetPrefs && targetPrefs.allow_requests === false) {
+                return NextResponse.json(
+                    { error: 'This pilot is not accepting friend requests' },
+                    { status: 403 },
+                );
+            }
+
             // Fresh wallets have no players row yet — provision both sender & target before the
             // FK-checked upsert so friending new users doesn't 500.
             const provSenderErr = await ensurePlayerRow(senderWallet);

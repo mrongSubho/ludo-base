@@ -1,35 +1,48 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- legacy types; tracked burn-down */
- 
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '@/lib/supabase';
+import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useChipsBalanceFor } from '@/hooks/useChipsBalance';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { getProgression } from '@/lib/progression';
 import { FormChart } from './FormChart';
-import { ModeBreakdown, winGame, lastNForm } from './ModeBreakdown';
-import { ChatIcon } from './icons';
+import { ModeBreakdown, winGame } from './ModeBreakdown';
+import { ChatIcon, ChipsHexIcon, CloseReticleIcon } from './icons';
 import { useAppSession } from '@/hooks/useAppSession';
 import { clearOutboxForPeer } from '@/lib/messageOutbox';
+import { HudCornerTicks, HudSectionLabel } from './HudPrimitives';
+import { PilotAvatar } from './PilotAvatar';
+import { RankTierIcon } from './RankTierIcon';
+import { Button } from './Button';
 
-// ─── Theme-agnostic contract (holds for current + future themes) ───────────
-// Same vocabulary as the synced sandwich panels, applied to this centered
-// modal shell: white-ink + white-opacity surfaces + cyan/status accents.
-// No font-family is set (inherits the active theme's display font). Spacing
-// inside `.ludo-pubprofile-scope` is re-asserted in globals.css (the global
-// unlayered reset zeroes Tailwind utilities).
+interface PublicProfileData {
+    wallet_address: string;
+    username: string | null;
+    avatar_url: string | null;
+    lxp: number | null;
+    rxp: number | null;
+    status: string | null;
+    classic_played: number | null;
+    power_played: number | null;
+    ai_played: number | null;
+    total_wins: number | null;
+    total_games: number | null;
+    rank_tier: string | null;
+    last_played_at: string | null;
+    created_at: string | null;
+    is_public?: boolean;
+    allow_requests?: boolean;
+    clan_tag?: string | null;
+    clan_name?: string | null;
+    private_redacted?: boolean;
+}
 
-// Section label: pill + gradient rule (marketplace vocabulary)
-const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-    <div className="mt-1 mb-1 flex items-center gap-2.5">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
-            {children}
-        </span>
-        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-    </div>
-);
+interface TargetMatchRow {
+    winner_address: string | null;
+    created_at: string | null;
+    game_mode?: string | null;
+}
 
 interface PublicProfileModalProps {
     isOpen: boolean;
@@ -38,220 +51,255 @@ interface PublicProfileModalProps {
     onDM: (address: string) => void;
 }
 
-export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM }: PublicProfileModalProps) {
-    const { ensureAppSession, peekAppSession } = useAppSession();
+type FriendListEntry = string | { address?: string; wallet_address?: string; user_address?: string; friend_address?: string };
+
+export default function PublicProfileModal({
+    isOpen,
+    userAddress,
+    onClose,
+    onDM,
+}: PublicProfileModalProps) {
+    const { ensureAppSession } = useAppSession();
     const { address: currentUserAddress } = useCurrentUser();
-    // Guests can scout profiles, but social writes hit the wall.
     const { guard } = useGuestWall();
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
     const [isProfileLoading, setProfileLoading] = useState(false);
     const [isFriendValidationLoading, setFriendValidationLoading] = useState(false);
 
-    // Target User Data
-    const [profile, setProfile] = useState<any>(null);
+    const [profile, setProfile] = useState<PublicProfileData | null>(null);
+    const [targetMatches, setTargetMatches] = useState<TargetMatchRow[]>([]);
     const [isFriend, setIsFriend] = useState(false);
     const [isPending, setIsPending] = useState(false);
     const [isBlocked, setIsBlocked] = useState(false);
 
-    // Action States
     const [isActionLoading, setIsActionLoading] = useState(false);
-    const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+    const [actionFeedback, setActionFeedback] = useState<{ text: string; tone: 'positive' | 'negative' } | null>(null);
     const [reportStep, setReportStep] = useState<'none' | 'select' | 'submitting' | 'done'>('none');
     const [selectedReportReason, setSelectedReportReason] = useState<string>('');
+    const [copiedAddr, setCopiedAddr] = useState(false);
 
-    // Target user's match history (powers live activity + scout sparkline)
-    const [targetMatches, setTargetMatches] = useState<{ winner_address: string | null; created_at: string | null }[]>([]);
+    const flashFeedback = (text: string, tone: 'positive' | 'negative' = 'positive') => {
+        setActionFeedback({ text, tone });
+        setTimeout(() => setActionFeedback(null), 2600);
+    };
 
-    // Reset when modal opens with new user
     useEffect(() => {
         if (!isOpen || !userAddress || !currentUserAddress) {
             setProfile(null);
+            setTargetMatches([]);
             setIsFriend(false);
             setIsPending(false);
             setIsBlocked(false);
-            setActionSuccess(null);
+            setActionFeedback(null);
             setReportStep('none');
             setSelectedReportReason('');
             setProfileLoading(false);
             setFriendValidationLoading(false);
-            setTargetMatches([]);
             return;
         }
 
+        let cancelled = false;
         const fetchProfileData = async () => {
             setProfileLoading(true);
             setFriendValidationLoading(true);
 
+            let sessionId: string | null = null;
             try {
-                // 1. Fetch user stats from Supabase (FAST)
-                const { data: userData, error: userError } = await (supabase as any)
-                    .from('players')
-                    .select('wallet_address, username, avatar_url, lxp, rxp, status, classic_played, power_played, ai_played, total_wins, total_games, rank_tier, last_played_at, created_at')
-                    .ilike('wallet_address', userAddress)
-                    .single();
-
-                if (userError) {
-                    console.error("Error fetching player profile:", userError);
-                } else {
-                    setProfile(userData);
-                }
-            } catch (err) {
-                console.error("Error fetching profile from Supabase:", err);
-            } finally {
-                setProfileLoading(false); // Render top half immediately
+                sessionId = await ensureAppSession().catch(() => null);
+            } catch {
+                sessionId = null;
             }
 
-            // 1.5 Fetch block status via the session-gated moderation route
-            // (user_blocks has no anon SELECT policy — direct reads go empty).
+            // 1. Fetch public dossier via /api/profile/public (enforces is_public + includes clan_tag)
             try {
-                const blockSession = await ensureAppSession().catch(() => null);
-                if (!blockSession) {
-                    setIsBlocked(false);
+                const res = await fetch(
+                    `/api/profile/public?walletAddress=${encodeURIComponent(userAddress)}`,
+                    sessionId
+                        ? {
+                              headers: {
+                                  Authorization: `Bearer ${sessionId}`,
+                                  'x-session-id': sessionId,
+                              },
+                          }
+                        : undefined,
+                );
+                if (res.ok) {
+                    const payload = await res.json();
+                    if (!cancelled && payload?.profile) {
+                        setProfile(payload.profile as PublicProfileData);
+                        setTargetMatches(Array.isArray(payload.recentMatches) ? payload.recentMatches : []);
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching public profile:', err);
+            } finally {
+                if (!cancelled) setProfileLoading(false);
+            }
+
+            // 2. Fetch block status via session-gated moderation route
+            try {
+                if (!sessionId) {
+                    if (!cancelled) setIsBlocked(false);
                 } else {
                     const params = new URLSearchParams({
                         walletAddress: currentUserAddress,
-                        sessionId: blockSession,
+                        sessionId,
                         target: userAddress,
                     });
                     const blockRes = await fetch(`/api/social/moderation?${params.toString()}`);
                     const blockData = blockRes.ok ? await blockRes.json() : { blocked: false };
-                    setIsBlocked(!!blockData.blocked);
+                    if (!cancelled) setIsBlocked(!!blockData.blocked);
                 }
-            } catch (err) {
-                console.error("Error checking block status:", err);
-                setIsBlocked(false);
+            } catch {
+                if (!cancelled) setIsBlocked(false);
             }
 
-            // 2. Fetch current user's friends list and friendships to validate DM capability
+            // 3. Fetch friendship state
             try {
-                const sessionId = await ensureAppSession().catch(() => null);
+                const authHeaders = sessionId
+                    ? {
+                          Authorization: `Bearer ${sessionId}`,
+                          'x-session-id': sessionId,
+                      }
+                    : undefined;
 
                 const [friendsRes, friendshipsRes] = await Promise.all([
                     fetch(
                         `/api/friends?wallet=${encodeURIComponent(currentUserAddress)}&walletAddress=${encodeURIComponent(currentUserAddress)}`,
-                        sessionId ? {
-                            headers: {
-                                Authorization: `Bearer ${sessionId}`,
-                                'x-session-id': sessionId,
-                            },
-                        } : undefined,
-                    ).then(r => r.ok ? r.json() : null).catch(() => null),
-                    sessionId ? fetch(`/api/friendships?walletAddress=${encodeURIComponent(currentUserAddress)}`, {
-                        headers: {
-                            Authorization: `Bearer ${sessionId}`,
-                            'x-session-id': sessionId,
-                        },
-                    }).then(r => r.ok ? r.json() : null).catch(() => null) : null,
+                        authHeaders ? { headers: authHeaders } : undefined,
+                    )
+                        .then((r) => (r.ok ? r.json() : null))
+                        .catch(() => null),
+                    sessionId
+                        ? fetch(`/api/friendships?walletAddress=${encodeURIComponent(currentUserAddress)}`, {
+                              headers: authHeaders,
+                          })
+                              .then((r) => (r.ok ? r.json() : null))
+                              .catch(() => null)
+                        : null,
                 ]);
 
+                const targetLc = userAddress.toLowerCase();
                 const data = friendsRes || {};
                 const friendshipData = friendshipsRes || { accepted: [], incoming: [], outgoing: [] };
 
-                const isFollowing = data.onchainFriends?.some((f: any) =>
-                    (f.address?.toLowerCase() === userAddress.toLowerCase() || f.wallet_address?.toLowerCase() === userAddress.toLowerCase())
-                ) || false;
+                const isFollowing =
+                    (data.onchainFriends as FriendListEntry[] | undefined)?.some((f) => {
+                        if (typeof f === 'string') return f.toLowerCase() === targetLc;
+                        return (
+                            f.address?.toLowerCase() === targetLc ||
+                            f.wallet_address?.toLowerCase() === targetLc
+                        );
+                    }) || false;
 
-                const isAcceptedInFriends = (data.acceptedFriends || [])?.some((a: any) =>
-                    (typeof a === 'string' ? a : a.wallet_address || a.address || '').toLowerCase() === userAddress.toLowerCase()
-                ) || false;
+                const isAcceptedInFriends =
+                    (data.acceptedFriends as FriendListEntry[] | undefined)?.some((a) => {
+                        const val = typeof a === 'string' ? a : a.wallet_address || a.address || '';
+                        return val.toLowerCase() === targetLc;
+                    }) || false;
 
-                const isAcceptedInFriendships = (friendshipData.accepted || []).some((row: any) =>
-                    [row.user_address, row.friend_address].map((v: string) => String(v).toLowerCase()).includes(userAddress.toLowerCase())
-                );
+                const isAcceptedInFriendships = (
+                    (friendshipData.accepted as FriendListEntry[] | undefined) || []
+                ).some((row) => {
+                    if (typeof row === 'string') return row.toLowerCase() === targetLc;
+                    return [row.user_address, row.friend_address]
+                        .map((v) => String(v || '').toLowerCase())
+                        .includes(targetLc);
+                });
 
                 const effectiveFriend = isFollowing || isAcceptedInFriends || isAcceptedInFriendships;
-                setIsFriend(effectiveFriend);
-
-                if (effectiveFriend) {
-                    setIsPending(false);
-                } else {
-                    const pending = [...(friendshipData.incoming || []), ...(friendshipData.outgoing || [])]
-                        .some((row: any) => [row.user_address, row.friend_address].map((v: string) => String(v).toLowerCase()).includes(userAddress.toLowerCase()));
-                    setIsPending(pending);
+                if (!cancelled) {
+                    setIsFriend(effectiveFriend);
+                    if (effectiveFriend) {
+                        setIsPending(false);
+                    } else {
+                        const pendingList: FriendListEntry[] = [
+                            ...((friendshipData.incoming as FriendListEntry[]) || []),
+                            ...((friendshipData.outgoing as FriendListEntry[]) || []),
+                        ];
+                        const pending = pendingList.some((row) => {
+                            if (typeof row === 'string') return row.toLowerCase() === targetLc;
+                            return [row.user_address, row.friend_address]
+                                .map((v) => String(v || '').toLowerCase())
+                                .includes(targetLc);
+                        });
+                        setIsPending(pending);
+                    }
                 }
-
             } catch (err) {
-                console.error("Error during profile validation:", err);
+                console.error('Error during profile validation:', err);
             } finally {
-                setFriendValidationLoading(false); // Render bottom half actions
+                if (!cancelled) setFriendValidationLoading(false);
             }
         };
 
-        fetchProfileData();
-
+        void fetchProfileData();
+        return () => {
+            cancelled = true;
+        };
     }, [isOpen, userAddress, currentUserAddress, ensureAppSession]);
 
-    // Target match history (separate effect so profile paint isn't blocked)
-    useEffect(() => {
-        if (!isOpen || !userAddress) return;
-        let cancelled = false;
-        (async () => {
-            try {
-                const { data } = await supabase
-                    .from('matches')
-                    .select('winner_address, created_at, game_mode')
-                    .overlaps('participants', [userAddress.toLowerCase(), userAddress])
-                    .order('created_at', { ascending: false })
-                    .limit(100);
-                if (!cancelled) setTargetMatches(data || []);
-            } catch (err) {
-                console.error("Error fetching target matches:", err);
-                if (!cancelled) setTargetMatches([]);
-            }
-        })();
-        return () => { cancelled = true; };
-    }, [isOpen, userAddress]);
-
-    // Derived Display Values
     const progression = getProgression(profile?.lxp || 0, profile?.rxp || 0);
     const chipsBal = useChipsBalanceFor(userAddress);
 
-    const displayName = profile?.username && !profile.username.startsWith('0x')
-        ? profile.username
-        : `User ${userAddress?.slice(-4).toUpperCase()}`;
+    const displayName =
+        profile?.username && !profile.username.startsWith('0x')
+            ? profile.username
+            : `User ${userAddress?.slice(-4).toUpperCase() || '0000'}`;
 
-    const displayAvatar = profile?.avatar_url || '1';
-    const displayWins = profile?.total_wins || 0;
-    const displayGames = profile?.total_games || 0;
-    const displayWinRate = displayGames > 0 ? `${Math.round((displayWins / displayGames) * 100)}%` : '-';
-    const classicPlayed = profile?.classic_played || 0;
-    const powerPlayed = profile?.power_played || 0;
-    const aiPlayed = profile?.ai_played || 0;
+    const isSelf =
+        !!userAddress &&
+        !!currentUserAddress &&
+        userAddress.toLowerCase() === currentUserAddress.toLowerCase();
+
+    const isPrivateRedacted = Boolean(profile?.private_redacted && !isSelf && !isFriend);
+    const requestsDisabled = profile?.allow_requests === false && !isSelf && !isFriend && !isPending;
+
+    const displayWins = profile?.total_wins ?? 0;
+    const displayGames = profile?.total_games ?? 0;
+    const displayWinRate = displayGames > 0 ? `${Math.round((displayWins / displayGames) * 100)}%` : '–';
+    const classicPlayed = profile?.classic_played ?? 0;
+    const powerPlayed = profile?.power_played ?? 0;
+    const aiPlayed = profile?.ai_played ?? 0;
     const meLc = (userAddress || '').toLowerCase();
-    // Each cell is totalWins / totalPlayed for that mode (e.g. 12/14).
+
+    const classicRows = targetMatches.filter((m) => (m.game_mode || 'classic') === 'classic');
+    const powerRows = targetMatches.filter((m) => m.game_mode === 'power');
+    const aiRows = targetMatches.filter((m) => m.game_mode === 'ai' || m.game_mode === 'offline');
+
     const modeForm = {
         classic: winGame(
-            targetMatches.filter((m: any) => (m.game_mode || 'classic') === 'classic' && (m.winner_address || '').toLowerCase() === meLc).length,
-            Math.max(classicPlayed, targetMatches.filter((m: any) => (m.game_mode || 'classic') === 'classic').length),
+            classicRows.filter((m) => (m.winner_address || '').toLowerCase() === meLc).length,
+            Math.max(classicPlayed, classicRows.length),
         ),
         power: winGame(
-            targetMatches.filter((m: any) => m.game_mode === 'power' && (m.winner_address || '').toLowerCase() === meLc).length,
-            Math.max(powerPlayed, targetMatches.filter((m: any) => m.game_mode === 'power').length),
+            powerRows.filter((m) => (m.winner_address || '').toLowerCase() === meLc).length,
+            Math.max(powerPlayed, powerRows.length),
         ),
-        // vs AI: wins/played — AI games live in ai_played; wins only if match rows exist
         ai: winGame(
-            targetMatches.filter((m: any) => (m.game_mode === 'ai' || m.game_mode === 'offline') && (m.winner_address || '').toLowerCase() === meLc).length,
+            aiRows.filter((m) => (m.winner_address || '').toLowerCase() === meLc).length,
             aiPlayed,
         ),
-        // Overall record
         form: winGame(displayWins, displayGames),
     };
 
-    // Live 30-day activity buckets (10 x 3-day buckets, match counts)
     const activityBuckets = useMemo(() => {
         const now = Date.now();
         const day = 86400000;
-        const buckets = new Array(10).fill(0);
+        const buckets = new Array<number>(10).fill(0);
         for (const m of targetMatches) {
             if (!m.created_at) continue;
             const age = now - new Date(m.created_at).getTime();
             if (age < 0 || age >= 30 * day) continue;
-            buckets[9 - Math.floor(age / (3 * day))]++;
+            const idx = 9 - Math.floor(age / (3 * day));
+            if (idx >= 0 && idx < 10) buckets[idx]++;
         }
         return buckets;
     }, [targetMatches]);
     const activityMax = Math.max(1, ...activityBuckets);
 
-    // Scout sparkline for strangers: cumulative +30/win, -15/loss over last 100
     const scout = useMemo(() => {
         const me = (userAddress || '').toLowerCase();
         let score = 0;
@@ -264,27 +312,39 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
         return { pts, positive: score >= 0, net: score };
     }, [targetMatches, userAddress]);
 
-    // Online Status from DB heuristics (Self-Healing)
     const lastPlayedAt = profile?.last_played_at ? new Date(profile.last_played_at) : null;
     let isOnline = profile?.status === 'Online' || profile?.status === 'In Match';
-
-    // Force Offline if 'Online' but last seen > 5 minutes ago
     if (profile?.status === 'Online' && lastPlayedAt) {
-        const now = new Date().getTime();
-        const driftLimit = 5 * 60 * 1000;
-        if (now - lastPlayedAt.getTime() > driftLimit) {
+        if (Date.now() - lastPlayedAt.getTime() > 5 * 60 * 1000) {
             isOnline = false;
         }
     }
 
-    const localTimeString = lastPlayedAt ? new Intl.DateTimeFormat('default', {
-        hour: 'numeric', minute: 'numeric', day: 'numeric', month: 'short'
-    }).format(lastPlayedAt) : 'Never';
+    const localTimeString = lastPlayedAt
+        ? new Intl.DateTimeFormat('default', {
+              hour: 'numeric',
+              minute: 'numeric',
+              day: 'numeric',
+              month: 'short',
+          }).format(lastPlayedAt)
+        : 'Never';
 
-    const handleAction = async (action: 'Add Friend' | 'Unfriend' | 'Block' | 'Unblock' | 'Report' | 'Poke' | 'Congratulate') => {
+    const handleCopyAddress = async () => {
+        if (!userAddress) return;
+        try {
+            await navigator.clipboard.writeText(userAddress);
+            setCopiedAddr(true);
+            setTimeout(() => setCopiedAddr(false), 1800);
+        } catch {
+            /* ignore */
+        }
+    };
+
+    const handleAction = async (
+        action: 'Add Friend' | 'Unfriend' | 'Block' | 'Unblock' | 'Report' | 'Poke' | 'Congratulate',
+    ) => {
         if (!currentUserAddress || !userAddress || isActionLoading) return;
 
-        // Guest wall: reward-bearing + graph writes need a wallet.
         if (action === 'Add Friend' && !guard('friend-add')) return;
         if ((action === 'Poke' || action === 'Congratulate') && !guard('poke')) return;
         if (action === 'Block' && !guard('friend-add')) return;
@@ -300,96 +360,143 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
             if (action === 'Poke') {
                 const pokeSession = await ensureAppSession();
                 if (!pokeSession) {
-                    setActionSuccess("Sign-in required to poke");
-                    setTimeout(() => setActionSuccess(null), 2500);
+                    flashFeedback('Sign-in required to poke', 'negative');
                     return;
                 }
                 const response = await fetch('/api/social/poke', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ sender: currentUserAddress, receiver: userAddress, walletAddress: currentUserAddress, sessionId: pokeSession })
+                    body: JSON.stringify({
+                        sender: currentUserAddress,
+                        receiver: userAddress,
+                        walletAddress: currentUserAddress,
+                        sessionId: pokeSession,
+                    }),
                 });
-                const data = await response.json();
+                const data = await response.json().catch(() => ({}));
                 if (response.ok) {
                     window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
-                    setActionSuccess(data.type === 'poke_back' ? (data.reward > 0 ? `Poked Back! +${data.reward} CHIPS` : "Poked Back!") : "Poke Sent!");
-                    setTimeout(() => setActionSuccess(null), 2500);
+                    flashFeedback(
+                        data.type === 'poke_back'
+                            ? data.reward > 0
+                                ? `Poked Back! +${data.reward} CHIPS`
+                                : 'Poked Back!'
+                            : 'Poke Sent!',
+                    );
                 } else {
-                    setActionSuccess(data.error || "Failed to Poke");
-                    setTimeout(() => setActionSuccess(null), 2500);
+                    flashFeedback(data.error || 'Failed to poke', 'negative');
                 }
             } else if (action === 'Add Friend') {
-                // Pre-emptively ensure both users exist in players table to avoid FK crashes
                 const sessionId = await ensureAppSession();
-                const response = sessionId ? await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'request', target: userAddress }) }) : null;
-                const _data = response?.ok ? await response.json() : null;
-                const error = !response || !response.ok;
-
-                console.log("Add Friend Payload:", { user_address: currentUserAddress, friend_address: userAddress });
-
-                if (!error) {
-                    setActionSuccess("Friend Request Sent!");
-                    setIsPending(true);
-                    setTimeout(() => setActionSuccess(null), 2500);
+                const response = sessionId
+                    ? await fetch('/api/friendships', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                              walletAddress: currentUserAddress,
+                              sessionId,
+                              action: 'request',
+                              target: userAddress,
+                          }),
+                      })
+                    : null;
+                const data = response ? await response.json().catch(() => ({})) : {};
+                if (response?.ok) {
+                    if (data.status === 'accepted') {
+                        setIsFriend(true);
+                        setIsPending(false);
+                        flashFeedback('Friend Added!');
+                    } else {
+                        setIsPending(true);
+                        flashFeedback('Friend Request Sent!');
+                    }
                 } else {
-                    console.error("Supabase Add Friend Error:", error);
-                    setActionSuccess("Failed to send request");
-                    setTimeout(() => setActionSuccess(null), 2500);
+                    flashFeedback(data?.error || 'Failed to send request', 'negative');
                 }
             } else if (action === 'Unfriend') {
                 const sessionId = await ensureAppSession();
-                const response = sessionId && await fetch('/api/friendships', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'remove', target: userAddress }) });
-                const error = !response || !response.ok;
-                if (!error) {
+                const response = sessionId
+                    ? await fetch('/api/friendships', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                              walletAddress: currentUserAddress,
+                              sessionId,
+                              action: 'remove',
+                              target: userAddress,
+                          }),
+                      })
+                    : null;
+                if (response?.ok) {
                     clearOutboxForPeer(currentUserAddress, userAddress);
                     setIsFriend(false);
-                    setActionSuccess("Friend Removed");
-                    setTimeout(() => setActionSuccess(null), 2500);
+                    flashFeedback('Friend Removed');
                 } else {
-                    setActionSuccess("Couldn't remove friend");
-                    setTimeout(() => setActionSuccess(null), 2500);
+                    flashFeedback('Couldn’t remove friend', 'negative');
                 }
             } else if (action === 'Block') {
                 const sessionId = await ensureAppSession();
-                const response = sessionId ? await fetch('/api/social/moderation', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'block', target: userAddress }) }) : null;
+                const response = sessionId
+                    ? await fetch('/api/social/moderation', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                              walletAddress: currentUserAddress,
+                              sessionId,
+                              action: 'block',
+                              target: userAddress,
+                          }),
+                      })
+                    : null;
                 if (response?.ok) {
                     setIsBlocked(true);
-                    setIsFriend(false); // Blocking someone immediately severs frontend friendship
-                    setActionSuccess("Blocked");
-                    setTimeout(() => setActionSuccess(null), 2500);
+                    setIsFriend(false);
+                    flashFeedback('Pilot Blocked');
                 } else {
-                    setActionSuccess("Couldn't block user");
-                    setTimeout(() => setActionSuccess(null), 2500);
+                    flashFeedback('Couldn’t block user', 'negative');
                 }
             } else if (action === 'Unblock') {
                 const sessionId = await ensureAppSession();
-                const response = sessionId ? await fetch('/api/social/moderation', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'unblock', target: userAddress }) }) : null;
+                const response = sessionId
+                    ? await fetch('/api/social/moderation', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                              walletAddress: currentUserAddress,
+                              sessionId,
+                              action: 'unblock',
+                              target: userAddress,
+                          }),
+                      })
+                    : null;
                 if (response?.ok) {
                     setIsBlocked(false);
-                    setActionSuccess("Unblocked");
-                    setTimeout(() => setActionSuccess(null), 2500);
+                    flashFeedback('Pilot Unblocked');
                 } else {
-                    setActionSuccess("Couldn't unblock");
-                    setTimeout(() => setActionSuccess(null), 2500);
+                    flashFeedback('Couldn’t unblock user', 'negative');
                 }
             } else if (action === 'Congratulate') {
                 const sessionId = await ensureAppSession();
-                const response = sessionId ? await fetch('/api/social/moderation', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'congratulate', target: userAddress }) }) : null;
+                const response = sessionId
+                    ? await fetch('/api/social/moderation', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                              walletAddress: currentUserAddress,
+                              sessionId,
+                              action: 'congratulate',
+                              target: userAddress,
+                          }),
+                      })
+                    : null;
                 if (response?.ok) {
-                    setActionSuccess("Celebrated!");
-                    setTimeout(() => setActionSuccess(null), 2500);
+                    flashFeedback('Celebrated!');
                 } else {
-                    setActionSuccess("Couldn't celebrate");
-                    setTimeout(() => setActionSuccess(null), 2500);
+                    flashFeedback('Couldn’t celebrate', 'negative');
                 }
             }
-        } catch (err) {
-            console.error(`Failed to handle action ${action}:`, err);
-            setActionSuccess("Something went wrong");
-            setTimeout(() => setActionSuccess(null), 2500);
+        } catch {
+            flashFeedback('Something went wrong', 'negative');
         } finally {
             setIsActionLoading(false);
         }
@@ -398,383 +505,544 @@ export default function PublicProfileModal({ isOpen, userAddress, onClose, onDM 
     const submitReport = async () => {
         if (!currentUserAddress || !userAddress || !selectedReportReason) return;
         setReportStep('submitting');
-
         try {
             const sessionId = await ensureAppSession();
-            const response = sessionId ? await fetch('/api/social/moderation', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ walletAddress: currentUserAddress, sessionId, action: 'report', target: userAddress, reason: selectedReportReason }) }) : null;
+            const response = sessionId
+                ? await fetch('/api/social/moderation', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                          walletAddress: currentUserAddress,
+                          sessionId,
+                          action: 'report',
+                          target: userAddress,
+                          reason: selectedReportReason,
+                      }),
+                  })
+                : null;
             if (response?.ok) {
                 setReportStep('done');
-                setTimeout(() => setReportStep('none'), 2000); // Reset UI after 2s
+                setTimeout(() => setReportStep('none'), 2000);
             } else {
-                setReportStep('select'); // drop back on error
+                setReportStep('select');
             }
-        } catch (err) {
-            console.error(err);
+        } catch {
             setReportStep('select');
         }
     };
 
-    // Self check: own profile gets stats only, no social actions
-    const isSelf = !!userAddress && !!currentUserAddress &&
-        userAddress.toLowerCase() === currentUserAddress.toLowerCase();
-
-    // Shared blocks across self / friend / stranger views
     const renderBreakdown = () => (
-        <ModeBreakdown stats={modeForm} labels={["Classic", "Power", "vs AI", "Overall"]} />
+        <ModeBreakdown stats={modeForm} labels={['Classic', 'Power', 'vs AI', 'Overall']} />
     );
 
     const renderActivity = () => (
-        <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col">
-            <div className="flex justify-between items-center mb-1">
-                <span className="text-ludo-xs uppercase font-bold text-white/50 tracking-widest">30-Day Activity</span>
-                <span className="text-ludo-xs text-white/30">Last seen: {localTimeString}</span>
+        <div className="w-full bg-surface-recessed border border-line-soft rounded-2xl p-3 flex flex-col gap-2">
+            <div className="flex justify-between items-center gap-2">
+                <span className="text-ludo-xs uppercase font-bold text-ink-muted tracking-widest">
+                    30-Day Activity
+                </span>
+                <span className="text-ludo-xs text-ink-faint font-mono">
+                    Last seen: {localTimeString}
+                </span>
             </div>
             <div className="flex items-end justify-between h-6 gap-1">
                 {activityBuckets.map((h, i) => (
-                    <div key={i} className="flex-1 bg-cyan-500/40 rounded-t-sm hover:bg-cyan-400 transition-colors" style={{ height: `${Math.max(8, (h / activityMax) * 100)}%`, opacity: h === 0 ? 0.25 : 1 }} />
+                    <div
+                        key={i}
+                        className="flex-1 bg-accent/55 hover:bg-accent rounded-t-sm transition-colors"
+                        style={{
+                            height: `${Math.max(12, (h / activityMax) * 100)}%`,
+                            opacity: h === 0 ? 0.25 : 1,
+                        }}
+                    />
                 ))}
             </div>
         </div>
     );
 
-    const renderScout = () => (
+    const renderScout = () =>
         scout.pts.length > 0 ? (
-            <div className="w-full bg-white/[0.04] border border-white/10 rounded-2xl p-3">
-                <div className="flex items-center justify-between mb-1">
-                    <span className="text-ludo-xs uppercase font-bold text-white/50 tracking-widest">Scout — last {targetMatches.length}</span>
-                    <span className={`text-ludo-sm font-black tabular-nums ${scout.positive ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {scout.net > 0 ? `+${scout.net}` : `${scout.net}`}
+            <div className="w-full bg-surface-recessed border border-line-soft rounded-2xl p-3 flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                    <span className="text-ludo-xs uppercase font-bold text-ink-muted tracking-widest">
+                        Scout Form · {targetMatches.length} Matches
+                    </span>
+                    <span
+                        className={`text-ludo-xs font-mono font-bold tabular-nums px-2 py-0.5 rounded-full border ${
+                            scout.positive
+                                ? 'bg-positive/15 text-positive border-positive/35'
+                                : 'bg-negative/15 text-negative border-negative/35'
+                        }`}
+                    >
+                        {scout.net > 0 ? `+${scout.net}` : `${scout.net}`} RXP
                     </span>
                 </div>
                 <FormChart points={scout.pts} positive={scout.positive} />
             </div>
-        ) : null
-    );
+        ) : null;
 
     const renderPokeRow = () => (
-        <div className="flex gap-2 w-full">
+        <div className="grid grid-cols-2 gap-2 w-full">
             <button
+                type="button"
                 onClick={() => handleAction('Poke')}
                 disabled={isActionLoading}
-                className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black text-sm font-black uppercase tracking-[0.2em] py-3 rounded-2xl shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                className="bg-warn/15 hover:bg-warn/25 text-warn border border-warn/40 text-ludo-sm font-bold uppercase tracking-[0.16em] py-2.5 rounded-xl transition-colors active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-4"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"></path><path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"></path><path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"></path><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"></path></svg>
-                POKE
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-4 h-4"
+                >
+                    <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0" />
+                    <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2" />
+                    <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8" />
+                    <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+                </svg>
+                Poke
             </button>
             <button
+                type="button"
                 onClick={() => handleAction('Congratulate')}
                 disabled={isActionLoading}
-                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black text-sm font-black uppercase tracking-[0.2em] py-3 rounded-2xl shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                className="bg-positive/15 hover:bg-positive/25 text-positive border border-positive/40 text-ludo-sm font-bold uppercase tracking-[0.16em] py-2.5 rounded-xl transition-colors active:scale-95 flex items-center justify-center gap-1.5 disabled:opacity-50"
             >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-4"><path d="m6 9 6 6 6-6"></path><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"></path></svg>
-                GUD LUCK
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-4 h-4"
+                >
+                    <path d="m6 9 6 6 6-6" />
+                    <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
+                </svg>
+                Gud Luck
             </button>
         </div>
     );
 
-    return (
+    if (!mounted || !isOpen || !userAddress) return null;
+
+    const statusTone =
+        profile?.status === 'Online' && isOnline
+            ? { dot: 'bg-positive', text: 'text-positive', label: 'Online' }
+            : profile?.status === 'In Match'
+              ? { dot: 'bg-warn', text: 'text-warn', label: 'In Match' }
+              : { dot: 'bg-ink-faint', text: 'text-ink-faint', label: 'Offline' };
+
+    return createPortal(
         <>
-            {isOpen && userAddress && (
-                <>
-                    {/* Dark Backdrop */}
-                    <div
-                        className="fixed top-[64px] bottom-[80px] left-0 right-0 z-[200] bg-transparent"
-                    />
+            {/* Backdrop */}
+            <div
+                onClick={onClose}
+                className="fixed inset-0 z-[200] bg-surface-page/70"
+                style={{ backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+            />
 
-                    {/* Pop-up Modal Container */}
-                    <div
-                        className="ludo-pubprofile-scope fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-48px)] max-w-sm max-h-[82dvh] overflow-hidden border border-white/10 rounded-[32px] z-[210] shadow-2xl flex flex-col"
-                        style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
+            {/* Synchronized 3077 Modal Dossier Shell */}
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={`${displayName} dossier`}
+                className="panel-shell-3077 ludo-pubprofile-scope fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[calc(100%-32px)] max-w-sm max-h-[84dvh] rounded-[32px] z-[210] flex flex-col overflow-hidden"
+                style={{
+                    background: 'var(--panel-bg)',
+                    border: '1px solid var(--panel-border)',
+                    boxShadow: 'var(--panel-shadow)',
+                    color: 'var(--ink-strong)',
+                    backdropFilter: 'blur(32px)',
+                    WebkitBackdropFilter: 'blur(32px)',
+                }}
+            >
+                <HudCornerTicks />
+
+                {/* Header Bar */}
+                <div
+                    className="px-5 pt-3.5 pb-2.5 flex items-center justify-between gap-2 relative z-10 shrink-0"
+                    style={{ borderBottom: '1px solid var(--line-soft)' }}
+                >
+                    <div className="min-w-0 flex flex-col">
+                        <p className="text-ludo-xs font-mono uppercase tracking-[0.22em] text-accent">
+                            {'// PILOT DOSSIER'}
+                        </p>
+                        {!isFriendValidationLoading && (isFriend || isSelf) ? (
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className={`w-2 h-2 rounded-full ${statusTone.dot}`} />
+                                <span
+                                    className={`text-ludo-xs uppercase tracking-widest font-bold ${statusTone.text}`}
+                                >
+                                    {statusTone.label}
+                                </span>
+                            </div>
+                        ) : (
+                            <span className="text-ludo-xs font-mono uppercase tracking-widest text-ink-faint mt-0.5">
+                                Telemetry Readout
+                            </span>
+                        )}
+                    </div>
+
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={onClose}
+                        aria-label="Close pilot profile"
+                        className="panel-close-3077 bg-surface-recessed border border-line-soft shrink-0"
                     >
-                        {/* Authentic Subdued Cosmic Orbs */}
-                        <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                        <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+                        <CloseReticleIcon className="icon-md" />
+                    </Button>
+                </div>
 
-                        {/* Header Gradient */}
-                        <div className="h-16 bg-gradient-to-b from-cyan-500/20 to-transparent w-full absolute top-0 left-0 pointer-events-none" />
-
-                        {/* Top Controls */}
-                        <div className="flex justify-end px-5 pt-3 pb-1 relative z-10 w-full shrink-0">
-                            {!isFriendValidationLoading && (isFriend || isSelf) && (
-                                <div className="absolute left-5 top-5 flex items-center gap-2">
-                                    <div className={`w-2.5 h-2.5 rounded-full 
-                                        ${(profile?.status === 'Online' && isOnline) ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)] animate-pulse' :
-                                            profile?.status === 'In Match' ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)] animate-pulse' :
-                                                'bg-white/20'}`}
-                                    />
-                                    <span className={`text-ludo-xs uppercase tracking-widest font-bold 
-                                        ${(profile?.status === 'Online' && isOnline) ? 'text-green-400' :
-                                            profile?.status === 'In Match' ? 'text-orange-400' :
-                                                'text-white/50'}`}>
-                                        {(profile?.status === 'Online' && !isOnline) ? 'Offline' : (profile?.status || 'Offline')}
-                                    </span>
-                                </div>
-                            )}
-
-                            <button
-                                onClick={onClose}
-                                className="w-11 h-11 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 text-white/70 hover:text-white transition-all ring-1 ring-white/10 shadow-sm"
-                            >
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
+                {/* Main Scrollable Dossier */}
+                <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 py-3.5 relative z-10 flex flex-col gap-3">
+                    {isProfileLoading ? (
+                        <div className="py-12 flex flex-col items-center justify-center gap-3">
+                            <div className="w-8 h-8 border-2 border-line-soft border-t-accent rounded-full animate-spin" />
+                            <span className="text-ink-faint text-ludo-xs font-mono font-bold uppercase tracking-widest">
+                                Syncing Pilot Dossier…
+                            </span>
                         </div>
+                    ) : (
+                        <>
+                            {/* Hero Identity Card */}
+                            <div className="rounded-2xl bg-surface-recessed border border-line-soft p-3.5 flex flex-col items-center text-center gap-2.5">
+                                <PilotAvatar
+                                    avatarUrl={profile?.avatar_url}
+                                    name={displayName}
+                                    size="xl"
+                                    tier={progression.tier}
+                                />
 
-                        {/* Pinned identity (never scrolls) + scrollable lower section */}
-                        <div className="px-5 pt-0 flex flex-col items-center relative z-10 shrink-0">
-                            {isProfileLoading ? (
-                                <div className="py-12 flex flex-col items-center justify-center gap-4">
-                                    <div className="w-8 h-8 border-3 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
-                                    <span className="text-white/40 text-xs font-bold uppercase tracking-widest animate-pulse">Decrypting Hex...</span>
-                                </div>
-                            ) : (
-                                <>
-                                    {/* Pinned identity block */}
-                                    <div className="w-full pb-3 flex flex-col items-center border-b border-white/10">
-                                    {/* Avatar (real photo or initial — never a broken file) */}
-                                    <div className="relative mb-3 mt-1">
-                                        <div className="w-20 h-20 rounded-full overflow-hidden bg-[#1a1c29] border-4 border-cyan-500/50 shadow-[0_0_20px_rgba(34,211,238,0.3)] flex items-center justify-center">
-                                            {displayAvatar.startsWith('http') ? (
-                                                <img
-                                                    src={displayAvatar}
-                                                    alt={displayName}
-                                                    className="w-full h-full object-cover"
-                                                    width={96}
-                                                    height={96}
-                                                />
-                                            ) : (
-                                                <span className="text-3xl font-black text-white/60">
-                                                    {(displayName?.[0] || 'U').toUpperCase()}
-                                                </span>
-                                            )}
-                                        </div>
+                                <div className="w-full min-w-0 flex flex-col items-center gap-1">
+                                    <div className="flex items-center justify-center gap-1.5 max-w-full">
+                                        <h3 className="text-ludo-xl font-extrabold text-ink-strong truncate">
+                                            {displayName}
+                                        </h3>
+                                        {profile?.clan_tag && (
+                                            <span className="px-1.5 py-0.5 rounded-sm bg-accent-soft border border-accent/35 text-ludo-xs font-mono font-bold text-accent shrink-0">
+                                                [{profile.clan_tag}]
+                                            </span>
+                                        )}
                                     </div>
 
-                                    {/* Name & Wallet */}
-                                    <h3 className="text-xl font-bold text-white mb-1 text-center truncate w-full px-4">
-                                        {displayName}
-                                    </h3>
-
-                                    <div className="min-h-8 mb-3 flex flex-col items-center justify-center">
-                                        <div className="flex flex-wrap items-center justify-center gap-2 mb-1">
-                                            {isSelf && (
-                                                <span className="bg-cyan-500 text-white text-ludo-xs font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider">YOU</span>
-                                            )}
-                                            <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-widest px-2 py-0.5 bg-cyan-400/10 rounded-full border border-cyan-400/20">
+                                    <div className="flex flex-wrap items-center justify-center gap-1.5">
+                                        {isSelf && (
+                                            <span className="px-2 py-0.5 rounded-sm bg-accent text-accent-ink text-ludo-xs font-bold uppercase tracking-wider">
+                                                You
+                                            </span>
+                                        )}
+                                        <span className="inline-flex items-center gap-1 text-ludo-xs font-bold text-accent uppercase tracking-widest px-2 py-0.5 bg-accent-soft rounded-full border border-accent/30">
+                                            <RankTierIcon
+                                                tier={progression.tier}
+                                                className="w-3 h-3 shrink-0"
+                                            />
+                                            <span>
                                                 {progression.tier} {progression.subRank}
                                             </span>
-                                            <span className="text-ludo-xs font-black text-white/50 uppercase tracking-widest px-2 py-0.5 bg-white/5 rounded-full border border-white/10">
-                                                Lv. {progression.level}
+                                        </span>
+                                        <span className="text-ludo-xs font-mono font-bold text-ink-muted uppercase tracking-wider px-2 py-0.5 bg-surface-panel rounded-full border border-line-soft">
+                                            Lv. {progression.level}
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 text-ludo-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-accent/30 bg-accent-soft">
+                                            <ChipsHexIcon className="w-3 h-3 text-accent" active />
+                                            <span className="text-ink-strong tabular-nums">
+                                                {chipsBal.human}
                                             </span>
-                                            {/* Chips balance — moved here from the stats grid when the
-                                                CHIPS tile was retired; same cyan micro-pill vocabulary
-                                                as the rank/Lv. pills, with the app's chips dot cue. */}
-                                            <span className="inline-flex items-center gap-1.5 text-ludo-xs font-black uppercase tracking-widest px-2 py-0.5 rounded-full border border-cyan-400/20 bg-cyan-400/10">
-                                                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-                                                <span className="text-cyan-300 tabular-nums">{chipsBal.human}</span>
-                                                <span className="text-white/40">CHIPS</span>
-                                            </span>
-                                        </div>
-                                        {!isFriendValidationLoading && (isFriend || isSelf) && (
-                                            <div className="bg-black/40 px-3 py-0.5 rounded-full border border-white/5 flex items-center gap-2">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-cyan-400/50" />
-                                                <span className="text-ludo-xs text-white/40 font-mono">
-                                                    {userAddress.substring(0, 6)}...{userAddress.substring(userAddress.length - 4)}
-                                                </span>
-                                            </div>
-                                        )}
+                                            <span className="text-accent">CHIPS</span>
+                                        </span>
                                     </div>
 
-                                    {/* Stats Grid */}
-                                    <div className="grid grid-cols-2 gap-2 w-full">
-                                        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center">
-                                            <span className="text-xl font-black text-cyan-400">{displayWins}</span>
-                                            <span className="text-ludo-xs text-white/40 font-bold uppercase tracking-widest mt-1">Wins</span>
-                                        </div>
-                                        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center">
-                                            <span className="text-xl font-black text-white/80 tabular-nums">{displayWinRate}</span>
-                                            <span className="text-ludo-xs text-white/40 font-bold uppercase tracking-widest mt-1">Win Rate</span>
-                                        </div>
-                                    </div>
+                                    {!isFriendValidationLoading && (isFriend || isSelf) && (
+                                        <button
+                                            type="button"
+                                            onClick={handleCopyAddress}
+                                            className="mt-0.5 bg-surface-panel px-2.5 py-0.5 rounded-full border border-line-soft flex items-center gap-1.5 hover:border-line-strong transition-colors"
+                                            title="Copy wallet address"
+                                        >
+                                            <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                                            <span className="text-ludo-xs text-ink-faint font-mono">
+                                                {copiedAddr
+                                                    ? 'Copied to clipboard'
+                                                    : `${userAddress.slice(0, 6)}…${userAddress.slice(-4)}`}
+                                            </span>
+                                        </button>
+                                    )}
                                 </div>
 
-                                {/* Scrollable lower section */}
-                                <div className="w-full flex-1 min-h-0 overflow-y-auto no-scrollbar py-3 relative z-10">
-
-                                    {/* Protected Friend Data Area */}
-                                    <div className="w-full relative min-h-[140px] flex flex-col justify-end">
-                                        {isFriendValidationLoading ? (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center animate-pulse gap-3">
-                                                <div className="w-full h-12 bg-white/5 rounded-2xl" />
-                                                <div className="w-full h-12 bg-white/5 rounded-2xl" />
+                                {/* Stats KPIs or Redacted Notice */}
+                                {isPrivateRedacted ? (
+                                    <div className="w-full rounded-xl bg-surface-panel border border-line-soft px-3 py-3 flex items-center gap-2.5 text-left">
+                                        <div className="w-8 h-8 rounded-lg bg-accent-soft border border-accent/30 text-accent flex items-center justify-center shrink-0">
+                                            <svg
+                                                viewBox="0 0 24 24"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth="2"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                className="w-4 h-4"
+                                            >
+                                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                                            </svg>
+                                        </div>
+                                        <div className="min-w-0">
+                                            <div className="text-ludo-xs font-mono font-bold uppercase tracking-widest text-ink-strong">
+                                                Restricted Dossier
                                             </div>
-                                        ) : (
-                                            <>
-                                                {isSelf ? (
-                                                    <div className="w-full flex flex-col gap-2 mb-2">
-                                                        <div className="w-full flex items-center justify-center">
-                                                            <span className="bg-cyan-500 text-white text-ludo-xs font-black px-3 py-1 rounded-full uppercase tracking-widest">This is you</span>
-                                                        </div>
-                                                        {renderBreakdown()}
-                                                        {renderActivity()}
-                                                        {renderScout()}
-                                                    </div>
-                                                ) : isFriend && !isBlocked ? (
-                                                    <div className="w-full flex flex-col gap-2 mb-2">
-                                                        {renderBreakdown()}
-                                                        {renderActivity()}
+                                            <div className="text-ludo-xs font-bold text-ink-faint leading-snug">
+                                                Profile telemetry is private. Become friends to inspect full combat stats.
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-3 gap-2 w-full">
+                                        <div className="bg-surface-panel border border-line-soft rounded-xl p-2 flex flex-col items-center justify-center">
+                                            <span className="text-ludo-lg font-extrabold text-accent tabular-nums leading-none">
+                                                {displayWins.toLocaleString()}
+                                            </span>
+                                            <span className="text-ludo-xs text-ink-faint font-bold uppercase tracking-widest mt-1">
+                                                Wins
+                                            </span>
+                                        </div>
+                                        <div className="bg-surface-panel border border-line-soft rounded-xl p-2 flex flex-col items-center justify-center">
+                                            <span className="text-ludo-lg font-extrabold text-ink-strong tabular-nums leading-none">
+                                                {displayWinRate}
+                                            </span>
+                                            <span className="text-ludo-xs text-ink-faint font-bold uppercase tracking-widest mt-1">
+                                                Win Rate
+                                            </span>
+                                        </div>
+                                        <div className="bg-surface-panel border border-line-soft rounded-xl p-2 flex flex-col items-center justify-center">
+                                            <span className="text-ludo-lg font-extrabold text-ink-muted tabular-nums leading-none">
+                                                {displayGames.toLocaleString()}
+                                            </span>
+                                            <span className="text-ludo-xs text-ink-faint font-bold uppercase tracking-widest mt-1">
+                                                Matches
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
 
-                                                        <button
-                                                            onClick={() => guard('dm', () => onDM(userAddress))}
-                                                            className="w-full mt-1 bg-cyan-500 hover:bg-cyan-400 text-black text-sm font-black uppercase tracking-[0.2em] py-3 rounded-2xl shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all active:scale-95 flex items-center justify-center gap-2"
+                            {/* Telemetry & Actions */}
+                            {isFriendValidationLoading ? (
+                                <div className="flex flex-col gap-2 animate-pulse">
+                                    <div className="w-full h-14 bg-surface-recessed rounded-2xl border border-line-soft" />
+                                    <div className="w-full h-12 bg-surface-recessed rounded-2xl border border-line-soft" />
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-2.5">
+                                    {!isPrivateRedacted && (
+                                        <>
+                                            <HudSectionLabel>Combat Telemetry</HudSectionLabel>
+                                            {renderBreakdown()}
+                                            {(isSelf || isFriend) && renderActivity()}
+                                            {(!isFriend || isSelf) && renderScout()}
+                                        </>
+                                    )}
+
+                                    {!isSelf && (
+                                        <>
+                                            <HudSectionLabel>Comms &amp; Actions</HudSectionLabel>
+
+                                            {actionFeedback ? (
+                                                <div
+                                                    className={`w-full rounded-2xl p-3 border flex items-center justify-center gap-2 ${
+                                                        actionFeedback.tone === 'negative'
+                                                            ? 'bg-negative/10 border-negative/35 text-negative'
+                                                            : 'bg-positive/10 border-positive/35 text-positive'
+                                                    }`}
+                                                >
+                                                    <span className="text-ludo-md font-bold">
+                                                        {actionFeedback.text}
+                                                    </span>
+                                                </div>
+                                            ) : reportStep !== 'none' ? (
+                                                <div className="w-full bg-surface-recessed border border-line-soft rounded-2xl p-3 flex flex-col gap-2.5">
+                                                    {reportStep === 'done' ? (
+                                                        <div className="flex items-center justify-center p-2 text-positive font-bold text-ludo-md gap-2">
+                                                            Report Submitted
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <span className="text-ludo-xs uppercase tracking-widest text-ink-muted font-bold">
+                                                                Select Reason
+                                                            </span>
+                                                            <div className="flex gap-2">
+                                                                {['Cheating', 'Abuse', 'Spam'].map((reason) => (
+                                                                    <button
+                                                                        key={reason}
+                                                                        type="button"
+                                                                        onClick={() => setSelectedReportReason(reason)}
+                                                                        className={`flex-1 py-1.5 text-ludo-sm font-bold rounded-xl border transition-colors ${
+                                                                            selectedReportReason === reason
+                                                                                ? 'bg-negative/15 text-negative border-negative/50'
+                                                                                : 'bg-surface-panel text-ink-muted border-line-soft hover:text-ink-strong'
+                                                                        }`}
+                                                                    >
+                                                                        {reason}
+                                                                    </button>
+                                                                ))}
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    variant="secondary"
+                                                                    size="sm"
+                                                                    onClick={() => setReportStep('none')}
+                                                                    className="flex-1"
+                                                                >
+                                                                    Cancel
+                                                                </Button>
+                                                                <Button
+                                                                    variant="danger"
+                                                                    size="sm"
+                                                                    onClick={submitReport}
+                                                                    loading={reportStep === 'submitting'}
+                                                                    disabled={!selectedReportReason || reportStep === 'submitting'}
+                                                                    className="flex-1"
+                                                                >
+                                                                    Submit
+                                                                </Button>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            ) : isFriend && !isBlocked ? (
+                                                <div className="flex flex-col gap-2">
+                                                    <Button
+                                                        variant="primary"
+                                                        size="lg"
+                                                        fullWidth
+                                                        onClick={() => guard('dm', () => onDM(userAddress))}
+                                                    >
+                                                        <ChatIcon className="w-4 h-4" active />
+                                                        <span>Direct Message</span>
+                                                    </Button>
+
+                                                    {renderPokeRow()}
+
+                                                    <div className="flex gap-2 w-full">
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="md"
+                                                            onClick={() => handleAction('Unfriend')}
+                                                            disabled={isActionLoading}
+                                                            className="flex-1"
                                                         >
-                                                            <ChatIcon className="w-5 h-5" />
-                                                            DIRECT MESSAGE
+                                                            Remove Friend
+                                                        </Button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleAction('Block')}
+                                                            disabled={isActionLoading}
+                                                            className="flex-1 bg-negative/10 hover:bg-negative/20 text-negative text-ludo-sm font-bold py-2.5 rounded-xl transition-colors border border-negative/25 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                        >
+                                                            Block
                                                         </button>
-
-                                                        {renderPokeRow()}
-
-                                                        <div className="flex gap-2 w-full">
-                                                            <button
-                                                                onClick={() => handleAction('Unfriend')}
-                                                                disabled={isActionLoading}
-                                                                className="flex-1 bg-white/5 hover:bg-white/10 text-white/50 hover:text-red-400 text-sm font-bold py-2.5 rounded-2xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleAction('Report')}
+                                                            disabled={isActionLoading}
+                                                            className="w-10 flex items-center justify-center bg-surface-recessed hover:bg-surface-hover text-ink-muted hover:text-ink-strong rounded-xl transition-colors border border-line-soft shrink-0 disabled:opacity-50"
+                                                            title="Report Pilot"
+                                                            aria-label="Report Pilot"
+                                                        >
+                                                            <svg
+                                                                viewBox="0 0 24 24"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                strokeWidth="2"
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                                className="w-4 h-4"
                                                             >
-                                                                Remove Friend
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleAction('Block')}
-                                                                disabled={isActionLoading}
-                                                                className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-bold py-2.5 rounded-2xl transition-all border border-red-500/10 flex items-center justify-center gap-1.5 disabled:opacity-50"
-                                                            >
-                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                                                                Block
-                                                            </button>
-                                                            <button
-                                                                onClick={() => handleAction('Report')}
-                                                                disabled={isActionLoading}
-                                                                className="w-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-2xl transition-all border border-white/5 shrink-0 disabled:opacity-50"
-                                                                title="Report User"
-                                                            >
-                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
-                                                            </button>
-                                                        </div>
+                                                                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                                                                <line x1="4" y1="22" x2="4" y2="15" />
+                                                            </svg>
+                                                        </button>
                                                     </div>
-                                                ) : (
-                                                    <div className="w-full flex pb-2">
-                                                        <div className="flex flex-col gap-2 w-full mt-2">
-                                                            {actionSuccess ? (
-                                                                <div className="w-full bg-green-500/10 border border-green-500/20 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 my-2">
-                                                                    <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center mb-1">
-                                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-green-400"><path d="M20 6L9 17l-5-5"></path></svg>
-                                                                    </div>
-                                                                    <span className="text-sm font-bold text-green-400">{actionSuccess}</span>
-                                                                </div>
-                                                            ) : reportStep !== 'none' ? (
-                                                                <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col gap-2 overflow-hidden">
-                                                                    {reportStep === 'done' ? (
-                                                                        <div className="flex items-center justify-center p-2 text-green-400 font-bold text-sm gap-2">
-                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                                                            Report Submitted
-                                                                        </div>
-                                                                    ) : (
-                                                                        <>
-                                                                            <span className="text-xs uppercase tracking-widest text-white/50 font-bold mb-1">Select Reason</span>
-                                                                            <div className="flex gap-2">
-                                                                                {['Cheating', 'Abuse', 'Spam'].map((reason) => (
-                                                                                    <button
-                                                                                        key={reason}
-                                                                                        onClick={() => setSelectedReportReason(reason)}
-                                                                                        className={`flex-1 py-1.5 text-ludo-sm font-bold rounded-xl border transition-all ${selectedReportReason === reason ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-white/5 text-white/40 border-white/5 hover:bg-white/10 hover:text-white/70'}`}
-                                                                                    >
-                                                                                        {reason}
-                                                                                    </button>
-                                                                                ))}
-                                                                            </div>
-                                                                            <div className="flex gap-2 mt-1">
-                                                                                <button
-                                                                                    onClick={() => setReportStep('none')}
-                                                                                    className="flex-1 py-2 text-xs font-bold text-white/50 hover:text-white/80 transition-colors"
-                                                                                >
-                                                                                    Cancel
-                                                                                </button>
-                                                                                <button
-                                                                                    onClick={submitReport}
-                                                                                    disabled={!selectedReportReason || reportStep === 'submitting'}
-                                                                                     className="flex-1 py-2 bg-red-500 text-white text-xs font-bold rounded-xl disabled:opacity-50 transition-all flex justify-center items-center"
-                                                                                >
-                                                                                    {reportStep === 'submitting' ? <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Submit'}
-                                                                                </button>
-                                                                            </div>
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                            ) : (
-                                                                <div className="flex flex-col gap-2 w-full">
-                                                                    {renderScout()}
-                                                                    {!isBlocked && renderPokeRow()}
-                                                                    <div className="flex gap-2 w-full">
-                                                                        {isBlocked ? (
-                                                                            <button
-                                                                                onClick={() => handleAction('Unblock')}
-                                                                                disabled={isActionLoading}
-                                                                                className="flex-1 bg-white/10 hover:bg-white/15 text-white/90 text-sm font-bold py-2.5 rounded-2xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
-                                                                            >
-                                                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M12 2v20"></path><path d="M2.5 10.5 12 2l9.5 8.5"></path><path d="M2.5 22.5 12 14l9.5 8.5"></path></svg>
-                                                                                Unblock
-                                                                            </button>
-                                                                        ) : (
-                                                                            <>
-                                                                                <button
-                                                                                    onClick={() => handleAction('Add Friend')}
-                                                                                    disabled={isActionLoading || isPending}
-                                                                                    className="flex-1 bg-white/10 hover:bg-white/15 text-white/90 text-sm font-bold py-2.5 rounded-2xl transition-all border border-white/5 flex items-center justify-center gap-1.5 disabled:opacity-50"
-                                                                                >
-                                                                                    {isPending ? (
-                                                                                        <span className="text-white/60">Pending</span>
-                                                                                    ) : (
-                                                                                        <>
-                                                                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg>
-                                                                                            Add Friend
-                                                                                        </>
-                                                                                    )}
-                                                                                </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col gap-2">
+                                                    {!isBlocked && renderPokeRow()}
+                                                    <div className="flex gap-2 w-full">
+                                                        {isBlocked ? (
+                                                            <Button
+                                                                variant="secondary"
+                                                                size="md"
+                                                                onClick={() => handleAction('Unblock')}
+                                                                disabled={isActionLoading}
+                                                                className="flex-1"
+                                                            >
+                                                                Unblock Pilot
+                                                            </Button>
+                                                        ) : (
+                                                            <>
+                                                                <Button
+                                                                    variant={isPending || requestsDisabled ? 'secondary' : 'primary'}
+                                                                    size="md"
+                                                                    onClick={() => handleAction('Add Friend')}
+                                                                    disabled={isActionLoading || isPending || requestsDisabled}
+                                                                    className="flex-1"
+                                                                >
+                                                                    {isPending
+                                                                        ? 'Request Pending'
+                                                                        : requestsDisabled
+                                                                          ? 'Requests Paused'
+                                                                          : 'Add Friend'}
+                                                                </Button>
 
-                                                                                <button
-                                                                                    onClick={() => handleAction('Block')}
-                                                                                    disabled={isActionLoading}
-                                                                                    className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-sm font-bold py-2.5 rounded-2xl transition-all border border-red-500/10 flex items-center justify-center gap-1.5 disabled:opacity-50"
-                                                                                >
-                                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
-                                                                                    Block
-                                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleAction('Block')}
+                                                                    disabled={isActionLoading}
+                                                                    className="px-3.5 bg-negative/10 hover:bg-negative/20 text-negative text-ludo-sm font-bold rounded-xl transition-colors border border-negative/25 flex items-center justify-center disabled:opacity-50"
+                                                                >
+                                                                    Block
+                                                                </button>
 
-                                                                                <button
-                                                                                    onClick={() => handleAction('Report')}
-                                                                                    disabled={isActionLoading}
-                                                                                    className="w-10 flex items-center justify-center bg-white/5 hover:bg-white/10 text-white/50 hover:text-white rounded-2xl transition-all border border-white/5 shrink-0 disabled:opacity-50"
-                                                                                    title="Report User"
-                                                                                >
-                                                                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
-                                                                                </button>
-                                                                            </>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleAction('Report')}
+                                                                    disabled={isActionLoading}
+                                                                    className="w-10 flex items-center justify-center bg-surface-recessed hover:bg-surface-hover text-ink-muted hover:text-ink-strong rounded-xl transition-colors border border-line-soft shrink-0 disabled:opacity-50"
+                                                                    title="Report Pilot"
+                                                                    aria-label="Report Pilot"
+                                                                >
+                                                                    <svg
+                                                                        viewBox="0 0 24 24"
+                                                                        fill="none"
+                                                                        stroke="currentColor"
+                                                                        strokeWidth="2"
+                                                                        strokeLinecap="round"
+                                                                        strokeLinejoin="round"
+                                                                        className="w-4 h-4"
+                                                                    >
+                                                                        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+                                                                        <line x1="4" y1="22" x2="4" y2="15" />
+                                                                    </svg>
+                                                                </button>
+                                                            </>
+                                                        )}
                                                     </div>
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
-                                </>
                             )}
-                        </div>
-                    </div>
-                </>
-            )}
-        </>
+                        </>
+                    )}
+                </div>
+            </div>
+        </>,
+        document.body,
     );
 }

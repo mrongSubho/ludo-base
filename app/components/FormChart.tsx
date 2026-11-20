@@ -30,14 +30,14 @@ export function FormChart({ points, positive }: { points: number[]; positive: bo
     const y = (v: number) => H - PAD - ((v - min) / span) * (H - PAD * 2);
     const line = points.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
     const area = `${line} L${x(n - 1).toFixed(1)},${H} L${x(0).toFixed(1)},${H} Z`;
-    const stroke = positive ? '#22d3ee' : '#f87171';
+    const stroke = positive ? 'var(--accent, #22d3ee)' : 'var(--negative, #f87171)';
     const minIdx = points.indexOf(min);
     const maxIdx = points.indexOf(max);
     return (
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-[96px]">
             <defs>
                 <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={stroke} stopOpacity="0.35" />
+                    <stop offset="0%" stopColor={stroke} stopOpacity="0.32" />
                     <stop offset="100%" stopColor={stroke} stopOpacity="0" />
                 </linearGradient>
             </defs>
@@ -45,8 +45,8 @@ export function FormChart({ points, positive }: { points: number[]; positive: bo
             <path d={line} fill="none" stroke={stroke} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
             <circle cx={x(maxIdx)} cy={y(max)} r="3" fill={stroke} />
             <circle cx={x(minIdx)} cy={y(min)} r="3" fill={stroke} />
-            <text x={x(maxIdx)} y={Math.max(10, y(max) - 8)} textAnchor="middle" fontSize="10" fill="rgba(255,255,255,0.45)">{max > 0 ? `+${max}` : `${max}`}</text>
-            <text x={x(minIdx)} y={Math.min(H - 4, y(min) + 14)} textAnchor="middle" fontSize="10" fill="rgba(255,255,255,0.45)">{min > 0 ? `+${min}` : `${min}`}</text>
+            <text x={x(maxIdx)} y={Math.max(10, y(max) - 8)} textAnchor="middle" fontSize="10" fill="var(--ink-muted)">{max > 0 ? `+${max}` : `${max}`}</text>
+            <text x={x(minIdx)} y={Math.min(H - 4, y(min) + 14)} textAnchor="middle" fontSize="10" fill="var(--ink-muted)">{min > 0 ? `+${min}` : `${min}`}</text>
         </svg>
     );
 }

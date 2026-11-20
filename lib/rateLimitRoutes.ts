@@ -70,6 +70,7 @@ export const RATE_LIMITS: Record<string, LimitRule> = {
     // ── Public reads that are cheap but not free ──────────────────────────
     geo: { limit: 60, windowMs: 60_000, methods: ['GET'] },
     notices: { limit: 60, windowMs: 60_000, methods: ['GET'] },
+    'profile/public': { limit: 60, windowMs: 60_000, methods: ['GET'] },
     'missions/list': { limit: 60, windowMs: 60_000, methods: ['GET'] },
     // Session-gated, but each call still writes a `player_missions` row and (when
     // the oracle is configured) submits an `eth_sendTransaction`. A valid session

@@ -29,16 +29,16 @@ export function ModeBreakdown({
         { v: stats.form, l: labels[3] },
     ];
     return (
-        <div className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+        <div className="w-full rounded-2xl border border-line-soft bg-surface-recessed p-3">
             <div className="flex items-stretch justify-between">
                 {cells.map((c, i) => (
                     <React.Fragment key={c.l}>
-                        {i > 0 && <div className="w-px bg-white/10 mx-1 self-stretch" />}
+                        {i > 0 && <div className="w-px bg-line-soft mx-1 self-stretch" />}
                         <div className="flex-1 flex flex-col items-center justify-center gap-1 min-w-0 px-1">
-                            <span className="text-ludo-lg font-black tabular-nums text-white leading-none truncate max-w-full">
+                            <span className="text-ludo-lg font-extrabold tabular-nums text-ink-strong leading-none truncate max-w-full">
                                 {c.v}
                             </span>
-                            <span className="text-ludo-xs uppercase tracking-widest text-white/35 font-bold">
+                            <span className="text-ludo-xs uppercase tracking-widest text-ink-faint font-bold">
                                 {c.l}
                             </span>
                         </div>

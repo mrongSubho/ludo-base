@@ -58,8 +58,7 @@ const KNOWN_CSS_SELECTOR = new Map([
 ]);
 
 const KNOWN_FRAMER_SITE = new Map([
-    // Progress bars (XP / rank / bet-window / dice音量): width IS the content.
-    ['app/components/UserProfilePanel.tsx', 'XP + rank progress bars animate width (fraction of a track)'],
+    // Progress bars (bet-window / equalizer / accordion): width/height IS the content.
     ['app/components/SpectatorHUD.tsx', 'bet-window progress bar animates width'],
     ['app/components/QuickMatchPanel.tsx', 'signal bars animate height (equalizer)'],
     ['app/components/MatchHistoryTab.tsx', 'expanded match card details accordion animates height: auto'],

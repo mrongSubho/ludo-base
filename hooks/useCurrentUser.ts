@@ -26,6 +26,13 @@ export function useCurrentUser() {
         coins?: number;
         total_wins?: number | null;
         total_games?: number | null;
+        classic_played?: number;
+        power_played?: number;
+        ai_played?: number;
+        is_public?: boolean;
+        allow_requests?: boolean;
+        clan_tag?: string | null;
+        clan_name?: string | null;
     } | null>(null);
 
     // Guest session is wallet-free: refresh identity when it changes.
@@ -137,37 +144,59 @@ export function useCurrentUser() {
         }
     }, [wagmiAddress, cdpAddress, isWalletConnected, isGuest, guestId]);
 
-    // Coins path: the baseline players grant excludes `coins`, so the anon
-    // select above can never see the balance. Merge it from the session-gated
-    // service profile (GET /api/profile). Re-runs when the SIWE session lands
-    // and on demand via `window.dispatchEvent(new CustomEvent('ludo-profile-refresh'))`
-    // after coin mutations (marketplace purchase, mission claim, poke-back).
+    // Coins & privacy preferences path: the baseline players grant excludes
+    // `coins` (and `clan_tag` lives on clan tables). Merge from GET /api/profile
+    // whenever the app session lands or `ludo-profile-refresh` fires.
     useEffect(() => {
-        if (!isWalletConnected || !wagmiAddress || !appSessionId) return;
+        const activeWallet = wagmiAddress ?? cdpAddress;
+        if (!activeWallet || !appSessionId) return;
         let cancelled = false;
-        const refreshCoins = async () => {
+        const refreshServiceProfile = async () => {
             try {
                 const res = await fetch(
-                    `/api/profile?walletAddress=${encodeURIComponent(wagmiAddress)}&sessionId=${encodeURIComponent(appSessionId)}`
+                    `/api/profile?walletAddress=${encodeURIComponent(activeWallet)}&sessionId=${encodeURIComponent(appSessionId)}`
                 );
                 if (!res.ok) return;
                 const data = await res.json();
-                if (cancelled || typeof data?.coins !== 'number') return;
-                setProfile(prev => (prev ? { ...prev, coins: data.coins } : prev));
+                if (cancelled || !data) return;
+                setProfile((prev) => {
+                    const nextUsername = data.username !== undefined ? data.username : (prev?.username ?? null);
+                    const nextDisplay = (nextUsername && !nextUsername.startsWith('0x'))
+                        ? nextUsername
+                        : `User ${activeWallet.slice(-4).toUpperCase()}`;
+                    return {
+                        ...(prev || { username: nextUsername, avatar_url: null, displayName: nextDisplay }),
+                        username: nextUsername,
+                        avatar_url: data.avatar_url !== undefined ? data.avatar_url : (prev?.avatar_url ?? null),
+                        displayName: nextDisplay,
+                        lxp: typeof data.lxp === 'number' ? data.lxp : prev?.lxp,
+                        rxp: typeof data.rxp === 'number' ? data.rxp : prev?.rxp,
+                        coins: typeof data.coins === 'number' ? data.coins : prev?.coins,
+                        total_wins: typeof data.total_wins === 'number' ? data.total_wins : prev?.total_wins,
+                        total_games: typeof data.total_games === 'number' ? data.total_games : prev?.total_games,
+                        classic_played: typeof data.classic_played === 'number' ? data.classic_played : prev?.classic_played,
+                        power_played: typeof data.power_played === 'number' ? data.power_played : prev?.power_played,
+                        ai_played: typeof data.ai_played === 'number' ? data.ai_played : prev?.ai_played,
+                        is_public: typeof data.is_public === 'boolean' ? data.is_public : prev?.is_public,
+                        allow_requests: typeof data.allow_requests === 'boolean' ? data.allow_requests : prev?.allow_requests,
+                        clan_tag: data.clan_tag !== undefined ? data.clan_tag : prev?.clan_tag,
+                        clan_name: data.clan_name !== undefined ? data.clan_name : prev?.clan_name,
+                    };
+                });
             } catch {
                 /* offline — balance stays as-is */
             }
         };
-        void refreshCoins();
+        void refreshServiceProfile();
         const onRefresh = () => {
-            void refreshCoins();
+            void refreshServiceProfile();
         };
         window.addEventListener('ludo-profile-refresh', onRefresh);
         return () => {
             cancelled = true;
             window.removeEventListener('ludo-profile-refresh', onRefresh);
         };
-    }, [wagmiAddress, cdpAddress, isWalletConnected, appSessionId]);
+    }, [wagmiAddress, cdpAddress, appSessionId]);
 
     const walletLabel = wagmiAddress ?? cdpAddress;
     const displayName = (profile?.username && !profile.username.startsWith('0x'))

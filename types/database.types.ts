@@ -1537,6 +1537,7 @@ export type Database = {
       players: {
         Row: {
           ai_played: number
+          allow_requests: boolean
           avatar_url: string | null
           classic_played: number
           coins: number
@@ -1544,6 +1545,7 @@ export type Database = {
           current_room_code: string | null
           ecdh_pubkey: Json | null
           id: string
+          is_public: boolean
           last_played_at: string | null
           last_seen_at: string
           lxp: number
@@ -1561,6 +1563,7 @@ export type Database = {
         ComputedFields: never
         Insert: {
           ai_played?: number
+          allow_requests?: boolean
           avatar_url?: string | null
           classic_played?: number
           coins?: number
@@ -1568,6 +1571,7 @@ export type Database = {
           current_room_code?: string | null
           ecdh_pubkey?: Json | null
           id?: string
+          is_public?: boolean
           last_played_at?: string | null
           last_seen_at?: string
           lxp?: number
@@ -1584,6 +1588,7 @@ export type Database = {
         }
         Update: {
           ai_played?: number
+          allow_requests?: boolean
           avatar_url?: string | null
           classic_played?: number
           coins?: number
@@ -1591,6 +1596,7 @@ export type Database = {
           current_room_code?: string | null
           ecdh_pubkey?: Json | null
           id?: string
+          is_public?: boolean
           last_played_at?: string | null
           last_seen_at?: string
           lxp?: number
