@@ -12,6 +12,8 @@ import { useIsSignedIn, useCurrentUser } from '@coinbase/cdp-hooks';
 import { resolvePlayerIdentity } from '@/lib/playerIdentity';
 import { hasSeenWalletReady } from '@/lib/walletOnboarding';
 import { Ludo3077Emblem } from './Ludo3077Logo';
+import { ArenaInfoPanel } from './ArenaInfoPanel';
+import type { ArenaDocTab } from './ArenaDocContent';
 
 interface LudoWalletModalProps {
     isOpen: boolean;
@@ -91,6 +93,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
     const walletMode = useWalletMode();
     const [mounted, setMounted] = useState(false);
     const [showInGame, setShowInGame] = useState(false);
+    const [docTab, setDocTab] = useState<ArenaDocTab | null>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -189,6 +192,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
     );
 
     return (
+        <>
         <AnimatePresence>
             {isOpen && (
                 <div style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
@@ -334,15 +338,41 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                         <div style={{ marginTop: '18px', textAlign: 'center', padding: '0 8px' }} hidden={showInGame}>
                             <p style={{ margin: 0, fontSize: '11px', color: 'var(--modal-muted, rgba(255,255,255,0.45))', fontWeight: 500, lineHeight: 1.5, textTransform: 'none' }}>
                                 By connecting a wallet, you agree to our{' '}
-                                <a href="/terms" target="_blank" rel="noopener" style={{ color: '#22d3ee', textDecoration: 'none' }}>Terms</a>
+                                <button
+                                    type="button"
+                                    onClick={() => setDocTab('terms')}
+                                    style={{ color: '#22d3ee', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}
+                                >
+                                    Terms
+                                </button>
                                 {' and '}
-                                <a href="/privacy" target="_blank" rel="noopener" style={{ color: '#22d3ee', textDecoration: 'none' }}>Privacy</a>.{' '}
-                                <a href="/about" target="_blank" rel="noopener" style={{ color: '#22d3ee', textDecoration: 'none' }}>About Ludo 3077</a>
+                                <button
+                                    type="button"
+                                    onClick={() => setDocTab('privacy')}
+                                    style={{ color: '#22d3ee', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}
+                                >
+                                    Privacy
+                                </button>
+                                .{' '}
+                                <button
+                                    type="button"
+                                    onClick={() => setDocTab('about')}
+                                    style={{ color: '#22d3ee', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}
+                                >
+                                    About Ludo 3077
+                                </button>
                             </p>
                         </div>
                     </motion.div>
                 </div>
             )}
         </AnimatePresence>
+        <ArenaInfoPanel
+            isOpen={docTab !== null}
+            initialTab={docTab ?? 'about'}
+            overlay
+            onClose={() => setDocTab(null)}
+        />
+        </>
     );
 }

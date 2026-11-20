@@ -32,6 +32,13 @@ import { useBiometricGate } from '@/hooks/useBiometricGate';
 import { Switch } from './Switch';
 import { ListRow } from './ListRow';
 import { Button } from './Button';
+import {
+    AboutContent,
+    ArenaDocTab,
+    ArenaDocTabs,
+    PrivacyContent,
+    TermsContent,
+} from './ArenaDocContent';
 
 // ─── Semantic contract (holds for 3077, Retro Night, and Daybreak) ──────────
 // 1. All surfaces, borders, and inks derive from CSS semantic tokens inside
@@ -382,10 +389,9 @@ export function SettingsPanel({
     // Appearance, Leave Match only. No Support/About, and no Sign Out —
     // signing out mid-match is forbidden; leave the match first.
     const inGame = !!onLeaveMatch;
-    // Sub-views keep Help / Feedback inside the panel (no navigation loss
-    // mid-match). About, Terms & Privacy open as real pages in a new tab.
-    const [view, setView] = useState<'main' | 'help' | 'feedback'>('main');
-    const openDoc = (path: string) => window.open(path, '_blank', 'noopener');
+    // Sub-views keep Help / Feedback / About / Terms / Privacy inside the
+    // GamePanelShell so the user never leaves the app shell.
+    const [view, setView] = useState<'main' | 'help' | 'feedback' | ArenaDocTab>('main');
 
     return (
         <GamePanelShell
@@ -412,6 +418,9 @@ export function SettingsPanel({
                     )}
                     {view === 'help' && 'Help Center'}
                     {view === 'feedback' && 'Feedback'}
+                    {view === 'about' && 'About Ludo 3077'}
+                    {view === 'terms' && 'Terms of Service'}
+                    {view === 'privacy' && 'Privacy Policy'}
                 </span>
             )}
             subtitle={(
@@ -684,9 +693,9 @@ export function SettingsPanel({
                                 <section>
                                     <SectionLabel>About</SectionLabel>
                                     <div className="rounded-2xl border border-line-soft bg-surface-panel overflow-hidden divide-y divide-line-soft">
-                                        <NavRow icon={<InfoIcon />} tint="bg-accent-soft text-accent" label="About Ludo 3077" hint="Guide, logo & launch video" onClick={() => openDoc('/about')} />
-                                        <NavRow icon={<FileTextIcon />} tint="bg-accent-soft text-accent" label="Terms of Service" onClick={() => openDoc('/terms')} />
-                                        <NavRow icon={<ShieldIcon />} tint="bg-accent-soft text-accent" label="Privacy Policy" last onClick={() => openDoc('/privacy')} />
+                                        <NavRow icon={<InfoIcon />} tint="bg-accent-soft text-accent" label="About Ludo 3077" hint="Guide, logo & launch video" onClick={() => setView('about')} />
+                                        <NavRow icon={<FileTextIcon />} tint="bg-accent-soft text-accent" label="Terms of Service" onClick={() => setView('terms')} />
+                                        <NavRow icon={<ShieldIcon />} tint="bg-accent-soft text-accent" label="Privacy Policy" last onClick={() => setView('privacy')} />
                                     </div>
                                 </section>
                             </>
@@ -748,8 +757,21 @@ export function SettingsPanel({
                     </>
                 ) : view === 'help' ? (
                     <HelpView />
-                ) : (
+                ) : view === 'feedback' ? (
                     <FeedbackView />
+                ) : (
+                    <div className="flex flex-col gap-4">
+                        <ArenaDocTabs activeTab={view} onSelectTab={setView} />
+                        {view === 'about' && (
+                            <AboutContent
+                                layout="panel"
+                                onSelectTab={setView}
+                                onClose={onClose}
+                            />
+                        )}
+                        {view === 'terms' && <TermsContent />}
+                        {view === 'privacy' && <PrivacyContent />}
+                    </div>
                 )}
             </div>
         </GamePanelShell>

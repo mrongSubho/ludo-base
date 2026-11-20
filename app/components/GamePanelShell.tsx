@@ -17,6 +17,8 @@ type Props = {
     maxWClass?: string;
     maxWidthPx?: number;
     hideOrbs?: boolean;
+    /** Full-screen modal-level overlay (used above pre-login cards/modals where no header/footer exists). */
+    overlay?: boolean;
 };
 
 /* The panel paints itself from CSS custom properties (--panel-bg,
@@ -34,6 +36,7 @@ export function GamePanelShell({
     children,
     maxWidthPx = 500,
     hideOrbs = false,
+    overlay = false,
 }: Props) {
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
@@ -41,9 +44,17 @@ export function GamePanelShell({
 
     return createPortal(
         <>
-            <div className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent" />
+            {overlay ? (
+                <div
+                    onClick={onClose}
+                    className="fixed inset-0 z-[1090] bg-surface-page/75 backdrop-blur-sm"
+                    aria-hidden="true"
+                />
+            ) : (
+                <div className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent" />
+            )}
             <div
-                className="fixed inset-0 z-[110] flex justify-center pointer-events-none"
+                className={`fixed inset-0 ${overlay ? 'z-[1100]' : 'z-[110]'} flex justify-center pointer-events-none`}
                 style={{ alignItems: "stretch" }}
             >
                 <div
@@ -54,7 +65,7 @@ export function GamePanelShell({
                         initial={{ opacity: 0, y: 12, scale: 0.99 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
-                        className={`${scopeClass} panel-shell-3077 pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] rounded-[32px] flex flex-col overflow-hidden`}
+                        className={`${scopeClass} panel-shell-3077 pointer-events-auto absolute ${overlay ? 'top-4 bottom-4 sm:top-7 sm:bottom-7' : 'top-[64px] bottom-[80px]'} left-[8px] right-[8px] rounded-[32px] flex flex-col overflow-hidden`}
                         style={{
                             background: "var(--panel-bg)",
                             border: "1px solid var(--panel-border)",

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import LudoWalletModal from './LudoWalletModal';
+import { ArenaInfoPanel } from './ArenaInfoPanel';
+import type { ArenaDocTab } from './ArenaDocContent';
 import { acceptTos } from '@/lib/onboarding';
 import { Ludo3077Emblem } from './Ludo3077Logo';
 import { HudCornerTicks } from './HudPrimitives';
@@ -16,6 +18,7 @@ interface WalletConnectCardProps {
 export default function WalletConnectCard({ onGuest }: WalletConnectCardProps) {
     const [mounted, setMounted] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [docTab, setDocTab] = useState<ArenaDocTab | null>(null);
     // ToS + Privacy consent: pre-ticked so new players can launch cleanly;
     // unchecking locks both sign-in and guest entrance.
     const [agreed, setAgreed] = useState(true);
@@ -104,25 +107,27 @@ export default function WalletConnectCard({ onGuest }: WalletConnectCardProps) {
                             </span>
                             <span className="text-ludo-xs font-bold text-ink-muted leading-relaxed">
                                 I agree to the{' '}
-                                <a
-                                    href="/terms"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-accent underline underline-offset-2 hover:brightness-110"
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDocTab('terms');
+                                    }}
+                                    className="text-accent underline underline-offset-2 hover:brightness-110 cursor-pointer"
                                 >
                                     Terms of Service
-                                </a>{' '}
+                                </button>{' '}
                                 and{' '}
-                                <a
-                                    href="/privacy"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-accent underline underline-offset-2 hover:brightness-110"
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setDocTab('privacy');
+                                    }}
+                                    className="text-accent underline underline-offset-2 hover:brightness-110 cursor-pointer"
                                 >
                                     Privacy Policy
-                                </a>
+                                </button>
                                 .
                             </span>
                         </button>
@@ -169,6 +174,12 @@ export default function WalletConnectCard({ onGuest }: WalletConnectCardProps) {
                             isOpen={isModalOpen}
                             onClose={() => setIsModalOpen(false)}
                         />
+                        <ArenaInfoPanel
+                            isOpen={docTab !== null}
+                            initialTab={docTab ?? 'about'}
+                            overlay
+                            onClose={() => setDocTab(null)}
+                        />
                     </div>
                 ) : (
                     <div className="w-full h-12 bg-surface-recessed rounded-2xl animate-pulse border border-line-soft" />
@@ -178,32 +189,29 @@ export default function WalletConnectCard({ onGuest }: WalletConnectCardProps) {
             {/* Footer Security Telemetry & Legal Links */}
             <div className="flex flex-col items-center gap-2 relative z-10 w-full">
                 <div className="flex items-center gap-3 text-ludo-xs font-bold text-ink-muted">
-                    <a
-                        href="/about"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:text-accent transition-colors"
+                    <button
+                        type="button"
+                        onClick={() => setDocTab('about')}
+                        className="hover:text-accent transition-colors cursor-pointer"
                     >
                         About
-                    </a>
+                    </button>
                     <span className="text-line-strong" aria-hidden="true">·</span>
-                    <a
-                        href="/terms"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:text-accent transition-colors"
+                    <button
+                        type="button"
+                        onClick={() => setDocTab('terms')}
+                        className="hover:text-accent transition-colors cursor-pointer"
                     >
                         Terms
-                    </a>
+                    </button>
                     <span className="text-line-strong" aria-hidden="true">·</span>
-                    <a
-                        href="/privacy"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="hover:text-accent transition-colors"
+                    <button
+                        type="button"
+                        onClick={() => setDocTab('privacy')}
+                        className="hover:text-accent transition-colors cursor-pointer"
                     >
                         Privacy
-                    </a>
+                    </button>
                 </div>
                 <div className="flex items-center gap-2.5 text-ink-faint w-full justify-center">
                     <div className="h-px w-8 bg-line-soft" />
