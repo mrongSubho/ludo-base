@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -9,13 +8,14 @@ import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { TeamUpWrapper } from './TeamUp/TeamUpWrapper';
 import { supabase } from '@/lib/supabase';
 import { getProgression } from '@/lib/progression';
+import { GamePanelShell } from './GamePanelShell';
 import { Button } from './Button';
 import { Chip } from './Chip';
 import { ThinkingOrb } from './ThinkingOrb';
 import { useArenaVault } from '@/hooks/useArenaVault';
 import { useToast } from './Toast';
 import { HudCornerTicks } from './HudPrimitives';
-import { ChipsHexIcon, CloseReticleIcon, PilotAvatarFallbackIcon, QuickDeployIcon, SimBotIcon } from './icons';
+import { ChipsHexIcon, PilotAvatarFallbackIcon, QuickDeployIcon, SimBotIcon } from './icons';
 
 const PRO_TIPS = [
     "Safe zones protect you from capture!",
@@ -23,7 +23,7 @@ const PRO_TIPS = [
     "Win to climb the global leaderboard!",
     "Use power-ups strategically to gain an edge.",
     "Rolling a 6 gives you an extra turn!",
-    "Block your opponents to slow them down."
+    "Block your opponents to slow them down.",
 ];
 
 /** Matchmaking snaps to the same fee ladders as the lobby. */
@@ -51,45 +51,10 @@ function adjacentPresets(n: number): { lower?: number; higher?: number } {
     };
 }
 
-// ─── Theme-agnostic contract (holds for current + future themes) ───────────
-// Same as the other synced panels: this sheet always renders on the shared
-// dark-glass sandwich shell, so content uses only white-ink + white-opacity
-// surfaces + cyan/status accents. No font-family is set (inherits the active
-// theme's display font). Spacing inside `.ludo-quick-scope` is re-asserted
-// in globals.css (the global unlayered reset zeroes Tailwind utilities).
-
-// Icon tile: chamfered tactical tile shared with the other synced panels.
 const QuickTile = () => (
-    <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
-        <QuickDeployIcon className="w-4 h-4 text-cyan-300" />
+    <div className="hud-chamfer-sm w-6 h-6 rounded-lg bg-accent-soft border border-accent/35 flex items-center justify-center">
+        <QuickDeployIcon className="w-3.5 h-3.5 text-accent" />
     </div>
-);
-
-const DashedRadarRing = ({ color = "#22d3ee", className = "" }) => (
-    <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className={`absolute inset-0 w-full h-full pointer-events-none ${className}`}
-    >
-        <motion.svg
-            viewBox="0 0 100 100"
-            className="w-full h-full"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-        >
-            <circle cx="50" cy="50" r="48" fill="none" stroke={color} strokeWidth="1" strokeDasharray="4 4" opacity="0.4" />
-            <circle cx="50" cy="50" r="38" fill="none" stroke={color} strokeWidth="0.5" strokeDasharray="2 2" opacity="0.2" />
-            <circle cx="50" cy="50" r="28" fill="none" stroke={color} strokeWidth="0.5" opacity="0.1" />
-        </motion.svg>
-        
-        {/* Scanning Sweep */}
-        <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-500/10 to-transparent"
-            style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 50%)' }}
-        />
-    </motion.div>
 );
 
 interface QuickMatchPanelProps {
@@ -111,7 +76,7 @@ export const QuickMatchPanel = ({
     onCancel,
     isHybrid = false,
     roomCode,
-    slotsNeeded = 1
+    slotsNeeded = 1,
 }: QuickMatchPanelProps) => {
     const { address, profile, displayName: finalName } = useCurrentUser();
     const normalizedAddress = address?.toLowerCase() || '';
@@ -129,34 +94,27 @@ export const QuickMatchPanel = ({
         startSearch,
         startHybridSearch,
         cancelSearch,
-        extendSearch
+        extendSearch,
     } = useMatchmaking({
         playerId: normalizedAddress,
         gameMode,
         matchType,
-        // Always queue on a snapped preset — percentage bands fragment the pool.
         wager: snapFee(wager),
         onMatchFound: (matchId: string, foundRoomCode: string) => {
             console.log(`🎲 [Matchmaking] Match Found! MatchId: ${matchId}, Room: ${foundRoomCode}`);
             connectRoom(matchId);
-        }
+        },
     });
 
     const {
-        roomId,
-        hostGame,
-        joinGame,
-        initQuickLobby,
         leaveGame,
         connectRoom,
-        isLobbyConnected, 
+        isLobbyConnected,
         isHost: p2pHost,
         roomStatus,
         roomError,
         gameState,
-        lobbyState,
-        participants,
-        createProvisionalSession
+        createProvisionalSession,
     } = useTeamUpContext();
     const [tipIndex, setTipIndex] = useState(0);
     const [_hasExpanded, setHasExpanded] = useState(false);
@@ -166,8 +124,8 @@ export const QuickMatchPanel = ({
     const activeWagerRef = useRef(activeWager);
     useEffect(() => { activeWagerRef.current = activeWager; }, [activeWager]);
     const [wagerRange, setWagerRange] = useState<{ min: number; max?: number } | null>(null);
-    const [opponentProfile, setOpponentProfile] = useState<{ 
-        username: string; 
+    const [opponentProfile, setOpponentProfile] = useState<{
+        username: string;
         avatar_url: string | null;
         lxp: number;
         rxp: number;
@@ -175,13 +133,12 @@ export const QuickMatchPanel = ({
         total_games: number;
     } | null>(null);
     const [isLoadingRival, setIsLoadingRival] = useState(false);
-    const [expectedOpponent, setExpectedOpponent] = useState<string | null>(null);
+    const [_expectedOpponent, setExpectedOpponent] = useState<string | null>(null);
 
     const [isStalled, setIsStalled] = useState(false);
     const preAuthStartedRef = useRef(false);
 
     // Auto-reveal expand overlay at 15s; vanish at 28s if ignored.
-    // Radar keeps scanning underneath — the card is a centered overlay, not a dock swap.
     useEffect(() => {
         if (status === 'searching' || status === 'expanding') {
             if (searchTime === 15) {
@@ -196,9 +153,8 @@ export const QuickMatchPanel = ({
         if (status === 'matched' && !gameState?.isStarted) {
             const stallTimer = setTimeout(() => setIsStalled(true), 4000);
             return () => clearTimeout(stallTimer);
-        } else {
-            setIsStalled(false);
         }
+        setIsStalled(false);
     }, [searchTime, status, gameState?.isStarted]);
 
     // Tip rotation
@@ -217,27 +173,24 @@ export const QuickMatchPanel = ({
         }
     }, [status, gameState?.isStarted, onStartGame]);
 
-    // Use roomCode from hook preferentially (it updates dynamically during match)
     const activeRoomCode = hookRoomCode || roomCode;
 
     // Fetch Opponent Profile / Reveal from the canonical match row
     useEffect(() => {
         if (status === 'matched') {
-            // MM-5: the Edge instant-reveal branch is gone with the Edge matcher.
-            // The canonical `matches` row is the single source for the rival.
             const fetchOpponentData = async () => {
                 const roomToSearch = activeRoomCode || hookRoomCode || roomCode;
                 if (!roomToSearch) return;
 
                 setIsLoadingRival(true);
                 try {
-                    const { data: match, error: matchError } = await supabase
+                    const { data: match, error: mErr } = await supabase
                         .from('matches')
                         .select('participants')
                         .eq('room_code', roomToSearch)
                         .maybeSingle();
 
-                    if (matchError || !match || !match.participants) throw new Error('Match record not found');
+                    if (mErr || !match || !match.participants) throw new Error('Match record not found');
 
                     const opponentAddress = match.participants.find((p: string) => p.toLowerCase() !== normalizedAddress);
                     if (opponentAddress) {
@@ -255,17 +208,16 @@ export const QuickMatchPanel = ({
                                 lxp: player.lxp || 0,
                                 rxp: player.rxp || 0,
                                 total_wins: player.total_wins || 0,
-                                total_games: player.total_games || 0
+                                total_games: player.total_games || 0,
                             });
                         } else if (opponentAddress) {
-                            // Profile row missing (bare wallet) — still show who they are
                             setOpponentProfile({
                                 username: 'User ' + opponentAddress.slice(-4).toUpperCase(),
                                 avatar_url: null,
                                 lxp: 0,
                                 rxp: 1500,
                                 total_wins: 0,
-                                total_games: 0
+                                total_games: 0,
                             });
                         }
                     }
@@ -275,20 +227,37 @@ export const QuickMatchPanel = ({
                     setIsLoadingRival(false);
                 }
             };
-            fetchOpponentData();
+            void fetchOpponentData();
         } else {
             setOpponentProfile(null);
         }
     }, [status, activeRoomCode, normalizedAddress, hookRoomCode, roomCode]);
 
+    const releaseVaultIfSearching = useCallback(() => {
+        if (normalizedAddress && activeWager > 0 && status !== 'matched') {
+            void vault.releaseMatchStake(`qm:${normalizedAddress}`).then((released) => {
+                if (released > 0) {
+                    toast(
+                        `${released.toLocaleString()} CHIPS kept in Match Vault for your next match (0 gas).`,
+                        'info',
+                    );
+                }
+            });
+        }
+    }, [normalizedAddress, activeWager, status, vault, toast]);
+
+    const handleBackToLobby = useCallback(() => {
+        releaseVaultIfSearching();
+        cancelSearch();
+        onCancel();
+    }, [releaseVaultIfSearching, cancelSearch, onCancel]);
+
     useEffect(() => {
-        // Wait for wallet address before starting search
         if (!normalizedAddress) return;
 
         let cancelled = false;
         void (async () => {
             console.log('🏁 [QuickMatch] Triggering search initialization...');
-            // Hybrid fill (TeamUp party Hunt) uses the existing room session — no separate search grant needed
             if (!isHybrid && !preAuthStartedRef.current) {
                 preAuthStartedRef.current = true;
                 const key = `search:${normalizedAddress}:${gameMode}:${matchType}`;
@@ -308,30 +277,12 @@ export const QuickMatchPanel = ({
             }
         })();
         return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [normalizedAddress, isHybrid, roomCode, slotsNeeded, matchType, gameMode, createProvisionalSession, startSearch, startHybridSearch]);
-
-    const releaseVaultIfSearching = useCallback(() => {
-        if (normalizedAddress && activeWager > 0 && status !== 'matched') {
-            void vault.releaseMatchStake(`qm:${normalizedAddress}`).then((released) => {
-                if (released > 0) {
-                    toast(
-                        `${released.toLocaleString()} CHIPS kept in Match Vault for your next match (0 gas).`,
-                        'info',
-                    );
-                }
-            });
-        }
-    }, [normalizedAddress, activeWager, status, vault, toast]);
-
-    const handleBackToLobby = () => {
-        releaseVaultIfSearching();
-        cancelSearch();
-        onCancel();
-    };
 
     const handleForceBotMatch = () => {
         releaseVaultIfSearching();
-        leaveGame(); // 🧹 Clear any stale network state (ROOM_ID, connections, etc.)
+        leaveGame();
         cancelSearch();
         onStartGame(true);
     };
@@ -348,7 +299,7 @@ export const QuickMatchPanel = ({
     const handleExpandWager = (param: number | 'any') => {
         setHasExpanded(true);
         setShowExpansionOptions(false);
-        extendSearch(20); // keep the current ticket alive while we re-queue
+        extendSearch(20);
 
         if (param === 'any') {
             setWagerRange({ min: 0, max: undefined });
@@ -357,7 +308,6 @@ export const QuickMatchPanel = ({
             return;
         }
 
-        // Exact preset only — no ±20/±50 bands.
         const fee = snapFee(param);
         const runExpand = async () => {
             if (normalizedAddress) {
@@ -376,8 +326,9 @@ export const QuickMatchPanel = ({
             console.log(`[Matchmaking] Expanding search to preset ${fee}`);
             startSearch(fee, fee);
         };
-        void runExpand().catch((err: any) => {
-            toast(err?.message || 'Could not adjust Match Vault fee.', 'error');
+        void runExpand().catch((err: unknown) => {
+            const msg = err instanceof Error ? err.message : undefined;
+            toast(msg || 'Could not adjust Match Vault fee.', 'error');
         });
     };
 
@@ -386,7 +337,6 @@ export const QuickMatchPanel = ({
         extendSearch(20);
     };
 
-    // Nearby pools → unique snapped presets, drop the one we're already on.
     const snappedPools = (() => {
         const seen = new Set<number>([activeWager]);
         const out: { fee: number; waiters: number }[] = [];
@@ -410,653 +360,588 @@ export const QuickMatchPanel = ({
     const isSearching = status === 'searching' || status === 'expanding';
 
     return (
-        <>
-            {/* Backdrop */}
-            <div
-                className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
-                onClick={handleCancelAndClose}
-            />
+        <GamePanelShell
+            scopeClass="ludo-quick-scope"
+            kicker="// RANKED QUEUE"
+            title={(
+                <span className="inline-flex items-center gap-2">
+                    <QuickTile />
+                    <span>Quick Match</span>
+                </span>
+            )}
+            subtitle={(
+                <span className="inline-flex items-center gap-2 flex-wrap">
+                    <span className="font-bold text-accent uppercase">{gameMode}</span>
+                    <span className="w-1 h-1 rounded-full bg-line-strong" />
+                    <span className="font-bold text-ink-muted uppercase">{matchType}</span>
+                    <span className="w-1 h-1 rounded-full bg-line-strong" />
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warn/15 border border-warn/35 text-warn font-extrabold font-mono tabular-nums">
+                        <ChipsHexIcon className="w-3 h-3 text-warn" active />
+                        <span>
+                            {wagerRange?.max === undefined && wagerRange?.min === 0
+                                ? 'Any'
+                                : activeWager.toLocaleString()}
+                        </span>
+                    </span>
+                </span>
+            )}
+            onClose={handleCancelAndClose}
+            hideOrbs
+        >
+            <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
+                {/* Diagnostic Bar strip */}
+                <div className="px-5 py-2 border-b border-line-soft bg-surface-recessed/60 flex items-center gap-1.5 flex-wrap shrink-0 relative z-10">
+                    <span className={`diag-chip ${status === 'matched' ? 'diag-status-ok' : 'diag-status-info'}`}>
+                        QUEUE | {status}
+                    </span>
+                    <span className="diag-chip">
+                        ID: {normalizedAddress.slice(-4)}
+                    </span>
+                    {ticketId && (
+                        <span className="diag-chip">
+                            Network ID {ticketId.slice(0, 8).toUpperCase()}
+                        </span>
+                    )}
+                    {isSearching && <div className="rail-sweep-3077 hidden ml-auto" aria-hidden />}
+                </div>
 
-            {/* Clipped Container */}
-            <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
-                <div className="w-full max-w-[500px] relative h-full">
-                    <div
-                        /* Unified global panel layout: top-64, bottom-80 sandwich */
-                        className="ludo-quick-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
-                        style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
-                    >
-                        <HudCornerTicks />
-                        {/* Authentic Subdued Cosmic Orbs */}
-                        <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                        <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
-
-                        {/* Handle Bar */}
-                        <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                            <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full cursor-pointer" onClick={handleCancelAndClose} />
+                {/* Dynamic Matchmaking Content */}
+                <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col items-center justify-center relative px-5">
+                    {/* Tip Section */}
+                    <div className="w-full pt-2 pb-1 shrink-0">
+                        <div key={tipIndex} className="flex flex-col items-center gap-1">
+                            <span className="text-ludo-xs uppercase font-extrabold tracking-[0.3em] text-accent">Pro Tip</span>
+                            <p className="text-xs font-medium text-ink-muted text-center max-w-[280px] leading-relaxed">
+                                {PRO_TIPS[tipIndex]}
+                            </p>
                         </div>
+                    </div>
 
-                        <div className="px-5 pb-3 border-b border-white/10 relative z-10">
-                            <div className="flex items-center justify-between mb-1 mt-1">
-                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <QuickTile />
-                                    Quick Match
-                                </h2>
-                                <div className="flex flex-col items-end">
-                                    <div className="flex items-center gap-1.5 mb-0.5">
-                                        <span className="text-ludo-xs uppercase font-black tracking-widest text-cyan-400 opacity-60">{gameMode}</span>
-                                        <div className="w-[1px] h-2 bg-white/10" />
-                                        <span className="text-ludo-xs uppercase font-black tracking-widest text-white/40">{matchType}</span>
-                                    </div>
-                                    <div className="hud-chamfer-sm flex items-center gap-2 bg-amber-400/20 px-3 py-1 rounded-lg border border-amber-400/30">
-                                        <ChipsHexIcon className="w-4 h-4 text-amber-400" active />
-                                        <span className="text-sm font-extrabold font-mono text-amber-400 tracking-tight tabular-nums">
-                                            {wagerRange?.max === undefined && wagerRange?.min === 0
-                                                ? 'Any'
-                                                : activeWager.toLocaleString()}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            {/* Diagnostic Bar — theme-proof chips (see globals.css) */}
-                            <div className="absolute -bottom-[2px] left-5 flex gap-1.5">
-                                <span className={`diag-chip ${status === 'matched' ? 'diag-status-ok' : 'diag-status-info'}`}>
-                                    QUEUE | {status}
-                                </span>
-                                <span className="diag-chip">
-                                    ID: {normalizedAddress.slice(-4)}
-                                </span>
-                                {ticketId && (
-                                    <span className="diag-chip">
-                                        Network ID {ticketId.slice(0, 8).toUpperCase()}
-                                    </span>
-                                )}
-                            </div>
-                            {isSearching && (
-                                <div className="rail-sweep-3077 hidden mt-3" aria-hidden />
-                            )}
-                        </div>
+                    <TeamUpWrapper mode="quick" entryFee={wager}>
+                        <div className="flex flex-col items-center justify-center w-full h-full min-h-[280px] relative">
+                            {status !== 'matched' && (
+                                <div className="relative w-64 h-64 md:w-72 md:h-72 flex items-center justify-center">
+                                    {/* Subtle Outer Glow */}
+                                    <div className="absolute inset-[-15%] bg-accent/5 blur-[60px] rounded-full pointer-events-none" />
 
-                        {/* Dynamic Matchmaking Content */}
-                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col items-center justify-center relative px-5">
-                            {/* Tip Section — in-flow above the radar (was absolute,
-                                collided with the Network ID block) */}
-                            <div className="w-full pt-2 pb-1 shrink-0">
-                                <div
-                                    key={tipIndex}
-                                    className="flex flex-col items-center gap-1"
-                                >
-                                    <span className="text-ludo-xs uppercase font-black tracking-[0.3em] text-cyan-400/60">Pro Tip</span>
-                                    <p className="text-xs font-medium text-white/50 text-center max-w-[280px] leading-relaxed">
-                                        {PRO_TIPS[tipIndex]}
-                                    </p>
-                                </div>
-                            </div>
-                            <TeamUpWrapper
-                                mode="quick"
-                                entryFee={wager}
-                            >
-                                <div className="flex flex-col items-center justify-center w-full h-full min-h-[300px] relative">
-                                    {/* Radar System Visual - Premium Redesign */}
-                                    {status !== 'matched' && (
-                                        <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
-                                            {/* 1. Subtle Outer Glow */}
-                                            <div className="absolute inset-[-20%] bg-cyan-500/5 blur-[80px] rounded-full" />
-                                            
-                                            {/* 2. Multiple Concentric Rings */}
-                                            {[1, 2, 3].map((ring) => (
-                                                <motion.div
-                                                    key={`ring-${ring}`}
-                                                    animate={{ rotate: ring % 2 === 0 ? 360 : -360 }}
-                                                    transition={{ duration: 15 + (ring * 5), repeat: Infinity, ease: "linear" }}
-                                                    className={`absolute border rounded-full ${ring % 2 === 0 ? 'border-dashed' : 'border-dotted'}`}
-                                                    style={{ 
-                                                        inset: ring * 25, 
-                                                        borderColor: `rgba(34, 211, 238, ${0.1 + (ring * 0.05)})`
-                                                    }}
-                                                />
-                                            ))}
+                                    {/* Multiple Concentric Rings */}
+                                    {[1, 2, 3].map((ring) => (
+                                        <motion.div
+                                            key={`ring-${ring}`}
+                                            animate={{ rotate: ring % 2 === 0 ? 360 : -360 }}
+                                            transition={{ duration: 15 + (ring * 5), repeat: Infinity, ease: "linear" }}
+                                            className={`absolute border rounded-full ${ring % 2 === 0 ? 'border-dashed' : 'border-dotted'}`}
+                                            style={{
+                                                inset: ring * 24,
+                                                borderColor: `rgba(0, 229, 255, ${0.14 + (ring * 0.06)})`,
+                                            }}
+                                        />
+                                    ))}
 
-                                            {/* 3. Orbiting Signal Nodes */}
-                                            {[0, 120, 240].map((angle, i) => (
-                                                <motion.div
-                                                    key={`node-${i}`}
-                                                    animate={{ rotate: 360 }}
-                                                    transition={{ duration: 10 + i * 2, repeat: Infinity, ease: "linear" }}
-                                                    className="absolute inset-0 flex items-start justify-center"
-                                                    style={{ transform: `rotate(${angle}deg)` }}
-                                                >
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] mt-[-0.75px]" />
-                                                </motion.div>
-                                            ))}
+                                    {/* Orbiting Signal Nodes */}
+                                    {[0, 120, 240].map((angle, i) => (
+                                        <motion.div
+                                            key={`node-${i}`}
+                                            animate={{ rotate: 360 }}
+                                            transition={{ duration: 10 + i * 2, repeat: Infinity, ease: "linear" }}
+                                            className="absolute inset-0 flex items-start justify-center"
+                                            style={{ transform: `rotate(${angle}deg)` }}
+                                        >
+                                            <div className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_rgba(0,229,255,0.8)] mt-[-0.75px]" />
+                                        </motion.div>
+                                    ))}
 
-                                            {/* 4. High-Fidelity Scanner Sweep */}
-                                            <motion.div
-                                                animate={{ rotate: 360 }}
-                                                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                                                className="absolute inset-0 rounded-full"
-                                                style={{
-                                                    background: 'conic-gradient(from 0deg, transparent 60%, rgba(34, 211, 238, 0.15) 100%)'
-                                                }}
-                                            />
+                                    {/* Scanner Sweep */}
+                                    <motion.div
+                                        animate={{ rotate: 360 }}
+                                        transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                                        className="absolute inset-0 rounded-full pointer-events-none"
+                                        style={{
+                                            background: 'conic-gradient(from 0deg, transparent 60%, rgba(0, 229, 255, 0.16) 100%)',
+                                        }}
+                                    />
 
-                                            {/* 5. Central Data Core (Glassmorphism Timer) */}
-                                            <div className="relative z-10 w-28 h-28 md:w-36 md:h-36 bg-[rgba(255,255,255,0.03)] rounded-full border border-white/10 flex flex-col items-center justify-center backdrop-blur-3xl shadow-[0_0_60px_rgba(0,0,0,0.6)] group overflow-hidden">
-                                                {/* Inner Holographic Glow */}
-                                                <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 via-transparent to-blue-500/20 opacity-40" />
-                                                
-                                                {/* Scanning V-Line */}
-                                                <motion.div 
-                                                    animate={{ top: ['-20%', '120%'] }}
-                                                    transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-                                                    className="absolute left-0 right-0 h-[2px] bg-cyan-400/40 z-20 shadow-[0_0_15px_rgba(34,211,238,0.6)]"
-                                                />
+                                    {/* Central Data Core */}
+                                    <div className="relative z-10 w-28 h-28 md:w-32 md:h-32 bg-surface-panel rounded-full border border-line-strong flex flex-col items-center justify-center backdrop-blur-2xl shadow-xl overflow-hidden">
+                                        <div className="absolute inset-0 bg-gradient-to-tr from-accent/15 via-transparent to-accent/10 opacity-60 pointer-events-none" />
 
-                                                <div className="relative z-30 flex flex-col items-center">
-                                                    {status === 'error' ? (
-                                                        <>
-                                                            <span className="text-ludo-xs font-black text-red-500 uppercase tracking-widest leading-none mb-1">
-                                                                FAULT
-                                                            </span>
-                                                            <span className="text-ludo-xs font-bold text-red-400/40 uppercase">
-                                                                OFFLINE
-                                                            </span>
-                                                        </>
-                                                    ) : !address ? (
-                                                        <div className="animate-pulse">
-                                                            <span className="text-ludo-xs font-black text-amber-500 uppercase tracking-widest leading-none">
-                                                                SYNCING
-                                                            </span>
-                                                        </div>
-                                                    ) : (
-                                                        <>
-                                                            <span className="text-3xl md:text-4xl font-mono font-black text-cyan-400 tracking-tighter drop-shadow-[0_0_12px_rgba(34,211,238,0.55)]">
-                                                                {searchTime}s
-                                                            </span>
-                                                            <div className="flex items-center gap-1 mt-1">
-                                                                <div className="w-1 h-3 bg-cyan-400/20 rounded-full overflow-hidden">
-                                                                    <motion.div 
-                                                                        animate={{ height: ['20%', '100%', '40%'] }}
-                                                                        transition={{ duration: 1, repeat: Infinity }}
-                                                                        className="w-full bg-cyan-400"
-                                                                    />
-                                                                </div>
-                                                                <span className="text-ludo-xs font-black text-cyan-400/60 tracking-widest uppercase">
-                                                                    {gameMode} | {matchType}
-                                                                </span>
-                                                            </div>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
+                                        {/* Scanning Y-Sweep (compositor transform) */}
+                                        <motion.div
+                                            initial={{ y: -56 }}
+                                            animate={{ y: 72 }}
+                                            transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+                                            className="absolute left-0 right-0 top-0 h-[2px] bg-accent/50 z-20 shadow-[0_0_12px_rgba(0,229,255,0.55)]"
+                                        />
 
-                                            {/* 6. Dynamic Status Display Below Radar */}
-                                            <div className="absolute top-[90%] left-1/2 -translate-x-1/2 flex flex-col items-center min-w-[300px]">
-                                                <div className="flex items-center gap-2.5 px-5 py-1.5 rounded-full bg-white/[0.03] border border-white/10 backdrop-blur-md shadow-xl">
-                                                    {isSearching ? (
-                                                        /* The visible label below names the state, so the orb is
-                                                           decorative here — no second announcement. Theme follows
-                                                           the app: this sheet uses `--panel-bg`, which Daybreak
-                                                           overrides to white, so it is NOT dark-only. */
-                                                        <ThinkingOrb state="searching" size={20} />
-                                                    ) : (
-                                                        <div className="flex gap-1">
-                                                            {[0, 1, 2].map((dot) => (
-                                                                <motion.div
-                                                                    key={dot}
-                                                                    animate={{ opacity: [0.3, 1, 0.3] }}
-                                                                    transition={{ duration: 1, repeat: Infinity, delay: dot * 0.2 }}
-                                                                    className={`w-1.5 h-1.5 rounded-full ${status === 'error' || status === 'timeout' ? 'bg-red-500' : 'bg-cyan-400'}`}
-                                                                />
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                    <span className={`text-ludo-sm uppercase font-black tracking-[0.2em] ${status === 'error' || status === 'timeout' ? 'text-red-400' : 'text-cyan-400/90'}`}>
-                                                        {status === 'error' ? 'FAULT DETECTED' :
-                                                         status === 'timeout' ? 'LINK TIMEOUT' :
-                                                         showExpansionOptions ? 'WIDEN THE SEARCH' :
-                                                         status === 'expanding' ? 'REACH EXPANDED' :
-                                                         status === 'idle' ? 'PREPARING SIGNAL' :
-                                                         'SCANNING LUDO ARENA'}
+                                        <div className="relative z-30 flex flex-col items-center">
+                                            {status === 'error' ? (
+                                                <>
+                                                    <span className="text-ludo-xs font-extrabold text-negative uppercase tracking-widest leading-none mb-1">
+                                                        FAULT
+                                                    </span>
+                                                    <span className="text-ludo-xs font-bold text-negative opacity-70 uppercase">
+                                                        OFFLINE
+                                                    </span>
+                                                </>
+                                            ) : !address ? (
+                                                <div className="animate-pulse">
+                                                    <span className="text-ludo-xs font-extrabold text-warn uppercase tracking-widest leading-none">
+                                                        SYNCING
                                                     </span>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </TeamUpWrapper>
-                            {/* Widen-the-search overlay — radar keeps scanning behind */}
-                            <AnimatePresence>
-                                {showExpansionOptions && status !== 'matched' && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                        className="absolute inset-0 z-[150] flex items-center justify-center px-5 pointer-events-auto"
-                                    >
-                                        <div
-                                            className="absolute inset-0 bg-black/45"
-                                            onClick={() => setShowExpansionOptions(false)}
-                                        />
-                                        <motion.div
-                                            initial={{ y: 16, scale: 0.96 }}
-                                            animate={{ y: 0, scale: 1 }}
-                                            exit={{ y: 12, scale: 0.97 }}
-                                            className="ludo-quick-scope relative w-full max-w-[360px] rounded-[28px] border border-white/10 p-5 shadow-2xl flex flex-col gap-3"
-                                            style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.94))', backdropFilter: 'blur(32px)' }}
-                                        >
-                                            <div className="flex justify-between items-center">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                                                    <h3 className="text-ludo-xs font-black text-cyan-300 uppercase tracking-[0.25em]">
-                                                        Widen the search
-                                                    </h3>
-                                                </div>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => setShowExpansionOptions(false)}
-                                                    aria-label="Keep searching this fee"
-                                                    className="h-8 w-8 rounded-full p-0 justify-center"
-                                                    leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>}
-                                                />
-                                            </div>
-
-                                            <p className="text-ludo-sm text-white/45 font-bold leading-snug">
-                                                No one at{' '}
-                                                <span className="text-amber-300 tabular-nums">{feeLabel(activeWager)}</span>{' '}
-                                                right now. Jump to a nearby preset — same lobby fee ladder.
-                                            </p>
-
-                                            <div className="flex flex-col gap-2">
-                                                {snappedPools.length > 0 ? (
-                                                    <>
-                                                        <p className="text-ludo-xs font-black text-emerald-300/80 uppercase tracking-[0.2em]">
-                                                            Players waiting
-                                                        </p>
-                                                        {snappedPools.map((pool) => (
-                                                            <Button
-                                                                key={`pool-${pool.fee}`}
-                                                                variant="secondary"
-                                                                onClick={() => handleExpandWager(pool.fee)}
-                                                                className="w-full justify-between px-4"
-                                                            >
-                                                                <span className="text-sm font-black text-cyan-300 tabular-nums">
-                                                                    {feeLabel(pool.fee)}
-                                                                </span>
-                                                                <span className="text-ludo-xs font-black text-emerald-300/70 uppercase tracking-widest">
-                                                                    {pool.waiters} waiting
-                                                                </span>
-                                                            </Button>
-                                                        ))}
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        {lowerFee !== undefined && (
-                                                            <Button
-                                                                variant="primary"
-                                                                fullWidth
-                                                                onClick={() => handleExpandWager(lowerFee)}
-                                                                className="uppercase tracking-[0.16em]"
-                                                            >
-                                                                Try {feeLabel(lowerFee)}
-                                                            </Button>
-                                                        )}
-                                                        {higherFee !== undefined && (
-                                                            <Button
-                                                                variant="secondary"
-                                                                fullWidth
-                                                                onClick={() => handleExpandWager(higherFee)}
-                                                                className="uppercase tracking-[0.16em]"
-                                                            >
-                                                                Try {feeLabel(higherFee)}
-                                                            </Button>
-                                                        )}
-                                                    </>
-                                                )}
-
-                                                {snappedPools.length > 0 && (lowerFee !== undefined || higherFee !== undefined) && (
-                                                    <div className="flex gap-2">
-                                                        {lowerFee !== undefined && (
-                                                            <Chip
-                                                                type="filter"
-                                                                size="sm"
-                                                                onClick={() => handleExpandWager(lowerFee)}
-                                                                className="flex-1 justify-center rounded-xl py-2.5 text-ludo-sm tracking-[0.12em]"
-                                                            >
-                                                                {feeLabel(lowerFee)}
-                                                            </Chip>
-                                                        )}
-                                                        {higherFee !== undefined && (
-                                                            <Chip
-                                                                type="filter"
-                                                                size="sm"
-                                                                onClick={() => handleExpandWager(higherFee)}
-                                                                className="flex-1 justify-center rounded-xl py-2.5 text-ludo-sm tracking-[0.12em]"
-                                                            >
-                                                                {feeLabel(higherFee)}
-                                                            </Chip>
-                                                        )}
+                                            ) : (
+                                                <>
+                                                    <span className="text-3xl md:text-4xl font-mono font-extrabold text-accent tracking-tighter">
+                                                        {searchTime}s
+                                                    </span>
+                                                    <div className="flex items-center gap-1 mt-1">
+                                                        <div className="w-1 h-3 bg-accent-soft rounded-full overflow-hidden flex items-end">
+                                                            <motion.div
+                                                                animate={{ scaleY: [0.25, 1, 0.4] }}
+                                                                transition={{ duration: 1, repeat: Infinity }}
+                                                                className="w-full h-full origin-bottom bg-accent"
+                                                            />
+                                                        </div>
+                                                        <span className="text-ludo-xs font-extrabold text-ink-muted tracking-widest uppercase">
+                                                            {gameMode} | {matchType}
+                                                        </span>
                                                     </div>
-                                                )}
-
-                                                <Button
-                                                    variant="secondary"
-                                                    fullWidth
-                                                    onClick={() => handleExpandWager('any')}
-                                                    className="uppercase tracking-[0.2em]"
-                                                >
-                                                    Match any fee
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    fullWidth
-                                                    onClick={handleStayHere}
-                                                    className="uppercase tracking-[0.2em]"
-                                                >
-                                                    Keep waiting at {feeLabel(activeWager)}
-                                                </Button>
-                                            </div>
-                                        </motion.div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-
-                            {/* Timeout / Error Recovery Screen */}
-                            {(status === 'timeout' || status === 'error') && (
-                                <div
-                                    className="absolute inset-0 z-[160] backdrop-blur-xl flex flex-col items-center justify-center p-5 text-center pointer-events-auto"
-                                    style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))' }}
-                                >
-                                    <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-4 border border-amber-500/20 text-amber-400">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-8 h-8 animate-pulse"><path d="M12 2s-8 11.5-8 16c0 4.4 3.6 8 8 8s8-3.6 8-8c0-4.5-8-16-8-16z"></path></svg>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
 
-                                    <h3 className="text-xl font-bold text-white uppercase tracking-wide mb-1">
-                                        {status === 'error' ? 'Connection Fault' : 'Server is Quiet'}
-                                    </h3>
-                                    <p className="text-sm text-white/40 font-medium mb-4 max-w-[240px]">
-                                        {status === 'error' && matchError
-                                            ? (/<[^>]*>|doctype/i.test(matchError) || matchError.includes('503') || matchError.includes('502')
-                                                ? 'Matchmaking service is temporarily unreachable. Please retry in a moment.'
-                                                : matchError)
-                                            : "No players found matching your criteria. It's a bit lonely out here!"}
-                                    </p>
-
-                                    <div className="w-full flex flex-col gap-2">
-                                        <Button
-                                            variant="primary"
-                                            fullWidth
-                                            onClick={handleRetry}
-                                            className="uppercase tracking-[0.2em]"
-                                        >
-                                            Retry {matchType} · {feeLabel(activeWager)}
-                                        </Button>
-                                        
-                                        <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/10 flex flex-col gap-3">
-                                            <p className="text-ludo-xs text-cyan-400/60 font-medium uppercase tracking-widest leading-relaxed">
-                                                Strongly advise practicing in <span className="text-cyan-400">Offline Mode</span> to sharpen your strategy and skills.
-                                            </p>
-                                            <Button
-                                                variant="secondary"
-                                                fullWidth
-                                                onClick={handleForceBotMatch}
-                                            >
-                                                Play with AI
-                                            </Button>
+                                    {/* Status Display Below Radar */}
+                                    <div className="absolute top-[92%] left-1/2 -translate-x-1/2 flex flex-col items-center min-w-[280px]">
+                                        <div className="flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-surface-recessed border border-line-soft backdrop-blur-md shadow-lg">
+                                            {isSearching ? (
+                                                <ThinkingOrb state="searching" size={20} />
+                                            ) : (
+                                                <div className="flex gap-1">
+                                                    {[0, 1, 2].map((dot) => (
+                                                        <motion.div
+                                                            key={dot}
+                                                            animate={{ opacity: [0.3, 1, 0.3] }}
+                                                            transition={{ duration: 1, repeat: Infinity, delay: dot * 0.2 }}
+                                                            className={`w-1.5 h-1.5 rounded-full ${status === 'error' || status === 'timeout' ? 'bg-negative' : 'bg-accent'}`}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <span className={`text-ludo-sm uppercase font-extrabold tracking-[0.18em] ${status === 'error' || status === 'timeout' ? 'text-negative' : 'text-accent'}`}>
+                                                {status === 'error' ? 'FAULT DETECTED' :
+                                                 status === 'timeout' ? 'LINK TIMEOUT' :
+                                                 showExpansionOptions ? 'WIDEN THE SEARCH' :
+                                                 status === 'expanding' ? 'REACH EXPANDED' :
+                                                 status === 'idle' ? 'PREPARING SIGNAL' :
+                                                 'SCANNING LUDO ARENA'}
+                                            </span>
                                         </div>
-                                        
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </TeamUpWrapper>
+
+                    {/* Widen-the-search overlay */}
+                    <AnimatePresence>
+                        {showExpansionOptions && status !== 'matched' && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 z-[150] flex items-center justify-center px-5 pointer-events-auto"
+                            >
+                                <div
+                                    className="absolute inset-0 bg-surface-page/75 backdrop-blur-sm"
+                                    onClick={() => setShowExpansionOptions(false)}
+                                />
+                                <motion.div
+                                    initial={{ y: 16, scale: 0.96 }}
+                                    animate={{ y: 0, scale: 1 }}
+                                    exit={{ y: 12, scale: 0.97 }}
+                                    className="ludo-quick-scope panel-shell-3077 relative w-full max-w-[360px] rounded-[24px] border border-line-strong bg-surface-panel p-5 shadow-2xl flex flex-col gap-3 overflow-hidden"
+                                    style={{ backdropFilter: 'blur(32px)' }}
+                                >
+                                    <HudCornerTicks />
+                                    <div className="flex justify-between items-center relative z-10">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                                            <h3 className="text-ludo-xs font-extrabold text-accent uppercase tracking-[0.22em]">
+                                                Widen the search
+                                            </h3>
+                                        </div>
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={handleBackToLobby}
-                                            className="mt-2 uppercase tracking-widest"
+                                            onClick={() => setShowExpansionOptions(false)}
+                                            aria-label="Keep searching this fee"
+                                            className="h-8 w-8 rounded-full p-0 justify-center"
+                                            leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="icon-sm"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>}
+                                        />
+                                    </div>
+
+                                    <p className="text-ludo-sm text-ink-muted font-bold leading-snug relative z-10">
+                                        No one at{' '}
+                                        <span className="text-warn tabular-nums">{feeLabel(activeWager)}</span>{' '}
+                                        right now. Jump to a nearby preset — same lobby fee ladder.
+                                    </p>
+
+                                    <div className="flex flex-col gap-2 relative z-10">
+                                        {snappedPools.length > 0 ? (
+                                            <>
+                                                <p className="text-ludo-xs font-extrabold text-positive uppercase tracking-[0.2em]">
+                                                    Players waiting
+                                                </p>
+                                                {snappedPools.map((pool) => (
+                                                    <Button
+                                                        key={`pool-${pool.fee}`}
+                                                        variant="secondary"
+                                                        onClick={() => handleExpandWager(pool.fee)}
+                                                        className="w-full justify-between px-4"
+                                                    >
+                                                        <span className="text-sm font-extrabold text-accent tabular-nums">
+                                                            {feeLabel(pool.fee)}
+                                                        </span>
+                                                        <span className="text-ludo-xs font-extrabold text-positive uppercase tracking-widest">
+                                                            {pool.waiters} waiting
+                                                        </span>
+                                                    </Button>
+                                                ))}
+                                            </>
+                                        ) : (
+                                            <>
+                                                {lowerFee !== undefined && (
+                                                    <Button
+                                                        variant="primary"
+                                                        fullWidth
+                                                        onClick={() => handleExpandWager(lowerFee)}
+                                                        className="uppercase tracking-[0.16em]"
+                                                    >
+                                                        Try {feeLabel(lowerFee)}
+                                                    </Button>
+                                                )}
+                                                {higherFee !== undefined && (
+                                                    <Button
+                                                        variant="secondary"
+                                                        fullWidth
+                                                        onClick={() => handleExpandWager(higherFee)}
+                                                        className="uppercase tracking-[0.16em]"
+                                                    >
+                                                        Try {feeLabel(higherFee)}
+                                                    </Button>
+                                                )}
+                                            </>
+                                        )}
+
+                                        {snappedPools.length > 0 && (lowerFee !== undefined || higherFee !== undefined) && (
+                                            <div className="flex gap-2">
+                                                {lowerFee !== undefined && (
+                                                    <Chip
+                                                        type="filter"
+                                                        size="sm"
+                                                        onClick={() => handleExpandWager(lowerFee)}
+                                                        className="flex-1 justify-center rounded-xl py-2.5 text-ludo-sm tracking-[0.12em]"
+                                                    >
+                                                        {feeLabel(lowerFee)}
+                                                    </Chip>
+                                                )}
+                                                {higherFee !== undefined && (
+                                                    <Chip
+                                                        type="filter"
+                                                        size="sm"
+                                                        onClick={() => handleExpandWager(higherFee)}
+                                                        className="flex-1 justify-center rounded-xl py-2.5 text-ludo-sm tracking-[0.12em]"
+                                                    >
+                                                        {feeLabel(higherFee)}
+                                                    </Chip>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <Button
+                                            variant="secondary"
+                                            fullWidth
+                                            onClick={() => handleExpandWager('any')}
+                                            className="uppercase tracking-[0.2em]"
                                         >
-                                            Back to Menu
+                                            Match any fee
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            fullWidth
+                                            onClick={handleStayHere}
+                                            className="uppercase tracking-[0.2em]"
+                                        >
+                                            Keep waiting at {feeLabel(activeWager)}
                                         </Button>
                                     </div>
-                                </div>
-                            )}
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
-                            {/* Tip Section lives above the radar now (in-flow) */}
-                        </div>
+                    {/* Timeout / Error Recovery Screen */}
+                    {(status === 'timeout' || status === 'error') && (
+                        <div className="absolute inset-0 z-[160] bg-surface-panel/95 backdrop-blur-xl flex flex-col items-center justify-center p-5 text-center pointer-events-auto">
+                            <div className="w-20 h-20 bg-warn/15 rounded-full flex items-center justify-center mb-4 border border-warn/30 text-warn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="w-8 h-8 animate-pulse"><path d="M12 2s-8 11.5-8 16c0 4.4 3.6 8 8 8s8-3.6 8-8c0-4.5-8-16-8-16z" /></svg>
+                            </div>
 
-                        {/* Single Control Action */}
-                        <div className="mt-auto px-5 pb-5 pt-3 border-t border-white/10 bg-black/20 backdrop-blur-sm relative z-10">
-                            <div className="w-full flex gap-2">
+                            <h3 className="text-xl font-bold text-ink-strong uppercase tracking-wide mb-1">
+                                {status === 'error' ? 'Connection Fault' : 'Server is Quiet'}
+                            </h3>
+                            <p className="text-sm text-ink-muted font-medium mb-4 max-w-[240px]">
+                                {status === 'error' && matchError
+                                    ? (/<[^>]*>|doctype/i.test(matchError) || matchError.includes('503') || matchError.includes('502')
+                                        ? 'Matchmaking service is temporarily unreachable. Please retry in a moment.'
+                                        : matchError)
+                                    : "No players found matching your criteria. It's a bit lonely out here!"}
+                            </p>
+
+                            <div className="w-full max-w-[300px] flex flex-col gap-2">
                                 <Button
-                                    variant="secondary"
-                                    onClick={handleBackToLobby}
-                                    leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>}
-                                    className="flex-1 justify-center uppercase tracking-[0.2em]"
+                                    variant="primary"
+                                    fullWidth
+                                    onClick={handleRetry}
+                                    className="uppercase tracking-[0.2em]"
                                 >
-                                    Cancel
+                                    Retry {matchType} · {feeLabel(activeWager)}
                                 </Button>
+
+                                <div className="p-4 rounded-2xl bg-accent-soft/40 border border-accent/25 flex flex-col gap-3">
+                                    <p className="text-ludo-xs text-ink-muted font-medium uppercase tracking-widest leading-relaxed">
+                                        Strongly advise practicing in <span className="text-accent font-bold">Offline Mode</span> to sharpen your strategy and skills.
+                                    </p>
+                                    <Button variant="secondary" fullWidth onClick={handleForceBotMatch}>
+                                        Play with AI
+                                    </Button>
+                                </div>
+
                                 <Button
-                                    variant="secondary"
-                                    onClick={handleForceBotMatch}
-                                    className="flex-1 uppercase tracking-[0.2em]"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleBackToLobby}
+                                    className="mt-2 uppercase tracking-widest"
                                 >
-                                    Play with AI
+                                    Back to Menu
                                 </Button>
                             </div>
                         </div>
+                    )}
+                </div>
 
-                        {/* Search Reveal Overlay */}
-                        {status === 'matched' && (
-                            <div
-                                className="absolute inset-0 z-[200] flex flex-col items-center justify-center p-6 text-center"
-                                style={{
-                                    background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))',
-                                    backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.85))',
-                                    backdropFilter: 'blur(40px)'
-                                }}
-                            >
-                                {/* Cosmic Orbs for Reveal */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] cosmic-orb opacity-30 animate-pulse-slow pointer-events-none" />
+                {/* Bottom Actions */}
+                <div className="mt-auto px-5 pb-5 pt-3 border-t border-line-soft bg-surface-recessed/70 backdrop-blur-sm relative z-10 shrink-0">
+                    <div className="w-full flex gap-2">
+                        <Button
+                            variant="secondary"
+                            onClick={handleBackToLobby}
+                            leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>}
+                            className="flex-1 justify-center uppercase tracking-[0.2em]"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="secondary"
+                            onClick={handleForceBotMatch}
+                            className="flex-1 uppercase tracking-[0.2em]"
+                        >
+                            Play with AI
+                        </Button>
+                    </div>
+                </div>
 
-                                {/* Close Button — disabled once a paid match is locked */}
-                                {(activeWager <= 0 || isStalled) && (
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={handleCancelAndClose}
-                                        aria-label="Close match found"
-                                        className="panel-close-3077 absolute right-8 top-8 z-[210] border border-line-soft bg-surface-hover"
-                                    >
-                                        <CloseReticleIcon className="icon-md" />
-                                    </Button>
-                                )}
-
-                                <div className="relative z-10 flex flex-col items-center gap-6 w-full" style={{ pointerEvents: 'auto' }}>
-                                    <div className="flex flex-col items-center gap-2">
-                                        <div
-                                            className="text-5xl md:text-7xl font-black text-white tracking-tight uppercase drop-shadow-[0_0_40px_rgba(255,255,255,0.28)]"
-                                        >
-                                            Match!
-                                        </div>
-                                        <div className="px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center gap-2.5 flex-wrap justify-center">
-                                            <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-[0.2em]">{matchType}</span>
-                                            <div className="w-1 h-3 bg-white/10 rounded-full" />
-                                            <span className="text-ludo-xs font-black text-white/60 uppercase tracking-[0.2em]">{gameMode}</span>
-                                            <div className="w-1 h-3 bg-white/10 rounded-full" />
-                                            <div className="flex items-center gap-1">
-                                                <ChipsHexIcon className="w-3.5 h-3.5 text-amber-400" active />
-                                                <span className="text-ludo-xs font-extrabold font-mono text-amber-400 tracking-[0.1em] tabular-nums">
-                                                    {wagerRange?.max === undefined && wagerRange?.min === 0
-                                                        ? 'Any'
-                                                        : feeLabel(activeWager)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        {hookMatchId && (
-                                            <span className="text-ludo-xs font-bold text-white/25 uppercase tracking-[0.2em] tabular-nums">
-                                                Match {hookMatchId.slice(0, 8)}
-                                            </span>
-                                        )}
+                {/* Search Reveal Overlay */}
+                {status === 'matched' && (
+                    <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center p-6 text-center bg-surface-panel/95 backdrop-blur-2xl overflow-y-auto no-scrollbar">
+                        <div className="relative z-10 flex flex-col items-center gap-5 w-full">
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="text-4xl md:text-6xl font-extrabold text-ink-strong tracking-tight uppercase">
+                                    Match!
+                                </div>
+                                <div className="px-4 py-1.5 rounded-full bg-accent-soft border border-accent/35 flex items-center gap-2.5 flex-wrap justify-center">
+                                    <span className="text-ludo-xs font-extrabold text-accent uppercase tracking-[0.2em]">{matchType}</span>
+                                    <div className="w-1 h-3 bg-line-strong rounded-full" />
+                                    <span className="text-ludo-xs font-extrabold text-ink-muted uppercase tracking-[0.2em]">{gameMode}</span>
+                                    <div className="w-1 h-3 bg-line-strong rounded-full" />
+                                    <div className="flex items-center gap-1">
+                                        <ChipsHexIcon className="w-3.5 h-3.5 text-warn" active />
+                                        <span className="text-ludo-xs font-extrabold font-mono text-warn tracking-[0.1em] tabular-nums">
+                                            {wagerRange?.max === undefined && wagerRange?.min === 0
+                                                ? 'Any'
+                                                : feeLabel(activeWager)}
+                                        </span>
                                     </div>
+                                </div>
+                                {hookMatchId && (
+                                    <span className="text-ludo-xs font-bold text-ink-faint uppercase tracking-[0.2em] tabular-nums">
+                                        Match {hookMatchId.slice(0, 8)}
+                                    </span>
+                                )}
+                            </div>
 
-                                    <div className="flex items-center justify-around w-full max-w-md">
-                                        {/* Player 1 (You) */}
-                                        <div className="flex flex-col items-center gap-4">
-                                            <div className="relative">
-                                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-cyan-400/50 flex items-center justify-center p-2">
-                                                    <div className="hud-avatar-frame w-full h-full rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center">
-                                                        {profile?.avatar_url ? (
-                                                            <img loading="lazy" decoding="async" src={profile.avatar_url} alt="You" className="w-full h-full object-cover" width={96} height={96} />
-                                                        ) : (
-                                                            <div className="w-full h-full bg-gradient-to-br from-cyan-500/30 to-sky-700/30 flex items-center justify-center text-cyan-300/70">
-                                                                <PilotAvatarFallbackIcon className="w-10 h-10 md:w-12 md:h-12" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                <div className="hud-status-breath absolute -inset-1 border border-cyan-400/35 rounded-[28px] pointer-events-none" />
-                                            </div>
-                                            <div className="flex flex-col items-center">
-                                                <span className="text-lg md:text-xl font-bold text-white tracking-tight">{finalName}</span>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-widest opacity-60">You</span>
-                                                    <div className="w-1 h-1 bg-white/20 rounded-full" />
-                                                    <span className="text-ludo-xs font-black text-amber-500 uppercase tracking-widest">Lv. {getProgression(profile?.lxp || 0, profile?.rxp || 0).level}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* VS Badge */}
-                                        <div className="flex flex-col items-center gap-4">
-                                            <div
-                                                className="hud-chamfer-sm w-16 h-16 md:w-20 md:h-20 rounded-full bg-accent text-accent-ink flex items-center justify-center text-2xl md:text-3xl font-extrabold font-mono shadow-[0_0_32px_rgba(0,229,255,0.45)]"
-                                            >
-                                                VS
-                                            </div>
-                                        </div>
-
-                                        {/* Opponent */}
-                                        <div className="flex flex-col items-center gap-4">
-                                            <div className="relative">
-                                                <div className="w-24 h-24 md:w-32 md:h-32 rounded-3xl bg-white/10 border-2 border-amber-400/50 flex items-center justify-center p-2">
-                                                    <div className="hud-avatar-frame w-full h-full rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center">
-                                                        {isLoadingRival ? (
-                                                            <div className="w-8 h-8 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
-                                                        ) : opponentProfile?.avatar_url ? (
-                                                            <img loading="lazy" decoding="async" src={opponentProfile.avatar_url} alt="Rival" className="w-full h-full object-cover" width={96} height={96} />
-                                                        ) : (
-                                                            <div className="w-full h-full bg-gradient-to-br from-amber-500/30 to-red-500/30 flex items-center justify-center text-amber-300/80">
-                                                                <SimBotIcon className="w-12 h-12 md:w-14 md:h-14" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                                {!isLoadingRival && <div className="hud-status-breath absolute -inset-1 border border-amber-400/35 rounded-[28px] pointer-events-none" />}
-                                            </div>
-                                            <div className="flex flex-col items-center">
-                                                <h3 className="text-lg md:text-xl font-bold text-white tracking-tight text-center">
-                                                    {isLoadingRival ? 'Scanning...' : (opponentProfile?.username || 'Rival')}
-                                                </h3>
-                                                {opponentProfile && (
-                                                    <div className="flex flex-col items-center gap-1.5 mt-2">
-                                                        <div className="flex items-center gap-2 bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                                                            <span className="text-ludo-xs font-black text-amber-400 uppercase tracking-widest">Lv. {getProgression(opponentProfile.lxp, opponentProfile.rxp).level}</span>
-                                                            <div className="w-1 h-1 bg-white/20 rounded-full" />
-                                                            <span className="text-ludo-xs font-black text-cyan-400 uppercase tracking-widest">
-                                                                {getProgression(opponentProfile.lxp, opponentProfile.rxp).tier} {getProgression(opponentProfile.lxp, opponentProfile.rxp).subRank}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-green-500/10 border border-green-500/20">
-                                                            <span className="text-ludo-xs font-black text-green-400 uppercase tracking-[0.2em]">
-                                                                Win Rate: {Math.round((opponentProfile.total_wins / Math.max(1, opponentProfile.total_games)) * 100)}%
-                                                            </span>
-                                                        </div>
+                            <div className="flex items-center justify-around w-full max-w-md">
+                                {/* Player 1 (You) */}
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="relative">
+                                        <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl bg-surface-recessed border-2 border-accent/60 flex items-center justify-center p-1.5">
+                                            <div className="hud-avatar-frame w-full h-full rounded-2xl overflow-hidden bg-surface-panel flex items-center justify-center">
+                                                {profile?.avatar_url ? (
+                                                    <img loading="lazy" decoding="async" src={profile.avatar_url} alt="You" className="w-full h-full object-cover" width={96} height={96} />
+                                                ) : (
+                                                    <div className="w-full h-full bg-accent-soft flex items-center justify-center text-accent">
+                                                        <PilotAvatarFallbackIcon className="w-10 h-10 md:w-12 md:h-12" />
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
+                                        <div className="hud-status-breath absolute -inset-1 border border-accent/35 rounded-[28px] pointer-events-none" />
                                     </div>
-
-                                    {/* Connection Status Subtext */}
-                                    <div className="mt-4 flex flex-col items-center gap-4">
-                                        {isStalled && (
-                                            <motion.div
-                                                initial={{ opacity: 0, y: 10 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className="hud-status-breath mb-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-ludo-xs font-extrabold text-amber-500 uppercase tracking-widest"
-                                            >
-                                                {roomStatus === 'failed'
-                                                    ? roomError === 'not-deployed'
-                                                        ? 'Game room unavailable on this deployment'
-                                                        : 'Unable to connect to game room — retrying…'
-                                                    : p2pHost
-                                                        ? 'Opponent hasn’t linked yet…'
-                                                        : 'Still linking both players…'}
-                                            </motion.div>
-                                        )}
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex gap-1.5">
-                                                {[0, 1, 2].map(i => (
-                                                    <motion.div
-                                                        key={i}
-                                                        animate={{ opacity: [0.2, 1, 0.2] }}
-                                                        transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                                                        className="w-1.5 h-1.5 rounded-full bg-cyan-400"
-                                                    />
-                                                ))}
-                                            </div>
-                                            <span className="text-ludo-xs font-black text-white/40 uppercase tracking-[0.3em]">
-                                                {isStalled
-                                                    ? 'Holding your seat'
-                                                    : isLobbyConnected
-                                                        ? 'Players linked — starting…'
-                                                        : 'Match found — setting up the table…'}
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-lg font-bold text-ink-strong tracking-tight">{finalName}</span>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className="text-ludo-xs font-extrabold text-accent uppercase tracking-widest">You</span>
+                                            <div className="w-1 h-1 bg-line-strong rounded-full" />
+                                            <span className="text-ludo-xs font-extrabold text-warn uppercase tracking-widest">
+                                                Lv. {getProgression(profile?.lxp || 0, profile?.rxp || 0).level}
                                             </span>
                                         </div>
+                                    </div>
+                                </div>
 
-                                        {isStalled && (
-                                            <div className="flex w-full max-w-[280px] flex-col gap-2">
-                                                <Button
-                                                    variant="primary"
-                                                    fullWidth
-                                                    onClick={handleForceBotMatch}
-                                                    className="uppercase tracking-[0.2em]"
-                                                >
-                                                    Play with AI instead
-                                                </Button>
-                                                <Button
-                                                    variant="secondary"
-                                                    fullWidth
-                                                    onClick={() => {
-                                                        cancelSearch();
-                                                        handleBackToLobby();
-                                                    }}
-                                                    className="uppercase tracking-[0.2em]"
-                                                >
-                                                    Leave this match
-                                                </Button>
+                                {/* VS Badge */}
+                                <div className="flex flex-col items-center">
+                                    <div className="hud-chamfer-sm w-14 h-14 md:w-16 md:h-16 rounded-full bg-accent text-accent-ink flex items-center justify-center text-xl md:text-2xl font-extrabold font-mono shadow-[0_0_28px_rgba(0,229,255,0.4)]">
+                                        VS
+                                    </div>
+                                </div>
+
+                                {/* Opponent */}
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className="relative">
+                                        <div className="w-24 h-24 md:w-28 md:h-28 rounded-3xl bg-surface-recessed border-2 border-warn/60 flex items-center justify-center p-1.5">
+                                            <div className="hud-avatar-frame w-full h-full rounded-2xl overflow-hidden bg-surface-panel flex items-center justify-center">
+                                                {isLoadingRival ? (
+                                                    <ThinkingOrb state="searching" size={32} tone="warn" label="Scanning opponent" />
+                                                ) : opponentProfile?.avatar_url ? (
+                                                    <img loading="lazy" decoding="async" src={opponentProfile.avatar_url} alt="Rival" className="w-full h-full object-cover" width={96} height={96} />
+                                                ) : (
+                                                    <div className="w-full h-full bg-warn/15 flex items-center justify-center text-warn">
+                                                        <SimBotIcon className="w-10 h-10 md:w-12 md:h-12" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {!isLoadingRival && <div className="hud-status-breath absolute -inset-1 border border-warn/35 rounded-[28px] pointer-events-none" />}
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <h3 className="text-lg font-bold text-ink-strong tracking-tight text-center">
+                                            {isLoadingRival ? 'Scanning...' : (opponentProfile?.username || 'Rival')}
+                                        </h3>
+                                        {opponentProfile && (
+                                            <div className="flex flex-col items-center gap-1.5 mt-1.5">
+                                                <div className="flex items-center gap-2 bg-surface-recessed px-3 py-1 rounded-full border border-line-soft">
+                                                    <span className="text-ludo-xs font-extrabold text-warn uppercase tracking-widest">
+                                                        Lv. {getProgression(opponentProfile.lxp, opponentProfile.rxp).level}
+                                                    </span>
+                                                    <div className="w-1 h-1 bg-line-strong rounded-full" />
+                                                    <span className="text-ludo-xs font-extrabold text-accent uppercase tracking-widest">
+                                                        {getProgression(opponentProfile.lxp, opponentProfile.rxp).tier} {getProgression(opponentProfile.lxp, opponentProfile.rxp).subRank}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-positive/15 border border-positive/30">
+                                                    <span className="text-ludo-xs font-extrabold text-positive uppercase tracking-[0.18em]">
+                                                        Win Rate: {Math.round((opponentProfile.total_wins / Math.max(1, opponentProfile.total_games)) * 100)}%
+                                                    </span>
+                                                </div>
                                             </div>
                                         )}
-
-                                        {activeWager <= 0 || isStalled ? (
-                                            <Button
-                                                variant="secondary"
-                                                onClick={handleCancelAndClose}
-                                                className="px-8 uppercase tracking-[0.2em]"
-                                            >
-                                                Cancel Match
-                                            </Button>
-                                        ) : null}
-
-                                        <p className={`max-w-[300px] text-ludo-xs leading-relaxed ${activeWager > 0 ? 'text-amber-300/80 font-mono' : 'text-white/20'}`}>
-                                            {activeWager > 0
-                                                ? `Match Locked · Leaving or disconnecting forfeits your ${activeWager.toLocaleString()} CHIPS stake and counts as a loss.`
-                                                : 'Safe Exit: No coins will be lost before the game board loads. If the match fails to sync, you will be returned to the lobby.'}
-                                        </p>
                                     </div>
                                 </div>
                             </div>
-                        )}
+
+                            {/* Connection Status Subtext */}
+                            <div className="mt-2 flex flex-col items-center gap-3">
+                                {isStalled && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="hud-status-breath mb-1 px-4 py-1.5 rounded-full bg-warn/15 border border-warn/35 text-ludo-xs font-extrabold text-warn uppercase tracking-widest"
+                                    >
+                                        {roomStatus === 'failed'
+                                            ? roomError === 'not-deployed'
+                                                ? 'Game room unavailable on this deployment'
+                                                : 'Unable to connect to game room — retrying…'
+                                            : p2pHost
+                                                ? 'Opponent hasn’t linked yet…'
+                                                : 'Still linking both players…'}
+                                    </motion.div>
+                                )}
+                                <div className="flex items-center gap-3">
+                                    <div className="flex gap-1.5">
+                                        {[0, 1, 2].map(i => (
+                                            <motion.div
+                                                key={i}
+                                                animate={{ opacity: [0.2, 1, 0.2] }}
+                                                transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+                                                className="w-1.5 h-1.5 rounded-full bg-accent"
+                                            />
+                                        ))}
+                                    </div>
+                                    <span className="text-ludo-xs font-extrabold text-ink-muted uppercase tracking-[0.25em]">
+                                        {isStalled
+                                            ? 'Holding your seat'
+                                            : isLobbyConnected
+                                                ? 'Players linked — starting…'
+                                                : 'Match found — setting up the table…'}
+                                    </span>
+                                </div>
+
+                                {isStalled && (
+                                    <div className="flex w-full max-w-[280px] flex-col gap-2">
+                                        <Button
+                                            variant="primary"
+                                            fullWidth
+                                            onClick={handleForceBotMatch}
+                                            className="uppercase tracking-[0.2em]"
+                                        >
+                                            Play with AI instead
+                                        </Button>
+                                        <Button
+                                            variant="secondary"
+                                            fullWidth
+                                            onClick={() => {
+                                                cancelSearch();
+                                                handleBackToLobby();
+                                            }}
+                                            className="uppercase tracking-[0.2em]"
+                                        >
+                                            Leave this match
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {(activeWager <= 0 || isStalled) && (
+                                    <Button
+                                        variant="secondary"
+                                        onClick={handleCancelAndClose}
+                                        className="px-8 uppercase tracking-[0.2em]"
+                                    >
+                                        Cancel Match
+                                    </Button>
+                                )}
+
+                                <p className={`max-w-[300px] text-ludo-xs leading-relaxed ${activeWager > 0 ? 'text-warn font-mono' : 'text-ink-faint'}`}>
+                                    {activeWager > 0
+                                        ? `Match Locked · Leaving or disconnecting forfeits your ${activeWager.toLocaleString()} CHIPS stake and counts as a loss.`
+                                        : 'Safe Exit: No coins will be lost before the game board loads. If the match fails to sync, you will be returned to the lobby.'}
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
-        </>
+        </GamePanelShell>
     );
 };

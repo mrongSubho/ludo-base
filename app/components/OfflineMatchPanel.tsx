@@ -1,25 +1,19 @@
-/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 "use client";
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import type { BotDifficulty } from '@/lib/types';
+import { GamePanelShell } from './GamePanelShell';
 import { Button } from './Button';
 import { Chip } from './Chip';
-import { HudCornerTicks, HudSectionLabel } from './HudPrimitives';
-import { CloseReticleIcon, SimBotIcon } from './icons';
+import { HudSectionLabel } from './HudPrimitives';
+import { SimBotIcon } from './icons';
 
-// ─── Theme-agnostic contract (holds for current + future themes) ───────────
-// Same as the other synced panels: this sheet always renders on the shared
-// dark-glass sandwich shell, so content uses only white-ink + white-opacity
-// surfaces + cyan/status accents. No font-family is set (inherits the active
-// theme's display font). Spacing inside `.ludo-offline-scope` is re-asserted
-// in globals.css (the global unlayered reset zeroes Tailwind utilities).
+// ─── Semantic contract (holds for 3077, Retro Night, and Daybreak) ──────────
+// Surfaces, borders, and inks derive from CSS semantic tokens inside GamePanelShell.
 
-// Icon tile: cyber-tactical chamfered tile shared with synced panels.
 const OfflineTile = () => (
-    <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
-        <SimBotIcon className="w-4 h-4 text-cyan-300" />
+    <div className="hud-chamfer-sm w-6 h-6 rounded-lg bg-accent-soft border border-accent/35 flex items-center justify-center">
+        <SimBotIcon className="w-3.5 h-3.5 text-accent" />
     </div>
 );
 
@@ -49,100 +43,72 @@ export const OfflineMatchPanel = ({
     matchType,
     onClose,
     onStartOfflineGame,
-    onStartPassAndPlay
+    onStartPassAndPlay,
 }: OfflineMatchPanelProps) => {
     const [difficulty, setDifficulty] = useState<BotDifficulty>('pro');
     const [mode, setMode] = useState<'ai' | 'pass'>('ai');
     const aiCount = (matchType === '1v1' ? 2 : 4) - 1;
     const seatTotal = matchType === '1v1' ? 2 : 4;
+
     return (
-        <>
-            {/* Backdrop */}
-            <div
-                className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent"
-                onClick={onClose}
-            />
-
-            {/* Clipped Container */}
-            <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
-                <div className="w-full max-w-[500px] relative h-full">
-                    <div
-                        /* Unified global panel layout: top-64, bottom-80 sandwich */
-                        className="ludo-offline-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
-                        style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
+        <GamePanelShell
+            scopeClass="ludo-offline-scope"
+            kicker="// PRACTICE & LOCAL"
+            title={(
+                <span className="inline-flex items-center gap-2">
+                    <OfflineTile />
+                    <span>Offline Play</span>
+                </span>
+            )}
+            subtitle={(
+                <span className="inline-flex items-center gap-2 uppercase tracking-wide">
+                    <span className="font-bold text-ink-muted">
+                        {gameMode} • {matchType}
+                    </span>
+                    <span className="w-1 h-1 rounded-full bg-line-strong" />
+                    <span className="font-bold text-accent">
+                        {mode === 'pass' ? `${seatTotal} × Human` : `${aiCount} × AI`}
+                    </span>
+                </span>
+            )}
+            onClose={onClose}
+            hideOrbs
+        >
+            {/* Content Area */}
+            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-2">
+                <HudSectionLabel className="mt-1 mb-1">Mode</HudSectionLabel>
+                <div className="grid grid-cols-2 gap-1.5">
+                    <Chip
+                        type="filter"
+                        size="sm"
+                        active={mode === 'ai'}
+                        onClick={() => setMode('ai')}
+                        className="min-h-[52px] flex-1 justify-center rounded-xl uppercase tracking-[0.12em]"
                     >
-                    <HudCornerTicks />
-                    {/* Authentic Subdued Cosmic Orbs */}
-                    <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                    <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
+                        vs AI
+                    </Chip>
+                    <Chip
+                        type="filter"
+                        size="sm"
+                        active={mode === 'pass'}
+                        disabled={!onStartPassAndPlay}
+                        onClick={() => setMode('pass')}
+                        className="min-h-[52px] flex-1 justify-center rounded-xl uppercase tracking-[0.12em]"
+                    >
+                        Pass &amp; Play
+                    </Chip>
+                </div>
+                <p className="text-ludo-xs text-ink-muted px-0.5 -mt-0.5">
+                    {mode === 'pass'
+                        ? 'Same device · take turns · no bots · free'
+                        : `Fill ${aiCount} seat${aiCount > 1 ? 's' : ''} with AI · Free`}
+                </p>
 
-                    {/* Handle Bar */}
-                    <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                        <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
-                    </div>
-
-                    {/* Header */}
-                    <div className="px-5 pb-3 border-b border-white/10 relative z-10">
-                        <div className="flex items-center justify-between mb-1 mt-1">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                <OfflineTile />
-                                Offline Play
-                            </h2>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={onClose}
-                                aria-label="Close offline play"
-                                className="panel-close-3077 bg-surface-hover border border-line-soft shrink-0"
-                            >
-                                <CloseReticleIcon className="icon-md" />
-                            </Button>
-                        </div>
-                        <div className="flex items-center gap-2 px-0.5">
-                            <span className="text-ludo-sm font-black text-white/70 tracking-wide uppercase">
-                                {gameMode} • {matchType}
-                            </span>
-                            <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                            <span className="text-ludo-sm font-black text-cyan-300 tracking-wide uppercase">
-                                {mode === 'pass' ? `${seatTotal} × Human` : `${aiCount} × AI`}
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Content Area */}
-                    <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-2">
-                        <HudSectionLabel className="mt-1 mb-1">Mode</HudSectionLabel>
-                        <div className="grid grid-cols-2 gap-1.5">
-                            <Chip
-                                type="filter"
-                                size="sm"
-                                active={mode === 'ai'}
-                                onClick={() => setMode('ai')}
-                                className="min-h-[52px] flex-1 justify-center rounded-xl uppercase tracking-[0.12em]"
-                            >
-                                vs AI
-                            </Chip>
-                            <Chip
-                                type="filter"
-                                size="sm"
-                                active={mode === 'pass'}
-                                disabled={!onStartPassAndPlay}
-                                onClick={() => setMode('pass')}
-                                className="min-h-[52px] flex-1 justify-center rounded-xl uppercase tracking-[0.12em]"
-                            >
-                                Pass &amp; Play
-                            </Chip>
-                        </div>
-                        <p className="text-ludo-xs text-white/45 px-0.5 -mt-0.5">
-                            {mode === 'pass'
-                                ? 'Same device · take turns · no bots · free'
-                                : `Fill ${aiCount} seat${aiCount > 1 ? 's' : ''} with AI · Free`}
-                        </p>
-
-                        {mode === 'ai' && (<>
+                {mode === 'ai' && (
+                    <>
                         <HudSectionLabel className="mt-1 mb-1">Setup</HudSectionLabel>
-                        <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 flex flex-col gap-3">
-                            <div className="flex justify-between items-center text-xs font-extrabold uppercase tracking-[0.2em] text-white/40">
+                        <div className="p-4 rounded-2xl bg-surface-panel border border-line-soft flex flex-col gap-3">
+                            <div className="flex justify-between items-center text-xs font-extrabold uppercase tracking-[0.2em] text-ink-faint">
                                 <span>Opponents</span>
                                 <span className="text-accent">{aiCount} × AI • Free</span>
                             </div>
@@ -169,11 +135,11 @@ export const OfflineMatchPanel = ({
                                                         } ${
                                                             lvl <= threat
                                                                 ? d === 'master'
-                                                                    ? 'bg-amber-400'
+                                                                    ? 'bg-warn'
                                                                     : active
                                                                       ? 'bg-accent'
-                                                                      : 'bg-cyan-300/75'
-                                                                : 'bg-white/20'
+                                                                      : 'bg-accent/70'
+                                                                : 'bg-line-strong'
                                                         }`}
                                                     />
                                                 ))}
@@ -182,48 +148,46 @@ export const OfflineMatchPanel = ({
                                     );
                                 })}
                             </div>
-                            <p className="text-ludo-xs font-bold text-white/35 text-center tracking-wide">
+                            <p className="text-ludo-xs font-bold text-ink-faint text-center tracking-wide">
                                 {DIFFICULTY_BLURB[difficulty]}
                             </p>
                         </div>
 
                         <div className="flex flex-col gap-4 text-center px-4 py-10">
-                            <p className="text-white/60 text-sm font-bold leading-relaxed">
+                            <p className="text-ink-muted text-sm font-bold leading-relaxed">
                                 Practice your strategy or play casually against AI opponents. Offline matches do not require a network connection or entry fee.
                             </p>
                         </div>
-                        </>)}
+                    </>
+                )}
 
-                        {mode === 'pass' && (
-                            <div className="flex flex-col gap-4 text-center px-4 py-10">
-                                <p className="text-white/60 text-sm font-bold leading-relaxed">
-                                    Pass &amp; Play — {seatTotal} humans share this device. Hand off after each turn. No bots, no network, no entry fee.
-                                </p>
-                                <p className="text-ludo-xs text-white/40">
-                                    Want a remote table? Use an invite link instead.
-                                </p>
-                            </div>
-                        )}
+                {mode === 'pass' && (
+                    <div className="flex flex-col gap-4 text-center px-4 py-10">
+                        <p className="text-ink-muted text-sm font-bold leading-relaxed">
+                            Pass &amp; Play — {seatTotal} humans share this device. Hand off after each turn. No bots, no network, no entry fee.
+                        </p>
+                        <p className="text-ludo-xs text-ink-faint">
+                            Want a remote table? Use an invite link instead.
+                        </p>
                     </div>
-
-                    {/* Footer Action */}
-                    <div className="px-5 pt-3 pb-5 border-t border-white/10 relative z-10">
-                        <Button
-                            variant="primary"
-                            size="lg"
-                            fullWidth
-                            onClick={() => {
-                                if (mode === 'pass') onStartPassAndPlay?.();
-                                else onStartOfflineGame(difficulty);
-                            }}
-                            className="uppercase tracking-[0.2em]"
-                        >
-                            {mode === 'pass' ? 'Start Pass & Play' : 'Start Offline Match'}
-                        </Button>
-                    </div>
-                    </div>
-                </div>
+                )}
             </div>
-        </>
+
+            {/* Footer Action */}
+            <div className="px-5 pt-3 pb-5 border-t border-line-soft relative z-10 shrink-0">
+                <Button
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    onClick={() => {
+                        if (mode === 'pass') onStartPassAndPlay?.();
+                        else onStartOfflineGame(difficulty);
+                    }}
+                    className="uppercase tracking-[0.2em]"
+                >
+                    {mode === 'pass' ? 'Start Pass & Play' : 'Start Offline Match'}
+                </Button>
+            </div>
+        </GamePanelShell>
     );
-}
+};

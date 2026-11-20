@@ -58,13 +58,13 @@ function SeatAvatarSlot({
                 <span
                     className={`w-11 h-11 rounded-full border-2 border-dashed flex items-center justify-center transition-all ${
                         canJoin
-                            ? "border-cyan-400/60 bg-accent-soft text-cyan-300 group-hover/slot:scale-105 group-hover/slot:border-cyan-300"
-                            : "border-white/15 bg-black/30 text-white/30"
+                            ? "border-accent/60 bg-accent-soft text-accent group-hover/slot:scale-105 group-hover/slot:border-accent"
+                            : "border-line-soft bg-surface-recessed text-ink-faint"
                     }`}
                 >
                     <LuPlus className="w-4 h-4" />
                 </span>
-                <span className="text-ludo-xs font-mono text-white/45 truncate w-full text-center">
+                <span className="text-ludo-xs font-mono text-ink-muted truncate w-full text-center">
                     {canJoin ? "Join" : "Open"}
                 </span>
             </button>
@@ -90,8 +90,8 @@ function SeatAvatarSlot({
                 <div
                     className={`hud-avatar-frame w-11 h-11 rounded-full overflow-hidden flex items-center justify-center font-mono text-ludo-xs font-bold border-2 ${
                         isVip
-                            ? "border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.35)] bg-amber-500/20 text-amber-200"
-                            : "border-cyan-400/55 bg-black/40 text-white"
+                            ? "border-warn shadow-[0_0_12px_rgba(245,158,11,0.3)] bg-warn/20 text-warn"
+                            : "border-accent/55 bg-surface-recessed text-ink-strong"
                     }`}
                 >
                     {seat.avatarUrl ? (
@@ -108,19 +108,19 @@ function SeatAvatarSlot({
                 </div>
 
                 {seat.isHost && (
-                    <span className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center shadow">
+                    <span className="absolute -bottom-1 -left-1 w-4 h-4 rounded-full bg-warn text-accent-ink flex items-center justify-center shadow">
                         <LuCrown className="w-2.5 h-2.5" />
                     </span>
                 )}
 
                 {seat.clanTag && (
-                    <span className="absolute -top-1 -right-1.5 px-1 rounded bg-black/80 border border-cyan-400/45 text-cyan-300 font-mono text-ludo-xs font-bold leading-tight">
+                    <span className="absolute -top-1 -right-1.5 px-1 rounded bg-surface-panel border border-accent/45 text-accent font-mono text-ludo-xs font-bold leading-tight">
                         {seat.clanTag}
                     </span>
                 )}
             </div>
 
-            <span className="text-ludo-xs font-mono text-white/80 truncate w-full text-center">
+            <span className="text-ludo-xs font-mono text-ink-strong truncate w-full text-center">
                 {seat.username}
             </span>
         </div>
@@ -154,17 +154,16 @@ export function ArenaRoomCard({
                     onInspect(room);
                 }
             }}
-            className={`card-3077 relative rounded-2xl border p-3.5 transition-all cursor-pointer overflow-hidden space-y-3 ${
+            className={`card-3077 relative rounded-2xl border p-3.5 transition-all cursor-pointer overflow-hidden space-y-3 bg-surface-panel ${
                 room.tier.isVip
-                    ? "bg-white/[0.05] border-amber-400/35 hover:border-amber-300/60"
-                    : "bg-white/[0.04] border-white/10 hover:border-cyan-400/40"
+                    ? "border-warn/45 hover:border-warn"
+                    : "border-line-soft hover:border-accent/45"
             }`}
             style={{
                 backgroundImage: `radial-gradient(circle at top right, ${room.tier.accentColor}1A, transparent 60%)`,
             }}
         >
             {room.tier.isVip && <HudCornerTicks />}
-            {/* Subtle Tier Watermark */}
             {room.tier.isVip && (
                 <span
                     aria-hidden="true"
@@ -189,50 +188,50 @@ export function ArenaRoomCard({
                         {room.tier.label}
                     </span>
 
-                    <span className="inline-flex items-center gap-1 text-ludo-xs font-bold uppercase text-white">
+                    <span className="inline-flex items-center gap-1 text-ludo-xs font-bold uppercase text-ink-strong">
                         {room.gameMode === "power" ? (
-                            <LuZap className="w-3.5 h-3.5 text-amber-300" />
+                            <LuZap className="w-3.5 h-3.5 text-warn" />
                         ) : (
-                            <LuSwords className="w-3.5 h-3.5 text-cyan-300" />
+                            <LuSwords className="w-3.5 h-3.5 text-accent" />
                         )}
                         <span>{room.gameMode}</span>
                     </span>
 
-                    <span className="inline-flex items-center gap-1 text-ludo-xs font-mono text-white/60">
+                    <span className="inline-flex items-center gap-1 text-ludo-xs font-mono text-ink-muted">
                         <LuUsers className="w-3 h-3" />
                         <span>{room.matchShape}</span>
                     </span>
 
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/35 border border-white/10 text-ludo-xs font-mono font-bold text-amber-300">
-                        <ChipsHexIcon className="w-3.5 h-3.5 text-amber-400" active />
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-recessed border border-line-soft text-ludo-xs font-mono font-bold text-warn">
+                        <ChipsHexIcon className="w-3.5 h-3.5 text-warn" active />
                         <span>{formatArenaChips(room.wager)}</span>
                     </span>
 
                     {room.isDemoAi && (
-                        <span className="px-1.5 py-0.5 rounded bg-white/10 border border-white/15 font-mono text-ludo-xs font-bold uppercase text-white/75">
+                        <span className="px-1.5 py-0.5 rounded bg-surface-recessed border border-line-soft font-mono text-ludo-xs font-bold uppercase text-ink-muted">
                             AI
                         </span>
                     )}
                 </div>
 
                 {/* Right Status */}
-                <div className="flex items-center gap-2 shrink-0 text-ludo-xs font-mono text-white/55">
+                <div className="flex items-center gap-2 shrink-0 text-ludo-xs font-mono text-ink-muted">
                     {isBetOpen && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 font-bold uppercase">
-                            <span className="hud-status-breath w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-positive/15 border border-positive/40 text-positive font-bold uppercase">
+                            <span className="hud-status-breath w-1.5 h-1.5 rounded-full bg-positive" />
                             {room.currentBetType ? `BET · ${room.currentBetType.replace(/_/g, " ")}` : "BET"}
                         </span>
                     )}
                     {room.isPrivate ? (
-                        <LuLock className="w-3.5 h-3.5 text-amber-300" title="Private Room" />
+                        <LuLock className="w-3.5 h-3.5 text-warn" title="Private Room" />
                     ) : (
-                        <LuGlobe className="w-3.5 h-3.5 text-white/40" title="Public Table" />
+                        <LuGlobe className="w-3.5 h-3.5 text-ink-faint" title="Public Table" />
                     )}
                     <span className="inline-flex items-center gap-1">
                         {room.streamingEnabled ? (
-                            <LuEye className="w-3.5 h-3.5 text-cyan-300" />
+                            <LuEye className="w-3.5 h-3.5 text-accent" />
                         ) : (
-                            <LuEyeOff className="w-3.5 h-3.5 text-white/30" />
+                            <LuEyeOff className="w-3.5 h-3.5 text-ink-faint" />
                         )}
                         <span className="tabular-nums">{room.spectatorCount}</span>
                     </span>
@@ -252,7 +251,7 @@ export function ArenaRoomCard({
                                 onJoin={(idx) => onJoinSeat(room, idx)}
                                 onOpenProfile={onOpenProfile}
                             />
-                            <span className="px-1.5 font-mono text-ludo-xs font-extrabold italic text-white/60 shrink-0">
+                            <span className="px-1.5 font-mono text-ludo-xs font-extrabold italic text-ink-muted shrink-0">
                                 VS
                             </span>
                             <SeatAvatarSlot
@@ -282,7 +281,7 @@ export function ArenaRoomCard({
                                 onJoin={(idx) => onJoinSeat(room, idx)}
                                 onOpenProfile={onOpenProfile}
                             />
-                            <span className="px-1 font-mono text-ludo-xs font-extrabold italic text-white/60 shrink-0">
+                            <span className="px-1 font-mono text-ludo-xs font-extrabold italic text-ink-muted shrink-0">
                                 VS
                             </span>
                             <SeatAvatarSlot
@@ -326,7 +325,7 @@ export function ArenaRoomCard({
                                 e.stopPropagation();
                                 onJoinSeat(room);
                             }}
-                            className="fee-preset-3077 px-3.5 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-mono text-ludo-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 shadow-[0_0_14px_rgba(34,211,238,0.28)] transition-all active:scale-95"
+                            className="fee-preset-3077 px-3.5 py-2 rounded-xl bg-accent hover:opacity-90 text-accent-ink font-mono text-ludo-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 shadow-[0_0_14px_rgba(0,229,255,0.28)] transition-all active:scale-95"
                         >
                             <LuPlus className="w-3.5 h-3.5" />
                             <span>Join</span>
@@ -340,8 +339,8 @@ export function ArenaRoomCard({
                             }}
                             className={`fee-preset-3077 px-3.5 py-2 rounded-xl font-mono text-ludo-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 transition-all active:scale-95 ${
                                 isBetOpen
-                                    ? "bg-emerald-400 hover:bg-emerald-300 text-slate-950 shadow-[0_0_14px_rgba(52,211,153,0.3)]"
-                                    : "bg-accent-soft hover:bg-cyan-400/25 border border-cyan-400/45 text-cyan-200"
+                                    ? "bg-positive hover:opacity-90 text-accent-ink shadow-[0_0_14px_rgba(52,211,153,0.3)]"
+                                    : "bg-accent-soft hover:bg-accent/20 border border-accent/45 text-accent"
                             }`}
                         >
                             <LuEye className="w-3.5 h-3.5" />
@@ -350,7 +349,7 @@ export function ArenaRoomCard({
                     )}
 
                     {room.totalBetVolume > 0 && (
-                        <span className="text-ludo-xs font-mono text-white/50">
+                        <span className="text-ludo-xs font-mono text-ink-faint">
                             Pot {formatArenaChips(room.totalBetVolume)}
                         </span>
                     )}

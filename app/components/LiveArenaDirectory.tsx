@@ -11,13 +11,14 @@ import { LiveArenaStage, type StageRoom } from "./LiveArenaStage";
 import { ArenaRoomCard } from "./arena/ArenaRoomCard";
 import { MatchInspectionSheet } from "./arena/MatchInspectionSheet";
 import type { ArenaDirectoryResponse, ArenaDirectoryRoom } from "@/lib/arena/types";
+import { ThinkingOrb } from "./ThinkingOrb";
 import { ArenaBladesIcon } from "./icons";
 
 const ClanProfileModal = dynamic(() => import("./ClanProfileModal"), { ssr: false });
 
 export const LiveTile = () => (
-    <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
-        <ArenaBladesIcon className="w-4 h-4 text-cyan-300" />
+    <div className="hud-chamfer-sm w-6 h-6 rounded-lg bg-accent-soft border border-accent/35 flex items-center justify-center">
+        <ArenaBladesIcon className="w-3.5 h-3.5 text-accent" />
     </div>
 );
 
@@ -54,22 +55,22 @@ const PredictorsStrip = () => {
 
     return (
         <div className="px-4 pt-2.5 relative z-10">
-            <div className="flex items-center gap-2 rounded-2xl border border-pink-500/20 bg-pink-500/[0.06] px-3 py-1.5">
-                <span className="text-ludo-xs font-bold uppercase tracking-[0.16em] text-pink-300 shrink-0 font-mono">
+            <div className="flex items-center gap-2 rounded-2xl border border-accent/25 bg-accent-soft/45 px-3 py-1.5">
+                <span className="text-ludo-xs font-bold uppercase tracking-[0.16em] text-accent shrink-0 font-mono">
                     Sharpest
                 </span>
                 <div className="flex-1 min-w-0 flex items-center gap-3 overflow-hidden">
                     {board.map((p) => (
                         <div key={p.player_id} className="flex items-center gap-1.5 min-w-0">
-                            <span className="text-ludo-xs font-bold text-pink-300/70 tabular-nums font-mono">
+                            <span className="text-ludo-xs font-bold text-accent/80 tabular-nums font-mono">
                                 #{p.rank}
                             </span>
-                            <span className="text-ludo-xs font-bold text-white/80 truncate max-w-[78px]">
+                            <span className="text-ludo-xs font-bold text-ink-strong truncate max-w-[78px]">
                                 {p.username}
                             </span>
                             <span
                                 className={`text-ludo-xs font-bold tabular-nums font-mono ${
-                                    p.profit >= 0 ? "text-emerald-300" : "text-white/40"
+                                    p.profit >= 0 ? "text-positive" : "text-ink-muted"
                                 }`}
                             >
                                 {p.profit >= 0 ? "+" : ""}
@@ -84,13 +85,13 @@ const PredictorsStrip = () => {
                                             ? `Unfollow ${p.username}`
                                             : `Follow ${p.username}`
                                     }
-                                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 transition-all"
+                                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-hover transition-all"
                                 >
                                     <FiStar
                                         className={`w-3 h-3 ${
                                             followed.includes(p.player_id.toLowerCase())
-                                                ? "text-yellow-400 fill-yellow-400"
-                                                : "text-white/30"
+                                                ? "text-warn fill-warn"
+                                                : "text-ink-faint"
                                         }`}
                                     />
                                 </button>
@@ -260,8 +261,8 @@ export const LiveArenaContent = ({
                                 }}
                                 className={`px-2.5 py-1 rounded-full border font-mono text-ludo-xs font-bold inline-flex items-center gap-1 whitespace-nowrap transition-colors ${
                                     active
-                                        ? "bg-accent-soft border-cyan-400/50 text-cyan-300"
-                                        : "bg-white/[0.04] border-white/10 text-white/60 hover:text-white"
+                                        ? "bg-accent-soft border-accent/50 text-accent"
+                                        : "bg-surface-panel border-line-soft text-ink-muted hover:text-ink-strong"
                                 }`}
                             >
                                 {f.icon}
@@ -277,8 +278,8 @@ export const LiveArenaContent = ({
                         onClick={() => setView((v) => (v === "stage" ? "list" : "stage"))}
                         className={`px-2.5 py-1 rounded-full border font-mono text-ludo-xs font-bold inline-flex items-center gap-1 transition-colors ${
                             view === "stage"
-                                ? "bg-accent-soft border-cyan-400/50 text-cyan-300"
-                                : "bg-white/[0.04] border-white/10 text-white/65 hover:text-white"
+                                ? "bg-accent-soft border-accent/50 text-accent"
+                                : "bg-surface-panel border-line-soft text-ink-muted hover:text-ink-strong"
                         }`}
                         title={view === "stage" ? "Back to Room Cards" : "Open 3D LED Stage"}
                     >
@@ -289,7 +290,7 @@ export const LiveArenaContent = ({
                     <button
                         type="button"
                         onClick={() => void fetchDirectory()}
-                        className="p-1.5 rounded-full border border-white/10 bg-white/[0.04] text-white/60 hover:text-white transition-colors"
+                        className="p-1.5 rounded-full border border-line-soft bg-surface-panel text-ink-muted hover:text-ink-strong transition-colors"
                         title="Refresh Arena Directory"
                         aria-label="Refresh Arena Directory"
                     >
@@ -308,9 +309,9 @@ export const LiveArenaContent = ({
                 <>
                     <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 pb-4 space-y-2.5 relative z-10">
                         {loading && rooms.length === 0 ? (
-                            <div className="py-14 text-center space-y-2">
-                                <div className="w-8 h-8 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin mx-auto" />
-                                <p className="text-ludo-xs font-mono text-white/50 uppercase tracking-wider">
+                            <div className="py-14 flex flex-col items-center justify-center text-center space-y-2">
+                                <ThinkingOrb state="searching" size={32} tone="accent" label="Scanning live arena tables" />
+                                <p className="text-ludo-xs font-mono text-ink-faint uppercase tracking-wider">
                                     Scanning Live Arena Tables...
                                 </p>
                             </div>
@@ -326,17 +327,17 @@ export const LiveArenaContent = ({
                                 />
                             ))
                         ) : (
-                            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-6 text-center space-y-3 my-2">
-                                <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 mx-auto flex items-center justify-center text-cyan-300">
+                            <div className="rounded-2xl border border-line-soft bg-surface-panel p-6 text-center space-y-3 my-2">
+                                <div className="w-14 h-14 rounded-2xl bg-surface-recessed border border-line-soft mx-auto flex items-center justify-center text-accent">
                                     <FiTv className="w-6 h-6" />
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-white font-bold text-ludo-md">
+                                    <p className="text-ink-strong font-bold text-ludo-md">
                                         {filter === "all"
                                             ? "No Open or Live Tables Right Now"
                                             : "No Tables Match This Filter"}
                                     </p>
-                                    <p className="text-white/50 text-ludo-xs max-w-xs mx-auto leading-relaxed">
+                                    <p className="text-ink-muted text-ludo-xs max-w-xs mx-auto leading-relaxed">
                                         Any player with enough CHIPS (Free to 10M) can start a match in the lobby or jump into the 3D Arena Demo Stage.
                                     </p>
                                 </div>
@@ -345,7 +346,7 @@ export const LiveArenaContent = ({
                                         <button
                                             type="button"
                                             onClick={() => setFilter("all")}
-                                            className="px-3.5 py-2 rounded-xl border border-white/15 bg-white/5 text-white font-mono text-ludo-xs font-bold uppercase"
+                                            className="px-3.5 py-2 rounded-xl border border-line-soft bg-surface-recessed text-ink-strong font-mono text-ludo-xs font-bold uppercase hover:bg-surface-hover"
                                         >
                                             Show All
                                         </button>
@@ -353,7 +354,7 @@ export const LiveArenaContent = ({
                                     <button
                                         type="button"
                                         onClick={() => handleWatch("ARENA-POWER-4P")}
-                                        className="px-3.5 py-2 rounded-xl bg-accent-soft border border-cyan-400/45 text-cyan-300 font-mono text-ludo-xs font-bold uppercase"
+                                        className="px-3.5 py-2 rounded-xl bg-accent-soft border border-accent/45 text-accent font-mono text-ludo-xs font-bold uppercase hover:bg-accent/20"
                                     >
                                         Watch Exhibition
                                     </button>
@@ -362,8 +363,8 @@ export const LiveArenaContent = ({
                         )}
                     </div>
 
-                    <div className="w-full px-4 py-2.5 bg-black/20 border-t border-white/10 text-center relative z-20 shrink-0">
-                        <span className="text-ludo-xs font-mono text-white/45 uppercase tracking-[0.14em]">
+                    <div className="w-full px-4 py-2.5 bg-surface-recessed border-t border-line-soft text-center relative z-20 shrink-0">
+                        <span className="text-ludo-xs font-mono text-ink-faint uppercase tracking-[0.14em]">
                             Tap [+] to Join Open Seats · Tap Card to Inspect · Free → 10M CHIPS
                         </span>
                     </div>

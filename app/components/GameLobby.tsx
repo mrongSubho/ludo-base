@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
@@ -13,7 +12,6 @@ const OfflineMatchPanel = dynamic(() => import('./OfflineMatchPanel').then(m => 
 const QuickMatchPanel = dynamic(() => import('./QuickMatchPanel').then(m => m.QuickMatchPanel));
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { LuMinus, LuPlus } from 'react-icons/lu';
-import { supabase } from '@/lib/supabase';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
@@ -26,6 +24,9 @@ import { seatedColorsFor } from '@/lib/engine/core';
 import { useArenaVault } from '@/hooks/useArenaVault';
 import { useChipsBalance } from '@/hooks/useChipsBalance';
 import { formatUnits } from 'viem';
+import { Button } from './Button';
+import { HudCornerTicks } from './HudPrimitives';
+import { ThinkingOrb } from './ThinkingOrb';
 import {
     CheckGlyphIcon,
     ChevronGlyphIcon,
@@ -98,7 +99,6 @@ export default function GameLobby({
         roomId,
         isLobbyConnected,
         isHost,
-        hostGame,
         joinGame,
         hostQuickLobby,
         lobbyState,
@@ -134,10 +134,6 @@ export default function GameLobby({
     const [showOfflineOptions, setShowOfflineOptions] = useState(false);
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
     const [hybridParams, setHybridParams] = useState<{ roomCode: string; slotsNeeded: number; matchType: '1v1' | '2v2' | '4P' } | null>(null);
-    // Embedded hunt: the hybrid radar lives INSIDE the TeamUp page (mini
-    // view) instead of yanking the host out to the solo radar. The search
-    // engine (QuickMatchPanel) mounts hidden; TeamUp shows HuntView.
-    // 40s cap: no fill → timeout message → auto-return to invites.
     const HUNT_TIMEOUT_S = 40;
     const [embeddedHunt, setEmbeddedHunt] = useState(false);
     const [huntExpired, setHuntExpired] = useState(false);
@@ -151,10 +147,6 @@ export default function GameLobby({
     }, []);
     useEffect(() => () => clearHuntTimers(), [clearHuntTimers]);
 
-    // Overflow-driven compaction: if the setup column actually overflows its
-    // box (any device, any chrome), drop into compact mode. Behavior, not
-    // breakpoints — toggling can't oscillate because the observed box is
-    // parent-constrained, so class flips don't resize it.
     const setupRef = useRef<HTMLDivElement | null>(null);
     const [lobbyCompact, setLobbyCompact] = useState(false);
     useEffect(() => {
@@ -177,10 +169,6 @@ export default function GameLobby({
     }, []);
     const [searchId, setSearchId] = useState(0);
 
-    // Party join feedback: every join tap (feed, chat, link) funnels here.
-    // 20s window (mobile data + free signaling is slow); the message is
-    // staged — transport up but unseated means full/started, never-contacted
-    // means the host is gone. A late seat still opens the room.
     const [pendingJoin, setPendingJoin] = useState<{ code: string; since: number } | null>(null);
     const [joinError, setJoinError] = useState<string | null>(null);
     const [showFee, setShowFee] = useState(false);
@@ -200,12 +188,10 @@ export default function GameLobby({
         if (wager > 0 && wager > playableChips) {
             setWager(suggestedEntryFee(playableChips));
         }
-    }, [playableChips]);
+    }, [playableChips, setWager, wager]);
     const lobbyRef = useRef(lobbyState);
     lobbyRef.current = lobbyState;
     const joinedCodeRef = useRef<string | null>(null);
-    // Fail fast: Lobby seating takes ~1s when the host is online.
-    // 8s covers one realtime round-trip + PeerJS retry without a 20s dead wait.
     const JOIN_TIMEOUT_MS = 8000;
 
     const isSeatedIn = useCallback((code: string) => {
@@ -221,7 +207,6 @@ export default function GameLobby({
             joinedCodeRef.current = code;
             lastJoinRef.current = { code, seat, secret };
 
-            // Ensure SIWE session before joining party (uses global modal)
             const session = await ensureAppSession({
                 context: 'teamup',
                 title: 'PARTY SIGN-IN REQUIRED',
@@ -242,7 +227,7 @@ export default function GameLobby({
             });
             joinGame(code, secret ?? undefined, seat);
             window.setTimeout(() => {
-                if (joinedCodeRef.current !== code) return; // already seated or superseded
+                if (joinedCodeRef.current !== code) return;
                 if (isSeatedIn(code)) {
                     joinedCodeRef.current = null;
                     setPendingJoin(null);
@@ -255,9 +240,6 @@ export default function GameLobby({
         });
     }, [guard, joinGame, isSeatedIn, createProvisionalSession, ensureAppSession, toast]);
 
-    // Fast path: the instant our seat lands, open the room (no 20s wait).
-    // Keyed on the joined code, not the pending flag — a seat landing just
-    // after the timeout still opens instead of stranding us on an error.
     useEffect(() => {
         if (!lobbyState) return;
         const code = joinedCodeRef.current;
@@ -272,23 +254,18 @@ export default function GameLobby({
         }
     }, [lobbyState, address]);
 
-    // Invite-accept / REST-join seats without going through startPartyJoin.
-    // The moment we are joined in a forming room, open Team Up — never leave
-    // the guest on the bare setup screen. If the host already started, the
-    // page-level isStarted transition takes them straight to the board.
     useEffect(() => {
         if (!lobbyState || !address || isHost) return;
         if (lobbyState.status !== 'forming') return;
         const me = address.toLowerCase();
         const seated = (lobbyState.slots || []).some(
-            s => s.status === 'joined' && s.playerId?.toLowerCase() === me
+            s => s.status === 'joined' && s.playerId?.toLowerCase() === me,
         );
         if (seated) {
             setPendingJoin(null);
             setJoinError(null);
             setShowTeamUpOptions(true);
 
-            // Auto-reserve Match Vault fee when joining a paid TeamUp room as guest
             const roomKey = `room:${lobbyState.roomCode}`;
             if (lobbyState.entryFee > 0 && !reservedTeamUpRef.current.has(roomKey)) {
                 reservedTeamUpRef.current.add(roomKey);
@@ -297,9 +274,10 @@ export default function GameLobby({
                         matchKey: roomKey,
                         entryFeeChips: lobbyState.entryFee,
                     })
-                    .catch((err: any) => {
+                    .catch((err: unknown) => {
                         reservedTeamUpRef.current.delete(roomKey);
-                        toast(err?.message || 'Match fee approval required to join paid room', 'error');
+                        const msg = err instanceof Error ? err.message : undefined;
+                        toast(msg || 'Match fee approval required to join paid room', 'error');
                         leaveGame();
                         setShowTeamUpOptions(false);
                     });
@@ -307,10 +285,6 @@ export default function GameLobby({
         }
     }, [lobbyState, address, isHost, vault, leaveGame, toast]);
 
-    // Incoming invite links (?room=CODE&seat=N): room-only links fill any
-    // open seat — ONE link serves the whole party, no per-seat spam.
-    // Seat links request that exact seat (honored when still empty).
-    // Runs once on lobby mount (post-connect, post-onboarding by construction).
     useEffect(() => {
         try {
             const params = new URLSearchParams(window.location.search);
@@ -319,46 +293,11 @@ export default function GameLobby({
             const seatRaw = params.get('seat');
             const seat = seatRaw !== null && /^\d+$/.test(seatRaw) ? parseInt(seatRaw, 10) : undefined;
             const secret = params.get('s');
-            // Consume: never re-join on re-render.
             window.history.replaceState(null, '', window.location.pathname);
-            startPartyJoin(code.trim().toUpperCase(), seat, secret);
+            void startPartyJoin(code.trim().toUpperCase(), seat, secret);
         } catch { /* no link — normal entry */ }
-         
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    // Handle Joining from Live Feed
-    useEffect(() => {
-        const handleJoinPool = (e: any) => {
-            const pool = e.detail;
-            if (pool) {
-                console.log('📡 [Lobby] Joining pool from feed:', pool);
-                setWager(pool.entryFee);
-                setGameMode(pool.mode);
-                setMatchType(pool.matchType);
-                // Trigger search on next tick to ensure state sync
-                setTimeout(() => {
-                    handleStartQuickMatch(pool.mode, pool.matchType, Number(pool.entryFee ?? 0));
-                }, 100);
-            }
-        };
-        window.addEventListener('join_pool', handleJoinPool);
-        // Direct party link from the broadcast feed: room code present means
-        // a hosted party with open seats — join it straight, no queue.
-        const handleJoinParty = (e: Event) => {
-            const detail = (e as CustomEvent)?.detail;
-            const code = detail?.roomCode;
-            if (typeof code === 'string' && code.trim().length >= 3) {
-                console.log('📡 [Lobby] Joining party from feed:', code);
-                const seat = typeof detail?.seat === 'number' ? detail.seat : undefined;
-                startPartyJoin(code.trim().toUpperCase(), seat);
-            }
-        };
-        window.addEventListener('join_party', handleJoinParty);
-        return () => {
-            window.removeEventListener('join_pool', handleJoinPool);
-            window.removeEventListener('join_party', handleJoinParty);
-        };
-    }, [setWager, setGameMode, setMatchType, guard, joinGame]);
 
     const handleStartQuickMatch = useCallback((overrideMode?: 'classic' | 'power', overrideMatchType?: '1v1' | '2v2' | '4P', overrideWager?: number) => {
         guard('online-play', async () => {
@@ -368,14 +307,12 @@ export default function GameLobby({
             const myAddr = address?.toLowerCase();
             if (!myAddr) return;
 
-            // Step 1: Ensure SIWE App Session (global modal automatically shown if sign needed)
             const session = await ensureAppSession({ context: 'quick-match' });
             if (!session) {
                 toast('Sign-in cancelled. Please approve the wallet request to search for matches.', 'error');
                 return;
             }
 
-            // Step 2: Ensure Provisional Session (global modal automatically shown if sign needed)
             const provKey = `search:${myAddr}:${targetMode}:${targetType}`;
             const provResult = await createProvisionalSession(provKey, undefined, { context: 'quick-match' });
             if (!provResult.ok) {
@@ -383,24 +320,58 @@ export default function GameLobby({
                 return;
             }
 
-            // Step 3: Reserve entry fee from reusable Match Vault (differential top-up if needed; 0 gas if covered)
             if (targetWager > 0) {
                 try {
                     await vault.ensureVaultAndReserve({
                         matchKey: `qm:${myAddr}`,
                         entryFeeChips: targetWager,
                     });
-                } catch (err: any) {
-                    toast(err?.message || 'Vault deposit cancelled. Match search aborted.', 'error');
+                } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : undefined;
+                    toast(msg || 'Vault deposit cancelled. Match search aborted.', 'error');
                     return;
                 }
             }
 
-            // Signatures & stake cleared — engage search radar with 0 post-match stall
             setSearchId(prev => prev + 1);
             setIsQuickMatchActive(true);
         });
     }, [guard, gameMode, matchType, address, ensureAppSession, createProvisionalSession, toast, wager, vault]);
+
+    useEffect(() => {
+        const handleJoinPool = (e: Event) => {
+            const pool = (e as CustomEvent<{
+                entryFee?: number;
+                mode?: 'classic' | 'power';
+                matchType?: '1v1' | '2v2' | '4P';
+            }>)?.detail;
+            if (pool && pool.mode && pool.matchType) {
+                console.log('📡 [Lobby] Joining pool from feed:', pool);
+                const fee = Number(pool.entryFee ?? 0);
+                setWager(fee);
+                setGameMode(pool.mode);
+                setMatchType(pool.matchType);
+                setTimeout(() => {
+                    handleStartQuickMatch(pool.mode, pool.matchType, fee);
+                }, 100);
+            }
+        };
+        window.addEventListener('join_pool', handleJoinPool);
+        const handleJoinParty = (e: Event) => {
+            const detail = (e as CustomEvent<{ roomCode?: string; seat?: number }>)?.detail;
+            const code = detail?.roomCode;
+            if (typeof code === 'string' && code.trim().length >= 3) {
+                console.log('📡 [Lobby] Joining party from feed:', code);
+                const seat = typeof detail?.seat === 'number' ? detail.seat : undefined;
+                void startPartyJoin(code.trim().toUpperCase(), seat);
+            }
+        };
+        window.addEventListener('join_party', handleJoinParty);
+        return () => {
+            window.removeEventListener('join_pool', handleJoinPool);
+            window.removeEventListener('join_party', handleJoinParty);
+        };
+    }, [setWager, setGameMode, setMatchType, handleStartQuickMatch, startPartyJoin]);
 
     const handleStartTeamUp = useCallback(() => {
         guard('teamup', async () => {
@@ -421,22 +392,16 @@ export default function GameLobby({
         setHuntExpired(false);
     }, [clearHuntTimers]);
 
-    // Fill Remaining with Quick Match: host advertises the room, the hybrid
-    // search pairs public-pool guests straight into it (they joinGame the
-    // room code and get seated). TeamUp STAYS OPEN with a mini hunt view;
-    // seats fill live behind it. Cancel returns to the invite roster.
     const handleFillWithQuickMatch = () => {
         if (!lobbyState || !isHost) return;
         const empty = lobbyState.slots.filter(s => s.status === 'empty').length;
         if (empty === 0) return;
         playSelect();
-        // Matchmaking-paired guests present ticket tokens, not the room secret.
         allowOpenJoins();
         setHybridParams({ roomCode: lobbyState.roomCode, slotsNeeded: empty, matchType: lobbyState.matchType });
         setSearchId(prev => prev + 1);
         setHuntExpired(false);
         setEmbeddedHunt(true);
-        // 40s cap: still hunting → timeout message, then auto-return.
         clearHuntTimers();
         huntTimers.current.stop = setTimeout(() => {
             if (!huntingRef.current) return;
@@ -445,17 +410,19 @@ export default function GameLobby({
         }, HUNT_TIMEOUT_S * 1000);
     };
 
-    // Hunt complete: all seats filled → stop the engine, back to roster.
     useEffect(() => {
         if (!embeddedHunt || !lobbyState) return;
         const empty = lobbyState.slots.filter(s => s.status === 'empty').length;
         if (empty === 0) handleCancelQuickMatch();
     }, [embeddedHunt, lobbyState, handleCancelQuickMatch]);
 
+    const isMoreFeeActive = showMoreFees || (MORE_FEE_PRESETS as readonly number[]).includes(wager);
+
     return (
         <div className={`ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-4 min-h-0 h-full flex flex-col items-center justify-start overflow-hidden${lobbyCompact ? ' lobby-compact' : ''}`}>
             {/* Theme photo backdrop (fixed layer, behind everything, taps pass through) */}
             <div className="lobby-backdrop" aria-hidden />
+
             {/* 1. INITIAL SETUP PANEL */}
             {(!isQuickMatchActive && lobbyState?.status !== 'quickmatch') && (
                 <div
@@ -517,36 +484,44 @@ export default function GameLobby({
                             ) : (
                                 <>
                                     <div className="flex justify-center w-full mb-3">
-                                        <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
-                                            <h3 className="text-white/90 text-ludo-xs font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Select Game Mode</h3>
+                                        <div className="inline-block px-5 py-1.5 bg-surface-panel border border-line-soft rounded-full backdrop-blur-md">
+                                            <h3 className="text-ink-strong text-ludo-xs font-extrabold uppercase tracking-[0.2em] text-center">Select Game Mode</h3>
                                         </div>
                                     </div>
                                     <div className="flex justify-center gap-3">
-                                        {(['classic', 'power'] as const).map(mode => (
-                                            <button
-                                                key={mode}
-                                                onClick={() => {
-                                                    playSelect();
-                                                    setGameMode(mode);
-                                                }}
-                                                className={`relative w-40 py-1 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center hover:scale-[1.02] active:scale-95 ${gameMode === mode
-                                                    ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)] bg-[rgba(0,0,0,0.5)]'
-                                                    : 'border-white/20 hover:border-white/40 bg-[rgba(0,0,0,0.5)]'
+                                        {(['classic', 'power'] as const).map(mode => {
+                                            const active = gameMode === mode;
+                                            return (
+                                                <button
+                                                    key={mode}
+                                                    onClick={() => {
+                                                        playSelect();
+                                                        setGameMode(mode);
+                                                    }}
+                                                    className={`relative w-40 py-1.5 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center hover:scale-[1.02] active:scale-95 ${
+                                                        active
+                                                            ? 'border-accent shadow-[0_0_15px_rgba(0,229,255,0.2)] bg-surface-panel'
+                                                            : 'border-line-soft hover:border-line-strong bg-surface-recessed'
                                                     }`}
-                                            >
-                                                {gameMode === mode && (
-                                                    <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5 text-white"><polyline points="20 6 9 17 4 12" /></svg>
-                                                    </span>
-                                                )}
-                                                <div className="relative z-10 text-center">
-                                                    <span className={`block text-lg font-black italic tracking-tighter capitalize drop-shadow-md leading-none ${gameMode === mode ? 'text-cyan-400' : 'text-white/90'}`}>{mode}</span>
-                                                    <div className={`mt-0.5 inline-block px-1.5 py-px rounded-full border backdrop-blur-md ${gameMode === mode ? 'bg-[rgba(0,0,0,0.35)] border-cyan-500/30' : 'bg-[rgba(0,0,0,0.35)] border-white/10'}`}>
-                                                        <span className={`text-ludo-xs font-black uppercase tracking-[0.16em] whitespace-nowrap ${gameMode === mode ? 'text-cyan-400' : 'text-white/50'}`}>{mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}</span>
+                                                >
+                                                    {active && (
+                                                        <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-accent text-accent-ink flex items-center justify-center shadow-lg z-10">
+                                                            <CheckGlyphIcon className="w-2.5 h-2.5" />
+                                                        </span>
+                                                    )}
+                                                    <div className="relative z-10 text-center">
+                                                        <span className={`block text-lg font-extrabold italic tracking-tighter capitalize leading-none ${active ? 'text-accent' : 'text-ink-strong'}`}>
+                                                            {mode}
+                                                        </span>
+                                                        <div className={`mt-0.5 inline-block px-1.5 py-px rounded-full border backdrop-blur-md ${active ? 'bg-accent-soft border-accent/35' : 'bg-surface-panel border-line-soft'}`}>
+                                                            <span className={`text-ludo-xs font-extrabold uppercase tracking-[0.16em] whitespace-nowrap ${active ? 'text-accent' : 'text-ink-muted'}`}>
+                                                                {mode === 'classic' ? 'Original Rules' : 'Special Power-ups'}
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </button>
-                                        ))}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </>
                             )}
@@ -567,10 +542,11 @@ export default function GameLobby({
                                                 yellow: '#FFD000',
                                             };
                                             const seated = seatedColorsFor(type);
-                                            const tlColor = type === '2v2' ? teamHex.red : seated.includes('blue') ? teamHex.blue : 'rgba(255,255,255,0.16)';
-                                            const trColor = type === '2v2' ? teamHex[TEAM_PAIRINGS.green] : seated.includes('yellow') ? teamHex.yellow : 'rgba(255,255,255,0.16)';
-                                            const blColor = seated.includes('green') ? teamHex.green : 'rgba(255,255,255,0.16)';
-                                            const brColor = type === '2v2' ? teamHex[TEAM_PAIRINGS.red] : seated.includes('red') ? teamHex.red : 'rgba(255,255,255,0.16)';
+                                            const unseated = 'var(--line-soft, rgba(148,163,184,0.3))';
+                                            const tlColor = type === '2v2' ? teamHex.red : seated.includes('blue') ? teamHex.blue : unseated;
+                                            const trColor = type === '2v2' ? teamHex[TEAM_PAIRINGS.green] : seated.includes('yellow') ? teamHex.yellow : unseated;
+                                            const blColor = seated.includes('green') ? teamHex.green : unseated;
+                                            const brColor = type === '2v2' ? teamHex[TEAM_PAIRINGS.red] : seated.includes('red') ? teamHex.red : unseated;
                                             return (
                                                 <div key={type} className="seg-wrapper-3077">
                                                     <button
@@ -601,31 +577,37 @@ export default function GameLobby({
                             ) : (
                                 <>
                                     <div className="flex justify-center w-full mt-1 mb-3">
-                                        <div className="inline-block px-5 py-1.5 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md">
-                                            <h3 className="text-white/90 text-ludo-xs font-black uppercase tracking-[0.2em] text-center drop-shadow-md">Match Type</h3>
+                                        <div className="inline-block px-5 py-1.5 bg-surface-panel border border-line-soft rounded-full backdrop-blur-md">
+                                            <h3 className="text-ink-strong text-ludo-xs font-extrabold uppercase tracking-[0.2em] text-center">Match Type</h3>
                                         </div>
                                     </div>
                                     <div className="flex justify-center gap-3">
-                                        {(['1v1', '2v2', '4P'] as const).map(type => (
-                                            <button
-                                                key={type}
-                                                onClick={() => {
-                                                    playSelect();
-                                                    setMatchType(type);
-                                                }}
-                                                className={`w-12 h-12 rounded-full border transition-all duration-200 ease-out glass-panel flex items-center justify-center hover:scale-110 active:scale-90 relative ${matchType === type
-                                                    ? 'border-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-[rgba(0,0,0,0.5)]'
-                                                    : 'border-white/10 hover:border-white/30 bg-[rgba(0,0,0,0.5)]'
+                                        {(['1v1', '2v2', '4P'] as const).map(type => {
+                                            const active = matchType === type;
+                                            return (
+                                                <button
+                                                    key={type}
+                                                    onClick={() => {
+                                                        playSelect();
+                                                        setMatchType(type);
+                                                    }}
+                                                    className={`w-12 h-12 rounded-full border transition-all duration-200 ease-out glass-panel flex items-center justify-center hover:scale-110 active:scale-90 relative ${
+                                                        active
+                                                            ? 'border-accent shadow-[0_0_15px_rgba(0,229,255,0.28)] bg-surface-panel'
+                                                            : 'border-line-soft hover:border-line-strong bg-surface-recessed'
                                                     }`}
-                                            >
-                                                {matchType === type && (
-                                                    <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg z-10">
-                                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5 text-white"><polyline points="20 6 9 17 4 12" /></svg>
+                                                >
+                                                    {active && (
+                                                        <span className="porcelain-holo-tick absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-accent text-accent-ink flex items-center justify-center shadow-lg z-10">
+                                                            <CheckGlyphIcon className="w-2.5 h-2.5" />
+                                                        </span>
+                                                    )}
+                                                    <span className={`block text-lg font-extrabold italic tracking-tighter ${active ? 'text-accent' : 'text-ink-muted'}`}>
+                                                        {type}
                                                     </span>
-                                                )}
-                                                <span className={`block text-lg font-black italic tracking-tighter drop-shadow-md ${matchType === type ? 'text-cyan-400' : 'text-white/60'}`}>{type}</span>
-                                            </button>
-                                        ))}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                 </>
                             )}
@@ -633,7 +615,7 @@ export default function GameLobby({
                     </div>
 
                     {/* 2. ENTRY FEE — collapsed by default. Presets gated by balance. */}
-                    <div className="fee-tier rounded-[20px] glass-panel flex flex-col items-center shadow-2xl border-t border-white/20 border-x border-white/5 border-b border-black/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
+                    <div className="fee-tier rounded-[20px] glass-panel bg-surface-panel flex flex-col items-center shadow-2xl border border-line-soft">
                         <button
                             type="button"
                             onClick={() => { playSelect(); setShowFee(v => !v); }}
@@ -655,88 +637,54 @@ export default function GameLobby({
                             </span>
                         </button>
                         <AnimatePresence initial={false}>
-                        {showFee && (
-                            <motion.div
-                                key="fee-drawer"
-                                initial={{ opacity: 0, y: -6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -4 }}
-                                transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
-                                className="w-full px-1.5 pb-2 flex flex-col items-center gap-1"
-                            >
-                                <div className="flex items-center justify-between w-full px-2 mb-1">
-                                    <button
-                                        onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }}
-                                        aria-label="Decrease entry fee"
-                                        className="fee-preset-3077 w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200"
-                                    >
-                                        <LuMinus className="w-5 h-5 stroke-[3px]" />
-                                    </button>
-                                    <div className="flex-1 flex flex-col items-center justify-center relative">
-                                        <input
-                                            type="text"
-                                            inputMode="numeric"
-                                            autoComplete="off"
-                                            autoCorrect="off"
-                                            autoCapitalize="none"
-                                            spellCheck={false}
-                                            value={wager}
-                                            onChange={(e) => {
-                                                const digits = e.target.value.replace(/\D/g, '');
-                                                const next = Math.max(0, parseInt(digits || '0', 10) || 0);
-                                                setWager(Math.min(next, playableChips));
-                                            }}
-                                            className="w-full bg-transparent text-center text-xl font-bold font-mono tabular-nums text-ink-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
-                                        />
-                                        <span className="text-ludo-xs font-mono font-bold text-ink-faint uppercase tracking-wider mt-0.5 tabular-nums">
-                                            CHIPS · {formatEntryFee(playableChips)} Total
-                                        </span>
+                            {showFee && (
+                                <motion.div
+                                    key="fee-drawer"
+                                    initial={{ opacity: 0, y: -6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -4 }}
+                                    transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
+                                    className="w-full px-1.5 pb-2 flex flex-col items-center gap-1"
+                                >
+                                    <div className="flex items-center justify-between w-full px-2 mb-1">
+                                        <button
+                                            onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }}
+                                            aria-label="Decrease entry fee"
+                                            className="fee-preset-3077 w-11 h-11 rounded-[14px] bg-surface-recessed border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200"
+                                        >
+                                            <LuMinus className="w-5 h-5 stroke-[3px]" />
+                                        </button>
+                                        <div className="flex-1 flex flex-col items-center justify-center relative">
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
+                                                autoComplete="off"
+                                                autoCorrect="off"
+                                                autoCapitalize="none"
+                                                spellCheck={false}
+                                                value={wager}
+                                                onChange={(e) => {
+                                                    const digits = e.target.value.replace(/\D/g, '');
+                                                    const next = Math.max(0, parseInt(digits || '0', 10) || 0);
+                                                    setWager(Math.min(next, playableChips));
+                                                }}
+                                                className="w-full bg-transparent text-center text-xl font-bold font-mono tabular-nums text-ink-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
+                                            />
+                                            <span className="text-ludo-xs font-mono font-bold text-ink-faint uppercase tracking-wider mt-0.5 tabular-nums">
+                                                CHIPS · {formatEntryFee(playableChips)} Total
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => { playCoin(); setWager(Math.min(playableChips, wager + (wager >= 1000 ? 1000 : 100))); }}
+                                            aria-label="Increase entry fee"
+                                            disabled={wager >= playableChips}
+                                            className="fee-preset-3077 w-11 h-11 rounded-[14px] bg-surface-recessed border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                        >
+                                            <LuPlus className="w-5 h-5 stroke-[3px]" />
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => { playCoin(); setWager(Math.min(playableChips, wager + (wager >= 1000 ? 1000 : 100))); }}
-                                        aria-label="Increase entry fee"
-                                        disabled={wager >= playableChips}
-                                        className="fee-preset-3077 w-11 h-11 rounded-[14px] bg-[rgba(0,0,0,0.35)] border border-white/10 flex items-center justify-center text-white/80 hover:bg-white/10 hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                                    >
-                                        <LuPlus className="w-5 h-5 stroke-[3px]" />
-                                    </button>
-                                </div>
-                                <div className="flex gap-1.5 justify-center flex-wrap">
-                                    {FEE_PRESETS.map(val => {
-                                        const affordable = canAffordFee(playableChips, val);
-                                        return (
-                                            <button
-                                                key={val}
-                                                disabled={!affordable}
-                                                title={affordable ? undefined : 'Insufficient CHIPS'}
-                                                onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
-                                                className={`fee-preset-3077 px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold font-mono tabular-nums ${wager === val
-                                                    ? 'border-cyan-400 bg-[rgba(0,0,0,0.35)] text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.3)]'
-                                                    : affordable
-                                                        ? 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 hover:scale-105 active:scale-95 border-white/10 text-white/90'
-                                                        : 'bg-[rgba(0,0,0,0.2)] border-white/5 text-white/25 cursor-not-allowed'
-                                                }`}
-                                            >
-                                                {formatEntryFee(val)}
-                                            </button>
-                                        );
-                                    })}
-                                    <button
-                                        type="button"
-                                        onClick={() => { playSelect(); setShowMoreFees(v => !v); }}
-                                        className={`fee-preset-3077 px-3 min-h-[44px] inline-flex items-center gap-1 justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold ${
-                                            showMoreFees || MORE_FEE_PRESETS.includes(wager as any)
-                                                ? 'border-cyan-400/60 bg-[rgba(0,0,0,0.4)] text-cyan-300'
-                                                : 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-white/75'
-                                        }`}
-                                    >
-                                        <span>{showMoreFees ? 'Less' : 'More'}</span>
-                                        <ChevronGlyphIcon direction={showMoreFees ? 'up' : 'down'} className="w-3 h-3" />
-                                    </button>
-                                </div>
-                                {showMoreFees && (
-                                    <div className="flex gap-1.5 justify-center flex-wrap pt-1">
-                                        {MORE_FEE_PRESETS.map(val => {
+                                    <div className="flex gap-1.5 justify-center flex-wrap">
+                                        {FEE_PRESETS.map(val => {
                                             const affordable = canAffordFee(playableChips, val);
                                             return (
                                                 <button
@@ -744,59 +692,92 @@ export default function GameLobby({
                                                     disabled={!affordable}
                                                     title={affordable ? undefined : 'Insufficient CHIPS'}
                                                     onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
-                                                    className={`fee-preset-3077 px-3.5 min-h-[40px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold font-mono tabular-nums ${wager === val
-                                                        ? 'border-amber-400 bg-[rgba(0,0,0,0.45)] text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
-                                                        : affordable
-                                                            ? 'bg-[rgba(0,0,0,0.35)] hover:bg-white/15 border-white/10 text-amber-200/90'
-                                                            : 'bg-[rgba(0,0,0,0.2)] border-white/5 text-white/25 cursor-not-allowed'
+                                                    className={`fee-preset-3077 px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold font-mono tabular-nums ${
+                                                        wager === val
+                                                            ? 'border-accent bg-accent-soft text-accent shadow-[0_0_15px_rgba(0,229,255,0.28)]'
+                                                            : affordable
+                                                                ? 'bg-surface-recessed hover:bg-surface-hover hover:scale-105 active:scale-95 border-line-soft text-ink-strong'
+                                                                : 'bg-surface-recessed border-line-soft text-ink-faint opacity-50 cursor-not-allowed'
                                                     }`}
                                                 >
                                                     {formatEntryFee(val)}
                                                 </button>
                                             );
                                         })}
+                                        <button
+                                            type="button"
+                                            onClick={() => { playSelect(); setShowMoreFees(v => !v); }}
+                                            className={`fee-preset-3077 px-3 min-h-[44px] inline-flex items-center gap-1 justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold ${
+                                                isMoreFeeActive
+                                                    ? 'border-accent/60 bg-accent-soft text-accent'
+                                                    : 'bg-surface-recessed hover:bg-surface-hover border-line-soft text-ink-muted hover:text-ink-strong'
+                                            }`}
+                                        >
+                                            <span>{showMoreFees ? 'Less' : 'More'}</span>
+                                            <ChevronGlyphIcon direction={showMoreFees ? 'up' : 'down'} className="w-3 h-3" />
+                                        </button>
                                     </div>
-                                )}
-                                {(vault.availableChips > 0 || wager > 0) && (
-                                    <div className="w-full mt-1.5 px-3 py-1.5 rounded-xl bg-surface-recessed border border-line-soft flex items-center justify-between gap-2 text-ludo-xs font-mono">
-                                        <span className="inline-flex items-center gap-1.5 text-accent font-bold shrink-0">
-                                            <VaultShieldIcon className="w-3.5 h-3.5 shrink-0" active />
-                                            <span>Vault: {formatEntryFee(vault.availableChips)} CHIPS</span>
-                                        </span>
-                                        <span className="text-ink-muted truncate">
-                                            {wager === 0 ? (
-                                                'Safe for next paid match'
-                                            ) : vault.availableChips >= wager ? (
-                                                <span className="inline-flex items-center gap-1 text-positive font-semibold">
-                                                    <CheckGlyphIcon className="w-3 h-3 shrink-0" />
-                                                    <span>Covered (0 gas entry)</span>
-                                                </span>
-                                            ) : vault.availableChips > 0 ? (
-                                                `Top up ${formatEntryFee(wager - vault.availableChips)} diff`
-                                            ) : (
-                                                '1-step top-up on start'
-                                            )}
-                                        </span>
-                                    </div>
-                                )}
-                            </motion.div>
-                        )}
+                                    {showMoreFees && (
+                                        <div className="flex gap-1.5 justify-center flex-wrap pt-1">
+                                            {MORE_FEE_PRESETS.map(val => {
+                                                const affordable = canAffordFee(playableChips, val);
+                                                return (
+                                                    <button
+                                                        key={val}
+                                                        disabled={!affordable}
+                                                        title={affordable ? undefined : 'Insufficient CHIPS'}
+                                                        onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
+                                                        className={`fee-preset-3077 px-3.5 min-h-[40px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold font-mono tabular-nums ${
+                                                            wager === val
+                                                                ? 'border-warn bg-warn/15 text-warn shadow-[0_0_15px_rgba(245,158,11,0.28)]'
+                                                                : affordable
+                                                                    ? 'bg-surface-recessed hover:bg-surface-hover border-line-soft text-warn'
+                                                                    : 'bg-surface-recessed border-line-soft text-ink-faint opacity-50 cursor-not-allowed'
+                                                        }`}
+                                                    >
+                                                        {formatEntryFee(val)}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                    {(vault.availableChips > 0 || wager > 0) && (
+                                        <div className="w-full mt-1.5 px-3 py-1.5 rounded-xl bg-surface-recessed border border-line-soft flex items-center justify-between gap-2 text-ludo-xs font-mono">
+                                            <span className="inline-flex items-center gap-1.5 text-accent font-bold shrink-0">
+                                                <VaultShieldIcon className="w-3.5 h-3.5 shrink-0" active />
+                                                <span>Vault: {formatEntryFee(vault.availableChips)} CHIPS</span>
+                                            </span>
+                                            <span className="text-ink-muted truncate">
+                                                {wager === 0 ? (
+                                                    'Safe for next paid match'
+                                                ) : vault.availableChips >= wager ? (
+                                                    <span className="inline-flex items-center gap-1 text-positive font-semibold">
+                                                        <CheckGlyphIcon className="w-3 h-3 shrink-0" />
+                                                        <span>Covered (0 gas entry)</span>
+                                                    </span>
+                                                ) : vault.availableChips > 0 ? (
+                                                    `Top up ${formatEntryFee(wager - vault.availableChips)} diff`
+                                                ) : (
+                                                    '1-step top-up on start'
+                                                )}
+                                            </span>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            )}
                         </AnimatePresence>
                     </div>
 
-                    {/* 3. ACTION DICE - flex-1 so it rides lower, centered in
-                        the free space between entry fee and the card */}
+                    {/* 3. ACTION DICE */}
                     <div className="w-full flex-1 flex items-center justify-center relative z-30 min-h-0">
-                        <ActionDice 
+                        <ActionDice
                             onSelectQuickMatch={() => handleStartQuickMatch()}
                             onSelectTeamUp={handleStartTeamUp}
                             onSelectOfflineMatch={() => setShowOfflineOptions(true)}
                         />
                     </div>
 
-                    {/* 4. LIVE BROADCAST — slim; full feed opens on tap.
-                        .broadcast-anchor (globals.css) keeps it clear of the
-                        fixed footer on narrow phones. */}
+                    {/* 4. LIVE BROADCAST */}
                     <div className="broadcast-anchor w-full mt-auto pt-2">
                         <LiveBroadcastCard
                             onOpenProfile={onOpenProfile}
@@ -804,66 +785,73 @@ export default function GameLobby({
                             onOpenArena={onOpenArena}
                         />
                     </div>
-
                 </div>
             )}
 
             {/* --- OVERLAY PANELS --- */}
             {pendingJoin && (
-                <div className="fixed inset-0 z-[250] flex items-center justify-center px-6 bg-black/60 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[250] flex items-center justify-center px-6 bg-surface-page/75 backdrop-blur-sm">
                     <div
-                        className="w-full max-w-[320px] rounded-[24px] border border-white/10 px-6 py-8 flex flex-col items-center gap-4 text-center shadow-2xl"
-                        style={{ background: 'var(--panel-bg, rgba(13,13,13,0.96))', backdropFilter: 'blur(32px)' }}
+                        className="panel-shell-3077 relative w-full max-w-[320px] rounded-[24px] border border-line-strong bg-surface-panel px-6 py-8 flex flex-col items-center gap-4 text-center shadow-2xl overflow-hidden"
+                        style={{ backdropFilter: 'blur(32px)' }}
                     >
-                        <div className="w-10 h-10 border-[3px] border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin" />
-                        <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300">
+                        <HudCornerTicks />
+                        <ThinkingOrb state="searching" size={32} tone="accent" label="Joining room" />
+                        <p className="text-ludo-xs font-extrabold uppercase tracking-[0.3em] text-accent">
                             Joining room
                         </p>
-                        <p className="text-2xl font-black text-white tracking-[0.25em]">{pendingJoin.code}</p>
-                        <p className="text-ludo-sm text-white/40 font-bold uppercase tracking-wider">
+                        <p className="text-2xl font-extrabold text-ink-strong tracking-[0.25em]">{pendingJoin.code}</p>
+                        <p className="text-ludo-sm text-ink-muted font-bold uppercase tracking-wider">
                             Waiting for host…
                         </p>
                     </div>
                 </div>
             )}
-            {/* Join feedback popup: full/started/closed rooms say so plainly */}
+
             {joinError && (
                 <div
-                    className="fixed inset-0 z-[200] flex items-center justify-center px-6 bg-black/60 backdrop-blur-sm"
+                    className="fixed inset-0 z-[200] flex items-center justify-center px-6 bg-surface-page/75 backdrop-blur-sm"
                     onClick={() => setJoinError(null)}
                 >
                     <div
-                        className="w-full max-w-[340px] rounded-[24px] border border-white/10 px-6 py-6 flex flex-col items-center gap-2.5 text-center shadow-2xl"
-                        style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.95))', backdropFilter: 'blur(32px)' }}
+                        className="panel-shell-3077 relative w-full max-w-[340px] rounded-[24px] border border-line-strong bg-surface-panel px-6 py-6 flex flex-col items-center gap-2.5 text-center shadow-2xl overflow-hidden"
+                        style={{ backdropFilter: 'blur(32px)' }}
                         onClick={e => e.stopPropagation()}
                     >
-                        <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-amber-300">
+                        <HudCornerTicks />
+                        <p className="text-ludo-xs font-extrabold uppercase tracking-[0.3em] text-warn">
                             Room unavailable
                         </p>
-                        <p className="text-ludo-md font-bold text-white/80 leading-relaxed">
+                        <p className="text-ludo-md font-bold text-ink-strong leading-relaxed">
                             {joinError}
                         </p>
-                        <p className="text-ludo-sm text-white/40 leading-relaxed">
+                        <p className="text-ludo-sm text-ink-muted leading-relaxed">
                             Use the full invite link (with the secret), or ask the host to copy it again.
                         </p>
                         {lastJoinRef.current && (
-                            <button
+                            <Button
+                                variant="primary"
+                                size="md"
+                                fullWidth
                                 onClick={() => {
                                     const j = lastJoinRef.current;
                                     setJoinError(null);
-                                    if (j) startPartyJoin(j.code, j.seat, j.secret);
+                                    if (j) void startPartyJoin(j.code, j.seat, j.secret);
                                 }}
-                                className="mt-1 w-full py-3 rounded-2xl bg-cyan-400 text-black text-xs font-black uppercase tracking-[0.2em] hover:bg-cyan-300 active:scale-[0.99] transition-all"
+                                className="mt-1 uppercase tracking-[0.2em]"
                             >
                                 Try again
-                            </button>
+                            </Button>
                         )}
-                        <button
+                        <Button
+                            variant="secondary"
+                            size="md"
+                            fullWidth
                             onClick={() => setJoinError(null)}
-                            className="mt-1 w-full py-3 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.2em] hover:bg-white/90 active:scale-[0.99] transition-all"
+                            className="mt-1 uppercase tracking-[0.2em]"
                         >
                             Got it
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}
@@ -877,78 +865,79 @@ export default function GameLobby({
                         setShowTeamUpOptions(false);
                     }}
                 >
-                <TeamUpMatchPanel
-                    key="teamup"
-                    onClose={() => {
-                        const closingCode = lobbyState?.roomCode || roomId;
-                        if (closingCode && reservedTeamUpRef.current.has(`room:${closingCode}`)) {
-                            const key = `room:${closingCode}`;
-                            reservedTeamUpRef.current.delete(key);
-                            void vault.releaseMatchStake(key).then((released) => {
-                                if (released > 0) {
-                                    toast(
-                                        `${released.toLocaleString()} CHIPS returned to your Match Vault for your next match (0 gas).`,
-                                        'info',
-                                    );
-                                }
-                            });
-                        }
-                        leaveGame();
-                        setShowTeamUpOptions(false);
-                    }}
-                    onJoin={(code: string, secret?: string) => startPartyJoin(code, undefined, secret || null)}
-                    onHost={() => {
-                        const code = hostQuickLobby(matchType, gameMode, wager);
-                        if (wager > 0 && code) {
-                            const key = `room:${code}`;
-                            reservedTeamUpRef.current.add(key);
-                            void vault
-                                .ensureVaultAndReserve({ matchKey: key, entryFeeChips: wager })
-                                .catch((err: any) => {
-                                    reservedTeamUpRef.current.delete(key);
-                                    toast(err?.message || 'Match fee approval required to host a paid room.', 'error');
-                                    leaveGame();
-                                });
-                        }
-                    }}
-                    currentRoomId={roomId}
-                    isHost={isHost}
-                    isLobbyConnected={isLobbyConnected}
-                    lobbyState={lobbyState}
-                    onStartMatch={() => {
-                        setShowTeamUpOptions(false);
-                        onStartGame();
-                    }}
-                    onSwapPlayers={swapPlayers}
-                    onKickPlayer={kickPlayer}
-                    onSendInvite={sendInvite}
-                    onQuickMatch={handleFillWithQuickMatch}
-                    onLowerFee={() => {
-                        lowerEntryFee();
-                        const activeCode = lobbyState?.roomCode || roomId;
-                        const feeOrder = [10_000_000, 1_000_000, 500_000, 100_000, 10_000, 1_000, 500, 0];
-                        const cur = lobbyState?.entryFee ?? wager;
-                        const next = feeOrder.find(p => p < cur);
-                        if (activeCode && next !== undefined) {
-                            const key = `room:${activeCode}`;
-                            if (next === 0) {
+                    <TeamUpMatchPanel
+                        key="teamup"
+                        onClose={() => {
+                            const closingCode = lobbyState?.roomCode || roomId;
+                            if (closingCode && reservedTeamUpRef.current.has(`room:${closingCode}`)) {
+                                const key = `room:${closingCode}`;
                                 reservedTeamUpRef.current.delete(key);
-                                void vault.releaseMatchStake(key).then((rel) => {
-                                    if (rel > 0) toast(`${rel.toLocaleString()} CHIPS returned to your Match Vault (0 gas).`, 'info');
+                                void vault.releaseMatchStake(key).then((released) => {
+                                    if (released > 0) {
+                                        toast(
+                                            `${released.toLocaleString()} CHIPS returned to your Match Vault for your next match (0 gas).`,
+                                            'info',
+                                        );
+                                    }
                                 });
-                            } else {
-                                void vault.ensureVaultAndReserve({ matchKey: key, entryFeeChips: next });
                             }
-                        }
-                    }}
-                    hunting={embeddedHunt}
-                    huntExpired={huntExpired}
-                    huntTimeoutS={HUNT_TIMEOUT_S}
-                    onCancelHunt={handleCancelQuickMatch}
-                    matchType={matchType}
-                    gameMode={gameMode}
-                    entryFee={wager}
-                />
+                            leaveGame();
+                            setShowTeamUpOptions(false);
+                        }}
+                        onJoin={(code: string, secret?: string) => void startPartyJoin(code, undefined, secret || null)}
+                        onHost={() => {
+                            const code = hostQuickLobby(matchType, gameMode, wager);
+                            if (wager > 0 && code) {
+                                const key = `room:${code}`;
+                                reservedTeamUpRef.current.add(key);
+                                void vault
+                                    .ensureVaultAndReserve({ matchKey: key, entryFeeChips: wager })
+                                    .catch((err: unknown) => {
+                                        reservedTeamUpRef.current.delete(key);
+                                        const msg = err instanceof Error ? err.message : undefined;
+                                        toast(msg || 'Match fee approval required to host a paid room.', 'error');
+                                        leaveGame();
+                                    });
+                            }
+                        }}
+                        currentRoomId={roomId}
+                        isHost={isHost}
+                        isLobbyConnected={isLobbyConnected}
+                        lobbyState={lobbyState}
+                        onStartMatch={() => {
+                            setShowTeamUpOptions(false);
+                            onStartGame();
+                        }}
+                        onSwapPlayers={swapPlayers}
+                        onKickPlayer={kickPlayer}
+                        onSendInvite={sendInvite}
+                        onQuickMatch={handleFillWithQuickMatch}
+                        onLowerFee={() => {
+                            lowerEntryFee();
+                            const activeCode = lobbyState?.roomCode || roomId;
+                            const feeOrder = [10_000_000, 1_000_000, 500_000, 100_000, 10_000, 1_000, 500, 0];
+                            const cur = lobbyState?.entryFee ?? wager;
+                            const next = feeOrder.find(p => p < cur);
+                            if (activeCode && next !== undefined) {
+                                const key = `room:${activeCode}`;
+                                if (next === 0) {
+                                    reservedTeamUpRef.current.delete(key);
+                                    void vault.releaseMatchStake(key).then((rel) => {
+                                        if (rel > 0) toast(`${rel.toLocaleString()} CHIPS returned to your Match Vault (0 gas).`, 'info');
+                                    });
+                                } else {
+                                    void vault.ensureVaultAndReserve({ matchKey: key, entryFeeChips: next });
+                                }
+                            }
+                        }}
+                        hunting={embeddedHunt}
+                        huntExpired={huntExpired}
+                        huntTimeoutS={HUNT_TIMEOUT_S}
+                        onCancelHunt={handleCancelQuickMatch}
+                        matchType={matchType}
+                        gameMode={gameMode}
+                        entryFee={wager}
+                    />
                 </PanelErrorBoundary>
             )}
 
@@ -984,9 +973,7 @@ export default function GameLobby({
                 />
             )}
 
-            {/* Embedded hunt engine: hidden mount owns the hybrid search
-                lifecycle (mount = hunt, unmount = cancelSearch); the visible
-                mini radar lives inside the TeamUp page. */}
+            {/* Embedded hunt engine */}
             {embeddedHunt && hybridParams && (
                 <div className="hidden" aria-hidden>
                     <QuickMatchPanel

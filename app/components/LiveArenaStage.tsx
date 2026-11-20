@@ -150,9 +150,9 @@ export function LiveArenaStage({
                 </div>
             </div>
 
-            <div className="mx-1.5 mt-1.5 mb-1.5 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">
+            <div className="mx-1.5 mt-1.5 mb-1.5 rounded-2xl border border-line-soft bg-surface-panel px-3 py-2">
                 <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-ludo-xs font-black uppercase tracking-[0.22em] text-white/40">Arena floor</span>
+                    <span className="text-ludo-xs font-extrabold uppercase tracking-[0.22em] text-ink-faint">Arena floor</span>
                     <Button
                         variant="ghost"
                         size="sm"
@@ -177,7 +177,7 @@ export function LiveArenaStage({
                         <span className="arena-stat-lab">Betting</span>
                     </div>
                 </div>
-                <p className="mt-1.5 text-ludo-xs font-bold text-white/25 uppercase tracking-wider text-center flex items-center justify-center gap-1.5">
+                <p className="mt-1.5 text-ludo-xs font-bold text-ink-faint uppercase tracking-wider text-center flex items-center justify-center gap-1.5">
                     <FiUsers className="w-3 h-3" />
                     Read-only spectating · wagers stay safe
                 </p>
