@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     BOOT_DURATION_MS,
+    BOOT_EXIT_CLOSE_MS,
+    BOOT_EXIT_OPEN_MS,
     BOOT_FETCH_TIMEOUT_MS,
     BOOT_LOCKUP_MIN_MS,
     BOOT_MAX_TIMEOUT_MS,
@@ -22,10 +24,11 @@ import { HudCornerTicks } from '@/app/components/HudPrimitives';
 
 export interface BootSequenceProps {
     isSessionChecking: boolean;
+    onRevealLobby?: () => void;
     onComplete: () => void;
 }
 
-type BootPhase = 'lockup' | 'video' | 'fallback';
+type BootPhase = 'lockup' | 'video' | 'fallback' | 'exit-close' | 'exit-open';
 
 const GRADUATION_TICKS = Array.from({ length: 32 }, (_, idx) => idx);
 const DIAL_RIVETS = Array.from({ length: 8 }, (_, idx) => {
@@ -33,12 +36,17 @@ const DIAL_RIVETS = Array.from({ length: 8 }, (_, idx) => {
     return { cx: 110 + Math.cos(a) * 65, cy: 110 + Math.sin(a) * 65 };
 });
 
-export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, onComplete }) => {
+export const BootSequence: React.FC<BootSequenceProps> = ({
+    isSessionChecking,
+    onRevealLobby,
+    onComplete,
+}) => {
     const { preferences } = usePreferences();
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const synthRef = useRef<BootPhase1Synth | null>(null);
     const completedRef = useRef(false);
+    const exitingRef = useRef(false);
     const phaseRef = useRef<BootPhase>('lockup');
     const downloadFracRef = useRef(0);
     const blobUrlRef = useRef<string | null>(null);
@@ -46,8 +54,12 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
     const videoEndedRef = useRef(false);
     const lastTimeRef = useRef(0);
     const lastProgressAtRef = useRef(0);
+    const exitCloseTimerRef = useRef<number | null>(null);
+    const exitOpenTimerRef = useRef<number | null>(null);
     const sessionCheckingRef = useRef(isSessionChecking);
     sessionCheckingRef.current = isSessionChecking;
+    const onRevealLobbyRef = useRef(onRevealLobby);
+    onRevealLobbyRef.current = onRevealLobby;
     const onCompleteRef = useRef(onComplete);
     onCompleteRef.current = onComplete;
     const sfxPrefRef = useRef(preferences.sfx);
@@ -55,13 +67,14 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
 
     const [canPreloadHeavy, setCanPreloadHeavy] = useState(false);
     const [phase, setPhase] = useState<BootPhase>('lockup');
+    const [shutterClosed, setShutterClosed] = useState(false);
     const [lockupPct, setLockupPct] = useState(0);
     const [blobSrc, setBlobSrc] = useState<string | undefined>(undefined);
     const [isMuted, setIsMuted] = useState(true);
     const [telemetry, setTelemetry] = useState('BOOT // KERNEL INIT');
     const [videoProgress, setVideoProgress] = useState(0);
 
-    // Defer heavy DB/chunk preload until the 1.56 MB boot video finishes streaming into RAM
+    // Defer heavy DB/chunk preload until the 1.24 MB boot video finishes streaming into RAM
     const preload = useBootPreload(isSessionChecking, canPreloadHeavy);
 
     const updatePhase = useCallback((next: BootPhase) => {
@@ -72,15 +85,48 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
     const finishBoot = useCallback(() => {
         if (completedRef.current) return;
         completedRef.current = true;
+        onRevealLobbyRef.current?.();
         onCompleteRef.current();
     }, []);
 
-    // Complete cleanly once session restore finishes after video or fallback ends
+    const beginLobbyTransition = useCallback(() => {
+        if (exitingRef.current || completedRef.current) return;
+        exitingRef.current = true;
+
+        if (prefersReducedMotion()) {
+            finishBoot();
+            return;
+        }
+
+        // Step 1: Close twin cyber-tactical shutters over the final bright video frame
+        setShutterClosed(false);
+        updatePhase('exit-close');
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                if (!completedRef.current) setShutterClosed(true);
+            });
+        });
+
+        // Step 2: Reveal live lobby beneath closed shutters, then part them open smoothly
+        exitCloseTimerRef.current = window.setTimeout(() => {
+            if (completedRef.current) return;
+            onRevealLobbyRef.current?.();
+            synthRef.current?.playShutterReveal();
+            updatePhase('exit-open');
+            setShutterClosed(false);
+
+            exitOpenTimerRef.current = window.setTimeout(() => {
+                finishBoot();
+            }, BOOT_EXIT_OPEN_MS);
+        }, BOOT_EXIT_CLOSE_MS);
+    }, [finishBoot, updatePhase]);
+
+    // Complete cleanly via shutter sync once session restore finishes after video or fallback ends
     useEffect(() => {
         if (!isSessionChecking && (videoEndedRef.current || phase === 'fallback')) {
-            finishBoot();
+            beginLobbyTransition();
         }
-    }, [isSessionChecking, phase, finishBoot]);
+    }, [isSessionChecking, phase, beginLobbyTransition]);
 
     // Respect Settings SFX toggle across Phase 1 synth + Phase 2 video
     useEffect(() => {
@@ -93,9 +139,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
         }
     }, [preferences.sfx]);
 
-    // Main Two-Phase Boot Engine:
-    // Phase 1 ('lockup'): Pure-code Ludo 3077 orbital medallion streams the entire MP4 into a RAM Blob.
-    // Phase 2 ('video'): Auto-launches from the in-memory Blob URL with zero Range/buffering stutter.
+    // Main Two-Phase Boot Engine -> Phase 3 Shutter Sync Transition
     useEffect(() => {
         if (prefersReducedMotion()) {
             if (!sessionCheckingRef.current) finishBoot();
@@ -160,7 +204,6 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                 downloadFracRef.current = 1;
                 blobReadyRef.current = true;
                 setBlobSrc(url);
-                // Now that video bytes are 100% in RAM, unleash full preload bandwidth for DB + chunks
                 setCanPreloadHeavy(true);
             } catch {
                 window.clearTimeout(fetchTimeout);
@@ -169,13 +212,20 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                 updatePhase('fallback');
                 setTelemetry('SYS.LINK // FAST BOOT');
                 if (!sessionCheckingRef.current) {
-                    finishBoot();
+                    beginLobbyTransition();
                 }
             }
         })();
 
         const launchVideoPhase = () => {
-            if (launchedVideo || completedRef.current || phaseRef.current === 'fallback') return;
+            if (
+                launchedVideo ||
+                completedRef.current ||
+                exitingRef.current ||
+                phaseRef.current === 'fallback'
+            ) {
+                return;
+            }
             const video = videoRef.current;
             if (!video || !blobUrlRef.current) return;
 
@@ -216,11 +266,10 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                     tryAutoUnmute();
                 })
                 .catch(() => {
-                    // Handled cleanly by progress watchdog below
+                    // Watched by stall watchdog below
                 });
         };
 
-        // Silent gesture listener arms Phase 1 Web Audio & unmutes Phase 2 video naturally
         const onUserGesture = () => {
             if (!sfxPrefRef.current || completedRef.current) return;
             synth.tryResume();
@@ -240,7 +289,6 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
         document.addEventListener('pointerdown', onUserGesture, { passive: true, capture: true });
         document.addEventListener('keydown', onUserGesture, { passive: true, capture: true });
 
-        // Phase 1 smooth progress ticker tracking both minimum reveal dwell & real MP4 download bytes
         const lockupTimer = window.setInterval(() => {
             if (launchedVideo || completedRef.current || phaseRef.current !== 'lockup') return;
             const elapsed = performance.now() - mountAt;
@@ -273,22 +321,28 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
             );
         }, 45);
 
-        // Progress watchdog during Phase 2: only falls back if decoder freezes completely
         const watchdog = window.setInterval(() => {
-            if (phaseRef.current !== 'video' || videoEndedRef.current || completedRef.current) return;
+            if (
+                phaseRef.current !== 'video' ||
+                videoEndedRef.current ||
+                exitingRef.current ||
+                completedRef.current
+            ) {
+                return;
+            }
             const stalledMs = performance.now() - lastProgressAtRef.current;
             if (stalledMs >= BOOT_STALL_TIMEOUT_MS) {
                 updatePhase('fallback');
                 setTelemetry('SYS.LINK // FAST BOOT');
                 if (!sessionCheckingRef.current) {
-                    finishBoot();
+                    beginLobbyTransition();
                 }
             }
         }, 1000);
 
         const maxFailSafe = window.setTimeout(() => {
             setCanPreloadHeavy(true);
-            finishBoot();
+            beginLobbyTransition();
         }, BOOT_MAX_TIMEOUT_MS);
 
         return () => {
@@ -301,6 +355,8 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
             window.clearInterval(watchdog);
             window.clearTimeout(maxFailSafe);
             if (launchHoldTimer !== null) window.clearTimeout(launchHoldTimer);
+            if (exitCloseTimerRef.current !== null) window.clearTimeout(exitCloseTimerRef.current);
+            if (exitOpenTimerRef.current !== null) window.clearTimeout(exitOpenTimerRef.current);
             synth.dispose();
             synthRef.current = null;
             if (blobUrlRef.current) {
@@ -308,17 +364,17 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                 blobUrlRef.current = null;
             }
         };
-    }, [finishBoot, updatePhase]);
+    }, [beginLobbyTransition, finishBoot, updatePhase]);
 
     const markVideoEnded = useCallback(() => {
         if (videoEndedRef.current) return;
         videoEndedRef.current = true;
         setVideoProgress(100);
-        setTelemetry('SYS.READY // 100%');
+        setTelemetry('CLAIMS // ENTERING ARENA');
         if (!sessionCheckingRef.current) {
-            finishBoot();
+            beginLobbyTransition();
         }
-    }, [finishBoot]);
+    }, [beginLobbyTransition]);
 
     const handlePlaying = useCallback(() => {
         lastProgressAtRef.current = performance.now();
@@ -349,9 +405,9 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
         updatePhase('fallback');
         setTelemetry('SYS.LINK // FAST BOOT');
         if (!sessionCheckingRef.current) {
-            finishBoot();
+            beginLobbyTransition();
         }
-    }, [finishBoot, updatePhase]);
+    }, [beginLobbyTransition, updatePhase]);
 
     const handleToggleMute = useCallback(
         (e: React.PointerEvent<HTMLButtonElement>) => {
@@ -373,6 +429,8 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
         [preferences.sfx, phase],
     );
 
+    const isOpeningExit = phase === 'exit-open';
+    const isExiting = phase === 'exit-close' || phase === 'exit-open';
     const activePct =
         phase === 'lockup' ? lockupPct : phase === 'video' ? videoProgress : Math.max(20, preload.percent);
     const activeNodesCount = Math.min(
@@ -383,20 +441,24 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
     return (
         <div
             className="ludo-splash-scope fixed inset-0 z-[9999] overflow-hidden select-none touch-manipulation flex items-center justify-center"
-            style={{ backgroundColor: '#05070A', color: '#F1F5F9' }}
+            style={{
+                backgroundColor: isOpeningExit ? 'transparent' : '#05070A',
+                color: '#F1F5F9',
+                pointerEvents: isOpeningExit ? 'none' : 'auto',
+            }}
             role="status"
             aria-label="Loading Ludo 3077"
         >
-            {/* 9:16 Mobile Stage Container: full screen on mobile portrait, exact 9:16 centered viewport on desktop */}
+            {/* 9:16 Mobile Stage Container: full screen on portrait phones, centered 9:16 viewport on desktop */}
             <div
                 className="relative w-full h-full overflow-hidden flex flex-col items-center justify-center"
                 style={{
                     maxWidth: 'min(100vw, calc(100dvh * 9 / 16))',
-                    backgroundColor: '#05070A',
+                    backgroundColor: isOpeningExit ? 'transparent' : '#05070A',
                 }}
             >
-                {/* In-Memory Blob Video Layer */}
-                {phase !== 'fallback' && blobSrc && (
+                {/* In-Memory Blob Video Layer (hidden once shutters close for clean lobby reveal) */}
+                {phase !== 'fallback' && !isOpeningExit && blobSrc && (
                     <video
                         ref={videoRef}
                         src={blobSrc}
@@ -409,7 +471,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                         onEnded={markVideoEnded}
                         onError={handleVideoError}
                         className={`absolute inset-0 w-full h-full object-cover pointer-events-none transition-opacity duration-200 ${
-                            phase === 'video' ? 'opacity-100' : 'opacity-0'
+                            phase === 'video' || phase === 'exit-close' ? 'opacity-100' : 'opacity-0'
                         }`}
                     />
                 )}
@@ -427,7 +489,6 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                     >
                         <HudCornerTicks className="m-4" />
 
-                        {/* Top-left / Top-right 01 & 02 Bracket Tags scoped strictly inside 9:16 stage */}
                         <div
                             className="pointer-events-none absolute inset-x-0 top-0 px-6 flex items-center justify-between font-mono text-ludo-sm font-bold tracking-[0.2em]"
                             style={{
@@ -451,7 +512,6 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                             </div>
                         </div>
 
-                        {/* Central Rotating Orbital Rings + Riveted 3D-Styled Triad Dice Dial */}
                         <div className="relative w-56 h-56 mb-4 flex items-center justify-center">
                             <svg
                                 viewBox="0 0 220 220"
@@ -489,12 +549,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                                 />
                             </svg>
 
-                            <svg
-                                viewBox="0 0 220 220"
-                                className="relative w-full h-full"
-                                fill="none"
-                                aria-hidden="true"
-                            >
+                            <svg viewBox="0 0 220 220" className="relative w-full h-full" fill="none" aria-hidden="true">
                                 <defs>
                                     <radialGradient id="boot-dial-bg" cx="42%" cy="34%" r="68%">
                                         <stop offset="0%" stopColor="#1E2530" />
@@ -543,11 +598,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                                     { cx: 132, cy: 108 },
                                     { cx: 110, cy: 132 },
                                 ].map((tile, idx) => (
-                                    <g
-                                        key={idx}
-                                        transform={`rotate(45 ${tile.cx} ${tile.cy})`}
-                                        filter="url(#boot-cyan-glow)"
-                                    >
+                                    <g key={idx} transform={`rotate(45 ${tile.cx} ${tile.cy})`} filter="url(#boot-cyan-glow)">
                                         <rect
                                             x={tile.cx - 12}
                                             y={tile.cy - 12}
@@ -568,12 +619,8 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                             </svg>
                         </div>
 
-                        {/* Wordmark Lockup: LUDO / 3077 / THE ONCHAIN ARENA */}
                         <div className="flex flex-col items-center leading-none mb-7">
-                            <span
-                                className="text-4xl font-extrabold uppercase tracking-[0.06em]"
-                                style={{ color: '#F8FAFC' }}
-                            >
+                            <span className="text-4xl font-extrabold uppercase tracking-[0.06em]" style={{ color: '#F8FAFC' }}>
                                 LUDO
                             </span>
                             <span
@@ -593,7 +640,6 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                             </span>
                         </div>
 
-                        {/* Modern Aerospace Laser Filament & 5-Node Subsystem Rail */}
                         <div className="w-full max-w-[304px] flex flex-col gap-2">
                             <div className="flex items-center justify-between font-mono text-ludo-xs font-bold tracking-[0.12em] uppercase">
                                 <div className="flex items-center gap-2">
@@ -699,7 +745,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                     </div>
                 )}
 
-                {/* Minimal Icon-Only Corner Speaker Toggle scoped inside the 9:16 stage */}
+                {/* Minimal Icon-Only Corner Speaker Toggle scoped inside 9:16 stage */}
                 {phase === 'video' && preferences.sfx && (
                     <button
                         type="button"
@@ -725,8 +771,8 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                     </button>
                 )}
 
-                {/* Phase 2 Video Edge-Flush Laser Filament scoped strictly inside the 9:16 stage */}
-                {phase !== 'lockup' && (
+                {/* Phase 2 Video Edge-Flush Laser Filament */}
+                {(phase === 'video' || phase === 'fallback') && (
                     <div
                         className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col gap-1"
                         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
@@ -758,6 +804,61 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                             </div>
                         </div>
                     </div>
+                )}
+
+                {/* PHASE 3: Synchronized Cyber-Tactical Twin Shutter Transition into Lobby */}
+                {isExiting && (
+                    <>
+                        {/* Top Armored Shutter Blade */}
+                        <div
+                            className="pointer-events-none absolute inset-x-0 top-0 h-1/2 z-30 flex flex-col justify-end transition-transform ease-[cubic-bezier(0.22,1,0.36,1)]"
+                            style={{
+                                backgroundColor: '#05070A',
+                                backgroundImage:
+                                    'linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px)',
+                                backgroundSize: '28px 28px',
+                                transitionDuration: `${isOpeningExit ? BOOT_EXIT_OPEN_MS : BOOT_EXIT_CLOSE_MS}ms`,
+                                transform: shutterClosed ? 'translateY(0%)' : 'translateY(-104%)',
+                            }}
+                        >
+                            <div className="px-4 pb-2 flex items-center justify-between font-mono text-ludo-xs font-bold tracking-[0.2em] uppercase" style={{ color: '#00E5FF' }}>
+                                <span>ARENA LINK // SYNCED</span>
+                                <span>3077</span>
+                            </div>
+                            <div
+                                className="w-full h-0.5"
+                                style={{
+                                    backgroundColor: '#00E5FF',
+                                    boxShadow: '0 0 16px rgba(0, 229, 255, 0.9)',
+                                }}
+                            />
+                        </div>
+
+                        {/* Bottom Armored Shutter Blade */}
+                        <div
+                            className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 z-30 flex flex-col justify-start transition-transform ease-[cubic-bezier(0.22,1,0.36,1)]"
+                            style={{
+                                backgroundColor: '#05070A',
+                                backgroundImage:
+                                    'linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px)',
+                                backgroundSize: '28px 28px',
+                                transitionDuration: `${isOpeningExit ? BOOT_EXIT_OPEN_MS : BOOT_EXIT_CLOSE_MS}ms`,
+                                transform: shutterClosed ? 'translateY(0%)' : 'translateY(104%)',
+                            }}
+                        >
+                            <div
+                                className="w-full h-0.5"
+                                style={{
+                                    backgroundColor: '#00E5FF',
+                                    boxShadow: '0 0 16px rgba(0, 229, 255, 0.9)',
+                                }}
+                            />
+                            <div className="px-4 pt-2 flex items-center justify-between font-mono text-ludo-xs font-bold tracking-[0.2em] uppercase" style={{ color: '#94A3B8' }}>
+                                <span>ENTERING LOBBY</span>
+                                <span style={{ color: '#00E5FF' }}>SYS.OK</span>
+                            </div>
+                        </div>
+                    </>
                 )}
             </div>
         </div>

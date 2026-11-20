@@ -132,6 +132,35 @@ export class BootPhase1Synth {
         sub.stop(now + 0.28);
     }
 
+    public playShutterReveal(): void {
+        const ctx = this.ctx;
+        if (!this.enabled || !ctx || ctx.state !== 'running') return;
+        const now = ctx.currentTime;
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(660, now);
+        osc.frequency.exponentialRampToValueAtTime(1180, now + 0.16);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.06, now + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.24);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.onended = () => {
+            try {
+                osc.disconnect();
+                gain.disconnect();
+            } catch {
+                // ignore
+            }
+        };
+        osc.start(now);
+        osc.stop(now + 0.26);
+    }
+
     public dispose(): void {
         if (this.ctx) {
             if (this.ctx.state !== 'closed') {

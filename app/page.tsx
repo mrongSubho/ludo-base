@@ -777,8 +777,15 @@ export default function Page() {
     void handlePlayNow(true, room.matchShape);
   }, [handlePlayNow]);
 
+  const [lobbyRevealing, setLobbyRevealing] = useState(false);
+
+  const handleRevealLobby = useCallback(() => {
+    setLobbyRevealing(true);
+  }, []);
+
   const handleBootComplete = useCallback(() => {
     setShowSplash(false);
+    setLobbyRevealing(true);
   }, []);
 
   return (
@@ -789,6 +796,7 @@ export default function Page() {
         ) : (
           <BootSequence
             isSessionChecking={isSessionChecking}
+            onRevealLobby={handleRevealLobby}
             onComplete={handleBootComplete}
           />
         ))}
@@ -813,7 +821,7 @@ export default function Page() {
         <div className="boot-dot !w-[180px] !h-[180px] bottom-[15%] right-[5%] opacity-[0.015]" />
       </div>
 
-      {showSplash ? null : !isConnected ? (
+      {showSplash && !lobbyRevealing ? null : !isConnected ? (
         <div className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center">
           <WalletConnectCard onGuest={() => enterGuest()} />
         </div>
@@ -821,7 +829,7 @@ export default function Page() {
         <FirstRunSetupPanel onDone={() => setOnboarded(true)} />
       ) : (
         <GuestWallProvider>
-        <div className="app-shell dashboard-shell no-scrollbar">
+        <div className={`app-shell dashboard-shell no-scrollbar transition-opacity duration-500 ease-out ${showSplash && !lobbyRevealing ? 'opacity-0' : 'opacity-100'}`}>
           {/* ── Dashboard State ── */}
           {appState === 'dashboard' && (
             <div className="dashboard-container relative h-full">
