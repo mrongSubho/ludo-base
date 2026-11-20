@@ -32,6 +32,7 @@ import {
     CREST_EMBLEMS,
     CREST_PALETTES,
 } from "@/app/components/ClanCrestBadge";
+import { HudProgressGauge } from "@/app/components/HudPrimitives";
 import {
     ClanCombatGauge,
     ClanCwrSparkline,
@@ -243,8 +244,8 @@ export function ClanDossierContent({
                 <div
                     className={`rounded-xl border px-3 py-2 text-ludo-xs font-medium flex items-center justify-between gap-2 ${
                         feedback.kind === "ok"
-                            ? "bg-emerald-500/15 border-emerald-500/35 text-emerald-300"
-                            : "bg-red-500/15 border-red-500/35 text-red-300"
+                            ? "bg-positive/15 border-positive/35 text-positive"
+                            : "bg-negative/15 border-negative/35 text-negative"
                     }`}
                 >
                     <span>{feedback.text}</span>
@@ -260,7 +261,7 @@ export function ClanDossierContent({
 
             {/* ── Top Summary & Controls Card ────────────────────────────────────────── */}
             <div
-                className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 space-y-2.5"
+                className="rounded-2xl border border-line-soft bg-surface-panel p-3.5 space-y-2.5"
                 style={{
                     backgroundImage: `radial-gradient(circle at top right, ${accentColor}1A, transparent 60%)`,
                 }}
@@ -271,12 +272,12 @@ export function ClanDossierContent({
                             <ClanCrestBadge crest={clan.crest} tag={clan.tag} size="lg" />
                             <div className="min-w-0 space-y-0.5">
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                    <h2 className="text-ludo-lg font-bold text-white truncate">{clan.name}</h2>
-                                    <span className="px-2 py-0.5 rounded-md bg-accent-soft border border-cyan-400/35 font-mono text-ludo-xs font-bold text-cyan-300">
+                                    <h2 className="text-ludo-lg font-bold text-ink-strong truncate">{clan.name}</h2>
+                                    <span className="px-2 py-0.5 rounded-md bg-accent-soft border border-accent/35 font-mono text-ludo-xs font-bold text-accent">
                                         [{clan.tag}]
                                     </span>
                                 </div>
-                                <div className="text-ludo-xs font-mono text-white/60">
+                                <div className="text-ludo-xs font-mono text-ink-muted">
                                     LVL {clan.level} · {clan.division} · {clan.member_count}/{cap} Operatives
                                 </div>
                             </div>
@@ -286,7 +287,7 @@ export function ClanDossierContent({
                                 type="button"
                                 disabled={joinBusy || clan.join_policy === "invite_only"}
                                 onClick={handleJoin}
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-400 text-slate-950 font-bold text-ludo-xs uppercase tracking-wider disabled:opacity-50 shrink-0"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent text-accent-ink font-bold text-ludo-xs uppercase tracking-wider disabled:opacity-50 shrink-0"
                             >
                                 <LuUserPlus className="w-3.5 h-3.5" />
                                 <span>
@@ -306,10 +307,10 @@ export function ClanDossierContent({
                 )}
 
                 {/* Meta & Motto Row */}
-                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-ludo-xs font-mono text-white/60">
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-ludo-xs font-mono text-ink-muted">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-                        <span className="inline-flex items-center gap-1 text-white/80">
-                            <LuCrown className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                        <span className="inline-flex items-center gap-1 text-ink-strong">
+                            <LuCrown className="w-3.5 h-3.5 text-warn shrink-0" />
                             <span className="truncate">
                                 {dossier.leaderProfile?.username || shortenWallet(clan.leader_wallet)}
                             </span>
@@ -318,7 +319,7 @@ export function ClanDossierContent({
                             <LuCalendar className="w-3.5 h-3.5" />
                             {formatDateShort(clan.created_at)}
                         </span>
-                        <span className="uppercase px-1.5 py-0.5 rounded bg-black/30 border border-white/10 text-white/70">
+                        <span className="uppercase px-1.5 py-0.5 rounded bg-surface-recessed border border-line-soft text-ink-muted">
                             {clan.join_policy.replace("_", " ")}
                         </span>
                     </div>
@@ -326,20 +327,20 @@ export function ClanDossierContent({
                     <span className="inline-flex items-center gap-1 shrink-0">
                         {clan.treasury_public ? (
                             <>
-                                <LuEye className="w-3.5 h-3.5 text-emerald-300" />
-                                <span className="text-emerald-300">Public Vault</span>
+                                <LuEye className="w-3.5 h-3.5 text-positive" />
+                                <span className="text-positive">Public Vault</span>
                             </>
                         ) : (
                             <>
-                                <LuLock className="w-3.5 h-3.5 text-amber-300" />
-                                <span className="text-amber-300">Members Only</span>
+                                <LuLock className="w-3.5 h-3.5 text-warn" />
+                                <span className="text-warn">Members Only</span>
                             </>
                         )}
                     </span>
                 </div>
 
                 {clan.bio && (
-                    <p className="text-ludo-xs text-white/65 italic leading-snug">
+                    <p className="text-ludo-xs text-ink-muted italic leading-snug">
                         &ldquo;{clan.bio}&rdquo;
                     </p>
                 )}
@@ -349,11 +350,11 @@ export function ClanDossierContent({
                     <button
                         type="button"
                         onClick={handleShareTag}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/15 bg-black/30 text-white/75 hover:text-white text-ludo-xs font-mono font-bold transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-line-soft bg-surface-recessed text-ink-muted hover:text-ink-strong text-ludo-xs font-mono font-bold transition-colors"
                     >
                         {copiedTag ? (
                             <>
-                                <LuCheck className="w-3 h-3 text-emerald-300" />
+                                <LuCheck className="w-3 h-3 text-positive" />
                                 <span>Copied</span>
                             </>
                         ) : (
@@ -373,8 +374,8 @@ export function ClanDossierContent({
                             }}
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-ludo-xs font-mono font-bold transition-colors ${
                                 editingCrest
-                                    ? "bg-accent-soft border-cyan-400/45 text-cyan-300"
-                                    : "border-white/15 bg-black/30 text-white/75 hover:text-white"
+                                    ? "bg-accent-soft border-accent/45 text-accent"
+                                    : "border-line-soft bg-surface-recessed text-ink-muted hover:text-ink-strong"
                             }`}
                         >
                             <LuPencil className="w-3 h-3" />
@@ -393,8 +394,8 @@ export function ClanDossierContent({
                             }}
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-ludo-xs font-mono font-bold transition-colors ${
                                 editingRebrand
-                                    ? "bg-amber-500/20 border-amber-400/50 text-amber-300"
-                                    : "border-white/15 bg-black/30 text-white/75 hover:text-white"
+                                    ? "bg-warn/20 border-warn/50 text-warn"
+                                    : "border-line-soft bg-surface-recessed text-ink-muted hover:text-ink-strong"
                             }`}
                         >
                             <LuRefreshCw className="w-3 h-3" />
@@ -409,8 +410,8 @@ export function ClanDossierContent({
                             onClick={handleTogglePrivacy}
                             className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border text-ludo-xs font-mono font-bold transition-colors ${
                                 clan.treasury_public
-                                    ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-300"
-                                    : "bg-amber-500/15 border-amber-400/40 text-amber-300"
+                                    ? "bg-positive/15 border-positive/40 text-positive"
+                                    : "bg-warn/15 border-warn/40 text-warn"
                             }`}
                         >
                             {clan.treasury_public ? (
@@ -426,7 +427,7 @@ export function ClanDossierContent({
                         <button
                             type="button"
                             onClick={onOpenSettings}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/15 bg-black/30 text-white/75 hover:text-white text-ludo-xs font-mono font-bold transition-colors"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-line-soft bg-surface-recessed text-ink-muted hover:text-ink-strong text-ludo-xs font-mono font-bold transition-colors"
                         >
                             <LuSlidersHorizontal className="w-3 h-3" />
                             <span>Settings</span>
@@ -437,7 +438,7 @@ export function ClanDossierContent({
                         <button
                             type="button"
                             onClick={() => void onRefresh()}
-                            className="ml-auto p-1.5 rounded-lg border border-white/15 bg-black/30 text-white/65 hover:text-white transition-colors"
+                            className="ml-auto p-1.5 rounded-lg border border-line-soft bg-surface-recessed text-ink-muted hover:text-ink-strong transition-colors"
                             title="Refresh Dossier"
                         >
                             <LuRefreshCw className="w-3.5 h-3.5" />
@@ -450,10 +451,10 @@ export function ClanDossierContent({
                     <motion.div
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="pt-2.5 border-t border-white/10 space-y-2.5"
+                        className="pt-2.5 border-t border-line-soft space-y-2.5"
                     >
                         <div className="flex items-center justify-between">
-                            <span className="text-ludo-xs uppercase tracking-wider font-bold text-cyan-300">
+                            <span className="text-ludo-xs uppercase tracking-wider font-bold text-accent">
                                 Customize Crest (Free)
                             </span>
                             <ClanCrestBadge
@@ -469,8 +470,8 @@ export function ClanDossierContent({
                                     onClick={() => setCrestEmblem(emb)}
                                     className={`px-2.5 py-1 rounded-lg border text-ludo-xs font-mono uppercase font-bold ${
                                         crestEmblem === emb
-                                            ? "bg-accent-soft border-cyan-400/50 text-cyan-300"
-                                            : "bg-black/30 border-white/10 text-white/60 hover:text-white"
+                                            ? "bg-accent-soft border-accent/50 text-accent"
+                                            : "bg-surface-recessed border-line-soft text-ink-muted hover:text-ink-strong"
                                     }`}
                                 >
                                     {emb}
@@ -488,12 +489,12 @@ export function ClanDossierContent({
                                     }}
                                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-ludo-xs font-mono ${
                                         crestPrimary.toLowerCase() === pal.primary.toLowerCase()
-                                            ? "border-cyan-400/50 bg-accent-soft text-white font-bold"
-                                            : "border-white/10 bg-black/30 text-white/60"
+                                            ? "border-accent/50 bg-accent-soft text-ink-strong font-bold"
+                                            : "border-line-soft bg-surface-recessed text-ink-muted"
                                     }`}
                                 >
                                     <span
-                                        className="w-2.5 h-2.5 rounded-full border border-white/25"
+                                        className="w-2.5 h-2.5 rounded-full border border-line-strong"
                                         style={{ backgroundColor: pal.primary }}
                                     />
                                     {pal.label}
@@ -504,7 +505,7 @@ export function ClanDossierContent({
                             <button
                                 type="button"
                                 onClick={() => setEditingCrest(false)}
-                                className="px-3 py-1 rounded-lg border border-white/15 bg-black/30 text-white/70 text-ludo-xs font-bold"
+                                className="px-3 py-1 rounded-lg border border-line-soft bg-surface-recessed text-ink-muted hover:text-ink-strong text-ludo-xs font-bold"
                             >
                                 Cancel
                             </button>
@@ -512,7 +513,7 @@ export function ClanDossierContent({
                                 type="button"
                                 disabled={savingCrest}
                                 onClick={handleSaveCrest}
-                                className="px-3.5 py-1 rounded-lg bg-cyan-400 text-slate-950 font-bold text-ludo-xs uppercase tracking-wider disabled:opacity-50"
+                                className="px-3.5 py-1 rounded-lg bg-accent text-accent-ink font-bold text-ludo-xs uppercase tracking-wider disabled:opacity-50"
                             >
                                 {savingCrest ? "Saving..." : "Apply Crest"}
                             </button>
@@ -526,15 +527,15 @@ export function ClanDossierContent({
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
                         onSubmit={handleSaveRebrand}
-                        className="pt-2.5 border-t border-white/10 space-y-2.5"
+                        className="pt-2.5 border-t border-line-soft space-y-2.5"
                     >
-                        <div className="text-ludo-xs font-mono text-white/70">
+                        <div className="text-ludo-xs font-mono text-ink-muted">
                             Fee:{" "}
-                            <strong className="text-amber-300">
+                            <strong className="text-warn">
                                 {dossier.renameFeeChips.toLocaleString()} CHIPS
                             </strong>{" "}
                             → Next:{" "}
-                            <strong className="text-white">
+                            <strong className="text-ink-strong">
                                 {dossier.nextRenameFeeChips.toLocaleString()} CHIPS
                             </strong>{" "}
                             (2k → 3k → 5k...)
@@ -552,7 +553,7 @@ export function ClanDossierContent({
                                 autoCapitalize="none"
                                 spellCheck={false}
                                 enterKeyHint="next"
-                                className="col-span-2 rounded-lg border border-white/15 bg-black/40 px-2.5 py-1.5 text-ludo-sm text-white focus:outline-none focus:border-cyan-400"
+                                className="col-span-2 rounded-lg border border-line-soft bg-surface-recessed px-2.5 py-1.5 text-ludo-sm text-ink-strong placeholder:text-ink-faint focus:outline-none focus:border-accent/60"
                             />
                             <input
                                 type="text"
@@ -566,14 +567,14 @@ export function ClanDossierContent({
                                 autoCapitalize="none"
                                 spellCheck={false}
                                 enterKeyHint="done"
-                                className="rounded-lg border border-white/15 bg-black/40 px-2.5 py-1.5 text-ludo-sm font-mono uppercase text-white focus:outline-none focus:border-cyan-400"
+                                className="rounded-lg border border-line-soft bg-surface-recessed px-2.5 py-1.5 text-ludo-sm font-mono uppercase text-ink-strong placeholder:text-ink-faint focus:outline-none focus:border-accent/60"
                             />
                         </div>
                         <div className="flex items-center justify-end gap-2">
                             <button
                                 type="button"
                                 onClick={() => setEditingRebrand(false)}
-                                className="px-3 py-1 rounded-lg border border-white/15 bg-black/30 text-white/70 text-ludo-xs font-bold"
+                                className="px-3 py-1 rounded-lg border border-line-soft bg-surface-recessed text-ink-muted hover:text-ink-strong text-ludo-xs font-bold"
                             >
                                 Cancel
                             </button>
@@ -583,7 +584,7 @@ export function ClanDossierContent({
                                     savingRebrand ||
                                     (newName.trim() === clan.name && newTag.trim().toUpperCase() === clan.tag)
                                 }
-                                className="px-3 py-1 rounded-lg bg-amber-400 text-slate-950 font-bold text-ludo-xs uppercase tracking-wider disabled:opacity-50"
+                                className="px-3 py-1 rounded-lg bg-warn text-accent-ink font-bold text-ludo-xs uppercase tracking-wider disabled:opacity-50"
                             >
                                 {savingRebrand
                                     ? "Confirming..."
@@ -596,34 +597,34 @@ export function ClanDossierContent({
 
             {/* ── Sleek 4-Metric Ribbon ───────────────────────────────────────────────── */}
             <div className="grid grid-cols-4 gap-1.5">
-                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-2 text-center">
-                    <div className="text-ludo-xs font-mono uppercase text-white/45">CWR</div>
-                    <div className="text-ludo-sm font-bold font-mono text-cyan-300 mt-0.5">
+                <div className="rounded-xl border border-line-soft bg-surface-panel px-2.5 py-2 text-center">
+                    <div className="text-ludo-xs font-mono uppercase text-ink-faint">CWR</div>
+                    <div className="text-ludo-sm font-bold font-mono text-accent mt-0.5">
                         {clan.cwr.toLocaleString()}
                     </div>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-2 text-center">
-                    <div className="text-ludo-xs font-mono uppercase text-white/45">Win Rate</div>
-                    <div className="text-ludo-sm font-bold font-mono text-emerald-300 mt-0.5">
+                <div className="rounded-xl border border-line-soft bg-surface-panel px-2.5 py-2 text-center">
+                    <div className="text-ludo-xs font-mono uppercase text-ink-faint">Win Rate</div>
+                    <div className="text-ludo-sm font-bold font-mono text-positive mt-0.5">
                         {dossier.warRecord.winRate}%
                     </div>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-2 text-center">
-                    <div className="text-ludo-xs font-mono uppercase text-white/45">Seats</div>
-                    <div className="text-ludo-sm font-bold font-mono text-white mt-0.5">
+                <div className="rounded-xl border border-line-soft bg-surface-panel px-2.5 py-2 text-center">
+                    <div className="text-ludo-xs font-mono uppercase text-ink-faint">Seats</div>
+                    <div className="text-ludo-sm font-bold font-mono text-ink-strong mt-0.5">
                         {clan.member_count}/{cap}
                     </div>
                 </div>
-                <div className="rounded-xl border border-white/10 bg-white/[0.04] px-2.5 py-2 text-center">
-                    <div className="text-ludo-xs font-mono uppercase text-white/45">Vault</div>
-                    <div className="text-ludo-sm font-bold font-mono text-amber-300 mt-0.5 truncate">
+                <div className="rounded-xl border border-line-soft bg-surface-panel px-2.5 py-2 text-center">
+                    <div className="text-ludo-xs font-mono uppercase text-ink-faint">Vault</div>
+                    <div className="text-ludo-sm font-bold font-mono text-warn mt-0.5 truncate">
                         {canViewTreasury ? formatCompactNum(Number(clan.treasury_balance || 0)) : "Locked"}
                     </div>
                 </div>
             </div>
 
             {/* ── Sub-Navigation Pills ─────────────────────────────────────────────────── */}
-            <div className="grid grid-cols-4 gap-1 rounded-xl border border-white/10 bg-black/40 p-1">
+            <div className="grid grid-cols-4 gap-1 rounded-xl border border-line-soft bg-surface-recessed p-1">
                 {subTabs.map((t) => {
                     const active = subTab === t.id;
                     return (
@@ -633,11 +634,11 @@ export function ClanDossierContent({
                             onClick={() => setSubTab(t.id)}
                             className={`flex items-center justify-center gap-1.5 py-1.5 px-1.5 rounded-lg text-ludo-xs font-bold uppercase tracking-wide transition-colors ${
                                 active
-                                    ? "bg-accent-soft text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.45)]"
-                                    : "text-white/50 hover:text-white/85"
+                                    ? "bg-accent-soft text-accent border border-accent/40"
+                                    : "text-ink-muted hover:text-ink-strong border border-transparent"
                             }`}
                         >
-                            <span className={active ? "text-cyan-300" : ""}>{t.icon}</span>
+                            <span className={active ? "text-accent" : ""}>{t.icon}</span>
                             <span>{t.label}</span>
                         </button>
                     );
@@ -660,51 +661,36 @@ export function ClanDossierContent({
                     />
 
                     {/* Visual Utilization Meters */}
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 space-y-2.5">
-                        <div className="flex items-center justify-between text-ludo-xs font-mono uppercase tracking-wider text-white/60 font-bold">
+                    <div className="rounded-2xl border border-line-soft bg-surface-panel p-3.5 space-y-2.5">
+                        <div className="flex items-center justify-between text-ludo-xs font-mono uppercase tracking-wider text-ink-muted font-bold">
                             <span>Syndicate Vitals</span>
                             <span>Min Lvl {clan.min_level} · RXP {clan.min_rxp.toLocaleString()}</span>
                         </div>
                         <div className="space-y-2">
                             <div className="space-y-1">
                                 <div className="flex items-center justify-between text-ludo-xs font-mono">
-                                    <span className="text-white/60">Level {clan.level} CXP Progress</span>
-                                    <span className="text-cyan-300 font-bold">{cxpPct}%</span>
+                                    <span className="text-ink-muted">Level {clan.level} CXP Progress</span>
+                                    <span className="text-accent font-bold">{cxpPct}%</span>
                                 </div>
-                                <div className="h-2 rounded-full bg-black/40 border border-white/10 overflow-hidden">
-                                    <div
-                                        className="h-full rounded-full bg-cyan-400 transition-all duration-300"
-                                        style={{ width: `${cxpPct}%` }}
-                                    />
-                                </div>
+                                <HudProgressGauge percent={cxpPct} tone="accent" />
                             </div>
                             <div className="space-y-1">
                                 <div className="flex items-center justify-between text-ludo-xs font-mono">
-                                    <span className="text-white/60">Garrison Capacity</span>
-                                    <span className="text-emerald-300 font-bold">
+                                    <span className="text-ink-muted">Garrison Capacity</span>
+                                    <span className="text-positive font-bold">
                                         {clan.member_count}/{cap} ({seatPct}%)
                                     </span>
                                 </div>
-                                <div className="h-2 rounded-full bg-black/40 border border-white/10 overflow-hidden">
-                                    <div
-                                        className="h-full rounded-full bg-emerald-400 transition-all duration-300"
-                                        style={{ width: `${seatPct}%` }}
-                                    />
-                                </div>
+                                <HudProgressGauge percent={seatPct} tone="positive" />
                             </div>
                             <div className="space-y-1">
                                 <div className="flex items-center justify-between text-ludo-xs font-mono">
-                                    <span className="text-white/60">Honors Earned</span>
-                                    <span className="text-amber-300 font-bold">
+                                    <span className="text-ink-muted">Honors Earned</span>
+                                    <span className="text-warn font-bold">
                                         {unlockedHonors}/{dossier.honors.length} ({honorPct}%)
                                     </span>
                                 </div>
-                                <div className="h-2 rounded-full bg-black/40 border border-white/10 overflow-hidden">
-                                    <div
-                                        className="h-full rounded-full bg-amber-400 transition-all duration-300"
-                                        style={{ width: `${honorPct}%` }}
-                                    />
-                                </div>
+                                <HudProgressGauge percent={honorPct} tone="warn" />
                             </div>
                         </div>
                     </div>
@@ -721,19 +707,19 @@ export function ClanDossierContent({
                     />
                     <ClanVelocityChart contributors={dossier.topContributors} />
 
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 space-y-2.5">
+                    <div className="rounded-2xl border border-line-soft bg-surface-panel p-3.5 space-y-2.5">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-white/60 font-mono font-bold">
-                                <LuSwords className="w-3.5 h-3.5 text-cyan-300" />
+                            <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-ink-muted font-mono font-bold">
+                                <LuSwords className="w-3.5 h-3.5 text-accent" />
                                 <span>War Ledger</span>
                             </div>
-                            <span className="text-ludo-xs font-mono text-white/45">
+                            <span className="text-ludo-xs font-mono text-ink-faint">
                                 {dossier.warHistory.length} wars
                             </span>
                         </div>
 
                         {dossier.warHistory.length === 0 ? (
-                            <div className="py-5 text-center text-ludo-xs font-mono text-white/50">
+                            <div className="py-5 text-center text-ludo-xs font-mono text-ink-faint">
                                 No completed clan wars logged yet.
                             </div>
                         ) : (
@@ -741,30 +727,30 @@ export function ClanDossierContent({
                                 {dossier.warHistory.map((war) => (
                                     <div
                                         key={war.id}
-                                        className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 flex items-center justify-between gap-2"
+                                        className="rounded-xl border border-line-soft bg-surface-recessed px-3 py-2.5 flex items-center justify-between gap-2"
                                     >
                                         <div className="flex items-center gap-2.5 min-w-0">
                                             <ClanCrestBadge crest={war.opponentCrest} tag={war.opponentTag} size="sm" />
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="text-ludo-xs font-bold text-white truncate">
+                                                    <span className="text-ludo-xs font-bold text-ink-strong truncate">
                                                         vs {war.opponentName}
                                                     </span>
                                                     {onInspectClan ? (
                                                         <button
                                                             type="button"
                                                             onClick={() => onInspectClan(war.opponentTag)}
-                                                            className="px-1.5 py-0.5 rounded bg-accent-soft border border-cyan-400/35 font-mono text-ludo-xs text-cyan-300 font-bold"
+                                                            className="px-1.5 py-0.5 rounded bg-accent-soft border border-accent/35 font-mono text-ludo-xs text-accent font-bold"
                                                         >
                                                             [{war.opponentTag}]
                                                         </button>
                                                     ) : (
-                                                        <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 font-mono text-ludo-xs text-white/60">
+                                                        <span className="px-1.5 py-0.5 rounded bg-surface-panel border border-line-soft font-mono text-ludo-xs text-ink-muted">
                                                             [{war.opponentTag}]
                                                         </span>
                                                     )}
                                                 </div>
-                                                <div className="text-ludo-xs font-mono text-white/50">
+                                                <div className="text-ludo-xs font-mono text-ink-faint">
                                                     {formatDateShort(war.resolvedAt)} · {war.ourPoints} : {war.opponentPoints}
                                                 </div>
                                             </div>
@@ -774,17 +760,17 @@ export function ClanDossierContent({
                                             <span
                                                 className={`px-2 py-0.5 rounded font-bold uppercase border ${
                                                     war.outcome === "win"
-                                                        ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/35"
+                                                        ? "bg-positive/15 text-positive border-positive/35"
                                                         : war.outcome === "loss"
-                                                          ? "bg-red-500/15 text-red-300 border-red-500/35"
-                                                          : "bg-white/5 text-white/60 border-white/10"
+                                                          ? "bg-negative/15 text-negative border-negative/35"
+                                                          : "bg-surface-panel text-ink-muted border-line-soft"
                                                 }`}
                                             >
                                                 {war.outcome}
                                             </span>
                                             <span
                                                 className={`font-bold ${
-                                                    war.cwrDelta >= 0 ? "text-emerald-300" : "text-red-300"
+                                                    war.cwrDelta >= 0 ? "text-positive" : "text-negative"
                                                 }`}
                                             >
                                                 {war.cwrDelta >= 0 ? "+" : ""}
@@ -809,17 +795,17 @@ export function ClanDossierContent({
                     />
 
                     {canViewTreasury && dossier.treasuryBreakdown && (
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 space-y-2">
+                        <div className="rounded-2xl border border-line-soft bg-surface-panel p-3.5 space-y-2">
                             <div className="flex items-center justify-between">
-                                <span className="text-ludo-xs uppercase tracking-wider text-white/60 font-mono font-bold">
+                                <span className="text-ludo-xs uppercase tracking-wider text-ink-muted font-mono font-bold">
                                     Treasury Audit Log
                                 </span>
-                                <span className="text-ludo-xs font-mono text-white/45">
+                                <span className="text-ludo-xs font-mono text-ink-faint">
                                     {dossier.treasuryBreakdown.recentLedger.length} entries
                                 </span>
                             </div>
                             {dossier.treasuryBreakdown.recentLedger.length === 0 ? (
-                                <div className="py-4 text-center text-ludo-xs font-mono text-white/50">
+                                <div className="py-4 text-center text-ludo-xs font-mono text-ink-faint">
                                     No treasury movements recorded yet.
                                 </div>
                             ) : (
@@ -829,19 +815,19 @@ export function ClanDossierContent({
                                         return (
                                             <div
                                                 key={entry.id}
-                                                className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 flex items-center justify-between text-ludo-xs font-mono"
+                                                className="rounded-xl border border-line-soft bg-surface-recessed px-3 py-2 flex items-center justify-between text-ludo-xs font-mono"
                                             >
                                                 <div className="min-w-0">
-                                                    <div className="font-bold text-white uppercase">
+                                                    <div className="font-bold text-ink-strong uppercase">
                                                         {entry.reason.replace(/_/g, " ")}
                                                     </div>
-                                                    <div className="text-white/50">
+                                                    <div className="text-ink-faint">
                                                         {formatDateShort(entry.created_at)}
                                                     </div>
                                                 </div>
                                                 <span
                                                     className={`font-bold shrink-0 ${
-                                                        pos ? "text-emerald-300" : "text-red-300"
+                                                        pos ? "text-positive" : "text-negative"
                                                     }`}
                                                 >
                                                     {pos ? "+" : ""}
@@ -856,16 +842,16 @@ export function ClanDossierContent({
                     )}
 
                     {mode === "account" && isCommander && (
-                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 space-y-2">
+                        <div className="rounded-2xl border border-line-soft bg-surface-panel p-3.5 space-y-2">
                             <div className="flex items-center justify-between gap-2">
-                                <div className="text-ludo-xs uppercase font-mono font-bold text-white/75">
+                                <div className="text-ludo-xs uppercase font-mono font-bold text-ink-strong">
                                     Rebrand Fee Escalation
                                 </div>
                                 {onRenameClan && (
                                     <button
                                         type="button"
                                         onClick={() => setEditingRebrand(true)}
-                                        className="px-2.5 py-1 rounded-lg border border-amber-400/40 bg-amber-500/15 text-amber-300 text-ludo-xs font-mono font-bold"
+                                        className="px-2.5 py-1 rounded-lg border border-warn/40 bg-warn/15 text-warn text-ludo-xs font-mono font-bold"
                                     >
                                         Rebrand Now
                                     </button>
@@ -880,10 +866,10 @@ export function ClanDossierContent({
                                             key={fee}
                                             className={`rounded-lg border py-1.5 px-1 ${
                                                 isNext
-                                                    ? "bg-amber-500/20 border-amber-400/50 text-amber-300 font-bold"
+                                                    ? "bg-warn/20 border-warn/50 text-warn font-bold"
                                                     : completed
-                                                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                                                      : "bg-black/30 border-white/10 text-white/50"
+                                                      ? "bg-positive/10 border-positive/30 text-positive"
+                                                      : "bg-surface-recessed border-line-soft text-ink-muted"
                                             }`}
                                         >
                                             <div>#{idx + 1}</div>
@@ -906,10 +892,10 @@ export function ClanDossierContent({
                     />
 
                     {/* Honors Medals Grid */}
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 space-y-2.5">
+                    <div className="rounded-2xl border border-line-soft bg-surface-panel p-3.5 space-y-2.5">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-white/60 font-mono font-bold">
-                                <LuAward className="w-3.5 h-3.5 text-amber-300" />
+                            <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-ink-muted font-mono font-bold">
+                                <LuAward className="w-3.5 h-3.5 text-warn" />
                                 <span>Syndicate Honors ({unlockedHonors}/{dossier.honors.length})</span>
                             </div>
                         </div>
@@ -919,16 +905,16 @@ export function ClanDossierContent({
                                     key={h.id}
                                     className={`rounded-xl border px-2.5 py-2 flex items-center gap-2 ${
                                         h.unlocked
-                                            ? "bg-amber-500/15 border-amber-400/40 text-white"
-                                            : "bg-black/30 border-white/10 text-white/50 opacity-65"
+                                            ? "bg-warn/15 border-warn/40 text-ink-strong"
+                                            : "bg-surface-recessed border-line-soft text-ink-muted opacity-65"
                                     }`}
                                 >
-                                    <span className={h.unlocked ? "text-amber-300 shrink-0" : "text-white/40 shrink-0"}>
+                                    <span className={h.unlocked ? "text-warn shrink-0" : "text-ink-faint shrink-0"}>
                                         {renderHonorIcon(h.icon, "w-4 h-4")}
                                     </span>
                                     <div className="min-w-0">
                                         <div className="text-ludo-xs font-bold truncate">{h.title}</div>
-                                        <div className="text-ludo-xs text-white/55 truncate">{h.subtitle}</div>
+                                        <div className="text-ludo-xs text-ink-faint truncate">{h.subtitle}</div>
                                     </div>
                                 </div>
                             ))}
@@ -936,10 +922,10 @@ export function ClanDossierContent({
                     </div>
 
                     {/* Active Roster List */}
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 space-y-2">
+                    <div className="rounded-2xl border border-line-soft bg-surface-panel p-3.5 space-y-2">
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-white/60 font-mono font-bold">
-                                <LuUsers className="w-3.5 h-3.5 text-cyan-300" />
+                            <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-ink-muted font-mono font-bold">
+                                <LuUsers className="w-3.5 h-3.5 text-accent" />
                                 <span>Roster ({dossier.members.length})</span>
                             </div>
                         </div>
@@ -949,28 +935,28 @@ export function ClanDossierContent({
                                 return (
                                     <div
                                         key={m.id}
-                                        className="rounded-xl border border-white/10 bg-black/30 px-3 py-2 flex items-center justify-between gap-2"
+                                        className="rounded-xl border border-line-soft bg-surface-recessed px-3 py-2 flex items-center justify-between gap-2"
                                     >
                                         <div className="flex items-center gap-2 min-w-0">
-                                            <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 font-mono text-ludo-xs uppercase text-white/65 shrink-0">
+                                            <span className="px-1.5 py-0.5 rounded bg-surface-panel border border-line-soft font-mono text-ludo-xs uppercase text-ink-muted shrink-0">
                                                 {m.role}
                                             </span>
                                             {onInspectMember ? (
                                                 <button
                                                     type="button"
                                                     onClick={() => onInspectMember(m.wallet_address)}
-                                                    className="text-ludo-xs font-bold text-white hover:text-cyan-300 truncate transition-colors"
+                                                    className="text-ludo-xs font-bold text-ink-strong hover:text-accent truncate transition-colors"
                                                 >
                                                     {name}
                                                 </button>
                                             ) : (
-                                                <span className="text-ludo-xs font-bold text-white truncate">
+                                                <span className="text-ludo-xs font-bold text-ink-strong truncate">
                                                     {name}
                                                 </span>
                                             )}
                                         </div>
-                                        <div className="text-ludo-xs font-mono text-white/60 shrink-0">
-                                            <strong className="text-cyan-300">{m.war_points} WP</strong> ·{" "}
+                                        <div className="text-ludo-xs font-mono text-ink-muted shrink-0">
+                                            <strong className="text-accent">{m.war_points} WP</strong> ·{" "}
                                             {m.total_cxp.toLocaleString()} CXP
                                         </div>
                                     </div>

@@ -19,6 +19,7 @@ import type {
     ClanContributorStat,
     ClanLevelConfig,
 } from "@/lib/clan/types";
+import { HudProgressGauge } from "@/app/components/HudPrimitives";
 
 function formatShortChips(n: number): string {
     const abs = Math.abs(n);
@@ -92,21 +93,21 @@ export function ClanCwrSparkline({
     const isPositive = chart.netDelta >= 0;
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 space-y-2.5">
+        <div className="rounded-2xl border border-line-soft bg-surface-panel p-3.5 space-y-2.5">
             <div className="flex items-center justify-between gap-2">
                 <div>
-                    <div className="text-ludo-xs uppercase tracking-wider text-white/50 font-mono font-bold">
+                    <div className="text-ludo-xs uppercase tracking-wider text-ink-faint font-mono font-bold">
                         CWR Rating Graph
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-ludo-xl font-bold font-mono text-white">
+                        <span className="text-ludo-xl font-bold font-mono text-ink-strong">
                             {currentCwr.toLocaleString()}
                         </span>
                         <span
                             className={`inline-flex items-center gap-1 text-ludo-xs font-mono font-bold px-1.5 py-0.5 rounded-md border ${
                                 isPositive
-                                    ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/35"
-                                    : "bg-red-500/15 text-red-300 border-red-500/35"
+                                    ? "bg-positive/15 text-positive border-positive/35"
+                                    : "bg-negative/15 text-negative border-negative/35"
                             }`}
                         >
                             {isPositive ? (
@@ -119,7 +120,7 @@ export function ClanCwrSparkline({
                         </span>
                     </div>
                 </div>
-                <div className="flex items-center gap-1 bg-black/35 rounded-lg p-0.5 border border-white/10">
+                <div className="flex items-center gap-1 bg-surface-recessed rounded-lg p-0.5 border border-line-soft">
                     {(["all", "10", "5"] as const).map((r) => (
                         <button
                             key={r}
@@ -127,8 +128,8 @@ export function ClanCwrSparkline({
                             onClick={() => setRange(r)}
                             className={`px-2 py-0.5 rounded-md text-ludo-xs font-mono uppercase font-bold transition-colors ${
                                 range === r
-                                    ? "bg-accent-soft text-cyan-300"
-                                    : "text-white/50 hover:text-white"
+                                    ? "bg-accent-soft text-accent"
+                                    : "text-ink-muted hover:text-ink-strong"
                             }`}
                         >
                             {r === "all" ? "All" : `${r}W`}
@@ -137,7 +138,7 @@ export function ClanCwrSparkline({
                 </div>
             </div>
 
-            <div className="w-full rounded-xl bg-black/30 border border-white/10 p-1.5">
+            <div className="w-full rounded-xl bg-surface-recessed border border-line-soft p-1.5">
                 <svg
                     viewBox={`0 0 ${chart.w} ${chart.h}`}
                     className="w-full h-28 overflow-visible"
@@ -160,7 +161,7 @@ export function ClanCwrSparkline({
                                 x={chart.padL - 5}
                                 y={tick.y + 3}
                                 textAnchor="end"
-                                className="fill-white/40 font-mono"
+                                className="fill-ink-faint font-mono"
                                 style={{ fontSize: "9px" }}
                             >
                                 {tick.val}
@@ -170,7 +171,8 @@ export function ClanCwrSparkline({
                                 y1={tick.y}
                                 x2={chart.w - chart.padR}
                                 y2={tick.y}
-                                stroke="rgba(255,255,255,0.10)"
+                                stroke="currentColor"
+                                className="text-line-soft"
                                 strokeDasharray="3 3"
                             />
                         </g>
@@ -200,7 +202,8 @@ export function ClanCwrSparkline({
                                           ? "#34d399"
                                           : accentColor
                                 }
-                                stroke="#09111c"
+                                stroke="currentColor"
+                                className="text-surface-panel"
                                 strokeWidth="1.5"
                             />
                         );
@@ -208,10 +211,10 @@ export function ClanCwrSparkline({
                 </svg>
             </div>
 
-            <div className="flex items-center justify-between text-ludo-xs text-white/50 font-mono px-0.5">
+            <div className="flex items-center justify-between text-ludo-xs text-ink-muted font-mono px-0.5">
                 <span>Start: {sliced[0]?.label || "Base"}</span>
                 <span>{Math.max(0, points.length - 1)} wars tracked</span>
-                <span className="text-cyan-300 font-bold">Live {currentCwr}</span>
+                <span className="text-accent font-bold">Live {currentCwr}</span>
             </div>
         </div>
     );
@@ -233,13 +236,13 @@ export function ClanCombatGauge({
     const lossArc = (warRecord.losses / total) * circumference;
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 space-y-3">
+        <div className="rounded-2xl border border-line-soft bg-surface-panel p-3.5 space-y-3">
             <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-white/60 font-mono font-bold">
-                    <LuShield className="w-3.5 h-3.5 text-cyan-300" />
+                <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-ink-muted font-mono font-bold">
+                    <LuShield className="w-3.5 h-3.5 text-accent" />
                     <span>Combat Split &amp; Win Rate</span>
                 </div>
-                <span className="inline-flex items-center gap-1 text-ludo-xs font-mono font-bold text-amber-300">
+                <span className="inline-flex items-center gap-1 text-ludo-xs font-mono font-bold text-warn">
                     <LuFlame className="w-3.5 h-3.5" />
                     Streak {warRecord.currentStreak} (Best {warRecord.bestStreak})
                 </span>
@@ -254,7 +257,8 @@ export function ClanCombatGauge({
                             cy="46"
                             r={radius}
                             fill="none"
-                            stroke="rgba(255,255,255,0.09)"
+                            stroke="currentColor"
+                            className="text-line-soft"
                             strokeWidth="8.5"
                         />
                         {warRecord.played > 0 && (
@@ -293,10 +297,10 @@ export function ClanCombatGauge({
                         )}
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span className="text-ludo-lg font-bold font-mono text-white leading-none">
+                        <span className="text-ludo-lg font-bold font-mono text-ink-strong leading-none">
                             {warRecord.winRate}%
                         </span>
-                        <span className="text-ludo-xs uppercase text-white/50 font-mono mt-0.5">
+                        <span className="text-ludo-xs uppercase text-ink-faint font-mono mt-0.5">
                             WIN
                         </span>
                     </div>
@@ -305,69 +309,59 @@ export function ClanCombatGauge({
                 {/* Right Bars & Outcome Counts */}
                 <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex items-center justify-between text-ludo-xs font-mono">
-                        <span className="inline-flex items-center gap-1 text-emerald-300 font-bold">
-                            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                        <span className="inline-flex items-center gap-1 text-positive font-bold">
+                            <span className="w-2 h-2 rounded-full bg-positive" />
                             {warRecord.wins}W
                         </span>
-                        <span className="inline-flex items-center gap-1 text-red-300 font-bold">
-                            <span className="w-2 h-2 rounded-full bg-red-400" />
+                        <span className="inline-flex items-center gap-1 text-negative font-bold">
+                            <span className="w-2 h-2 rounded-full bg-negative" />
                             {warRecord.losses}L
                         </span>
-                        <span className="inline-flex items-center gap-1 text-white/60">
-                            <span className="w-2 h-2 rounded-full bg-slate-400" />
+                        <span className="inline-flex items-center gap-1 text-ink-muted">
+                            <span className="w-2 h-2 rounded-full bg-line-strong" />
                             {warRecord.draws}D
                         </span>
                     </div>
 
                     <div className="space-y-1">
                         <div className="flex items-center justify-between text-ludo-xs font-mono">
-                            <span className="text-white/60">1v1 Duel</span>
-                            <span className="font-bold text-white">
+                            <span className="text-ink-muted">1v1 Duel</span>
+                            <span className="font-bold text-ink-strong">
                                 {shapeStats.shape1v1.wins}/{shapeStats.shape1v1.played} ({shapeStats.shape1v1.winRate}%)
                             </span>
                         </div>
-                        <div className="h-2 rounded-full bg-black/40 overflow-hidden border border-white/10">
-                            <div
-                                className="h-full rounded-full bg-cyan-400 transition-all duration-300"
-                                style={{ width: `${Math.min(100, shapeStats.shape1v1.winRate)}%` }}
-                            />
-                        </div>
+                        <HudProgressGauge percent={Math.min(100, shapeStats.shape1v1.winRate)} tone="accent" />
                     </div>
 
                     <div className="space-y-1">
                         <div className="flex items-center justify-between text-ludo-xs font-mono">
-                            <span className="text-white/60">2v2 Squad</span>
-                            <span className="font-bold text-white">
+                            <span className="text-ink-muted">2v2 Squad</span>
+                            <span className="font-bold text-ink-strong">
                                 {shapeStats.shape2v2.wins}/{shapeStats.shape2v2.played} ({shapeStats.shape2v2.winRate}%)
                             </span>
                         </div>
-                        <div className="h-2 rounded-full bg-black/40 overflow-hidden border border-white/10">
-                            <div
-                                className="h-full rounded-full bg-emerald-400 transition-all duration-300"
-                                style={{ width: `${Math.min(100, shapeStats.shape2v2.winRate)}%` }}
-                            />
-                        </div>
+                        <HudProgressGauge percent={Math.min(100, shapeStats.shape2v2.winRate)} tone="positive" />
                     </div>
                 </div>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-white/10">
-                <span className="text-ludo-xs uppercase tracking-wider text-white/50 font-mono">
+            <div className="flex items-center justify-between pt-2 border-t border-line-soft">
+                <span className="text-ludo-xs uppercase tracking-wider text-ink-faint font-mono">
                     Recent Form
                 </span>
                 <div className="flex items-center gap-1">
                     {warRecord.recentForm.length === 0 ? (
-                        <span className="text-ludo-xs font-mono text-white/45">No resolved wars yet</span>
+                        <span className="text-ludo-xs font-mono text-ink-faint">No resolved wars yet</span>
                     ) : (
                         warRecord.recentForm.map((f, idx) => (
                             <span
                                 key={`${f}-${idx}`}
                                 className={`w-5 h-5 rounded-md flex items-center justify-center text-ludo-xs font-mono font-bold border ${
                                     f === "W"
-                                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                                        ? "bg-positive/20 text-positive border-positive/40"
                                         : f === "L"
-                                          ? "bg-red-500/20 text-red-300 border-red-500/40"
-                                          : "bg-white/10 text-white/70 border-white/15"
+                                          ? "bg-negative/20 text-negative border-negative/40"
+                                          : "bg-surface-recessed text-ink-muted border-line-soft"
                                 }`}
                             >
                                 {f}
@@ -388,17 +382,17 @@ export function ClanVelocityChart({ contributors }: { contributors: ClanContribu
     );
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 space-y-2.5">
+        <div className="rounded-2xl border border-line-soft bg-surface-panel p-3.5 space-y-2.5">
             <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-white/60 font-mono font-bold">
-                    <LuUsers className="w-3.5 h-3.5 text-cyan-300" />
+                <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-ink-muted font-mono font-bold">
+                    <LuUsers className="w-3.5 h-3.5 text-accent" />
                     <span>Top Contributor Chart</span>
                 </div>
-                <span className="text-ludo-xs font-mono text-white/45">WP &amp; CXP Share</span>
+                <span className="text-ludo-xs font-mono text-ink-faint">WP &amp; CXP Share</span>
             </div>
 
             {contributors.length === 0 ? (
-                <div className="text-ludo-xs text-white/50 py-4 text-center font-mono">
+                <div className="text-ludo-xs text-ink-faint py-4 text-center font-mono">
                     No operative telemetry recorded yet.
                 </div>
             ) : (
@@ -413,22 +407,17 @@ export function ClanVelocityChart({ contributors }: { contributors: ClanContribu
                             <div key={c.wallet_address} className="space-y-1">
                                 <div className="flex items-center justify-between gap-2 text-ludo-xs">
                                     <div className="flex items-center gap-2 min-w-0">
-                                        <span className="font-mono text-white/45 shrink-0">#{idx + 1}</span>
-                                        <span className="font-bold text-white truncate">{displayName}</span>
-                                        <span className="px-1.5 py-0.5 rounded bg-black/35 border border-white/10 font-mono text-ludo-xs uppercase text-white/60 shrink-0">
+                                        <span className="font-mono text-ink-faint shrink-0">#{idx + 1}</span>
+                                        <span className="font-bold text-ink-strong truncate">{displayName}</span>
+                                        <span className="px-1.5 py-0.5 rounded bg-surface-recessed border border-line-soft font-mono text-ludo-xs uppercase text-ink-muted shrink-0">
                                             {c.role}
                                         </span>
                                     </div>
-                                    <span className="font-mono font-bold text-cyan-300 shrink-0">
+                                    <span className="font-mono font-bold text-accent shrink-0">
                                         {c.wp_earned} WP · {c.cxp_contributed.toLocaleString()} CXP
                                     </span>
                                 </div>
-                                <div className="h-2 rounded-full bg-black/40 overflow-hidden border border-white/10">
-                                    <div
-                                        className="h-full rounded-full bg-gradient-to-r from-cyan-400 to-emerald-400 transition-all duration-300"
-                                        style={{ width: `${pct}%` }}
-                                    />
-                                </div>
+                                <HudProgressGauge percent={pct} tone="accent" />
                             </div>
                         );
                     })}
@@ -452,14 +441,14 @@ export function ClanTreasuryDonut({
 }) {
     if (!canViewTreasury || !breakdown) {
         return (
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 text-center space-y-2.5">
-                <div className="w-11 h-11 rounded-full bg-black/40 border border-white/10 mx-auto flex items-center justify-center text-amber-300">
+            <div className="rounded-2xl border border-line-soft bg-surface-panel p-5 text-center space-y-2.5">
+                <div className="w-11 h-11 rounded-full bg-surface-recessed border border-line-soft mx-auto flex items-center justify-center text-warn">
                     <LuLock className="w-5 h-5" />
                 </div>
-                <div className="text-ludo-sm font-bold text-white uppercase tracking-wide">
+                <div className="text-ludo-sm font-bold text-ink-strong uppercase tracking-wide">
                     Treasury &amp; P&amp;L Classified
                 </div>
-                <p className="text-ludo-xs text-white/55 max-w-xs mx-auto leading-relaxed">
+                <p className="text-ludo-xs text-ink-muted max-w-xs mx-auto leading-relaxed">
                     Vault balance, inflow/outflow graphs, and war P&amp;L are restricted to syndicate members by the commander.
                 </p>
             </div>
@@ -487,17 +476,17 @@ export function ClanTreasuryDonut({
     const pnlPos = breakdown.warPnL >= 0;
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 space-y-3">
+        <div className="rounded-2xl border border-line-soft bg-surface-panel p-3.5 space-y-3">
             <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-white/60 font-mono font-bold">
-                    <LuCoins className="w-3.5 h-3.5 text-amber-300" />
+                <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-ink-muted font-mono font-bold">
+                    <LuCoins className="w-3.5 h-3.5 text-warn" />
                     <span>Treasury Flow &amp; P&amp;L</span>
                 </div>
                 {isCommander && onToggleVisibility && (
                     <button
                         type="button"
                         onClick={onToggleVisibility}
-                        className="inline-flex items-center gap-1 text-ludo-xs font-mono font-bold px-2 py-0.5 rounded-lg border border-white/15 bg-white/5 text-white/75 hover:text-white transition-colors"
+                        className="inline-flex items-center gap-1 text-ludo-xs font-mono font-bold px-2 py-0.5 rounded-lg border border-line-soft bg-surface-recessed text-ink-muted hover:text-ink-strong transition-colors"
                     >
                         <LuEye className="w-3 h-3" />
                         <span>Toggle Privacy</span>
@@ -513,7 +502,8 @@ export function ClanTreasuryDonut({
                             cy="46"
                             r={radius}
                             fill="none"
-                            stroke="rgba(255,255,255,0.09)"
+                            stroke="currentColor"
+                            className="text-line-soft"
                             strokeWidth="8.5"
                         />
                         {arcs.map((a) =>
@@ -533,10 +523,10 @@ export function ClanTreasuryDonut({
                         )}
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span className="text-ludo-sm font-bold font-mono text-amber-300 leading-none">
+                        <span className="text-ludo-sm font-bold font-mono text-warn leading-none">
                             {formatShortChips(breakdown.balance)}
                         </span>
-                        <span className="text-ludo-xs font-mono text-white/50 uppercase mt-0.5">
+                        <span className="text-ludo-xs font-mono text-ink-faint uppercase mt-0.5">
                             CHIPS
                         </span>
                     </div>
@@ -544,20 +534,20 @@ export function ClanTreasuryDonut({
 
                 <div className="flex-1 min-w-0 space-y-2">
                     <div className="grid grid-cols-2 gap-2">
-                        <div className="rounded-xl bg-black/30 border border-white/10 px-2.5 py-1.5">
-                            <div className="text-ludo-xs text-white/50 font-mono uppercase">War P&amp;L</div>
+                        <div className="rounded-xl bg-surface-recessed border border-line-soft px-2.5 py-1.5">
+                            <div className="text-ludo-xs text-ink-faint font-mono uppercase">War P&amp;L</div>
                             <div
                                 className={`text-ludo-sm font-bold font-mono ${
-                                    pnlPos ? "text-emerald-300" : "text-red-300"
+                                    pnlPos ? "text-positive" : "text-negative"
                                 }`}
                             >
                                 {pnlPos ? "+" : ""}
                                 {formatShortChips(breakdown.warPnL)}
                             </div>
                         </div>
-                        <div className="rounded-xl bg-black/30 border border-white/10 px-2.5 py-1.5">
-                            <div className="text-ludo-xs text-white/50 font-mono uppercase">Inflows</div>
-                            <div className="text-ludo-sm font-bold font-mono text-cyan-300">
+                        <div className="rounded-xl bg-surface-recessed border border-line-soft px-2.5 py-1.5">
+                            <div className="text-ludo-xs text-ink-faint font-mono uppercase">Inflows</div>
+                            <div className="text-ludo-sm font-bold font-mono text-accent">
                                 +{formatShortChips(breakdown.totalInflows)}
                             </div>
                         </div>
@@ -565,7 +555,7 @@ export function ClanTreasuryDonut({
 
                     <div className="space-y-1 text-ludo-xs font-mono">
                         {segments.map((s) => (
-                            <div key={s.label} className="flex items-center justify-between gap-2 text-white/60">
+                            <div key={s.label} className="flex items-center justify-between gap-2 text-ink-muted">
                                 <span className="inline-flex items-center gap-1.5 truncate">
                                     <span
                                         className="w-2 h-2 rounded-full shrink-0"
@@ -573,7 +563,7 @@ export function ClanTreasuryDonut({
                                     />
                                     {s.label}
                                 </span>
-                                <span className="text-white font-bold shrink-0">{formatShortChips(s.value)}</span>
+                                <span className="text-ink-strong font-bold shrink-0">{formatShortChips(s.value)}</span>
                             </div>
                         ))}
                     </div>
@@ -602,36 +592,36 @@ export function ClanLevelRoadmap({
     const maxCap = Math.max(20, ...visibleTiers.map((l) => l.member_cap));
 
     return (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 space-y-3">
+        <div className="rounded-2xl border border-line-soft bg-surface-panel p-3.5 space-y-3">
             <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-white/60 font-mono font-bold">
-                    <LuLayers className="w-3.5 h-3.5 text-cyan-300" />
+                <div className="flex items-center gap-1.5 text-ludo-xs uppercase tracking-wider text-ink-muted font-mono font-bold">
+                    <LuLayers className="w-3.5 h-3.5 text-accent" />
                     <span>Citadel Capacity &amp; Tier Chart</span>
                 </div>
-                <span className="text-ludo-xs font-mono text-white/50">
+                <span className="text-ludo-xs font-mono text-ink-faint">
                     Lvl {currentLevel}/20 · {currentCxp.toLocaleString()} CXP
                 </span>
             </div>
 
             {/* Vertical Bar Chart comparing Member Cap per Level */}
-            <div className="grid grid-cols-6 gap-2 items-end h-28 pt-3 px-2 rounded-xl bg-black/30 border border-white/10 pb-2">
+            <div className="grid grid-cols-6 gap-2 items-end h-28 pt-3 px-2 rounded-xl bg-surface-recessed border border-line-soft pb-2">
                 {visibleTiers.map((lvl) => {
                     const unlocked = lvl.level <= currentLevel;
                     const isCurrent = lvl.level === currentLevel;
                     const barHeightPct = Math.max(20, Math.round((lvl.member_cap / maxCap) * 100));
                     return (
                         <div key={lvl.level} className="flex flex-col items-center gap-1 h-full justify-end">
-                            <span className="text-ludo-xs font-mono font-bold text-white/75">
+                            <span className="text-ludo-xs font-mono font-bold text-ink-strong">
                                 {lvl.member_cap}
                             </span>
                             <div className="w-full flex-1 flex items-end justify-center">
                                 <div
                                     className={`w-full max-w-[24px] rounded-t-md transition-all ${
                                         isCurrent
-                                            ? "bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.45)]"
+                                            ? "bg-accent shadow-[0_0_12px_rgba(0,229,255,0.45)]"
                                             : unlocked
-                                              ? "bg-emerald-400/75"
-                                              : "bg-white/15"
+                                              ? "bg-positive/80"
+                                              : "bg-line-soft"
                                     }`}
                                     style={{ height: `${barHeightPct}%` }}
                                     title={`LVL ${lvl.level}: ${lvl.member_cap} seats, ${lvl.officer_slots} officers`}
@@ -639,7 +629,7 @@ export function ClanLevelRoadmap({
                             </div>
                             <span
                                 className={`text-ludo-xs font-mono font-bold flex items-center gap-0.5 ${
-                                    isCurrent ? "text-cyan-300" : unlocked ? "text-emerald-300" : "text-white/45"
+                                    isCurrent ? "text-accent" : unlocked ? "text-positive" : "text-ink-faint"
                                 }`}
                             >
                                 L{lvl.level}
@@ -654,9 +644,9 @@ export function ClanLevelRoadmap({
                 {visibleTiers.slice(0, 4).map((lvl) => (
                     <div
                         key={lvl.level}
-                        className="rounded-lg bg-black/25 border border-white/10 px-2.5 py-1.5 flex items-center justify-between text-white/65"
+                        className="rounded-lg bg-surface-recessed border border-line-soft px-2.5 py-1.5 flex items-center justify-between text-ink-muted"
                     >
-                        <span className="font-bold text-white">LVL {lvl.level}</span>
+                        <span className="font-bold text-ink-strong">LVL {lvl.level}</span>
                         <span>{lvl.member_cap} seats · {lvl.officer_slots} off</span>
                     </div>
                 ))}

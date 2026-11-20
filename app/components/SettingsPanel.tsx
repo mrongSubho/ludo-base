@@ -15,9 +15,9 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
 import { exitGuest } from '@/lib/guest';
 import { APP_VERSION, APP_BUILD_HASH } from '@/lib/version';
+import { GamePanelShell } from './GamePanelShell';
 import { PanelTabs } from './PanelTabs';
 import {
-    CloseReticleIcon,
     SlidersIcon,
     Theme3077Icon,
     ThemeDaybreakIcon,
@@ -25,19 +25,19 @@ import {
     TokenChessIcon,
     TokenOrbIcon,
 } from './icons';
-import { HudCornerTicks, HudSectionLabel } from './HudPrimitives';
+import { HudSectionLabel } from './HudPrimitives';
 import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import { useWalletMode } from '@/hooks/useWalletMode';
 import { useBiometricGate } from '@/hooks/useBiometricGate';
+import { Switch } from './Switch';
+import { ListRow } from './ListRow';
+import { Button } from './Button';
 
-// ─── Theme-agnostic contract (holds for current + future themes) ───────────
-// 1. This panel always renders on the shared dark-glass sandwich shell, so it
-//    only ever uses white-ink + white-opacity surfaces + cyan accents — never
-//    theme-bound text/background colors.
-// 2. No font-family is set here; headings inherit whatever display font the
-//    active theme provides (Russo One today, anything tomorrow).
-// 3. Spacing inside `.ludo-settings-scope` is re-asserted in globals.css
-//    (the global unlayered reset zeroes Tailwind spacing utilities).
+// ─── Semantic contract (holds for 3077, Retro Night, and Daybreak) ──────────
+// 1. All surfaces, borders, and inks derive from CSS semantic tokens inside
+//    GamePanelShell (--panel-bg, --surface-*, --line-*, --ink-*, --accent-*).
+// 2. No font-family override is set here; headings inherit theme typography.
+// 3. `.ludo-settings-scope` spacing overrides live in panels.css.
 
 const SoundIcon = () => (
     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -49,16 +49,16 @@ const SoundIcon = () => (
 
 const MusicIcon = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <path d="M9 18V5l12-2v13"></path>
-        <circle cx="6" cy="18" r="3"></circle>
-        <circle cx="18" cy="16" r="3"></circle>
+        <path d="M9 18V5l12-2v13" />
+        <circle cx="6" cy="18" r="3" />
+        <circle cx="18" cy="16" r="3" />
     </svg>
 );
 
 const HapticIcon = () => (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-        <path d="M5 9h4l2 5h4l2-5h4"></path>
-        <path d="M2 12h20"></path>
+        <path d="M5 9h4l2 5h4l2-5h4" />
+        <path d="M2 12h20" />
     </svg>
 );
 
@@ -101,7 +101,7 @@ const ShieldIcon = () => (
 );
 
 const LogOutIcon = () => (
-    <svg className="w-4 h-4 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className="w-4 h-4 text-negative" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
         <polyline points="16 17 21 12 16 7" />
         <line x1="21" y1="12" x2="9" y2="12" />
@@ -109,26 +109,16 @@ const LogOutIcon = () => (
 );
 
 const ChevronIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-white/25">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-ink-faint">
         <polyline points="9 18 15 12 9 6" />
     </svg>
 );
 
 const GearTile = () => (
-    <div className="hud-chamfer-sm w-7 h-7 rounded-xl bg-accent-soft border border-cyan-400/40 flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.22)]">
-        <SlidersIcon className="w-4 h-4 text-cyan-300" />
+    <div className="hud-chamfer-sm w-6 h-6 rounded-lg bg-accent-soft border border-accent/35 flex items-center justify-center">
+        <SlidersIcon className="w-3.5 h-3.5 text-accent" />
     </div>
 );
-
-// Theme and token icons imported from ./icons (single source of truth).
-
-// iOS-style switch + row rhythm now live in the shared primitives
-// (UI_COMPONENT_AUDIT Phase A: Switch.tsx, ListRow.tsx). Settings is their
-// first consumer; the local copies are gone so there is exactly one switch and
-// one row in the app.
-import { Switch } from "./Switch";
-import { ListRow } from "./ListRow";
-import { Button } from "./Button";
 
 const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <HudSectionLabel className="mb-2">{children}</HudSectionLabel>
@@ -225,7 +215,7 @@ function HelpView() {
     return (
         <section>
             <SectionLabel>Help Center</SectionLabel>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+            <div className="rounded-2xl border border-line-soft bg-surface-panel overflow-hidden divide-y divide-line-soft">
                 {HELP_FAQ.map((item, i) => {
                     const isOpen = open === i;
                     return (
@@ -233,15 +223,15 @@ function HelpView() {
                             <button
                                 onClick={() => setOpen(isOpen ? null : i)}
                                 aria-expanded={isOpen}
-                                className="w-full flex items-center justify-between gap-3 p-3.5 text-left hover:bg-white/5 active:bg-white/10 transition-colors"
+                                className="w-full flex items-center justify-between gap-3 p-3.5 text-left hover:bg-surface-hover active:bg-surface-active transition-colors"
                             >
-                                <span className="text-ludo-md font-bold text-white">{item.q}</span>
-                                <span className={`text-cyan-300 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+                                <span className="text-ludo-md font-bold text-ink-strong">{item.q}</span>
+                                <span className={`text-accent transition-transform ${isOpen ? 'rotate-180' : ''}`}>
                                     <ChevronIcon />
                                 </span>
                             </button>
                             {isOpen && (
-                                <p className="px-3.5 pb-3.5 text-ludo-md font-medium leading-relaxed text-white/60">
+                                <p className="px-3.5 pb-3.5 text-ludo-md font-medium leading-relaxed text-ink-muted">
                                     {item.a}
                                 </p>
                             )}
@@ -287,9 +277,9 @@ function FeedbackView() {
         <section className="flex flex-col gap-3">
             <SectionLabel>Feedback</SectionLabel>
             {status === 'sent' ? (
-                <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-center">
-                    <p className="text-sm font-black text-emerald-300 uppercase tracking-widest">Received</p>
-                    <p className="mt-1 text-ludo-md font-medium text-white/60">
+                <div className="rounded-2xl border border-positive/35 bg-positive/10 p-4 text-center">
+                    <p className="text-sm font-extrabold text-positive uppercase tracking-widest">Received</p>
+                    <p className="mt-1 text-ludo-md font-medium text-ink-muted">
                         Thanks — the crew reads every note. Send another any time.
                     </p>
                     <Button
@@ -309,7 +299,7 @@ function FeedbackView() {
                                 key={t}
                                 onClick={() => setTopic(t)}
                                 aria-pressed={topic === t}
-                                className={`px-3 py-1.5 rounded-full text-ludo-sm font-black uppercase tracking-wider border transition-all active:scale-95 ${topic === t ? 'bg-cyan-400/15 border-cyan-300/60 text-cyan-200' : 'bg-white/[0.04] border-white/10 text-white/50 hover:text-white'}`}
+                                className={`px-3 py-1.5 rounded-full text-ludo-sm font-extrabold uppercase tracking-wider border transition-all active:scale-95 ${topic === t ? 'bg-accent-soft border-accent/60 text-accent' : 'bg-surface-recessed border-line-soft text-ink-muted hover:text-ink-strong'}`}
                             >
                                 {t}
                             </button>
@@ -324,10 +314,10 @@ function FeedbackView() {
                         autoComplete="off"
                         autoCorrect="off"
                         spellCheck={false}
-                        className="w-full rounded-2xl border border-white/10 bg-white/[0.04] p-3.5 text-ludo-md font-medium text-white placeholder:text-white/25 outline-none focus:border-cyan-300/60 resize-none"
+                        className="w-full rounded-2xl border border-line-soft bg-surface-recessed p-3.5 text-ludo-md font-medium text-ink-strong placeholder:text-ink-faint outline-none focus:border-accent/60 resize-none"
                     />
                     {status === 'error' && (
-                        <p className="text-ludo-sm font-bold text-red-400 px-1">
+                        <p className="text-ludo-sm font-bold text-negative px-1">
                             Couldn&apos;t send — check your connection and try again.
                         </p>
                     )}
@@ -354,24 +344,24 @@ function AboutView() {
     return (
         <section className="flex flex-col gap-3">
             <SectionLabel>About Ludo 3077</SectionLabel>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 flex flex-col gap-2">
-                <p className="text-sm font-black text-white uppercase tracking-wide">
+            <div className="rounded-2xl border border-line-soft bg-surface-panel p-4 flex flex-col gap-2">
+                <p className="text-sm font-extrabold text-ink-strong uppercase tracking-wide">
                     Ludo 3077 · Onchain Arena
                 </p>
-                <p className="text-ludo-md font-medium leading-relaxed text-white/60">
+                <p className="text-ludo-md font-medium leading-relaxed text-ink-muted">
                     Classic Ludo, rebuilt for the onchain era: provably-fair dice, Power-mode
                     tiles, live spectators, and instant payouts — playable as a guest or with
                     your Web3 identity.
                 </p>
-                <p className="text-ludo-xs text-white/25 font-mono">
+                <p className="text-ludo-xs text-ink-faint font-mono">
                     {APP_VERSION} · build {APP_BUILD_HASH}
                 </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
-                <NavRow icon={<FileTextIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Terms of Service" onClick={() => openDoc('/terms')} />
-                <NavRow icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Privacy Policy" last onClick={() => openDoc('/privacy')} />
+            <div className="rounded-2xl border border-line-soft bg-surface-panel overflow-hidden divide-y divide-line-soft">
+                <NavRow icon={<FileTextIcon />} tint="bg-accent-soft text-accent" label="Terms of Service" onClick={() => openDoc('/terms')} />
+                <NavRow icon={<ShieldIcon />} tint="bg-accent-soft text-accent" label="Privacy Policy" last onClick={() => openDoc('/privacy')} />
             </div>
-            <p className="text-center text-ludo-xs font-black uppercase tracking-[0.2em] text-white/30">
+            <p className="text-center text-ludo-xs font-extrabold uppercase tracking-[0.2em] text-ink-faint">
                 Base · OnchainKit · Supabase
             </p>
         </section>
@@ -426,374 +416,333 @@ export function SettingsPanel({
     const openDoc = (path: string) => window.open(path, '_blank', 'noopener');
 
     return (
-        <>
-            <div className="fixed top-[64px] bottom-[80px] left-0 right-0 z-40 bg-transparent" />
-
-            <div className="fixed inset-0 z-[110] flex justify-center pointer-events-none">
-                <div className="w-full max-w-[500px] relative h-full">
-                    <div
-                        /* Unified global panel layout: top-64, bottom-80 sandwich */
-                        className="ludo-settings-scope pointer-events-auto absolute top-[64px] bottom-[80px] left-[8px] right-[8px] border border-white/10 rounded-[32px] flex flex-col shadow-2xl overflow-hidden"
-                        style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
-                    >
-                        <HudCornerTicks />
-                        {/* Authentic Subdued Cosmic Orbs */}
-                        <div className="absolute top-[-20%] left-[-20%] w-full h-full cosmic-orb cosmic-orb-1 opacity-20 scale-150 pointer-events-none" />
-                        <div className="absolute bottom-[-20%] right-[-20%] w-full h-full cosmic-orb cosmic-orb-2 opacity-15 scale-150 pointer-events-none" />
-
-                        {/* Drag Handle */}
-                        <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
-                            <div className="panel-handle-bar w-12 h-1.5 bg-white/20 rounded-full" />
-                        </div>
-
-                        {/* Header */}
-                        <div className="px-5 pb-3 border-b border-white/10 relative z-10">
-                            <div className="flex items-center justify-between mb-1 mt-1">
-                                <div className="flex items-center gap-2">
-                                    {view !== 'main' && (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            onClick={() => setView('main')}
-                                            aria-label="Back to settings"
-                                            className="bg-surface-hover border border-line-soft"
-                                        >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                                        </Button>
-                                    )}
-                                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                        {view === 'main' && (
-                                            <>
-                                                <GearTile />
-                                                Settings
-                                            </>
-                                        )}
-                                        {view === 'help' && 'Help Center'}
-                                        {view === 'feedback' && 'Feedback'}
-                                        {view === 'about' && 'About'}
-                                    </h2>
-                                </div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={onClose}
-                                    aria-label="Close settings"
-                                    className="panel-close-3077 bg-surface-hover border border-line-soft"
-                                >
-                                    <CloseReticleIcon className="icon-md" />
-                                </Button>
+        <GamePanelShell
+            scopeClass="ludo-settings-scope"
+            kicker="// SYSTEM CONFIGURATION"
+            title={(
+                <span className="inline-flex items-center gap-2">
+                    {view !== 'main' && (
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setView('main')}
+                            aria-label="Back to settings"
+                            className="bg-surface-hover border border-line-soft"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
+                        </Button>
+                    )}
+                    {view === 'main' && (
+                        <>
+                            <GearTile />
+                            <span>Settings</span>
+                        </>
+                    )}
+                    {view === 'help' && 'Help Center'}
+                    {view === 'feedback' && 'Feedback'}
+                    {view === 'about' && 'About'}
+                </span>
+            )}
+            subtitle={(
+                <span className="inline-flex items-center gap-2 uppercase tracking-wide">
+                    <span className="font-bold text-accent">Tuned per wallet</span>
+                    {inGame && (
+                        <>
+                            <span className="w-1 h-1 rounded-full bg-line-strong" />
+                            <span className="font-bold text-ink-muted">In match</span>
+                        </>
+                    )}
+                </span>
+            )}
+            onClose={onClose}
+            hideOrbs
+        >
+            {/* Scrollable Content */}
+            <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-5 relative z-10 flex flex-col gap-4">
+                {view === 'main' ? (
+                    <>
+                        {/* Preferences */}
+                        <section>
+                            <SectionLabel>Preferences</SectionLabel>
+                            <div className="rounded-2xl border border-line-soft bg-surface-panel overflow-hidden divide-y divide-line-soft">
+                                <PrefRow
+                                    icon={<SoundIcon />} tint="bg-accent-soft text-accent"
+                                    label="Sound Effects" hint="Rolls, captures, UI taps"
+                                    on={preferences.sfx} onToggle={() => updatePreference('ludo-sfx', preferences.sfx ? 'off' : 'on')}
+                                />
+                                <PrefRow
+                                    icon={<MusicIcon />} tint="bg-warn/15 text-warn"
+                                    label="Game Music" hint="Lobby and arena ambience"
+                                    on={preferences.music} onToggle={() => updatePreference('ludo-music', preferences.music ? 'off' : 'on')}
+                                />
+                                <PrefRow
+                                    icon={<HapticIcon />} tint="bg-warn/15 text-warn"
+                                    label="Haptics" hint="Vibration on key moments"
+                                    on={preferences.haptics} onToggle={() => updatePreference('ludo-haptic', preferences.haptics ? 'off' : 'on')}
+                                    last
+                                />
                             </div>
-                            <div className="flex items-center gap-2 px-0.5">
-                                <span className="text-ludo-sm font-black text-cyan-300 tracking-wide uppercase">Tuned per wallet</span>
-                                {inGame && (
-                                    <>
-                                        <span className="w-0.5 h-0.5 rounded-full bg-white/25" />
-                                        <span className="text-ludo-sm font-black text-white/50 tracking-wide uppercase">In match</span>
-                                    </>
-                                )}
+                        </section>
+
+                        {/* Appearance */}
+                        <section>
+                            {/* ── SINGLE THEME ENTRY POINT (UI_DESIGN_AUDIT 1.4.3) ──
+                                This is the only user-reachable theme CONTROL. FirstRunSetup,
+                                ThemeNudge and the Marketplace also WRITE `ludo-theme`
+                                (updatePreference('ludo-theme', …)) — those are intentional
+                                touchpoints, not competing UIs; do not add a fifth. The old
+                                standalone ThemeSwitcher.tsx component was deleted in 1.4 for
+                                being dead (0 importers); if a second theme UI is ever needed,
+                                extract a shared control from here instead of forking one. */}
+                            <SectionLabel>Appearance</SectionLabel>
+                            <div className="rounded-2xl border border-line-soft bg-surface-panel overflow-hidden divide-y divide-line-soft">
+                                <div className="p-3.5">
+                                    <div className="text-ludo-xs font-extrabold uppercase tracking-widest text-ink-faint mb-2">Theme</div>
+                                    <PanelTabs
+                                        cols={3}
+                                        value={preferences.theme}
+                                        onPick={(v) => updatePreference('ludo-theme', v)}
+                                        options={[
+                                            { value: '3077', label: '3077', icon: <Theme3077Icon className="w-4 h-4" /> },
+                                            { value: 'retro', label: 'Retro', icon: <ThemeRetroIcon className="w-4 h-4" /> },
+                                            { value: 'light', label: 'Daybreak', icon: <ThemeDaybreakIcon className="w-4 h-4" /> },
+                                        ]}
+                                    />
+                                </div>
+                                <div className="p-3.5">
+                                    <div className="text-ludo-xs font-extrabold uppercase tracking-widest text-ink-faint mb-2">Token style</div>
+                                    <PanelTabs
+                                        cols={2}
+                                        value={preferences.tokenStyle}
+                                        onPick={(v) => updatePreference('token-style', v)}
+                                        options={[
+                                            { value: 'pawn', label: 'Chess', icon: <TokenChessIcon className="w-4 h-4" /> },
+                                            { value: 'orb', label: 'Orbs', icon: <TokenOrbIcon className="w-4 h-4" /> },
+                                        ]}
+                                    />
+                                </div>
                             </div>
-                        </div>
+                            <p className="text-ludo-xs font-bold text-ink-faint mt-2 px-1">
+                                Dice skins live in the Marketplace — anything you own can be equipped from your Loadout.
+                            </p>
+                        </section>
 
-                        {/* Scrollable Content */}
-                        <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-4">
-                            {view === 'main' ? (
-                            <>
-
-                            {/* Preferences */}
+                        {/* Security — wallet + signing policy (CDP in-game wallet only for passkey/biometric) */}
+                        {!inGame && !isGuest && (
                             <section>
-                                <SectionLabel>Preferences</SectionLabel>
-                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
-                                    <PrefRow
-                                        icon={<SoundIcon />} tint="bg-cyan-500/15 text-cyan-300"
-                                        label="Sound Effects" hint="Rolls, captures, UI taps"
-                                        on={preferences.sfx} onToggle={() => updatePreference('ludo-sfx', preferences.sfx ? 'off' : 'on')}
+                                <SectionLabel>Security</SectionLabel>
+                                <div className="rounded-2xl border border-line-soft bg-surface-panel overflow-hidden divide-y divide-line-soft">
+                                    <NavRow
+                                        icon={<WalletGlyph />}
+                                        tint="bg-accent-soft text-accent"
+                                        label="Open wallet"
+                                        hint="Assets · send / receive · activity"
+                                        last={!isCdpWallet}
+                                        onClick={() => {
+                                            onOpenWallet?.();
+                                        }}
                                     />
-                                    <PrefRow
-                                        icon={<MusicIcon />} tint="bg-amber-500/15 text-amber-300"
-                                        label="Game Music" hint="Lobby and arena ambience"
-                                        on={preferences.music} onToggle={() => updatePreference('ludo-music', preferences.music ? 'off' : 'on')}
-                                    />
-                                    <PrefRow
-                                        icon={<HapticIcon />} tint="bg-amber-500/15 text-amber-300"
-                                        label="Haptics" hint="Vibration on key moments"
-                                        on={preferences.haptics} onToggle={() => updatePreference('ludo-haptic', preferences.haptics ? 'off' : 'on')}
-                                    />
-                                </div>
-                            </section>
-
-
-                            {/* Appearance */}
-                            <section>
-                                {/* ── SINGLE THEME ENTRY POINT (UI_DESIGN_AUDIT 1.4.3) ──
-                                    This is the only user-reachable theme CONTROL. FirstRunSetup,
-                                    ThemeNudge and the Marketplace also WRITE `ludo-theme`
-                                    (updatePreference('ludo-theme', …)) — those are intentional
-                                    touchpoints, not competing UIs; do not add a fifth. The old
-                                    standalone ThemeSwitcher.tsx component was deleted in 1.4 for
-                                    being dead (0 importers); if a second theme UI is ever needed,
-                                    extract a shared control from here instead of forking one. */}
-                                <SectionLabel>Appearance</SectionLabel>
-                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
-                                    <div className="p-3.5">
-                                        <div className="text-ludo-xs font-black uppercase tracking-widest text-white/35 mb-2">Theme</div>
-                                        <PanelTabs
-                                            cols={3}
-                                            value={preferences.theme}
-                                            onPick={(v) => updatePreference('ludo-theme', v)}
-                                            options={[
-                                                { value: '3077', label: '3077', icon: <Theme3077Icon className="w-4 h-4" /> },
-                                                { value: 'retro', label: 'Retro', icon: <ThemeRetroIcon className="w-4 h-4" /> },
-                                                { value: 'light', label: 'Daybreak', icon: <ThemeDaybreakIcon className="w-4 h-4" /> },
-                                            ]}
-                                        />
-                                    </div>
-                                    <div className="p-3.5">
-                                        <div className="text-ludo-xs font-black uppercase tracking-widest text-white/35 mb-2">Token style</div>
-                                        <PanelTabs
-                                            cols={2}
-                                            value={preferences.tokenStyle}
-                                            onPick={(v) => updatePreference('token-style', v)}
-                                            options={[
-                                                { value: 'pawn', label: 'Chess', icon: <TokenChessIcon className="w-4 h-4" /> },
-                                                { value: 'orb', label: 'Orbs', icon: <TokenOrbIcon className="w-4 h-4" /> },
-                                            ]}
-                                        />
-                                    </div>
-                                </div>
-                                <p className="text-ludo-xs font-bold text-white/30 mt-2 px-1">
-                                    Dice skins live in the Marketplace — anything you own can be equipped from your Loadout.
-                                </p>
-                            </section>
-
-                            {/* Security — wallet + signing policy (no Play as / link wallet) */}
-                            {!inGame && !isGuest && (
-                                <section>
-                                    <SectionLabel>Security</SectionLabel>
-                                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
-                                        <NavRow
-                                            icon={<WalletGlyph />}
-                                            tint="bg-cyan-500/15 text-cyan-300"
-                                            label="Open wallet"
-                                            hint="Assets · send / receive · activity"
-                                            onClick={() => {
-                                                onOpenWallet?.();
-                                            }}
-                                        />
-                                        {isCdpWallet && (
+                                    {isCdpWallet && (
                                         <>
-                                        {/* Passkey — parent row; list is nested children */}
-                                        <div className={showPasskeys ? '' : 'border-b border-white/5'}>
-                                            <button
-                                                type="button"
-                                                className="w-full flex items-center gap-3 p-3.5 hover:bg-white/5 transition-colors text-left"
-                                                onClick={() => setShowPasskeys((v) => !v)}
-                                                aria-expanded={showPasskeys}
-                                            >
-                                                <div className="w-9 h-9 rounded-xl bg-cyan-500/15 text-cyan-300 flex items-center justify-center shrink-0">
-                                                    <KeyIcon />
-                                                </div>
-                                                <div className="flex-1 flex flex-col min-w-0">
-                                                    <span className="text-ludo-md font-bold text-white truncate">Passkey</span>
-                                                    <span className="text-ludo-xs font-bold text-white/35 truncate">
-                                                        {passkeyCount > 0
-                                                            ? `Face ID / Touch ID · ${passkeyCount} active`
-                                                            : 'Face ID / Touch ID · security key'}
-                                                    </span>
-                                                </div>
-                                                <svg
-                                                    viewBox="0 0 24 24"
-                                                    className={`w-3.5 h-3.5 text-white/40 transition-transform shrink-0 ${showPasskeys ? 'rotate-180' : ''}`}
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2.2"
-                                                    strokeLinecap="round"
+                                            {/* Passkey — parent row; list is nested children */}
+                                            <div>
+                                                <button
+                                                    type="button"
+                                                    className="w-full flex items-center gap-3 p-3.5 hover:bg-surface-hover transition-colors text-left"
+                                                    onClick={() => setShowPasskeys((v) => !v)}
+                                                    aria-expanded={showPasskeys}
                                                 >
-                                                    <path d="M6 9l6 6 6-6" />
-                                                </svg>
-                                            </button>
+                                                    <div className="w-9 h-9 rounded-xl bg-accent-soft text-accent flex items-center justify-center shrink-0">
+                                                        <KeyIcon />
+                                                    </div>
+                                                    <div className="flex-1 flex flex-col min-w-0">
+                                                        <span className="text-ludo-md font-bold text-ink-strong truncate">Passkey</span>
+                                                        <span className="text-ludo-xs font-bold text-ink-faint truncate">
+                                                            {passkeyCount > 0
+                                                                ? `Face ID / Touch ID · ${passkeyCount} active`
+                                                                : 'Face ID / Touch ID · security key'}
+                                                        </span>
+                                                    </div>
+                                                    <svg
+                                                        viewBox="0 0 24 24"
+                                                        className={`w-3.5 h-3.5 text-ink-muted transition-transform shrink-0 ${showPasskeys ? 'rotate-180' : ''}`}
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2.2"
+                                                        strokeLinecap="round"
+                                                    >
+                                                        <path d="M6 9l6 6 6-6" />
+                                                    </svg>
+                                                </button>
 
-                                            {showPasskeys && (
-                                                <div className="px-3.5 pb-2">
-                                                    {(passkeys || []).map((pk: { credentialId: string }, i: number) => (
-                                                        <div
-                                                            key={pk.credentialId}
-                                                            className="flex items-center gap-2.5 py-2 pl-1 pr-1 border-t border-white/5 first:border-t-0"
-                                                        >
-                                                            <div className="w-7 h-7 rounded-lg bg-cyan-500/12 border border-cyan-400/25 text-cyan-300 flex items-center justify-center shrink-0">
-                                                                <KeyIcon />
-                                                            </div>
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="text-ludo-md font-semibold text-white truncate">
-                                                                    {passkeyName(pk.credentialId, i)}
+                                                {showPasskeys && (
+                                                    <div className="px-3.5 pb-2">
+                                                        {(passkeys || []).map((pk: { credentialId: string }, i: number) => (
+                                                            <div
+                                                                key={pk.credentialId}
+                                                                className="flex items-center gap-2.5 py-2 pl-1 pr-1 border-t border-line-soft first:border-t-0"
+                                                            >
+                                                                <div className="w-7 h-7 rounded-lg bg-accent-soft border border-accent/30 text-accent flex items-center justify-center shrink-0">
+                                                                    <KeyIcon />
                                                                 </div>
-                                                                <div className="text-ludo-xs text-white/35 truncate">
-                                                                    Device unlock
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="text-ludo-md font-semibold text-ink-strong truncate">
+                                                                        {passkeyName(pk.credentialId, i)}
+                                                                    </div>
+                                                                    <div className="text-ludo-xs text-ink-faint truncate">
+                                                                        Device unlock
+                                                                    </div>
                                                                 </div>
+                                                                <button
+                                                                    type="button"
+                                                                    className="shrink-0 text-ludo-xs font-bold uppercase text-negative px-1.5 py-1"
+                                                                    disabled={passkeyBusy}
+                                                                    onClick={async () => {
+                                                                        setPasskeyBusy(true);
+                                                                        try {
+                                                                            await deletePasskeyAsync(pk.credentialId);
+                                                                            await refetchPasskeys();
+                                                                        } catch {
+                                                                            /* ignore */
+                                                                        } finally {
+                                                                            setPasskeyBusy(false);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    Remove
+                                                                </button>
                                                             </div>
-                                                            <button
-                                                                type="button"
-                                                                className="shrink-0 text-ludo-xs font-bold uppercase text-red-300/80 px-1.5 py-1"
-                                                                disabled={passkeyBusy}
-                                                                onClick={async () => {
-                                                                    setPasskeyBusy(true);
+                                                        ))}
+
+                                                        <button
+                                                            type="button"
+                                                            className="w-full flex items-center gap-2.5 py-2.5 border-t border-line-soft text-left disabled:opacity-40"
+                                                            disabled={passkeyBusy || !passkeySupported.data || enrollStatus === 'pending'}
+                                                            onClick={async () => {
+                                                                setPasskeyBusy(true);
+                                                                setPasskeyMsg(null);
+                                                                try {
+                                                                    await enrollPasskey();
+                                                                    await refetchPasskeys();
                                                                     try {
-                                                                        await deletePasskeyAsync(pk.credentialId);
-                                                                        await refetchPasskeys();
+                                                                        const list = (passkeys || []) as { credentialId: string }[];
+                                                                        const last = list[list.length - 1];
+                                                                        if (last?.credentialId) {
+                                                                            localStorage.setItem(
+                                                                                `ludo-passkey-name-${last.credentialId}`,
+                                                                                list.length <= 1 ? 'This device' : `Passkey ${list.length}`,
+                                                                            );
+                                                                        }
                                                                     } catch {
                                                                         /* ignore */
-                                                                    } finally {
-                                                                        setPasskeyBusy(false);
                                                                     }
-                                                                }}
-                                                            >
-                                                                Remove
-                                                            </button>
-                                                        </div>
-                                                    ))}
-
-                                                    <button
-                                                        type="button"
-                                                        className="w-full flex items-center gap-2.5 py-2.5 border-t border-white/5 text-left disabled:opacity-40"
-                                                        disabled={passkeyBusy || !passkeySupported.data || enrollStatus === 'pending'}
-                                                        onClick={async () => {
-                                                            setPasskeyBusy(true);
-                                                            setPasskeyMsg(null);
-                                                            try {
-                                                                await enrollPasskey();
-                                                                await refetchPasskeys();
-                                                                try {
-                                                                    const list = (passkeys || []) as { credentialId: string }[];
-                                                                    const last = list[list.length - 1];
-                                                                    if (last?.credentialId) {
-                                                                        localStorage.setItem(
-                                                                            `ludo-passkey-name-${last.credentialId}`,
-                                                                            list.length <= 1 ? 'This device' : `Passkey ${list.length}`,
-                                                                        );
-                                                                    }
+                                                                    setPasskeyMsg('Passkey added.');
                                                                 } catch {
-                                                                    /* ignore */
+                                                                    setPasskeyMsg('Could not add passkey.');
+                                                                } finally {
+                                                                    setPasskeyBusy(false);
                                                                 }
-                                                                setPasskeyMsg('Passkey added.');
-                                                            } catch {
-                                                                setPasskeyMsg('Could not add passkey.');
-                                                            } finally {
-                                                                setPasskeyBusy(false);
-                                                            }
-                                                        }}
-                                                    >
-                                                        <div className="w-7 h-7 rounded-lg border border-dashed border-white/20 text-white/50 flex items-center justify-center shrink-0">
-                                                            +
-                                                        </div>
-                                                        <span className="text-ludo-md font-bold text-white/75">
-                                                            {enrollStatus === 'pending' ? 'Waiting…' : 'Add passkey'}
-                                                        </span>
-                                                    </button>
+                                                            }}
+                                                        >
+                                                            <div className="w-7 h-7 rounded-lg border border-dashed border-line-strong text-ink-muted flex items-center justify-center shrink-0">
+                                                                +
+                                                            </div>
+                                                            <span className="text-ludo-md font-bold text-ink-strong">
+                                                                {enrollStatus === 'pending' ? 'Waiting…' : 'Add passkey'}
+                                                            </span>
+                                                        </button>
 
-                                                    {!passkeySupported.data && (
-                                                        <p className="pt-1 text-ludo-xs text-amber-300/80">Not available in this browser</p>
-                                                    )}
-                                                    {passkeyMsg && (
-                                                        <p className="pt-1 text-ludo-xs text-white/50">{passkeyMsg}</p>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <PrefRow
-                                            icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300"
-                                            label="App lock"
-                                            hint="Face ID / passkey required when Ludo opens"
-                                            on={security.bootLock}
-                                            onToggle={() => void guardSecurityToggle(() => security.setBootLock(!security.bootLock))}
-                                        />
-                                        <PrefRow
-                                            icon={<LockIcon />} tint="bg-cyan-500/15 text-cyan-300"
-                                            label="Auto-approve messages"
-                                            hint="Match & DM sign without extra prompts"
-                                            on={security.autoSign}
-                                            onToggle={() => void guardSecurityToggle(() => security.setAutoSign(!security.autoSign))}
-                                        />
-                                        <PrefRow
-                                            icon={<LockIcon />} tint="bg-amber-500/15 text-amber-300"
-                                            label="Transaction approval"
-                                            hint={security.txStepUp === "strict"
-                                                ? "Face ID / fingerprint required for send & swap"
-                                                : "Confirm in Ludo only · no biometric"}
-                                            on={security.txStepUp === "strict"}
-                                            onToggle={() =>
-                                                void guardSecurityToggle(() =>
-                                                    security.setTxStepUp(
-                                                        security.txStepUp === "strict" ? "confirm" : "strict",
-                                                    ),
-                                                )
-                                            }
-                                            last
-                                        />
+                                                        {!passkeySupported.data && (
+                                                            <p className="pt-1 text-ludo-xs text-warn">Not available in this browser</p>
+                                                        )}
+                                                        {passkeyMsg && (
+                                                            <p className="pt-1 text-ludo-xs text-ink-muted">{passkeyMsg}</p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <PrefRow
+                                                icon={<ShieldIcon />} tint="bg-accent-soft text-accent"
+                                                label="App lock"
+                                                hint="Face ID / passkey required when Ludo opens"
+                                                on={security.bootLock}
+                                                onToggle={() => void guardSecurityToggle(() => security.setBootLock(!security.bootLock))}
+                                            />
+                                            <PrefRow
+                                                icon={<LockIcon />} tint="bg-accent-soft text-accent"
+                                                label="Auto-approve messages"
+                                                hint="Match & DM sign without extra prompts"
+                                                on={security.autoSign}
+                                                onToggle={() => void guardSecurityToggle(() => security.setAutoSign(!security.autoSign))}
+                                            />
+                                            <PrefRow
+                                                icon={<LockIcon />} tint="bg-warn/15 text-warn"
+                                                label="Transaction approval"
+                                                hint={security.txStepUp === "strict"
+                                                    ? "Face ID / fingerprint required for send & swap"
+                                                    : "Confirm in Ludo only · no biometric"}
+                                                on={security.txStepUp === "strict"}
+                                                onToggle={() =>
+                                                    void guardSecurityToggle(() =>
+                                                        security.setTxStepUp(
+                                                            security.txStepUp === "strict" ? "confirm" : "strict",
+                                                        ),
+                                                    )
+                                                }
+                                                last
+                                            />
                                         </>
-                                        )}
+                                    )}
+                                </div>
+                            </section>
+                        )}
+
+                        {/* Support + About: lobby only — hidden mid-match */}
+                        {!inGame && (
+                            <>
+                                {/* Support */}
+                                <section>
+                                    <SectionLabel>Support</SectionLabel>
+                                    <div className="rounded-2xl border border-line-soft bg-surface-panel overflow-hidden divide-y divide-line-soft">
+                                        <NavRow icon={<HelpIcon />} tint="bg-accent-soft text-accent" label="Help Center" hint="Rules, fairness, payouts" onClick={() => setView('help')} />
+                                        <NavRow icon={<MessageIcon />} tint="bg-accent-soft text-accent" label="Feedback" hint="Tell us what to fix next" last onClick={() => setView('feedback')} />
                                     </div>
                                 </section>
-                            )}
 
-                            {/* Support + About: lobby only — hidden mid-match */}
-                            {!inGame && (
-                            <>
-
-                            {/* Support */}
-                            <section>
-                                <SectionLabel>Support</SectionLabel>
-                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
-                                    <NavRow icon={<HelpIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Help Center" hint="Rules, fairness, payouts" onClick={() => setView('help')} />
-                                    <NavRow icon={<MessageIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Feedback" hint="Tell us what to fix next" last onClick={() => setView('feedback')} />
-                                </div>
-                            </section>
-
-                            {/* About */}
-                            <section>
-                                <SectionLabel>About</SectionLabel>
-                                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
-                                    <NavRow icon={<InfoIcon />} tint="bg-cyan-500/15 text-cyan-300" label="About Ludo 3077" onClick={() => setView('about')} />
-                                    <NavRow icon={<FileTextIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Terms of Service" onClick={() => openDoc('/terms')} />
-                                    <NavRow icon={<ShieldIcon />} tint="bg-cyan-500/15 text-cyan-300" label="Privacy Policy" last onClick={() => openDoc('/privacy')} />
-                                </div>
-                            </section>
-
+                                {/* About */}
+                                <section>
+                                    <SectionLabel>About</SectionLabel>
+                                    <div className="rounded-2xl border border-line-soft bg-surface-panel overflow-hidden divide-y divide-line-soft">
+                                        <NavRow icon={<InfoIcon />} tint="bg-accent-soft text-accent" label="About Ludo 3077" onClick={() => setView('about')} />
+                                        <NavRow icon={<FileTextIcon />} tint="bg-accent-soft text-accent" label="Terms of Service" onClick={() => openDoc('/terms')} />
+                                        <NavRow icon={<ShieldIcon />} tint="bg-accent-soft text-accent" label="Privacy Policy" last onClick={() => openDoc('/privacy')} />
+                                    </div>
+                                </section>
                             </>
-                            )}
+                        )}
 
-                            {/* Leave match (in-game only). `secondary` + the warn
-                                tokens keeps the amber read while removing the
-                                hardcoded amber-500 triple (Phase B.3). */}
-                            {onLeaveMatch && (
-                                <Button
-                                    variant="secondary"
-                                    size="lg"
-                                    fullWidth
-                                    leftIcon={<LogOutIcon />}
-                                    className="rounded-2xl bg-warn/10 border-warn/25 text-warn hover:bg-warn/20 uppercase tracking-[0.18em]"
-                                    onClick={() => {
-                                        onClose();
-                                        onLeaveMatch();
-                                    }}
-                                >
-                                    Leave Match
-                                </Button>
-                            )}
+                        {/* Leave match (in-game only). */}
+                        {onLeaveMatch && (
+                            <Button
+                                variant="secondary"
+                                size="lg"
+                                fullWidth
+                                leftIcon={<LogOutIcon />}
+                                className="rounded-2xl bg-warn/10 border-warn/25 text-warn hover:bg-warn/20 uppercase tracking-[0.18em]"
+                                onClick={() => {
+                                    onClose();
+                                    onLeaveMatch();
+                                }}
+                            >
+                                Leave Match
+                            </Button>
+                        )}
 
-                            {/* Sign out: lobby only — mid-match exits go via Leave Match.
-                                Deliberately NOT the shared Button (Phase B.3 exception):
-                                it is a two-line control whose second line is a
-                                monospace address, and Button wraps children in a
-                                truncating single-line span. Colours are the negative
-                                tokens and it now carries the disabled treatment it
-                                was missing. Revisit in Phase C if the shape recurs. */}
-                            {!inGame && (
+                        {/* Sign out: lobby only — mid-match exits go via Leave Match. */}
+                        {!inGame && (
                             <button
                                 className="w-full flex flex-col items-center justify-center gap-1 py-3.5 rounded-2xl bg-negative/10 border border-negative/25 hover:bg-negative/20 active:scale-[0.99] transition-all text-negative disabled:opacity-45 disabled:cursor-not-allowed"
                                 onClick={() => {
-                                    // Guests hold no wallet: dropping the guest flag
-                                    // flips isConnected false → sign-in wall.
-                                    // In-game CDP session must be cleared too — wagmi
-                                    // disconnect() does not sign out of CDP.
                                     if (isGuest) exitGuest();
                                     void cdpSignOut().catch(() => undefined);
                                     try {
@@ -804,7 +753,7 @@ export function SettingsPanel({
                                     onClose();
                                 }}
                             >
-                                <span className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em]">
+                                <span className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.18em]">
                                     <LogOutIcon />
                                     {isGuest ? 'Sign In' : 'Sign Out'}
                                 </span>
@@ -814,29 +763,26 @@ export function SettingsPanel({
                                     </span>
                                 )}
                             </button>
-                            )}
+                        )}
 
-                            {/* Version footer: always last, lobby + in-match */}
-                            <div className="flex flex-col items-center gap-0.5 pt-1 pb-1">
-                                <p className="text-ludo-xs font-black uppercase tracking-[0.2em] text-white/30">
-                                    Ludo 3077 · Onchain Arena
-                                </p>
-                                <p className="text-ludo-xs text-white/25 font-mono">
-                                    {APP_VERSION} · build {APP_BUILD_HASH}
-                                </p>
-                            </div>
-                            </>
-                            ) : view === 'help' ? (
-                                <HelpView />
-                            ) : view === 'feedback' ? (
-                                <FeedbackView />
-                            ) : (
-                                <AboutView />
-                            )}
+                        {/* Version footer: always last, lobby + in-match */}
+                        <div className="flex flex-col items-center gap-0.5 pt-1 pb-1">
+                            <p className="text-ludo-xs font-extrabold uppercase tracking-[0.2em] text-ink-faint">
+                                Ludo 3077 · Onchain Arena
+                            </p>
+                            <p className="text-ludo-xs text-ink-faint font-mono">
+                                {APP_VERSION} · build {APP_BUILD_HASH}
+                            </p>
                         </div>
-                    </div>
-                </div>
+                    </>
+                ) : view === 'help' ? (
+                    <HelpView />
+                ) : view === 'feedback' ? (
+                    <FeedbackView />
+                ) : (
+                    <AboutView />
+                )}
             </div>
-        </>
+        </GamePanelShell>
     );
 }
