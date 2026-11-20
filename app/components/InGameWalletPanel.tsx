@@ -25,6 +25,7 @@ import { isCdpAuthEnabled } from "./CdpAuthProvider";
 import { markBootUnlocked } from "./BootLock";
 import Button from "./Button";
 import { CheckGlyphIcon, ChevronGlyphIcon } from "./icons";
+import { Ludo3077Emblem } from "./Ludo3077Logo";
 import {
     hasSeenWalletReady,
     markProtectNudged,
@@ -352,6 +353,10 @@ export default function InGameWalletPanel({
                     </svg>
                 </Button>
             )}
+
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: "8px" }}>
+                <Ludo3077Emblem size="sm" showReticle />
+            </div>
 
             <h2 className="ingame-title">Sign In</h2>
             <p className="ingame-sub">Your in-game wallet</p>

@@ -1,39 +1,207 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" width="220" height="220" fill="none">
   <defs>
-    <radialGradient id="dialBg" cx="42%" cy="34%" r="68%">
-      <stop offset="0%" stop-color="#1E2530"/>
-      <stop offset="65%" stop-color="#0E131B"/>
-      <stop offset="100%" stop-color="#06080D"/>
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#0C141E"/>
+      <stop offset="100%" stop-color="#05070A"/>
     </radialGradient>
+    <radialGradient id="dropShadow" cx="50%" cy="52%" r="50%">
+      <stop offset="68%" stop-color="#000000" stop-opacity="0.88"/>
+      <stop offset="86%" stop-color="#000000" stop-opacity="0.46"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="chamfer" x1="18%" y1="14%" x2="84%" y2="86%">
+      <stop offset="0%" stop-color="#7B8796"/>
+      <stop offset="22%" stop-color="#4A5360"/>
+      <stop offset="54%" stop-color="#1E232A"/>
+      <stop offset="84%" stop-color="#0E1217"/>
+      <stop offset="100%" stop-color="#313944"/>
+    </linearGradient>
+    <linearGradient id="bezel" x1="18%" y1="14%" x2="84%" y2="86%">
+      <stop offset="0%" stop-color="#434C58"/>
+      <stop offset="26%" stop-color="#2D343D"/>
+      <stop offset="56%" stop-color="#1F242B"/>
+      <stop offset="82%" stop-color="#14181E"/>
+      <stop offset="100%" stop-color="#282F38"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="30%" cy="22%" r="65%">
+      <stop offset="0%" stop-color="#C2D0DE" stop-opacity="0.22"/>
+      <stop offset="45%" stop-color="#768494" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.24"/>
+    </radialGradient>
+    <linearGradient id="innerBevel" x1="18%" y1="16%" x2="82%" y2="84%">
+      <stop offset="0%" stop-color="#07090C"/>
+      <stop offset="36%" stop-color="#181D24"/>
+      <stop offset="72%" stop-color="#485360"/>
+      <stop offset="100%" stop-color="#6F7B8A"/>
+    </linearGradient>
+    <linearGradient id="outerEdge" x1="15%" y1="15%" x2="85%" y2="85%">
+      <stop offset="0%" stop-color="#7A8797" stop-opacity="0.65"/>
+      <stop offset="42%" stop-color="#222830" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#06080B" stop-opacity="0.92"/>
+    </linearGradient>
+    <radialGradient id="screw" cx="34%" cy="30%" r="72%">
+      <stop offset="0%" stop-color="#7B8897"/>
+      <stop offset="42%" stop-color="#37404B"/>
+      <stop offset="82%" stop-color="#1B2027"/>
+      <stop offset="100%" stop-color="#0D1116"/>
+    </radialGradient>
+    <linearGradient id="hingePin" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#12161C"/>
+      <stop offset="28%" stop-color="#5B6775"/>
+      <stop offset="52%" stop-color="#7B8897"/>
+      <stop offset="74%" stop-color="#2B323C"/>
+      <stop offset="100%" stop-color="#0C0F14"/>
+    </linearGradient>
+    <linearGradient id="hingeLug" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#697685"/>
+      <stop offset="26%" stop-color="#38414C"/>
+      <stop offset="74%" stop-color="#1B2028"/>
+      <stop offset="100%" stop-color="#0A0D11"/>
+    </linearGradient>
+    <filter id="metalNoise" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.065 0.08" numOctaves="3" seed="11" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="0.35 0 0 0 0.25   0.35 0 0 0 0.28   0.35 0 0 0 0.32   0 0 0 0.16 0"/>
+    </filter>
+    <pattern id="carbon" width="6.5" height="6.5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+      <rect width="6.5" height="6.5" fill="#0B0E13"/>
+      <rect x="0" y="0" width="3.4" height="2.2" fill="#252D38"/>
+      <rect x="3.4" y="0" width="3.1" height="2.2" fill="#10141B"/>
+      <rect x="1.6" y="2.2" width="3.4" height="2.1" fill="#2A3340"/>
+      <rect x="0" y="2.2" width="1.6" height="2.1" fill="#0E1218"/>
+      <rect x="5.0" y="2.2" width="1.5" height="2.1" fill="#0E1218"/>
+      <rect x="3.1" y="4.3" width="3.4" height="2.2" fill="#232B36"/>
+      <rect x="0" y="4.3" width="3.1" height="2.2" fill="#0F131A"/>
+    </pattern>
+    <radialGradient id="vignette" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.04"/>
+      <stop offset="56%" stop-color="#000000" stop-opacity="0.22"/>
+      <stop offset="84%" stop-color="#030508" stop-opacity="0.72"/>
+      <stop offset="100%" stop-color="#010204" stop-opacity="0.96"/>
+    </radialGradient>
+    <radialGradient id="cyanWash" cx="50%" cy="52%" r="44%">
+      <stop offset="0%" stop-color="#00E5FF" stop-opacity="0.22"/>
+      <stop offset="55%" stop-color="#00E5FF" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#00E5FF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="diamond" x1="30%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#AAFFFF"/>
+      <stop offset="50%" stop-color="#70F5FF"/>
+      <stop offset="100%" stop-color="#48E6FF"/>
+    </linearGradient>
+    <filter id="neon" x="-45%" y="-45%" width="190%" height="190%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3.6" result="wide"/>
+      <feColorMatrix in="wide" type="matrix" values="0 0 0 0 0   0 0 0 0 0.9   0 0 0 0 1   0 0 0 0.62 0" result="wideCyan"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.15" result="tight"/>
+      <feMerge>
+        <feMergeNode in="wideCyan"/>
+        <feMergeNode in="tight"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="ringGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <mask id="bezelMask">
+      <circle cx="110" cy="110" r="72.4" fill="white"/>
+      <circle cx="110" cy="110" r="57.4" fill="black"/>
+    </mask>
+    <clipPath id="dishClip">
+      <circle cx="110" cy="110" r="52.4"/>
+    </clipPath>
   </defs>
-  <rect width="128" height="128" rx="28" fill="#05070A"/>
-  <circle cx="64" cy="64" r="54" stroke="#00E5FF" stroke-opacity="0.35" stroke-width="1.2" stroke-dasharray="36 12 18 12"/>
-  <circle cx="64" cy="64" r="45" fill="#171C24" stroke="#334155" stroke-width="2"/>
-  <rect x="15" y="58" width="5" height="12" rx="1.5" fill="#273140" stroke="#475569" stroke-width="1"/>
-  <circle cx="64" cy="64" r="37" fill="url(#dialBg)" stroke="#00E5FF" stroke-opacity="0.45" stroke-width="1.2"/>
-  <polygon points="64,37 71,44 64,51 57,44" fill="#00E5FF"/>
-  <g transform="rotate(45 50 63)">
-    <rect x="42" y="55" width="16" height="16" rx="3" fill="rgba(0,229,255,0.16)" stroke="#00E5FF" stroke-width="1.4"/>
-    <circle cx="46.5" cy="59.5" r="1.3" fill="#00E5FF"/>
-    <circle cx="53.5" cy="59.5" r="1.3" fill="#00E5FF"/>
-    <circle cx="50" cy="63" r="1.5" fill="#00E5FF"/>
-    <circle cx="46.5" cy="66.5" r="1.3" fill="#00E5FF"/>
-    <circle cx="53.5" cy="66.5" r="1.3" fill="#00E5FF"/>
+
+  <rect width="220" height="220" rx="44" fill="url(#bgGlow)"/>
+
+  <!-- Orbital HUD reticles -->
+  <g filter="url(#ringGlow)">
+    <circle cx="110" cy="110" r="99.5" stroke="#00E5FF" stroke-width="1.5" stroke-opacity="0.88"/>
+    <g transform="translate(194.4, 57.3) rotate(58)">
+      <rect x="-6.2" y="-2.5" width="12.4" height="5" rx="2.5" fill="#92FAFF"/>
+    </g>
+    <g transform="translate(15.4, 140.7) rotate(-108)">
+      <path d="M-6.6 -2.1 L4.2 -3 L7 0 L4.2 3 L-6.6 2.1 Z" fill="#92FAFF"/>
+    </g>
   </g>
-  <g transform="rotate(45 78 63)">
-    <rect x="70" y="55" width="16" height="16" rx="3" fill="rgba(0,229,255,0.16)" stroke="#00E5FF" stroke-width="1.4"/>
-    <circle cx="74.5" cy="59.5" r="1.3" fill="#00E5FF"/>
-    <circle cx="81.5" cy="59.5" r="1.3" fill="#00E5FF"/>
-    <circle cx="78" cy="63" r="1.5" fill="#00E5FF"/>
-    <circle cx="74.5" cy="66.5" r="1.3" fill="#00E5FF"/>
-    <circle cx="81.5" cy="66.5" r="1.3" fill="#00E5FF"/>
+  <circle cx="110" cy="110" r="85.5" stroke="#00E5FF" stroke-width="1.3" stroke-opacity="0.72" stroke-dasharray="2.1 5.2" stroke-linecap="round"/>
+
+  <!-- Vault hatch -->
+  <circle cx="110" cy="113" r="79" fill="url(#dropShadow)"/>
+  <circle cx="110" cy="110" r="74.6" fill="url(#chamfer)"/>
+  <circle cx="110" cy="110" r="72.5" fill="url(#bezel)"/>
+  <circle cx="110" cy="110" r="72.5" fill="url(#sheen)"/>
+  <g mask="url(#bezelMask)">
+    <rect x="35" y="35" width="150" height="150" filter="url(#metalNoise)"/>
+    <circle cx="110" cy="110" r="70.8" stroke="#FFFFFF" stroke-opacity="0.06" stroke-width="0.6"/>
+    <circle cx="110" cy="110" r="67.5" stroke="#000000" stroke-opacity="0.16" stroke-width="0.7"/>
+    <circle cx="110" cy="110" r="61.0" stroke="#000000" stroke-opacity="0.20" stroke-width="0.7"/>
   </g>
-  <g transform="rotate(45 64 78)">
-    <rect x="56" y="70" width="16" height="16" rx="3" fill="rgba(0,229,255,0.16)" stroke="#00E5FF" stroke-width="1.4"/>
-    <circle cx="60.5" cy="74.5" r="1.3" fill="#00E5FF"/>
-    <circle cx="67.5" cy="74.5" r="1.3" fill="#00E5FF"/>
-    <circle cx="64" cy="78" r="1.5" fill="#00E5FF"/>
-    <circle cx="60.5" cy="81.5" r="1.3" fill="#00E5FF"/>
-    <circle cx="67.5" cy="81.5" r="1.3" fill="#00E5FF"/>
+  <circle cx="110" cy="110" r="74.0" stroke="url(#outerEdge)" stroke-width="0.9"/>
+  <circle cx="110" cy="110" r="58.0" stroke="#080B0F" stroke-width="1.8"/>
+  <circle cx="110" cy="110" r="55.2" stroke="url(#innerBevel)" stroke-width="4.4"/>
+  <circle cx="110" cy="110" r="52.7" stroke="#040608" stroke-width="1.6"/>
+
+  <!-- Seven 3D slotted screws -->
+  <g>
+    <g transform="translate(110, 44.8)"><circle r="4.5" fill="#07090C"/><circle r="4.5" stroke="#64707E" stroke-opacity="0.34" stroke-width="0.6"/><circle r="3.55" fill="url(#screw)"/><g transform="rotate(-34)"><line x1="-2.8" y1="0" x2="2.8" y2="0" stroke="#05070A" stroke-width="1.25" stroke-linecap="round"/><line x1="-2.5" y1="0.85" x2="2.5" y2="0.85" stroke="#8C9AAA" stroke-opacity="0.58" stroke-width="0.55" stroke-linecap="round"/></g></g>
+    <g transform="translate(156.1, 63.9)"><circle r="4.5" fill="#07090C"/><circle r="4.5" stroke="#64707E" stroke-opacity="0.34" stroke-width="0.6"/><circle r="3.55" fill="url(#screw)"/><g transform="rotate(24)"><line x1="-2.8" y1="0" x2="2.8" y2="0" stroke="#05070A" stroke-width="1.25" stroke-linecap="round"/><line x1="-2.5" y1="0.85" x2="2.5" y2="0.85" stroke="#8C9AAA" stroke-opacity="0.58" stroke-width="0.55" stroke-linecap="round"/></g></g>
+    <g transform="translate(175.2, 110)"><circle r="4.5" fill="#07090C"/><circle r="4.5" stroke="#64707E" stroke-opacity="0.34" stroke-width="0.6"/><circle r="3.55" fill="url(#screw)"/><g transform="rotate(-48)"><line x1="-2.8" y1="0" x2="2.8" y2="0" stroke="#05070A" stroke-width="1.25" stroke-linecap="round"/><line x1="-2.5" y1="0.85" x2="2.5" y2="0.85" stroke="#8C9AAA" stroke-opacity="0.58" stroke-width="0.55" stroke-linecap="round"/></g></g>
+    <g transform="translate(156.1, 156.1)"><circle r="4.5" fill="#07090C"/><circle r="4.5" stroke="#64707E" stroke-opacity="0.34" stroke-width="0.6"/><circle r="3.55" fill="url(#screw)"/><g transform="rotate(18)"><line x1="-2.8" y1="0" x2="2.8" y2="0" stroke="#05070A" stroke-width="1.25" stroke-linecap="round"/><line x1="-2.5" y1="0.85" x2="2.5" y2="0.85" stroke="#8C9AAA" stroke-opacity="0.58" stroke-width="0.55" stroke-linecap="round"/></g></g>
+    <g transform="translate(110, 175.2)"><circle r="4.5" fill="#07090C"/><circle r="4.5" stroke="#64707E" stroke-opacity="0.34" stroke-width="0.6"/><circle r="3.55" fill="url(#screw)"/><g transform="rotate(-26)"><line x1="-2.8" y1="0" x2="2.8" y2="0" stroke="#05070A" stroke-width="1.25" stroke-linecap="round"/><line x1="-2.5" y1="0.85" x2="2.5" y2="0.85" stroke="#8C9AAA" stroke-opacity="0.58" stroke-width="0.55" stroke-linecap="round"/></g></g>
+    <g transform="translate(63.9, 156.1)"><circle r="4.5" fill="#07090C"/><circle r="4.5" stroke="#64707E" stroke-opacity="0.34" stroke-width="0.6"/><circle r="3.55" fill="url(#screw)"/><g transform="rotate(38)"><line x1="-2.8" y1="0" x2="2.8" y2="0" stroke="#05070A" stroke-width="1.25" stroke-linecap="round"/><line x1="-2.5" y1="0.85" x2="2.5" y2="0.85" stroke="#8C9AAA" stroke-opacity="0.58" stroke-width="0.55" stroke-linecap="round"/></g></g>
+    <g transform="translate(63.9, 63.9)"><circle r="4.5" fill="#07090C"/><circle r="4.5" stroke="#64707E" stroke-opacity="0.34" stroke-width="0.6"/><circle r="3.55" fill="url(#screw)"/><g transform="rotate(-18)"><line x1="-2.8" y1="0" x2="2.8" y2="0" stroke="#05070A" stroke-width="1.25" stroke-linecap="round"/><line x1="-2.5" y1="0.85" x2="2.5" y2="0.85" stroke="#8C9AAA" stroke-opacity="0.58" stroke-width="0.55" stroke-linecap="round"/></g></g>
+  </g>
+
+  <!-- Articulated mechanical vault hinge -->
+  <g>
+    <rect x="34.5" y="94.5" width="16" height="33.5" rx="2.2" fill="#040609" fill-opacity="0.65"/>
+    <rect x="39.5" y="97" width="8.5" height="26" rx="1.2" fill="#161B22" stroke="#090C10" stroke-width="0.9"/>
+    <rect x="31.5" y="96.5" width="8" height="27" rx="1.2" fill="url(#hingePin)" stroke="#080B0F" stroke-width="0.9"/>
+    <line x1="32.2" y1="99.2" x2="38.8" y2="99.2" stroke="#080B0F" stroke-width="0.9"/>
+    <line x1="32.2" y1="120.8" x2="38.8" y2="120.8" stroke="#080B0F" stroke-width="0.9"/>
+    <rect x="29.8" y="92.2" width="18.8" height="5.6" rx="1.3" fill="url(#hingeLug)" stroke="#080B0F" stroke-width="0.9"/>
+    <line x1="31" y1="93.3" x2="47.2" y2="93.3" stroke="#8C9AAA" stroke-opacity="0.45" stroke-width="0.65"/>
+    <rect x="29.8" y="122.2" width="18.8" height="5.6" rx="1.3" fill="url(#hingeLug)" stroke="#080B0F" stroke-width="0.9"/>
+    <line x1="31" y1="123.3" x2="47.2" y2="123.3" stroke="#8C9AAA" stroke-opacity="0.45" stroke-width="0.65"/>
+  </g>
+
+  <!-- Recessed 3K carbon-fiber faceplate -->
+  <g clip-path="url(#dishClip)">
+    <circle cx="110" cy="110" r="52.4" fill="url(#carbon)"/>
+    <circle cx="110" cy="110" r="52.4" fill="url(#vignette)"/>
+    <circle cx="110" cy="110" r="52.4" fill="url(#cyanWash)"/>
+    <path d="M67 88 A48 48 0 0 1 133 64 A54 54 0 0 0 67 88 Z" fill="#FFFFFF" fill-opacity="0.045"/>
+  </g>
+
+  <!-- Glowing cyan emblem -->
+  <g filter="url(#neon)">
+    <polygon points="110,61.5 124.2,78 110,94.5 95.8,78" fill="url(#diamond)"/>
+    <g transform="rotate(45 85.2 108)">
+      <rect x="70.7" y="93.5" width="29" height="29" rx="6.6" fill="rgba(0, 229, 255, 0.08)" stroke="#6DF5FF" stroke-width="2.5"/>
+      <circle cx="77.9" cy="100.7" r="3.05" fill="#82F8FF"/>
+      <circle cx="92.5" cy="100.7" r="3.05" fill="#82F8FF"/>
+      <circle cx="85.2" cy="108" r="3.2" fill="#82F8FF"/>
+      <circle cx="77.9" cy="115.3" r="3.05" fill="#82F8FF"/>
+      <circle cx="92.5" cy="115.3" r="3.05" fill="#82F8FF"/>
+    </g>
+    <g transform="rotate(45 134.8 108)">
+      <rect x="120.3" y="93.5" width="29" height="29" rx="6.6" fill="rgba(0, 229, 255, 0.08)" stroke="#6DF5FF" stroke-width="2.5"/>
+      <circle cx="127.5" cy="100.7" r="3.05" fill="#82F8FF"/>
+      <circle cx="142.1" cy="100.7" r="3.05" fill="#82F8FF"/>
+      <circle cx="134.8" cy="108" r="3.2" fill="#82F8FF"/>
+      <circle cx="127.5" cy="115.3" r="3.05" fill="#82F8FF"/>
+      <circle cx="142.1" cy="115.3" r="3.05" fill="#82F8FF"/>
+    </g>
+    <g transform="rotate(45 110 132.8)">
+      <rect x="95.5" y="118.3" width="29" height="29" rx="6.6" fill="rgba(0, 229, 255, 0.08)" stroke="#6DF5FF" stroke-width="2.5"/>
+      <circle cx="102.7" cy="125.5" r="3.05" fill="#82F8FF"/>
+      <circle cx="117.3" cy="125.5" r="3.05" fill="#82F8FF"/>
+      <circle cx="110" cy="132.8" r="3.2" fill="#82F8FF"/>
+      <circle cx="102.7" cy="140.1" r="3.05" fill="#82F8FF"/>
+      <circle cx="117.3" cy="140.1" r="3.05" fill="#82F8FF"/>
+    </g>
   </g>
 </svg>

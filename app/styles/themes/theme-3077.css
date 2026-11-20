@@ -700,7 +700,8 @@ body.theme-3077 .rail-sweep-3077::after {
   body.theme-3077 .animate-hud-reticle-spin-rev,
   body.theme-3077 .animate-hud-boot-bar,
   body.theme-3077 .hud-status-breath,
-  body.theme-3077 .trap-mine-3077 {
+  body.theme-3077 .trap-mine-3077,
+  body.theme-3077 .animate-emblem-core-pulse {
     animation: none !important;
     transition-duration: 0.01ms !important;
   }

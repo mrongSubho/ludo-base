@@ -366,13 +366,23 @@
   animation: hud-deploy-pulse 1.6s ease-in-out infinite;
 }
 
+@keyframes emblem-core-pulse {
+  0%, 100% { opacity: 0.82; }
+  50% { opacity: 1; }
+}
+
+.animate-emblem-core-pulse {
+  animation: emblem-core-pulse 2.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-hud-reticle-spin,
   .animate-hud-reticle-spin-rev,
   .animate-hud-boot-bar,
   .trap-mine-3077,
   .hud-status-breath,
-  .home-deploy-badge-pulse {
+  .home-deploy-badge-pulse,
+  .animate-emblem-core-pulse {
     animation: none !important;
     transition-duration: 0.01ms !important;
   }

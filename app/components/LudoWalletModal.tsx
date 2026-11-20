@@ -224,9 +224,9 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                         }}
                     >
                         {/* Header — hidden on the in-game sign-in page */}
-                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '18px' }} hidden={showInGame}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <Ludo3077Emblem size="xs" showReticle={false} />
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '18px' }} hidden={showInGame}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <Ludo3077Emblem size="sm" showReticle />
                                 <div>
                                     <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--modal-muted, rgba(255,255,255,0.45))' }}>
                                         Sign in
