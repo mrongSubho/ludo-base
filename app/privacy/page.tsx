@@ -1,78 +1,88 @@
 import React from 'react';
-import Link from 'next/link';
+import { ArenaDocShell } from '@/app/components/ArenaDocShell';
+import { HudSectionLabel } from '@/app/components/HudPrimitives';
 
 export const metadata = {
     title: 'Privacy Policy · Ludo 3077',
-    description: 'Privacy Policy for the Ludo 3077 onchain arena.',
+    description: 'Plain-language Privacy Policy for the Ludo 3077 onchain arena.',
 };
 
-// ─── Privacy Policy (concise, plain-language) ────────────────────────────────
+const PRIVACY_SECTIONS = [
+    {
+        num: '01',
+        title: 'What we store',
+        paragraphs: [
+            'When you connect a wallet or passkey account, we store your public wallet address, chosen username, avatar, match history, rank, CHIPS records, and game preferences.',
+            'When you play as a Guest, your progress stays on your own device in browser storage. No server account is created until you sign in.',
+        ],
+    },
+    {
+        num: '02',
+        title: 'What we never touch',
+        paragraphs: [
+            'We never see, ask for, or store your private keys or secret recovery phrases.',
+            'Every wallet sign-in, token approval, or transaction happens in your wallet or passkey prompt, and nothing moves without your confirmation.',
+        ],
+    },
+    {
+        num: '03',
+        title: 'Messages and public info',
+        paragraphs: [
+            'Direct messages between players are encrypted on your device before they leave your browser, so only you and the recipient can read them.',
+            'Your username, avatar, rank, live tables, and settled Base transactions are visible to other players and spectators. Please do not put personal details like your real name or phone number in your display name.',
+        ],
+    },
+    {
+        num: '04',
+        title: 'Cookies and local storage',
+        paragraphs: [
+            'We use minimal cookies and local browser storage to remember your theme, sound effects, token style, and active login session.',
+            'We do not run third-party advertising trackers inside the game client.',
+        ],
+    },
+    {
+        num: '05',
+        title: 'Your choices and controls',
+        paragraphs: [
+            'You can disconnect your wallet at any time, or change who can view your profile and send friend requests inside your Profile settings.',
+            'To remove your off-chain profile or feedback records, reach out via the Feedback panel in Settings. Public transactions already written to Base cannot be deleted by anyone.',
+        ],
+    },
+] as const;
+
 export default function PrivacyPage() {
     return (
-        <main className="min-h-[100dvh] flex items-start sm:items-center justify-center px-4 py-10 bg-black">
-            <article className="w-full max-w-[560px] rounded-[28px] border border-white/10 bg-[#0d0d15]/95 px-6 py-8 sm:px-9 shadow-2xl">
-                <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300">
-                    Ludo 3077 · Arena Entrance
-                </p>
-                <h1 className="mt-2 text-2xl font-black text-white uppercase tracking-tight">
-                    Privacy Policy
-                </h1>
-                <p className="mt-1 text-ludo-sm font-bold text-white/40">
-                    Last updated: September 2026
-                </p>
+        <ArenaDocShell
+            activePage="privacy"
+            kicker="// DATA & PRIVACY"
+            title="Privacy Policy"
+            subtitle="What data Ludo 3077 uses, what stays on your device, and how we protect your keys and messages."
+            metaBadge="Updated Nov 2026"
+        >
+            <HudSectionLabel>Privacy Commitments</HudSectionLabel>
 
-                <div className="mt-6 flex flex-col gap-4 text-ludo-md leading-relaxed text-white/70 font-medium">
-                    <section>
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest">1. What we store</h2>
-                        <p className="mt-1">
-                            Connected wallets: your public address, chosen username and avatar,
-                            match history, coins, rank, and settings. Guests: everything stays on
-                            your device (local storage) — no server account is created until you
-                            connect a wallet.
-                        </p>
+            <div className="flex flex-col gap-3.5">
+                {PRIVACY_SECTIONS.map((section) => (
+                    <section
+                        key={section.num}
+                        className="rounded-2xl border border-line-soft bg-surface-recessed p-4 sm:p-5 flex flex-col gap-2"
+                    >
+                        <div className="flex items-center gap-2.5">
+                            <span className="px-2 py-0.5 rounded-md bg-accent-soft text-accent text-ludo-xs font-mono font-bold">
+                                {section.num}
+                            </span>
+                            <h2 className="text-sm sm:text-base font-extrabold uppercase tracking-wide text-ink-strong">
+                                {section.title}
+                            </h2>
+                        </div>
+                        <div className="flex flex-col gap-2 text-ludo-md font-medium leading-relaxed text-ink-muted">
+                            {section.paragraphs.map((text) => (
+                                <p key={text}>{text}</p>
+                            ))}
+                        </div>
                     </section>
-                    <section>
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest">2. What we never touch</h2>
-                        <p className="mt-1">
-                            We never see or store your private keys or seed phrases. Wallet
-                            signatures happen in your own wallet app, and we cannot move your
-                            funds without your explicit approval.
-                        </p>
-                    </section>
-                    <section>
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest">3. Public by design</h2>
-                        <p className="mt-1">
-                            Usernames, avatars, ranks, live matches, and onchain results are
-                            visible to other players and spectators. Do not use personal
-                            information as your display name.
-                        </p>
-                    </section>
-                    <section>
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest">4. Analytics &amp; cookies</h2>
-                        <p className="mt-1">
-                            We use minimal device storage (theme, sound, token style, session
-                            preferences) to make the arena work. No advertising trackers are
-                            embedded in the game client.
-                        </p>
-                    </section>
-                    <section>
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest">5. Your controls</h2>
-                        <p className="mt-1">
-                            Disconnect your wallet any time to stop new data collection. To erase
-                            your stored profile and match history, contact support from the
-                            Settings panel — onchain records, once settled, cannot be deleted by
-                            anyone.
-                        </p>
-                    </section>
-                </div>
-
-                <Link
-                    href="/"
-                    className="mt-8 flex items-center justify-center w-full py-3.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.2em] hover:bg-white/90 active:scale-[0.99] transition-all"
-                >
-                    Back to entrance
-                </Link>
-            </article>
-        </main>
+                ))}
+            </div>
+        </ArenaDocShell>
     );
 }

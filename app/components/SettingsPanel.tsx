@@ -338,35 +338,7 @@ function FeedbackView() {
     );
 }
 
-// ─── About Ludo 3077 ────────────────────────────────────────────────────────
-function AboutView() {
-    const openDoc = (path: string) => window.open(path, '_blank', 'noopener');
-    return (
-        <section className="flex flex-col gap-3">
-            <SectionLabel>About Ludo 3077</SectionLabel>
-            <div className="rounded-2xl border border-line-soft bg-surface-panel p-4 flex flex-col gap-2">
-                <p className="text-sm font-extrabold text-ink-strong uppercase tracking-wide">
-                    Ludo 3077 · Onchain Arena
-                </p>
-                <p className="text-ludo-md font-medium leading-relaxed text-ink-muted">
-                    Classic Ludo, rebuilt for the onchain era: provably-fair dice, Power-mode
-                    tiles, live spectators, and instant payouts — playable as a guest or with
-                    your Web3 identity.
-                </p>
-                <p className="text-ludo-xs text-ink-faint font-mono">
-                    {APP_VERSION} · build {APP_BUILD_HASH}
-                </p>
-            </div>
-            <div className="rounded-2xl border border-line-soft bg-surface-panel overflow-hidden divide-y divide-line-soft">
-                <NavRow icon={<FileTextIcon />} tint="bg-accent-soft text-accent" label="Terms of Service" onClick={() => openDoc('/terms')} />
-                <NavRow icon={<ShieldIcon />} tint="bg-accent-soft text-accent" label="Privacy Policy" last onClick={() => openDoc('/privacy')} />
-            </div>
-            <p className="text-center text-ludo-xs font-extrabold uppercase tracking-[0.2em] text-ink-faint">
-                Base · OnchainKit · Supabase
-            </p>
-        </section>
-    );
-}
+// ─── Settings Panel ─────────────────────────────────────────────────────────
 
 export function SettingsPanel({
     onClose,
@@ -410,9 +382,9 @@ export function SettingsPanel({
     // Appearance, Leave Match only. No Support/About, and no Sign Out —
     // signing out mid-match is forbidden; leave the match first.
     const inGame = !!onLeaveMatch;
-    // Sub-views keep Help / Feedback / About inside the panel (no navigation
-    // loss mid-match). Terms & Privacy open as real pages in a new tab.
-    const [view, setView] = useState<'main' | 'help' | 'feedback' | 'about'>('main');
+    // Sub-views keep Help / Feedback inside the panel (no navigation loss
+    // mid-match). About, Terms & Privacy open as real pages in a new tab.
+    const [view, setView] = useState<'main' | 'help' | 'feedback'>('main');
     const openDoc = (path: string) => window.open(path, '_blank', 'noopener');
 
     return (
@@ -440,7 +412,6 @@ export function SettingsPanel({
                     )}
                     {view === 'help' && 'Help Center'}
                     {view === 'feedback' && 'Feedback'}
-                    {view === 'about' && 'About'}
                 </span>
             )}
             subtitle={(
@@ -713,7 +684,7 @@ export function SettingsPanel({
                                 <section>
                                     <SectionLabel>About</SectionLabel>
                                     <div className="rounded-2xl border border-line-soft bg-surface-panel overflow-hidden divide-y divide-line-soft">
-                                        <NavRow icon={<InfoIcon />} tint="bg-accent-soft text-accent" label="About Ludo 3077" onClick={() => setView('about')} />
+                                        <NavRow icon={<InfoIcon />} tint="bg-accent-soft text-accent" label="About Ludo 3077" hint="Guide, logo & launch video" onClick={() => openDoc('/about')} />
                                         <NavRow icon={<FileTextIcon />} tint="bg-accent-soft text-accent" label="Terms of Service" onClick={() => openDoc('/terms')} />
                                         <NavRow icon={<ShieldIcon />} tint="bg-accent-soft text-accent" label="Privacy Policy" last onClick={() => openDoc('/privacy')} />
                                     </div>
@@ -777,10 +748,8 @@ export function SettingsPanel({
                     </>
                 ) : view === 'help' ? (
                     <HelpView />
-                ) : view === 'feedback' ? (
-                    <FeedbackView />
                 ) : (
-                    <AboutView />
+                    <FeedbackView />
                 )}
             </div>
         </GamePanelShell>

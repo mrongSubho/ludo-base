@@ -336,7 +336,8 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                 By connecting a wallet, you agree to our{' '}
                                 <a href="/terms" target="_blank" rel="noopener" style={{ color: '#22d3ee', textDecoration: 'none' }}>Terms</a>
                                 {' and '}
-                                <a href="/privacy" target="_blank" rel="noopener" style={{ color: '#22d3ee', textDecoration: 'none' }}>Privacy</a>.
+                                <a href="/privacy" target="_blank" rel="noopener" style={{ color: '#22d3ee', textDecoration: 'none' }}>Privacy</a>.{' '}
+                                <a href="/about" target="_blank" rel="noopener" style={{ color: '#22d3ee', textDecoration: 'none' }}>About Ludo 3077</a>
                             </p>
                         </div>
                     </motion.div>

@@ -1,87 +1,97 @@
 import React from 'react';
-import Link from 'next/link';
+import { ArenaDocShell } from '@/app/components/ArenaDocShell';
+import { HudSectionLabel } from '@/app/components/HudPrimitives';
 
 export const metadata = {
     title: 'Terms of Service · Ludo 3077',
-    description: 'Terms of Service for the Ludo 3077 onchain arena.',
+    description: 'Plain-language Terms of Service for the Ludo 3077 onchain arena.',
 };
 
-// ─── Terms of Service (concise, plain-language) ──────────────────────────────
+const TERMS_SECTIONS = [
+    {
+        num: '01',
+        title: 'The game and CHIPS',
+        paragraphs: [
+            'Ludo 3077 is a board game of skill and chance. Dice rolls and game moves are verified by our match server so every table stays fair.',
+            'Free, guest, and offline AI matches cost nothing and pay no prizes. Paid online tables use CHIPS — an in-game utility token on Base — locked into a visible match pool and claimed after the game settles.',
+            'CHIPS are for gameplay only. They are not money, not an investment, and carry no promise of profit. Once an onchain match result is recorded on Base, it is final.',
+        ],
+    },
+    {
+        num: '02',
+        title: 'Who can play',
+        paragraphs: [
+            'Anyone can play free practice matches, including guest games against bots.',
+            'You must be at least 18 years old (or the legal age of majority where you live) to enter tables with CHIPS entry fees or prize pools, and you are responsible for following your local laws.',
+        ],
+    },
+    {
+        num: '03',
+        title: 'Your account and wallet',
+        paragraphs: [
+            'Your connected wallet or in-game passkey account is your player identity. Keep your wallet, device, and recovery methods safe — anyone who controls your keys controls your profile, CHIPS, and collectibles.',
+            'Guest accounts live locally in your browser until you connect a wallet or passkey.',
+        ],
+    },
+    {
+        num: '04',
+        title: 'Fair play rules',
+        paragraphs: [
+            'Do not use bots, automated scripts, match-fixing, multiple accounts to farm rewards, or any exploit against dice, matchmaking, or payouts.',
+            'If a player goes idle, the arena may auto-play their turn so the table keeps moving. Accounts that cheat may lose rewards and be suspended. Stakes from voided matches may be refunded at our discretion.',
+        ],
+    },
+    {
+        num: '05',
+        title: 'Virtual items and balances',
+        paragraphs: [
+            'Ranks, avatars, badges, and collectible items have no guaranteed cash value unless an explicit feature states otherwise.',
+            'We may adjust off-chain balances or leaderboards to fix software bugs, duplicate claims, or abuse.',
+        ],
+    },
+    {
+        num: '06',
+        title: 'Service availability',
+        paragraphs: [
+            'Ludo 3077 is provided as-is. Live matches, streams, and claims rely on internet connections and third-party blockchain networks like Base, which can pause or slow down.',
+            'We do our best to keep tables smooth and issue good-faith fixes when possible, but we are not liable for network outages or third-party wallet losses.',
+        ],
+    },
+] as const;
+
 export default function TermsPage() {
     return (
-        <main className="min-h-[100dvh] flex items-start sm:items-center justify-center px-4 py-10 bg-black">
-            <article className="w-full max-w-[560px] rounded-[28px] border border-white/10 bg-[#0d0d15]/95 px-6 py-8 sm:px-9 shadow-2xl">
-                <p className="text-ludo-xs font-black uppercase tracking-[0.3em] text-cyan-300">
-                    Ludo 3077 · Arena Entrance
-                </p>
-                <h1 className="mt-2 text-2xl font-black text-white uppercase tracking-tight">
-                    Terms of Service
-                </h1>
-                <p className="mt-1 text-ludo-sm font-bold text-white/40">
-                    Last updated: September 2026
-                </p>
+        <ArenaDocShell
+            activePage="terms"
+            kicker="// ARENA RULES & TERMS"
+            title="Terms of Service"
+            subtitle="Clear rules for playing in Ludo 3077, using CHIPS tables, and keeping matches fair for everyone."
+            metaBadge="Updated Nov 2026"
+        >
+            <HudSectionLabel>Agreement Overview</HudSectionLabel>
 
-                <div className="mt-6 flex flex-col gap-4 text-ludo-md leading-relaxed text-white/70 font-medium">
-                    <section>
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest">1. The game</h2>
-                        <p className="mt-1">
-                            Ludo 3077 is a skill-and-chance board arena. Matches run on provably-fair
-                            dice. Free and offline/AI tables have no stake. Paid online tables use{' '}
-                            <strong>CHIPS</strong> — a utility token on Base (B20) — locked into a
-                            visible Match Pool and claimed after settlement. CHIPS is not money, not
-                            an investment, and not a promise of profit. Where onchain settlement
-                            applies, results are recorded on the connected network and are final.
-                        </p>
+            <div className="flex flex-col gap-3.5">
+                {TERMS_SECTIONS.map((section) => (
+                    <section
+                        key={section.num}
+                        className="rounded-2xl border border-line-soft bg-surface-recessed p-4 sm:p-5 flex flex-col gap-2"
+                    >
+                        <div className="flex items-center gap-2.5">
+                            <span className="px-2 py-0.5 rounded-md bg-accent-soft text-accent text-ludo-xs font-mono font-bold">
+                                {section.num}
+                            </span>
+                            <h2 className="text-sm sm:text-base font-extrabold uppercase tracking-wide text-ink-strong">
+                                {section.title}
+                            </h2>
+                        </div>
+                        <div className="flex flex-col gap-2 text-ludo-md font-medium leading-relaxed text-ink-muted">
+                            {section.paragraphs.map((text) => (
+                                <p key={text}>{text}</p>
+                            ))}
+                        </div>
                     </section>
-                    <section>
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest">2. Eligibility</h2>
-                        <p className="mt-1">
-                            You must be at least 18 years old (or the age of majority where you live)
-                            to play matches with entry fees. Free practice matches, including guest
-                            play against AI, carry no stakes.
-                        </p>
-                    </section>
-                    <section>
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest">3. Your account</h2>
-                        <p className="mt-1">
-                            Your wallet is your identity. Keep it secure — anyone holding your keys
-                            controls your coins, rank, and collectibles. Guest passes are local to
-                            your device and can be migrated to a wallet at any time.
-                        </p>
-                    </section>
-                    <section>
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest">4. Fair play</h2>
-                        <p className="mt-1">
-                            Bots, exploits, match-fixing, multi-account farming, and any interference
-                            with dice, matchmaking, or payouts lead to forfeited rewards and account
-                            suspension. Stakes from voided matches may be returned at our discretion.
-                        </p>
-                    </section>
-                    <section>
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest">5. Virtual items</h2>
-                        <p className="mt-1">
-                            Coins, ranks, avatars, and relics have no cash value unless an explicit
-                            cash-out feature states otherwise. Balances can be adjusted to reverse
-                            fraud, bugs, or duplicate payouts.
-                        </p>
-                    </section>
-                    <section>
-                        <h2 className="text-sm font-black text-white uppercase tracking-widest">6. Availability</h2>
-                        <p className="mt-1">
-                            The arena is provided as-is. Matches, streams, and payouts depend on
-                            third-party networks and may pause or fail; we are not liable for lost
-                            stakes beyond a good-faith refund where technically possible.
-                        </p>
-                    </section>
-                </div>
-
-                <Link
-                    href="/"
-                    className="mt-8 flex items-center justify-center w-full py-3.5 rounded-2xl bg-white text-black text-xs font-black uppercase tracking-[0.2em] hover:bg-white/90 active:scale-[0.99] transition-all"
-                >
-                    Back to entrance
-                </Link>
-            </article>
-        </main>
+                ))}
+            </div>
+        </ArenaDocShell>
     );
 }

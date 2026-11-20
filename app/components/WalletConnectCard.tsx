@@ -175,13 +175,43 @@ export default function WalletConnectCard({ onGuest }: WalletConnectCardProps) {
                 )}
             </div>
 
-            {/* Footer Security Telemetry */}
-            <div className="flex items-center gap-2.5 text-ink-faint relative z-10 w-full justify-center">
-                <div className="h-px w-8 bg-line-soft" />
-                <span className="text-ludo-xs font-mono font-bold tracking-[0.22em] uppercase">
-                    Safe &amp; Secure · Base
-                </span>
-                <div className="h-px w-8 bg-line-soft" />
+            {/* Footer Security Telemetry & Legal Links */}
+            <div className="flex flex-col items-center gap-2 relative z-10 w-full">
+                <div className="flex items-center gap-3 text-ludo-xs font-bold text-ink-muted">
+                    <a
+                        href="/about"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:text-accent transition-colors"
+                    >
+                        About
+                    </a>
+                    <span className="text-line-strong" aria-hidden="true">·</span>
+                    <a
+                        href="/terms"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:text-accent transition-colors"
+                    >
+                        Terms
+                    </a>
+                    <span className="text-line-strong" aria-hidden="true">·</span>
+                    <a
+                        href="/privacy"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:text-accent transition-colors"
+                    >
+                        Privacy
+                    </a>
+                </div>
+                <div className="flex items-center gap-2.5 text-ink-faint w-full justify-center">
+                    <div className="h-px w-8 bg-line-soft" />
+                    <span className="text-ludo-xs font-mono font-bold tracking-[0.22em] uppercase">
+                        Safe &amp; Secure · Base
+                    </span>
+                    <div className="h-px w-8 bg-line-soft" />
+                </div>
             </div>
         </div>
     );
