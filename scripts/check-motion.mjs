@@ -58,11 +58,9 @@ const KNOWN_CSS_SELECTOR = new Map([
 ]);
 
 const KNOWN_FRAMER_SITE = new Map([
-    // Progress bars (bet-window / equalizer / accordion): width/height IS the content.
+    // Progress bars (bet-window / equalizer): width/height IS the content.
     ['app/components/SpectatorHUD.tsx', 'bet-window progress bar animates width'],
     ['app/components/QuickMatchPanel.tsx', 'signal bars animate height (equalizer)'],
-    ['app/components/MatchHistoryTab.tsx', 'expanded match card details accordion animates height: auto'],
-    ['app/components/UnsyncedMatchesPanel.tsx', 'unsynced match list accordion animates height: auto'],
 ]);
 
 const KNOWN_WILL_CHANGE = new Map([

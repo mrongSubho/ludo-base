@@ -45,23 +45,23 @@ export function UnsyncedMatchesPanel({
     };
 
     return (
-        <div className="rounded-2xl bg-white/[0.04] border border-white/10 hover:border-cyan-400/30 transition-all overflow-hidden">
+        <div className="rounded-2xl bg-surface-recessed border border-line-soft hover:border-line-strong transition-colors overflow-hidden">
             {/* Tap-to-Expand Collapsible Header Bar */}
             <button
                 type="button"
                 onClick={() => setIsExpanded((prev) => !prev)}
-                className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-white/5 transition-colors cursor-pointer select-none"
+                className="w-full px-3.5 py-2.5 flex items-center justify-between text-left hover:bg-surface-hover transition-colors cursor-pointer select-none"
                 aria-expanded={isExpanded}
             >
                 <div className="flex items-center gap-2.5 min-w-0">
                     {count === 0 ? (
-                        <LuCircleCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <LuCircleCheck className="w-4 h-4 text-positive shrink-0" />
                     ) : (
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-warn animate-pulse shrink-0" />
                     )}
                     <span
-                        className={`text-ludo-xs font-mono font-black uppercase tracking-[0.16em] truncate ${
-                            count === 0 ? 'text-white/80' : 'text-amber-300'
+                        className={`text-ludo-xs font-mono font-extrabold uppercase tracking-[0.16em] truncate ${
+                            count === 0 ? 'text-ink-strong' : 'text-warn'
                         }`}
                     >
                         {count === 0
@@ -72,71 +72,71 @@ export function UnsyncedMatchesPanel({
 
                 <div className="flex items-center gap-2 shrink-0">
                     {count === 0 ? (
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-400/40 text-ludo-xs font-mono font-black text-emerald-300 uppercase tracking-wider">
+                        <span className="px-2 py-0.5 rounded-md bg-positive/15 border border-positive/35 text-ludo-xs font-mono font-bold text-positive uppercase tracking-wider">
                             Synced
                         </span>
                     ) : (
-                        <span className="px-2 py-0.5 rounded-md bg-amber-500/20 border border-amber-400/40 text-ludo-xs font-mono font-black text-amber-300 uppercase tracking-wider animate-pulse">
+                        <span className="px-2 py-0.5 rounded-md bg-warn/15 border border-warn/40 text-ludo-xs font-mono font-bold text-warn uppercase tracking-wider animate-pulse">
                             Sync Queue ({count})
                         </span>
                     )}
 
                     {isExpanded ? (
-                        <LuChevronUp className="w-4 h-4 text-white/60" />
+                        <LuChevronUp className="w-4 h-4 text-ink-muted" />
                     ) : (
-                        <LuChevronDown className="w-4 h-4 text-white/40" />
+                        <LuChevronDown className="w-4 h-4 text-ink-faint" />
                     )}
                 </div>
             </button>
 
-            {/* Collapsible Content Drawer */}
-            <AnimatePresence>
+            {/* Collapsible Content Drawer (compositor-only opacity/transform) */}
+            <AnimatePresence initial={false}>
                 {isExpanded && (
                     <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="border-t border-white/10 bg-black/40 px-3.5 py-3 flex flex-col gap-3"
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.16 }}
+                        className="border-t border-line-soft bg-surface-panel/80 px-3.5 py-3 flex flex-col gap-3"
                     >
                         {count === 0 ? (
                             <div className="py-2 flex flex-col items-center justify-center text-center gap-1.5">
-                                <span className="text-ludo-xs font-mono font-bold text-white/70">
+                                <span className="text-ludo-xs font-mono font-bold text-ink-strong">
                                     All recent match activity is permanently verified and sealed on Base.
                                 </span>
-                                <span className="text-ludo-sm font-mono text-white/40">
+                                <span className="text-ludo-xs font-mono text-ink-faint">
                                     New free matches will queue here automatically for your next gas-minimized batch sync.
                                 </span>
                             </div>
                         ) : (
                             <>
                                 <div className="grid grid-cols-3 gap-1.5">
-                                    <div className="rounded-xl bg-black/40 border border-white/5 px-2.5 py-1.5 flex items-center gap-1.5">
-                                        <LuTrophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                                        <span className="text-ludo-xs font-mono font-black text-white tabular-nums">
+                                    <div className="rounded-xl bg-surface-recessed border border-line-soft px-2.5 py-1.5 flex items-center gap-1.5">
+                                        <LuTrophy className="w-3.5 h-3.5 text-warn shrink-0" />
+                                        <span className="text-ludo-xs font-mono font-extrabold text-ink-strong tabular-nums">
                                             {wins} {wins === 1 ? 'Win' : 'Wins'}
                                         </span>
                                     </div>
-                                    <div className="rounded-xl bg-black/40 border border-white/5 px-2.5 py-1.5 flex items-center gap-1.5">
-                                        <LuSwords className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                                        <span className="text-ludo-xs font-mono font-black text-white tabular-nums">
+                                    <div className="rounded-xl bg-surface-recessed border border-line-soft px-2.5 py-1.5 flex items-center gap-1.5">
+                                        <LuSwords className="w-3.5 h-3.5 text-negative shrink-0" />
+                                        <span className="text-ludo-xs font-mono font-extrabold text-ink-strong tabular-nums">
                                             {totalCaptures} {totalCaptures === 1 ? 'Capture' : 'Captures'}
                                         </span>
                                     </div>
-                                    <div className="rounded-xl bg-black/40 border border-white/5 px-2.5 py-1.5 flex items-center justify-center">
-                                        <span className="text-ludo-xs font-mono font-black text-cyan-300 tabular-nums uppercase">
+                                    <div className="rounded-xl bg-surface-recessed border border-line-soft px-2.5 py-1.5 flex items-center justify-center">
+                                        <span className="text-ludo-xs font-mono font-extrabold text-accent tabular-nums uppercase">
                                             {count} Pending
                                         </span>
                                     </div>
                                 </div>
 
-                                <p className="text-ludo-xs text-white/60 leading-relaxed">
+                                <p className="text-ludo-xs text-ink-muted leading-relaxed">
                                     Batch-commit your off-chain free match history onto Base in gas-optimized batches (up to 10 matches per tx) to credit active Daily &amp; Weekly missions.
                                 </p>
 
                                 {error && (
-                                    <div className="rounded-xl bg-red-500/10 border border-red-500/25 px-3 py-2 flex items-center gap-2 text-ludo-xs font-mono font-bold text-red-300">
-                                        <LuShieldAlert className="w-4 h-4 text-red-400 shrink-0" />
+                                    <div className="rounded-xl bg-negative/10 border border-negative/30 px-3 py-2 flex items-center gap-2 text-ludo-xs font-mono font-bold text-negative">
+                                        <LuShieldAlert className="w-4 h-4 text-negative shrink-0" />
                                         <span className="leading-snug">{error}</span>
                                     </div>
                                 )}
@@ -145,7 +145,7 @@ export function UnsyncedMatchesPanel({
                                     onClick={handleSync}
                                     disabled={isSyncing || isLoading || count === 0}
                                     variant="primary"
-                                    className="w-full h-9 text-ludo-xs font-black tracking-[0.16em] uppercase rounded-xl"
+                                    className="w-full h-9 text-ludo-xs font-extrabold tracking-[0.16em] uppercase rounded-xl"
                                 >
                                     <span className="flex items-center justify-center gap-2">
                                         <LuRefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
@@ -158,30 +158,30 @@ export function UnsyncedMatchesPanel({
                                 </Button>
 
                                 {/* Detailed matches in queue */}
-                                <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto no-scrollbar pt-1 border-t border-white/5">
-                                    <span className="text-ludo-xs font-mono font-bold text-white/40 uppercase tracking-wider">
+                                <div className="flex flex-col gap-1.5 max-h-44 overflow-y-auto no-scrollbar pt-1 border-t border-line-soft">
+                                    <span className="text-ludo-xs font-mono font-bold text-ink-faint uppercase tracking-wider">
                                         Queue Breakdown
                                     </span>
                                     {matches.map((m) => (
                                         <div
                                             key={m.match_id}
-                                            className="rounded-lg bg-white/[0.03] border border-white/5 px-2.5 py-1.5 flex items-center justify-between text-ludo-xs font-mono"
+                                            className="rounded-lg bg-surface-recessed border border-line-soft px-2.5 py-1.5 flex items-center justify-between text-ludo-xs font-mono"
                                         >
                                             <div className="flex items-center gap-2 min-w-0">
                                                 <span
-                                                    className={`font-black uppercase text-ludo-xs px-1.5 py-0.2 rounded ${
+                                                    className={`font-extrabold uppercase text-ludo-xs px-1.5 py-0.5 rounded ${
                                                         m.won
-                                                            ? 'bg-emerald-500/20 text-emerald-300'
-                                                            : 'bg-red-500/20 text-red-300'
+                                                            ? 'bg-positive/15 text-positive'
+                                                            : 'bg-negative/15 text-negative'
                                                     }`}
                                                 >
                                                     {m.won ? 'VICTORY' : 'DEFEAT'}
                                                 </span>
-                                                <span className="text-white/60 truncate">
+                                                <span className="text-ink-muted truncate">
                                                     Match #{m.match_id.slice(0, 8)}…
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-2 text-white/40 shrink-0">
+                                            <div className="flex items-center gap-2 text-ink-faint shrink-0">
                                                 <span>{m.captures} Captures</span>
                                                 <span>•</span>
                                                 <span>{m.is_pvp ? 'PVP' : 'AI'}</span>

@@ -6,6 +6,7 @@ import { useChainId } from 'wagmi';
 import { useAppSession } from '@/hooks/useAppSession';
 import { UnsyncedMatchesPanel } from './UnsyncedMatchesPanel';
 import PublicProfileModal from './PublicProfileModal';
+import { PilotAvatar } from './PilotAvatar';
 import type { MatchHistoryRecord } from '@/app/api/matches/history/route';
 import {
     LuTrophy,
@@ -22,7 +23,7 @@ import {
     LuBot,
 } from 'react-icons/lu';
 import { FiHome } from 'react-icons/fi';
-import RankTierIcon, { getTierColorClass } from './RankTierIcon';
+import RankTierIcon from './RankTierIcon';
 
 type HistoryFilter = 'all' | 'classic' | 'power' | 'ranked' | 'unsynced';
 
@@ -33,6 +34,13 @@ const FILTERS: { id: HistoryFilter; label: string }[] = [
     { id: 'ranked', label: 'Ranked Match' },
     { id: 'unsynced', label: 'Unsynced' },
 ];
+
+function semanticTierText(tier?: string | null): string {
+    const norm = (tier || '').toLowerCase();
+    if (norm.includes('master') || norm.includes('gold')) return 'text-warn';
+    if (norm.includes('diamond') || norm.includes('platinum')) return 'text-accent';
+    return 'text-ink-muted';
+}
 
 function formatRelativeTime(iso: string): string {
     const ms = Date.now() - new Date(iso).getTime();
@@ -107,7 +115,7 @@ export function MatchHistoryTab({
                         Authorization: `Bearer ${sessionId}`,
                         'x-session-id': sessionId,
                     },
-                }
+                },
             );
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
@@ -159,14 +167,14 @@ export function MatchHistoryTab({
 
     if (isGuest || !address) {
         return (
-            <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-6 flex flex-col items-center justify-center text-center gap-2 my-2">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/30">
+            <div className="rounded-2xl bg-surface-recessed border border-line-soft p-6 flex flex-col items-center justify-center text-center gap-2 my-2">
+                <div className="w-12 h-12 rounded-2xl bg-surface-panel border border-line-soft flex items-center justify-center text-ink-faint">
                     <LuShieldAlert className="w-6 h-6" />
                 </div>
-                <div className="text-sm font-black uppercase tracking-wider text-white">
+                <div className="text-ludo-md font-extrabold uppercase tracking-wider text-ink-strong">
                     Combat Record Locked
                 </div>
-                <p className="text-ludo-xs font-bold text-white/40 max-w-[240px]">
+                <p className="text-ludo-xs font-bold text-ink-faint max-w-[240px]">
                     Connect a wallet to record battle telemetry, track match history, and sync free matches on-chain.
                 </p>
             </div>
@@ -175,13 +183,13 @@ export function MatchHistoryTab({
 
     return (
         <div className="flex flex-col gap-3 pb-3">
-            {/* 1. On-Chain Sync Command Center (Relocated from MissionPanel) */}
+            {/* 1. On-Chain Sync Command Center */}
             <UnsyncedMatchesPanel targetWallet={address} onSynced={fetchHistory} />
 
-            {/* 2. CODM Tactical Combat Summary Ribbon */}
-            <div className="rounded-2xl bg-white/[0.04] border border-white/10 p-3">
+            {/* 2. Tactical Combat Summary Ribbon */}
+            <div className="rounded-2xl bg-surface-recessed border border-line-soft p-3">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-ludo-xs font-mono font-black uppercase tracking-[0.18em] text-white/60">
+                    <span className="text-ludo-xs font-mono font-extrabold uppercase tracking-[0.18em] text-ink-muted">
                         Combat Telemetry
                     </span>
                     <button
@@ -189,46 +197,46 @@ export function MatchHistoryTab({
                         onClick={() => void fetchHistory()}
                         disabled={isLoading}
                         aria-label="Refresh match history"
-                        className="text-ludo-xs font-mono font-bold text-cyan-300 hover:text-white flex items-center gap-1 transition-colors uppercase tracking-wider disabled:opacity-40"
+                        className="text-ludo-xs font-mono font-bold text-accent hover:brightness-110 flex items-center gap-1 transition-colors uppercase tracking-wider disabled:opacity-40"
                     >
                         <LuRefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
                         Refresh
                     </button>
                 </div>
                 <div className="grid grid-cols-4 gap-1.5">
-                    <div className="rounded-xl bg-black/40 border border-white/5 p-2 flex flex-col items-center justify-center">
-                        <span className="text-sm font-black text-white tabular-nums">
+                    <div className="rounded-xl bg-surface-panel border border-line-soft p-2 flex flex-col items-center justify-center">
+                        <span className="text-ludo-lg font-extrabold text-ink-strong tabular-nums leading-none">
                             {summary.total}
                         </span>
-                        <span className="text-ludo-xs font-black uppercase tracking-wider text-white/35 mt-0.5">
+                        <span className="text-ludo-xs font-bold uppercase tracking-wider text-ink-faint mt-1">
                             Battles
                         </span>
                     </div>
-                    <div className="rounded-xl bg-black/40 border border-white/5 p-2 flex flex-col items-center justify-center">
-                        <span className="text-sm font-black text-cyan-400 tabular-nums">
+                    <div className="rounded-xl bg-surface-panel border border-line-soft p-2 flex flex-col items-center justify-center">
+                        <span className="text-ludo-lg font-extrabold text-accent tabular-nums leading-none">
                             {summary.winRate}%
                         </span>
-                        <span className="text-ludo-xs font-black uppercase tracking-wider text-white/35 mt-0.5">
+                        <span className="text-ludo-xs font-bold uppercase tracking-wider text-ink-faint mt-1">
                             {summary.wins}W-{summary.losses}L
                         </span>
                     </div>
-                    <div className="rounded-xl bg-black/40 border border-white/5 p-2 flex flex-col items-center justify-center">
-                        <span className="text-sm font-black text-amber-400 tabular-nums">
+                    <div className="rounded-xl bg-surface-panel border border-line-soft p-2 flex flex-col items-center justify-center">
+                        <span className="text-ludo-lg font-extrabold text-warn tabular-nums leading-none">
                             {summary.captures}
                         </span>
-                        <span className="text-ludo-xs font-black uppercase tracking-wider text-white/35 mt-0.5">
+                        <span className="text-ludo-xs font-bold uppercase tracking-wider text-ink-faint mt-1">
                             Captures
                         </span>
                     </div>
-                    <div className="rounded-xl bg-black/40 border border-white/5 p-2 flex flex-col items-center justify-center">
+                    <div className="rounded-xl bg-surface-panel border border-line-soft p-2 flex flex-col items-center justify-center">
                         <span
-                            className={`text-sm font-black tabular-nums ${
-                                summary.netRxp >= 0 ? 'text-emerald-400' : 'text-red-400'
+                            className={`text-ludo-lg font-extrabold tabular-nums leading-none ${
+                                summary.netRxp >= 0 ? 'text-positive' : 'text-negative'
                             }`}
                         >
                             {summary.netRxp > 0 ? `+${summary.netRxp}` : summary.netRxp}
                         </span>
-                        <span className="text-ludo-xs font-black uppercase tracking-wider text-white/35 mt-0.5">
+                        <span className="text-ludo-xs font-bold uppercase tracking-wider text-ink-faint mt-1">
                             Net RXP
                         </span>
                     </div>
@@ -248,15 +256,15 @@ export function MatchHistoryTab({
                             key={f.id}
                             type="button"
                             onClick={() => setFilter(f.id)}
-                            className={`px-3 py-1.5 rounded-xl text-ludo-xs font-black uppercase tracking-[0.15em] shrink-0 transition-all flex items-center gap-1.5 ${
+                            className={`px-3 py-1.5 rounded-xl text-ludo-xs font-bold uppercase tracking-[0.14em] shrink-0 transition-colors flex items-center gap-1.5 border ${
                                 active
-                                    ? 'bg-cyan-500/20 text-white shadow-[inset_0_0_0_1px_rgba(34,211,238,0.5)]'
-                                    : 'bg-white/[0.04] border border-white/10 text-white/40 hover:text-white/70'
+                                    ? 'bg-accent-soft text-accent border-accent/45'
+                                    : 'bg-surface-recessed border-line-soft text-ink-muted hover:text-ink-strong'
                             }`}
                         >
                             <span>{f.label}</span>
                             {countBadge !== null && countBadge > 0 && (
-                                <span className="px-1.5 py-0.2 rounded-md bg-amber-400/20 text-amber-300 font-mono tabular-nums">
+                                <span className="px-1.5 py-0.5 rounded-md bg-warn/20 text-warn font-mono tabular-nums">
                                     {countBadge}
                                 </span>
                             )}
@@ -267,28 +275,28 @@ export function MatchHistoryTab({
 
             {/* 4. Error Banner */}
             {error && (
-                <div className="rounded-xl bg-white/[0.04] border border-white/10 p-3 text-ludo-xs font-bold text-red-400">
+                <div className="rounded-xl bg-negative/10 border border-negative/30 p-3 text-ludo-xs font-bold text-negative">
                     {error}
                 </div>
             )}
 
-            {/* 5. CODM Match Log Cards */}
+            {/* 5. Compact Match Log Table/Cards */}
             {isLoading && matches.length === 0 ? (
                 <div className="flex flex-col gap-2">
                     {[0, 1, 2, 3].map((i) => (
                         <div
                             key={i}
-                            className="h-20 rounded-2xl bg-white/[0.04] border border-white/10 animate-pulse"
+                            className="h-16 rounded-2xl bg-surface-recessed border border-line-soft animate-pulse"
                         />
                     ))}
                 </div>
             ) : filteredMatches.length === 0 ? (
-                <div className="rounded-2xl bg-white/[0.04] border border-dashed border-white/10 py-10 px-4 flex flex-col items-center justify-center text-center gap-1.5">
-                    <LuTrophy className="w-6 h-6 text-white/25 mb-1" />
-                    <div className="text-xs font-black uppercase tracking-wider text-white/70">
+                <div className="rounded-2xl bg-surface-recessed border border-dashed border-line-soft py-10 px-4 flex flex-col items-center justify-center text-center gap-1.5">
+                    <LuTrophy className="w-6 h-6 text-ink-faint mb-1" />
+                    <div className="text-ludo-md font-extrabold uppercase tracking-wider text-ink-muted">
                         No Combat Logs Found
                     </div>
-                    <div className="text-ludo-xs font-bold text-white/35 max-w-[220px]">
+                    <div className="text-ludo-xs font-bold text-ink-faint max-w-[220px]">
                         {filter === 'all'
                             ? 'Complete your first match to populate your battle log.'
                             : `No matches match the "${filter === 'ranked' ? 'RANKED MATCH' : filter.toUpperCase()}" filter.`}
@@ -304,7 +312,7 @@ export function MatchHistoryTab({
                         return (
                             <div
                                 key={m.matchId}
-                                className="rounded-2xl bg-white/[0.04] border border-white/10 overflow-hidden transition-all"
+                                className="rounded-2xl bg-surface-recessed border border-line-soft overflow-hidden transition-colors"
                             >
                                 {/* Main Tactical Card Row */}
                                 <button
@@ -312,34 +320,34 @@ export function MatchHistoryTab({
                                     onClick={() =>
                                         setExpandedId((prev) => (prev === m.matchId ? null : m.matchId))
                                     }
-                                    className="w-full text-left flex items-stretch hover:bg-white/5 transition-colors"
+                                    className="w-full text-left flex items-stretch hover:bg-surface-hover transition-colors"
                                 >
-                                    {/* Left CODM Status Bar */}
+                                    {/* Left Outcome Bar */}
                                     <div
                                         className={`w-1.5 shrink-0 ${
-                                            m.won ? 'bg-emerald-400' : 'bg-red-400'
+                                            m.won ? 'bg-positive' : 'bg-negative'
                                         }`}
                                     />
 
-                                    <div className="flex-1 min-w-0 p-3 flex flex-col gap-2">
-                                        {/* Top Row: Outcome + Mode Badge | RXP + On-Chain Status */}
+                                    <div className="flex-1 min-w-0 p-2.5 flex flex-col gap-1.5">
+                                        {/* Top Row */}
                                         <div className="flex items-center justify-between gap-2">
                                             <div className="flex items-center gap-2 min-w-0">
                                                 <span
-                                                    className={`text-xs font-black uppercase tracking-[0.16em] shrink-0 ${
-                                                        m.won ? 'text-emerald-400' : 'text-red-400'
+                                                    className={`text-ludo-sm font-extrabold uppercase tracking-[0.14em] shrink-0 ${
+                                                        m.won ? 'text-positive' : 'text-negative'
                                                     }`}
                                                 >
                                                     {m.won ? 'VICTORY' : 'DEFEAT'}
                                                 </span>
-                                                <span className="w-1 h-1 rounded-full bg-white/25 shrink-0" />
-                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/40 border border-white/10 text-ludo-xs font-mono font-black text-white/80 uppercase tracking-wider truncate">
+                                                <span className="w-1 h-1 rounded-full bg-ink-faint shrink-0" />
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-surface-panel border border-line-soft text-ludo-xs font-mono font-bold text-ink-strong uppercase tracking-wider truncate">
                                                     {!m.isPvp ? (
-                                                        <LuBot className="w-3 h-3 text-cyan-400 shrink-0" />
+                                                        <LuBot className="w-3 h-3 text-accent shrink-0" />
                                                     ) : m.gameMode === 'power' ? (
-                                                        <LuSparkles className="w-3 h-3 text-amber-400 shrink-0" />
+                                                        <LuSparkles className="w-3 h-3 text-warn shrink-0" />
                                                     ) : (
-                                                        <LuUsers className="w-3 h-3 text-cyan-400 shrink-0" />
+                                                        <LuUsers className="w-3 h-3 text-accent shrink-0" />
                                                     )}
                                                     {modeLabel}
                                                 </span>
@@ -347,55 +355,53 @@ export function MatchHistoryTab({
 
                                             <div className="flex items-center gap-1.5 shrink-0">
                                                 <span
-                                                    className={`text-ludo-xs font-mono font-black tabular-nums ${
-                                                        m.rxpDelta >= 0
-                                                            ? 'text-emerald-400'
-                                                            : 'text-red-400'
+                                                    className={`text-ludo-xs font-mono font-extrabold tabular-nums ${
+                                                        m.rxpDelta >= 0 ? 'text-positive' : 'text-negative'
                                                     }`}
                                                 >
                                                     {m.rxpDelta > 0 ? `+${m.rxpDelta}` : m.rxpDelta} RXP
                                                 </span>
 
                                                 {m.onchainSynced ? (
-                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-cyan-500/15 border border-cyan-400/40 text-ludo-xs font-mono font-black text-cyan-300 uppercase">
+                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent-soft border border-accent/35 text-ludo-xs font-mono font-bold text-accent uppercase">
                                                         <LuCircleCheck className="w-3 h-3 shrink-0" />
                                                         {m.isPaidPool ? 'Settled' : 'Synced'}
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-black/40 border border-white/10 text-ludo-xs font-mono font-black text-amber-400 uppercase">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-panel border border-line-soft text-ludo-xs font-mono font-bold text-warn uppercase">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-warn animate-pulse shrink-0" />
                                                         Unsynced
                                                     </span>
                                                 )}
                                             </div>
                                         </div>
 
-                                        {/* Bottom Row: Combat Telemetry Metrics */}
-                                        <div className="flex items-center justify-between gap-2 text-ludo-xs font-mono text-white/60">
-                                            <div className="flex items-center gap-3 flex-wrap">
-                                                <span className="inline-flex items-center gap-1 font-bold text-white/80">
-                                                    <LuSwords className="w-3 h-3 text-amber-400 shrink-0" />
+                                        {/* Bottom Telemetry Row */}
+                                        <div className="flex items-center justify-between gap-2 text-ludo-xs font-mono text-ink-muted">
+                                            <div className="flex items-center gap-2.5 flex-wrap">
+                                                <span className="inline-flex items-center gap-1 font-bold text-ink-strong">
+                                                    <LuSwords className="w-3 h-3 text-warn shrink-0" />
                                                     {m.captures} {m.captures === 1 ? 'Capture' : 'Captures'}
                                                 </span>
 
-                                                <span className="text-white/40">•</span>
+                                                <span className="text-ink-faint">•</span>
 
                                                 {m.isPaidPool ? (
-                                                    <span className="font-black text-cyan-300 uppercase">
+                                                    <span className="font-bold text-accent uppercase">
                                                         {m.poolPrizeFund
                                                             ? `Ranked Match • ${m.poolPrizeFund} CHIPS`
                                                             : 'Ranked Match'}
                                                     </span>
                                                 ) : (
-                                                    <span className="text-white/50 uppercase">
+                                                    <span className="text-ink-faint uppercase">
                                                         Free Play
                                                     </span>
                                                 )}
 
                                                 {durationText && (
                                                     <>
-                                                        <span className="text-white/40">•</span>
-                                                        <span className="inline-flex items-center gap-1 text-white/50">
+                                                        <span className="text-ink-faint">•</span>
+                                                        <span className="inline-flex items-center gap-1 text-ink-faint">
                                                             <LuClock className="w-3 h-3 shrink-0" />
                                                             {durationText}
                                                         </span>
@@ -403,35 +409,35 @@ export function MatchHistoryTab({
                                                 )}
                                             </div>
 
-                                            <div className="flex items-center gap-1.5 shrink-0 text-white/40">
+                                            <div className="flex items-center gap-1 shrink-0 text-ink-faint">
                                                 <span className="tabular-nums">
                                                     {formatRelativeTime(m.createdAt)}
                                                 </span>
                                                 {isExpanded ? (
-                                                    <LuChevronUp className="w-3.5 h-3.5 text-white/60" />
+                                                    <LuChevronUp className="w-3.5 h-3.5 text-ink-muted" />
                                                 ) : (
-                                                    <LuChevronDown className="w-3.5 h-3.5 text-white/40" />
+                                                    <LuChevronDown className="w-3.5 h-3.5 text-ink-faint" />
                                                 )}
                                             </div>
                                         </div>
                                     </div>
                                 </button>
 
-                                {/* Expanded CODM Post-Match Scoreboard Drawer */}
-                                <AnimatePresence>
+                                {/* Expanded Post-Match Scoreboard Drawer (compositor-only) */}
+                                <AnimatePresence initial={false}>
                                     {isExpanded && (
                                         <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: 'auto', opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.2 }}
-                                            className="border-t border-white/10 bg-black/40 px-3.5 py-3 flex flex-col gap-2.5"
+                                            initial={{ opacity: 0, y: -4 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -4 }}
+                                            transition={{ duration: 0.16 }}
+                                            className="border-t border-line-soft bg-surface-panel/80 px-3 py-2.5 flex flex-col gap-2"
                                         >
                                             <div className="flex items-center justify-between">
-                                                <span className="text-ludo-xs font-mono font-black uppercase tracking-[0.16em] text-white/50">
+                                                <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.16em] text-ink-muted">
                                                     Squad &amp; Combatants ({m.participants.length})
                                                 </span>
-                                                <span className="text-ludo-xs font-mono font-bold text-cyan-300">
+                                                <span className="text-ludo-xs font-mono font-bold text-accent">
                                                     +{m.lxpDelta} XP Earned
                                                 </span>
                                             </div>
@@ -441,12 +447,12 @@ export function MatchHistoryTab({
                                                 {m.participants.map((p) => {
                                                     const isClickable =
                                                         Boolean(p.wallet) && /^0x[a-f0-9]{40}$/i.test(p.wallet);
+                                                    const combatantName = p.username || shortAddr(p.wallet);
                                                     return (
                                                         <div
                                                             key={p.wallet}
-                                                            className="rounded-xl bg-white/[0.04] border border-white/10 px-2.5 py-1.5 flex items-center justify-between gap-2"
+                                                            className="rounded-xl bg-surface-recessed border border-line-soft px-2.5 py-1.5 flex items-center justify-between gap-2"
                                                         >
-                                                            {/* Left: Avatar + Username (Clickable to open profile) */}
                                                             <button
                                                                 type="button"
                                                                 disabled={!isClickable}
@@ -471,40 +477,25 @@ export function MatchHistoryTab({
                                                                         : undefined
                                                                 }
                                                             >
-                                                                <div className="w-7 h-7 rounded-full bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center shrink-0 overflow-hidden group-hover:border-cyan-300 transition-colors">
-                                                                    {p.avatarUrl &&
-                                                                    (p.avatarUrl.startsWith('http') ||
-                                                                        p.avatarUrl.startsWith('/')) ? (
-                                                                        <img
-                                                                            src={p.avatarUrl}
-                                                                            alt={p.username || 'Combatant'}
-                                                                            width={28}
-                                                                            height={28}
-                                                                            className="w-full h-full object-cover"
-                                                                        />
-                                                                    ) : (
-                                                                        <span className="text-ludo-xs font-black text-cyan-300 uppercase">
-                                                                            {(
-                                                                                p.username?.[0] ||
-                                                                                p.wallet[2] ||
-                                                                                'P'
-                                                                            ).toUpperCase()}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
+                                                                <PilotAvatar
+                                                                    avatarUrl={p.avatarUrl}
+                                                                    name={combatantName}
+                                                                    size="xs"
+                                                                    tier={p.rankTier}
+                                                                />
                                                                 <div className="min-w-0">
                                                                     <div className="flex items-center gap-1.5">
                                                                         <span
-                                                                            className={`text-ludo-xs font-bold text-white truncate transition-colors ${
+                                                                            className={`text-ludo-xs font-bold text-ink-strong truncate transition-colors ${
                                                                                 isClickable
-                                                                                    ? 'group-hover:text-cyan-300 group-hover:underline'
+                                                                                    ? 'group-hover:text-accent group-hover:underline'
                                                                                     : ''
                                                                             }`}
                                                                         >
-                                                                            {p.username || shortAddr(p.wallet)}
+                                                                            {combatantName}
                                                                         </span>
                                                                         {p.isMe && (
-                                                                            <span className="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-ludo-xs font-mono font-black uppercase shrink-0">
+                                                                            <span className="px-1.5 py-0.5 rounded bg-accent-soft text-accent text-ludo-xs font-mono font-bold uppercase shrink-0">
                                                                                 You
                                                                             </span>
                                                                         )}
@@ -516,8 +507,8 @@ export function MatchHistoryTab({
                                                                                 className="w-3 h-3 shrink-0"
                                                                             />
                                                                             <span
-                                                                                className={`text-ludo-xs font-mono font-bold tracking-tight uppercase truncate ${getTierColorClass(
-                                                                                    p.rankTier
+                                                                                className={`text-ludo-xs font-mono font-bold tracking-tight uppercase truncate ${semanticTierText(
+                                                                                    p.rankTier,
                                                                                 )}`}
                                                                             >
                                                                                 {p.rankTier}
@@ -527,54 +518,44 @@ export function MatchHistoryTab({
                                                                 </div>
                                                             </button>
 
-                                                            {/* Right: Individual Telemetry (Home, Kicks & Got Kicked) + Outcome */}
                                                             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                                                                 <div className="flex items-center gap-1 sm:gap-1.5 text-ludo-xs font-mono">
                                                                     <span
-                                                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-emerald-300"
+                                                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-panel border border-line-soft font-bold text-positive"
                                                                         title="Tokens Home"
                                                                     >
-                                                                        <FiHome className="w-3 h-3 text-emerald-400 shrink-0" />
-                                                                        <span className="tabular-nums font-black">
+                                                                        <FiHome className="w-3 h-3 text-positive shrink-0" />
+                                                                        <span className="tabular-nums font-extrabold">
                                                                             {p.home ?? (p.isWinner ? 4 : 0)}/4
                                                                         </span>
-                                                                        <span className="hidden sm:inline text-ludo-xs text-white/40 uppercase tracking-tight">
-                                                                            Home
-                                                                        </span>
                                                                     </span>
                                                                     <span
-                                                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-amber-300"
+                                                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-panel border border-line-soft font-bold text-warn"
                                                                         title="Captures / Kicks made"
                                                                     >
-                                                                        <LuSwords className="w-3 h-3 text-amber-400 shrink-0" />
-                                                                        <span className="tabular-nums font-black">
+                                                                        <LuSwords className="w-3 h-3 text-warn shrink-0" />
+                                                                        <span className="tabular-nums font-extrabold">
                                                                             {p.kicks}
-                                                                        </span>
-                                                                        <span className="hidden sm:inline text-ludo-xs text-white/40 uppercase tracking-tight">
-                                                                            Kicked
                                                                         </span>
                                                                     </span>
                                                                     <span
-                                                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-white/[0.04] border border-white/5 font-bold text-red-300"
+                                                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-panel border border-line-soft font-bold text-negative"
                                                                         title="Times token was captured / kicked"
                                                                     >
-                                                                        <LuShieldAlert className="w-3 h-3 text-red-400 shrink-0" />
-                                                                        <span className="tabular-nums font-black">
+                                                                        <LuShieldAlert className="w-3 h-3 text-negative shrink-0" />
+                                                                        <span className="tabular-nums font-extrabold">
                                                                             {p.gotKicked}
-                                                                        </span>
-                                                                        <span className="hidden sm:inline text-ludo-xs text-white/40 uppercase tracking-tight">
-                                                                            Captured
                                                                         </span>
                                                                     </span>
                                                                 </div>
 
                                                                 {p.isWinner ? (
-                                                                    <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/30 text-ludo-xs font-mono font-black text-amber-400 uppercase shrink-0">
+                                                                    <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md bg-warn/15 border border-warn/35 text-ludo-xs font-mono font-bold text-warn uppercase shrink-0">
                                                                         <LuTrophy className="w-3 h-3 shrink-0" />
                                                                         Winner
                                                                     </span>
                                                                 ) : (
-                                                                    <span className="px-1.5 sm:px-2 py-0.5 text-ludo-xs font-mono font-bold text-white/35 uppercase shrink-0">
+                                                                    <span className="px-1.5 sm:px-2 py-0.5 text-ludo-xs font-mono font-bold text-ink-faint uppercase shrink-0">
                                                                         Defeated
                                                                     </span>
                                                                 )}
@@ -585,7 +566,7 @@ export function MatchHistoryTab({
                                             </div>
 
                                             {/* Match Telemetry Footer */}
-                                            <div className="pt-1 border-t border-white/5 flex items-center justify-between gap-2 flex-wrap text-ludo-xs font-mono text-white/40">
+                                            <div className="pt-1 border-t border-line-soft flex items-center justify-between gap-2 flex-wrap text-ludo-xs font-mono text-ink-faint">
                                                 <div className="flex items-center gap-2">
                                                     <span>ID: {m.matchId.slice(0, 10)}…</span>
                                                     {m.roomCode && <span>• Room #{m.roomCode}</span>}
@@ -596,13 +577,13 @@ export function MatchHistoryTab({
                                                         href={`${explorerBase}${m.syncTxHash}`}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
-                                                        className="inline-flex items-center gap-1 text-cyan-300 hover:text-white font-bold uppercase tracking-wider transition-colors"
+                                                        className="inline-flex items-center gap-1 text-accent hover:brightness-110 font-bold uppercase tracking-wider transition-colors"
                                                     >
                                                         <span>BaseScan TX</span>
                                                         <LuExternalLink className="w-3 h-3" />
                                                     </a>
                                                 ) : (
-                                                    <span className="text-amber-400 font-bold uppercase">
+                                                    <span className="text-warn font-bold uppercase">
                                                         Pending On-Chain Sync
                                                     </span>
                                                 )}
@@ -624,7 +605,7 @@ export function MatchHistoryTab({
                 onDM={(userId) => {
                     setSelectedProfileAddress(null);
                     window.dispatchEvent(
-                        new CustomEvent('ludo-open-chat', { detail: { wallet: userId } })
+                        new CustomEvent('ludo-open-chat', { detail: { wallet: userId } }),
                     );
                 }}
             />
