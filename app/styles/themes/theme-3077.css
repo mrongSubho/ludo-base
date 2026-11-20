@@ -626,26 +626,29 @@ body.theme-3077 .porcelain-holo-tick svg {
   transform: rotate(-45deg) !important;
 }
 
-/* Primary CTA in ActionDice (3077 styling, preserves button semantics & hover stability) */
+/* Primary CTA in ActionDice (3077 translucent glass plaque so pips shine through) */
 body.theme-3077 .dice-tier button:has(span) {
-  min-height: 48px;
+  min-height: 36px;
   border-radius: var(--radius-md) !important;
-  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px);
-  background: var(--accent) !important;
-  border-color: var(--accent) !important;
-  box-shadow: none !important;
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+  background: rgba(6, 14, 24, 0.48) !important;
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+  border-color: rgba(0, 229, 255, 0.78) !important;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.24), inset 0 0 8px rgba(0, 229, 255, 0.12) !important;
   contain: layout paint;
 }
 body.theme-3077 .dice-tier button:has(span):hover {
-  background: #33EBFF !important;
+  background: rgba(0, 229, 255, 0.22) !important;
+  border-color: #67f3ff !important;
 }
 body.theme-3077 .dice-tier button:has(span) span {
-  color: var(--accent-ink) !important;
+  color: #7cefff !important;
   font-family: var(--font-chakra), sans-serif;
   font-style: normal !important;
   font-weight: 700 !important;
-  letter-spacing: 0.1em !important;
-  text-shadow: none !important;
+  letter-spacing: 0.08em !important;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 229, 255, 0.35) !important;
 }
 
 body.theme-3077 .game-top-bar {

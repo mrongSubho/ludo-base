@@ -418,9 +418,9 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
 };
 
 const ModeFaceGlyph = ({ id }: { id: ModeId }) => {
-    if (id === 'quick') return <QuickDeployIcon className="w-3.5 h-3.5 shrink-0" />;
-    if (id === 'team') return <SquadRoomIcon className="w-3.5 h-3.5 shrink-0" />;
-    return <SimBotIcon className="w-3.5 h-3.5 shrink-0" />;
+    if (id === 'quick') return <QuickDeployIcon className="w-3 h-3 shrink-0" />;
+    if (id === 'team') return <SquadRoomIcon className="w-3 h-3 shrink-0" />;
+    return <SimBotIcon className="w-3 h-3 shrink-0" />;
 };
 
 const DiceFace = ({
@@ -487,10 +487,10 @@ const DiceFace = ({
                         e.stopPropagation();
                         onClick();
                     }}
-                    className={`relative mt-0.5 flex flex-col items-center justify-center gap-0.5 w-[94%] min-h-[44px] px-1.5 py-1 z-10 cursor-pointer transition-transform ${
+                    className={`relative mt-0.5 flex flex-col items-center justify-center gap-0.5 z-10 cursor-pointer transition-transform ${
                         is3077
-                            ? 'border font-bold'
-                            : 'rounded-full border glass-panel backdrop-blur-[1px] border-cyan-400/80 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95'
+                            ? 'w-[78%] min-h-[36px] px-1.5 py-1 border font-bold'
+                            : 'w-[94%] min-h-[44px] px-1.5 py-1 rounded-full border glass-panel backdrop-blur-[1px] border-cyan-400/80 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95'
                     }`}
                 >
                     {is3077 && (
@@ -534,7 +534,7 @@ const DiceDots = ({
                     left: l,
                     transform: 'translate(-50%, -50%)',
                     backgroundColor: hex3077,
-                    opacity: 0.72,
+                    opacity: 0.85,
                     boxShadow: `0 0 8px ${hex3077}, inset 0 1px 2px rgba(255,255,255,0.6)`,
                 }}
             />
