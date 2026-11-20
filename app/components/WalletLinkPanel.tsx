@@ -41,19 +41,19 @@ const ModeChip = ({
         aria-disabled={disabled}
         className={`flex-1 rounded-2xl border px-3 py-3 text-left transition-all disabled:opacity-45 disabled:cursor-not-allowed ${
             active && !disabled
-                ? "border-cyan-400/50 bg-cyan-500/15 shadow-[0_0_18px_rgba(34,211,238,0.12)]"
-                : "border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+                ? "border-accent/50 bg-accent-soft shadow-[0_0_18px_rgba(34,211,238,0.12)]"
+                : "border-line-soft bg-surface-recessed hover:bg-surface-hover"
         }`}
     >
         <div className="flex items-center gap-2">
             <span
-                className={`w-2 h-2 rounded-full ${active ? "bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" : "bg-white/25"}`}
+                className={`w-2 h-2 rounded-full ${active ? "bg-accent shadow-[0_0_8px_rgba(34,211,238,0.65)]" : "bg-ink-faint/40"}`}
             />
-            <span className="text-ludo-md font-extrabold tracking-[0.06em] uppercase text-white">
+            <span className="text-ludo-md font-extrabold tracking-[0.06em] uppercase text-ink-strong">
                 {label}
             </span>
         </div>
-        <div className="mt-1 text-ludo-xs font-semibold text-white/40 leading-snug">{hint}</div>
+        <div className="mt-1 text-ludo-xs font-semibold text-ink-faint leading-snug">{hint}</div>
     </button>
 );
 

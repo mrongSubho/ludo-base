@@ -204,7 +204,7 @@ export function ChipsWalletPanel({ isOpen, onClose, claimablePoolIds, onFeed }: 
                                         borderRadius: 12,
                                         flexShrink: 0,
                                         background:
-                                            "linear-gradient(135deg, #0052FF 0%, #6B8CFF 55%, #A8C0FF 100%)",
+                                            "linear-gradient(135deg, var(--accent, #00E5FF) 0%, #6B8CFF 55%, #A8C0FF 100%)",
                                     }}
                                 />
                                 <div style={{ flex: 1, minWidth: 0 }}>

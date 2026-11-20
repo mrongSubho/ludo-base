@@ -106,8 +106,8 @@ export default function ClaimHubSheet({
     return (
         <div className="cb-screen space-y-4">
             {/* Header intro note */}
-            <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/5 text-ludo-xs font-mono text-white/60 leading-relaxed text-left flex items-start gap-2">
-                <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-cyan-400 shrink-0 shadow-[0_0_6px_rgba(0,229,255,0.8)]" />
+            <div className="p-3 rounded-2xl bg-surface-recessed border border-line-soft text-ludo-xs font-mono text-ink-muted leading-relaxed text-left flex items-start gap-2">
+                <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-accent shrink-0 shadow-[0_0_6px_rgba(0,229,255,0.65)]" />
                 <span>
                     Unified Match Vault &amp; Claim Hub: keep reusable CHIPS ready for 0-gas Quick Match &amp; TeamUp entry, or pull-claim winnings &amp; balances to your wallet anytime.
                 </span>
@@ -124,7 +124,7 @@ export default function ClaimHubSheet({
                 <div className="cb-card p-3.5 space-y-3 text-left">
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-accent-soft border border-accent/30 flex items-center justify-center text-accent shrink-0">
                                 <svg
                                     viewBox="0 0 24 24"
                                     className="w-4 h-4"
@@ -139,10 +139,10 @@ export default function ClaimHubSheet({
                                 </svg>
                             </div>
                             <div className="flex flex-col min-w-0">
-                                <span className="text-ludo-sm font-bold text-white leading-tight">
+                                <span className="text-ludo-sm font-bold text-ink-strong leading-tight">
                                     {vault.availableChips.toLocaleString()} CHIPS Ready
                                 </span>
-                                <span className="text-ludo-xs font-mono text-white/45 truncate">
+                                <span className="text-ludo-xs font-mono text-ink-faint truncate">
                                     {vault.reservedChips > 0
                                         ? `${vault.reservedChips.toLocaleString()} CHIPS locked in active match`
                                         : "Carries over across cancelled searches & rooms"}
@@ -161,7 +161,7 @@ export default function ClaimHubSheet({
                                 setVaultMode(vaultMode === "topup" ? "none" : "topup");
                                 setVaultInput("10000");
                             }}
-                            className="uppercase tracking-wider font-black text-ludo-xs"
+                            className="uppercase tracking-wider font-bold label-chrome text-ludo-xs"
                         >
                             + Top Up Vault
                         </Button>
@@ -174,14 +174,14 @@ export default function ClaimHubSheet({
                                 setVaultMode(vaultMode === "withdraw" ? "none" : "withdraw");
                                 setVaultInput(String(vault.availableChips));
                             }}
-                            className="uppercase tracking-wider font-black text-ludo-xs"
+                            className="uppercase tracking-wider font-bold label-chrome text-ludo-xs"
                         >
                             Withdraw
                         </Button>
                     </div>
 
                     {vaultMode !== "none" && (
-                        <form onSubmit={handleVaultSubmit} className="pt-2 border-t border-white/10 space-y-2.5">
+                        <form onSubmit={handleVaultSubmit} className="pt-2 border-t border-line-soft space-y-2.5">
                             {vaultMode === "topup" && (
                                 <div className="flex flex-wrap gap-1.5">
                                     {VAULT_TOPUP_PRESETS.map((p) => (
@@ -191,8 +191,8 @@ export default function ClaimHubSheet({
                                             onClick={() => setVaultInput(String(p.value))}
                                             className={`px-2.5 py-1 rounded-lg text-ludo-xs font-mono font-bold border transition-colors ${
                                                 Number(vaultInput) === p.value
-                                                    ? "bg-cyan-500/20 border-cyan-400 text-cyan-300"
-                                                    : "bg-white/5 border-white/10 text-white/70 hover:text-white"
+                                                    ? "bg-accent-soft border-accent text-accent"
+                                                    : "bg-surface-recessed border-line-soft text-ink-muted hover:text-ink-strong"
                                             }`}
                                         >
                                             {p.label}
@@ -212,13 +212,13 @@ export default function ClaimHubSheet({
                                     autoCorrect="off"
                                     autoCapitalize="none"
                                     spellCheck={false}
-                                    className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white font-mono text-xs focus:outline-none focus:border-cyan-400"
+                                    className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-surface-panel border border-line-soft text-ink-strong font-mono text-xs focus:outline-none focus:border-accent"
                                 />
                                 {vaultMode === "withdraw" && (
                                     <button
                                         type="button"
                                         onClick={() => setVaultInput(String(vault.availableChips))}
-                                        className="px-2.5 py-2 rounded-xl bg-white/5 border border-white/10 text-cyan-300 font-mono text-xs font-bold"
+                                        className="px-2.5 py-2 rounded-xl bg-surface-recessed border border-line-soft text-accent font-mono text-xs font-bold"
                                     >
                                         MAX
                                     </button>
@@ -251,7 +251,7 @@ export default function ClaimHubSheet({
                 </div>
                 <div className="cb-card p-3.5 space-y-3 text-left">
                     {!hasArenaClaims ? (
-                        <div className="text-ludo-xs font-mono text-white/40">
+                        <div className="text-ludo-xs font-mono text-ink-faint">
                             Win Quick Matches or TeamUp battles — 95% net pots deliver here ready to claim to your wallet or roll into your Match Vault.
                         </div>
                     ) : (
@@ -260,17 +260,17 @@ export default function ClaimHubSheet({
                                 {vault.claims.map((c) => (
                                     <div
                                         key={c.id}
-                                        className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/5"
+                                        className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-surface-recessed border border-line-soft"
                                     >
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-ludo-xs font-bold text-white uppercase">
+                                            <span className="text-ludo-xs font-bold text-ink-strong uppercase">
                                                 {c.claim_type === "match_prize"
                                                     ? "Match / Bet Victory Prize"
                                                     : c.claim_type === "vault_withdraw"
                                                       ? "Vault Withdrawal"
                                                       : "Match / Bet Refund"}
                                             </span>
-                                            <span className="text-ludo-xs font-mono text-emerald-400 font-bold">
+                                            <span className="text-ludo-xs font-mono text-positive font-bold">
                                                 +{c.amount.toLocaleString()} CHIPS
                                             </span>
                                         </div>
@@ -279,7 +279,7 @@ export default function ClaimHubSheet({
                                                 type="button"
                                                 disabled={vault.isActing}
                                                 onClick={() => void handleRollPrize(c.id, c.amount)}
-                                                className="px-2.5 py-1.5 rounded-lg bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 font-mono text-ludo-xs font-bold shrink-0"
+                                                className="px-2.5 py-1.5 rounded-lg bg-accent-soft hover:bg-accent/20 border border-accent/30 text-accent font-mono text-ludo-xs font-bold shrink-0"
                                             >
                                                 Keep in Vault (0 Gas)
                                             </button>
@@ -293,7 +293,7 @@ export default function ClaimHubSheet({
                                 fullWidth
                                 disabled={vault.isActing}
                                 onClick={() => void handleClaimArenaRewards()}
-                                className="uppercase tracking-widest font-black text-ludo-xs"
+                                className="uppercase tracking-widest font-bold label-chrome text-ludo-xs"
                             >
                                 {vault.isActing ? (
                                     <div className="flex items-center gap-2">
@@ -323,7 +323,7 @@ export default function ClaimHubSheet({
                             fullWidth
                             disabled={claimingPools || !poolClaimConfigured}
                             onClick={handleClaimPools}
-                            className="uppercase tracking-widest font-black text-ludo-xs"
+                            className="uppercase tracking-widest font-bold label-chrome text-ludo-xs"
                         >
                             {claimingPools ? "Claiming Pools…" : `Claim ${poolCount} Legacy Pool${poolCount === 1 ? "" : "s"}`}
                         </Button>
@@ -342,16 +342,16 @@ export default function ClaimHubSheet({
                 <div className="cb-card p-3.5 space-y-3 text-left">
                     <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                            <div className="w-8 h-8 rounded-lg bg-positive/10 border border-positive/30 flex items-center justify-center text-positive shrink-0">
                                 <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                                 </svg>
                             </div>
                             <div className="flex flex-col min-w-0">
-                                <span className="text-ludo-sm font-bold text-white leading-tight truncate">
+                                <span className="text-ludo-sm font-bold text-ink-strong leading-tight truncate">
                                     War Pot Distribution &amp; Escrow Returns
                                 </span>
-                                <span className="text-ludo-xs font-mono text-white/40 truncate">
+                                <span className="text-ludo-xs font-mono text-ink-faint truncate">
                                     {hasClanClaims
                                         ? `${clanClaims.totalClaimableChips.toLocaleString()} CHIPS ready for pull-claim`
                                         : "Direct non-custodial claims from ClanClaim.sol"}
@@ -359,7 +359,7 @@ export default function ClaimHubSheet({
                             </div>
                         </div>
                         {hasClanClaims && (
-                            <span className="text-ludo-sm font-mono font-bold text-emerald-400 shrink-0">
+                            <span className="text-ludo-sm font-mono font-bold text-positive shrink-0">
                                 {clanClaims.totalClaimableChips.toLocaleString()} CHIPS
                             </span>
                         )}
@@ -380,14 +380,14 @@ export default function ClaimHubSheet({
                                 return (
                                     <div
                                         key={c.id}
-                                        className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/5"
+                                        className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-surface-recessed border border-line-soft"
                                     >
                                         <div className="flex flex-col min-w-0">
-                                            <span className="text-ludo-xs font-bold text-white truncate">
+                                            <span className="text-ludo-xs font-bold text-ink-strong truncate">
                                                 {labelMap[c.claim_type] || c.claim_type}
                                                 {c.clan?.tag ? ` · [${c.clan.tag}]` : ""}
                                             </span>
-                                            <span className="text-ludo-xs font-mono text-emerald-400 font-bold">
+                                            <span className="text-ludo-xs font-mono text-positive font-bold">
                                                 +{Number(c.amount).toLocaleString()} CHIPS
                                             </span>
                                         </div>
@@ -395,7 +395,7 @@ export default function ClaimHubSheet({
                                             type="button"
                                             disabled={clanClaims.isClaimingAll || Boolean(clanClaims.claimingId)}
                                             onClick={() => void clanClaims.claimSingle(c).catch(() => {})}
-                                            className="px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-mono text-ludo-xs font-bold shrink-0"
+                                            className="px-2.5 py-1.5 rounded-lg bg-positive/15 hover:bg-positive/25 border border-positive/30 text-positive font-mono text-ludo-xs font-bold shrink-0"
                                         >
                                             {isClaimingThis ? "Claiming…" : "Claim"}
                                         </button>
@@ -411,7 +411,7 @@ export default function ClaimHubSheet({
                         fullWidth
                         disabled={!hasClanClaims || clanClaims.isClaimingAll || Boolean(clanClaims.claimingId)}
                         onClick={() => void clanClaims.claimAll().catch(() => {})}
-                        className="uppercase tracking-widest font-black text-ludo-xs"
+                        className="uppercase tracking-widest font-bold label-chrome text-ludo-xs"
                     >
                         {clanClaims.isClaimingAll ? (
                             <div className="flex items-center gap-2">
@@ -437,14 +437,14 @@ export default function ClaimHubSheet({
                     <div className="cb-card p-3.5 space-y-3 text-left">
                         <div className="flex items-center justify-between">
                             <div className="flex flex-col">
-                                <span className="text-ludo-sm font-bold text-white leading-tight">
+                                <span className="text-ludo-sm font-bold text-ink-strong leading-tight">
                                     Legacy Coin Conversion
                                 </span>
-                                <span className="text-ludo-xs font-mono text-white/40">
+                                <span className="text-ludo-xs font-mono text-ink-faint">
                                     {shortHex(legacy.entry.wallet)} · 100:1 ratio
                                 </span>
                             </div>
-                            <span className="text-ludo-sm font-mono font-bold text-cyan-300">
+                            <span className="text-ludo-sm font-mono font-bold text-accent">
                                 {legacy.humanAmount}
                             </span>
                         </div>
@@ -456,7 +456,7 @@ export default function ClaimHubSheet({
                                 fullWidth
                                 disabled={!legacy.canClaim || legacy.claiming}
                                 onClick={() => void legacy.claim()}
-                                className="uppercase tracking-widest font-black text-ludo-xs"
+                                className="uppercase tracking-widest font-bold label-chrome text-ludo-xs"
                             >
                                 {legacy.claiming ? "Claiming Legacy…" : `Claim ${legacy.humanAmount}`}
                             </Button>
@@ -467,7 +467,7 @@ export default function ClaimHubSheet({
 
             {/* Error or Status message */}
             {(statusNote || vaultErr || vault.error || clanClaims.error || poolClaimError || legacy.error) && (
-                <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-ludo-xs font-mono text-white/70 text-left">
+                <div className="p-2.5 rounded-xl bg-surface-recessed border border-line-soft text-ludo-xs font-mono text-ink-muted text-left">
                     {vaultErr || vault.error || clanClaims.error || statusNote || poolClaimError || legacy.error}
                 </div>
             )}

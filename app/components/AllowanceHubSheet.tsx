@@ -136,19 +136,19 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
     return (
         <div className="cb-screen space-y-3.5">
             {/* Token Selector Tabs (CHIPS & USDC only; ETH skipped) */}
-            <div className="grid grid-cols-2 p-1 rounded-xl bg-white/[0.04] border border-white/10 gap-1">
+            <div className="grid grid-cols-2 p-1 rounded-xl bg-surface-recessed border border-line-soft gap-1">
                 <button
                     type="button"
                     onClick={() => handleTokenSwitch("chips")}
                     className={`py-2 px-3 rounded-lg text-ludo-xs font-mono font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 ${
                         isChips
-                            ? "bg-cyan-500 text-black shadow-[0_0_12px_rgba(0,229,255,0.4)]"
-                            : "text-white/60 hover:text-white hover:bg-white/5"
+                            ? "bg-accent text-accent-ink shadow-[0_0_12px_rgba(0,229,255,0.3)]"
+                            : "text-ink-muted hover:text-ink-strong hover:bg-surface-hover"
                     }`}
                 >
                     <span>CHIPS (Ranked)</span>
                     {chipsState.allowance > BigInt(0) && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${isChips ? "bg-black" : "bg-cyan-400"}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${isChips ? "bg-accent-ink" : "bg-accent"}`} />
                     )}
                 </button>
                 <button
@@ -156,13 +156,13 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                     onClick={() => handleTokenSwitch("usdc")}
                     className={`py-2 px-3 rounded-lg text-ludo-xs font-mono font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 ${
                         !isChips
-                            ? "bg-cyan-500 text-black shadow-[0_0_12px_rgba(0,229,255,0.4)]"
-                            : "text-white/60 hover:text-white hover:bg-white/5"
+                            ? "bg-accent text-accent-ink shadow-[0_0_12px_rgba(0,229,255,0.3)]"
+                            : "text-ink-muted hover:text-ink-strong hover:bg-surface-hover"
                     }`}
                 >
                     <span>USDC (Marketplace)</span>
                     {usdcState.allowance > BigInt(0) && (
-                        <span className={`w-1.5 h-1.5 rounded-full ${!isChips ? "bg-black" : "bg-cyan-400"}`} />
+                        <span className={`w-1.5 h-1.5 rounded-full ${!isChips ? "bg-accent-ink" : "bg-accent"}`} />
                     )}
                 </button>
             </div>
@@ -170,13 +170,13 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
             {/* Approved Contract Section */}
             <section className="cb-section">
                 <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-ludo-xs font-mono font-bold tracking-wider uppercase text-white/60">
+                    <span className="text-ludo-xs font-mono font-bold tracking-wider uppercase text-ink-muted">
                         Approved Contract
                     </span>
-                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-ludo-xs font-mono font-bold bg-cyan-500/10 border border-cyan-500/30 text-cyan-300">
+                    <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-ludo-xs font-mono font-bold bg-accent-soft border border-accent/30 text-accent">
                         <svg
                             viewBox="0 0 24 24"
-                            className="w-3 h-3 text-cyan-400 shrink-0"
+                            className="w-3 h-3 text-accent shrink-0"
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="2.5"
@@ -192,7 +192,7 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                 <div className="cb-card p-3.5 space-y-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                            <div className="w-8 h-8 rounded-lg bg-accent-soft border border-accent/30 flex items-center justify-center text-accent">
                                 <svg
                                     viewBox="0 0 24 24"
                                     className="w-4 h-4"
@@ -207,27 +207,27 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                                 </svg>
                             </div>
                             <div className="flex flex-col text-left">
-                                <span className="text-ludo-sm font-bold text-white leading-tight">
+                                <span className="text-ludo-sm font-bold text-ink-strong leading-tight">
                                     {targetName}
                                 </span>
-                                <span className="text-ludo-xs font-mono text-white/40">
+                                <span className="text-ludo-xs font-mono text-ink-faint">
                                     {spender ? shortHex(spender) : "Not Configured"}
                                 </span>
                             </div>
                         </div>
                         <div className="text-right flex flex-col items-end">
-                            <span className="text-ludo-xs font-mono text-white/40 uppercase tracking-wider">
+                            <span className="text-ludo-xs font-mono text-ink-faint uppercase tracking-wider">
                                 Current Allowance
                             </span>
-                            <span className="text-ludo-sm font-mono font-bold text-cyan-300">
+                            <span className="text-ludo-sm font-mono font-bold text-accent">
                                 {allowanceHuman}
                             </span>
                         </div>
                     </div>
 
                     {/* Single clear message */}
-                    <div className="rounded-xl bg-white/[0.03] border border-white/5 p-2.5 text-ludo-xs font-mono text-white/60 leading-relaxed text-left flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-cyan-400 shrink-0 shadow-[0_0_6px_rgba(0,229,255,0.8)]" />
+                    <div className="rounded-xl bg-surface-recessed border border-line-soft p-2.5 text-ludo-xs font-mono text-ink-muted leading-relaxed text-left flex items-start gap-2">
+                        <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-accent shrink-0 shadow-[0_0_6px_rgba(0,229,255,0.65)]" />
                         <span>
                             Set a pre-approved budget so you can enter games instantly with 1 click, skipping repetitive wallet confirmation popups.
                         </span>
@@ -238,7 +238,7 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
             {/* Allowance Presets Section */}
             <section className="cb-section space-y-2">
                 <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-ludo-xs font-mono font-bold tracking-wider uppercase text-white/60">
+                    <span className="text-ludo-xs font-mono font-bold tracking-wider uppercase text-ink-muted">
                         Allowance Presets
                     </span>
                 </div>
@@ -260,14 +260,14 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                                       }}
                                       className={`flex flex-col items-start p-2.5 rounded-xl border transition-all text-left ${
                                           isSelected
-                                              ? "bg-cyan-500/10 border-cyan-400 shadow-[0_0_12px_rgba(0,229,255,0.15)]"
-                                              : "bg-white/[0.02] border-white/10 hover:border-white/20"
+                                              ? "bg-accent-soft border-accent shadow-[0_0_12px_rgba(0,229,255,0.15)]"
+                                              : "bg-surface-recessed border-line-soft hover:border-line-strong"
                                       }`}
                                   >
                                       <div className="flex items-center justify-between w-full">
                                           <span
-                                              className={`text-ludo-xs font-mono font-black uppercase ${
-                                                  isSelected ? "text-cyan-300" : "text-white/80"
+                                              className={`text-ludo-xs font-mono font-bold label-chrome uppercase ${
+                                                  isSelected ? "text-accent" : "text-ink-strong"
                                               }`}
                                           >
                                               {preset.chips === Infinity
@@ -277,16 +277,16 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                                                   : `${preset.chips / 1_000}k CHIPS`}
                                           </span>
                                           {isCurrentActive ? (
-                                              <span className="text-ludo-xs font-mono font-bold text-cyan-400 bg-cyan-500/15 px-1.5 py-0.5 rounded border border-cyan-500/40 uppercase">
+                                              <span className="text-ludo-xs font-mono font-bold text-accent bg-accent-soft px-1.5 py-0.5 rounded border border-accent/40 uppercase">
                                                   Active
                                               </span>
                                           ) : isDefault ? (
-                                              <span className="text-ludo-xs font-mono font-bold text-white/50 bg-white/5 px-1.5 py-0.5 rounded border border-white/10 uppercase">
+                                              <span className="text-ludo-xs font-mono font-bold text-ink-muted bg-surface-panel px-1.5 py-0.5 rounded border border-line-soft uppercase">
                                                   Recommended
                                               </span>
                                           ) : null}
                                       </div>
-                                      <span className="text-ludo-xs text-white/40 mt-1 leading-tight">
+                                      <span className="text-ludo-xs text-ink-faint mt-1 leading-tight">
                                           {preset.hint}
                                       </span>
                                   </button>
@@ -307,29 +307,29 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                                       }}
                                       className={`flex flex-col items-start p-2.5 rounded-xl border transition-all text-left ${
                                           isSelected
-                                              ? "bg-cyan-500/10 border-cyan-400 shadow-[0_0_12px_rgba(0,229,255,0.15)]"
-                                              : "bg-white/[0.02] border-white/10 hover:border-white/20"
+                                              ? "bg-accent-soft border-accent shadow-[0_0_12px_rgba(0,229,255,0.15)]"
+                                              : "bg-surface-recessed border-line-soft hover:border-line-strong"
                                       }`}
                                   >
                                       <div className="flex items-center justify-between w-full">
                                           <span
-                                              className={`text-ludo-xs font-mono font-black uppercase ${
-                                                  isSelected ? "text-cyan-300" : "text-white/80"
+                                              className={`text-ludo-xs font-mono font-bold label-chrome uppercase ${
+                                                  isSelected ? "text-accent" : "text-ink-strong"
                                               }`}
                                           >
                                               {preset.value === Infinity ? "Unlimited" : `$${preset.value} USDC`}
                                           </span>
                                           {isCurrentActive ? (
-                                              <span className="text-ludo-xs font-mono font-bold text-cyan-400 bg-cyan-500/15 px-1.5 py-0.5 rounded border border-cyan-500/40 uppercase">
+                                              <span className="text-ludo-xs font-mono font-bold text-accent bg-accent-soft px-1.5 py-0.5 rounded border border-accent/40 uppercase">
                                                   Active
                                               </span>
                                           ) : isDefault ? (
-                                              <span className="text-ludo-xs font-mono font-bold text-white/50 bg-white/5 px-1.5 py-0.5 rounded border border-white/10 uppercase">
+                                              <span className="text-ludo-xs font-mono font-bold text-ink-muted bg-surface-panel px-1.5 py-0.5 rounded border border-line-soft uppercase">
                                                   Recommended
                                               </span>
                                           ) : null}
                                       </div>
-                                      <span className="text-ludo-xs text-white/40 mt-1 leading-tight">
+                                      <span className="text-ludo-xs text-ink-faint mt-1 leading-tight">
                                           {preset.hint}
                                       </span>
                                   </button>
@@ -347,11 +347,11 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                         }}
                         className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
                             selectedPreset === "custom"
-                                ? "bg-cyan-500/10 border-cyan-400 shadow-[0_0_12px_rgba(0,229,255,0.15)]"
-                                : "bg-white/[0.02] border-white/10 hover:border-white/20"
+                                ? "bg-accent-soft border-accent shadow-[0_0_12px_rgba(0,229,255,0.15)]"
+                                : "bg-surface-recessed border-line-soft hover:border-line-strong"
                         }`}
                     >
-                        <span className="text-ludo-xs font-mono font-bold text-white/80 uppercase">
+                        <span className="text-ludo-xs font-mono font-bold text-ink-strong uppercase">
                             Custom Amount
                         </span>
                         {selectedPreset === "custom" && (
@@ -367,10 +367,10 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                                     autoCorrect="off"
                                     autoCapitalize="none"
                                     spellCheck={false}
-                                    className="w-24 px-2 py-1 rounded bg-black/40 border border-white/20 text-white text-ludo-xs font-mono outline-none focus:border-cyan-400"
+                                    className="w-24 px-2 py-1 rounded bg-surface-panel border border-line-strong text-ink-strong text-ludo-xs font-mono outline-none focus:border-accent"
                                     onClick={(e) => e.stopPropagation()}
                                 />
-                                <span className="text-ludo-xs font-mono text-cyan-400 font-bold">{symbol}</span>
+                                <span className="text-ludo-xs font-mono text-accent font-bold">{symbol}</span>
                             </div>
                         )}
                     </button>
@@ -382,8 +382,8 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                 <div
                     className={`p-2.5 rounded-xl border text-ludo-xs font-mono text-left ${
                         statusMsg.type === "ok"
-                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                            : "bg-rose-500/10 border-rose-500/30 text-rose-300"
+                            ? "bg-positive/10 border-positive/30 text-positive"
+                            : "bg-negative/10 border-negative/30 text-negative"
                     }`}
                 >
                     {statusMsg.text}
@@ -391,7 +391,7 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
             )}
 
             {readError && (
-                <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-ludo-xs font-mono text-left">
+                <div className="p-2.5 rounded-xl bg-warn/10 border border-warn/30 text-warn text-ludo-xs font-mono text-left">
                     Note: Failed to read allowance from RPC. Check connection.
                 </div>
             )}
@@ -404,7 +404,7 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                     fullWidth
                     disabled={isPending}
                     onClick={handleApplyAllowance}
-                    className="uppercase tracking-widest font-black"
+                    className="uppercase tracking-widest font-bold label-chrome"
                 >
                     {isPending ? (
                         <div className="flex items-center gap-2">
@@ -436,7 +436,7 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                     fullWidth
                     disabled={isPending}
                     onClick={onOpenRevoke}
-                    className="text-rose-400 hover:text-rose-300 border-rose-500/30 hover:border-rose-500/50 uppercase tracking-widest text-ludo-xs font-bold"
+                    className="text-negative border-negative/30 hover:border-negative/60 uppercase tracking-widest text-ludo-xs font-bold"
                 >
                     Revoke Allowance
                 </Button>

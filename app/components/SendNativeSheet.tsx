@@ -19,20 +19,20 @@ export default function SendNativeSheet() {
     const selfPayMax = maxSelfPay(balance);
 
     if (needsReconnect) {
-        return <p className="text-ludo-sm text-amber-200">Session expired — reconnect your wallet.</p>;
+        return <p className="text-ludo-sm text-warn">Session expired — reconnect your wallet.</p>;
     }
 
     return (
         <div className="space-y-3">
-            <h4 className="text-ludo-sm font-black uppercase tracking-[0.25em] text-white/70">Send ETH</h4>
-            <p className="text-ludo-sm text-white/45">
+            <h4 className="text-ludo-sm font-bold label-chrome uppercase tracking-[0.25em] text-ink-muted">Send ETH</h4>
+            <p className="text-ludo-sm text-ink-faint">
                 Balance: <span className="font-mono">{formatUnits(balance, 18)}</span> ETH · mode:{" "}
                 <span className="uppercase">{mode}</span>
             </p>
-            <label className="block text-ludo-xs text-white/50 uppercase tracking-wider">
+            <label className="block text-ludo-xs text-ink-muted uppercase tracking-wider">
                 To
                 <textarea
-                    className="mt-1 w-full resize-none overflow-hidden rounded-full border border-white/20 bg-black/40 px-3 py-2 font-mono text-ludo-sm"
+                    className="mt-1 w-full resize-none overflow-hidden rounded-full border border-line-strong bg-surface-recessed text-ink-strong px-3 py-2 font-mono text-ludo-sm focus:outline-none focus:border-accent"
                     rows={1}
                     placeholder="0x…"
                     value={to}
@@ -44,10 +44,10 @@ export default function SendNativeSheet() {
                     enterKeyHint="next"
                 />
             </label>
-            <label className="block text-ludo-xs text-white/50 uppercase tracking-wider">
+            <label className="block text-ludo-xs text-ink-muted uppercase tracking-wider">
                 Amount (ETH)
                 <textarea
-                    className="mt-1 w-full resize-none overflow-hidden rounded-full border border-white/20 bg-black/40 px-3 py-2 font-mono text-ludo-sm"
+                    className="mt-1 w-full resize-none overflow-hidden rounded-full border border-line-strong bg-surface-recessed text-ink-strong px-3 py-2 font-mono text-ludo-sm focus:outline-none focus:border-accent"
                     rows={1}
                     inputMode="decimal"
                     placeholder="0.01"
@@ -63,7 +63,7 @@ export default function SendNativeSheet() {
             <div className="flex gap-2">
                 <button
                     type="button"
-                    className="rounded-lg border border-white/15 px-3 py-1.5 text-ludo-sm uppercase"
+                    className="rounded-lg border border-line-soft bg-surface-recessed hover:bg-surface-hover text-ink-muted px-3 py-1.5 text-ludo-sm uppercase"
                     onClick={() => {
                         // M: max branches by gas path
                         if (mode === "ingame") {
@@ -77,7 +77,7 @@ export default function SendNativeSheet() {
                 </button>
                 <button
                     type="button"
-                    className="flex-1 rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-2 text-ludo-sm font-bold uppercase"
+                    className="flex-1 rounded-lg bg-accent-soft border border-accent/40 text-accent px-3 py-2 text-ludo-sm font-bold uppercase"
                     disabled={status === "pending" || !to || !amount}
                     onClick={() => setConfirming(true)}
                 >
@@ -86,18 +86,18 @@ export default function SendNativeSheet() {
             </div>
 
             {confirming && status === "idle" && (
-                <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-ludo-sm space-y-2">
+                <div className="rounded-xl border border-warn/35 bg-warn/10 p-3 text-ludo-sm space-y-2 text-ink-strong">
                     <div>
                         Send <strong>{amount} ETH</strong> to
-                        <div className="font-mono break-all text-white/80">{to}</div>
+                        <div className="font-mono break-all text-ink-muted">{to}</div>
                     </div>
-                    <p className="text-white/50">
+                    <p className="text-ink-faint">
                         This action moves real value. You will sign in your wallet.
                     </p>
                     <div className="flex gap-2">
                         <button
                             type="button"
-                            className="rounded-lg bg-cyan-500/25 border border-cyan-400/50 px-3 py-1.5 uppercase font-bold"
+                            className="rounded-lg bg-accent text-accent-ink border border-accent px-3 py-1.5 uppercase font-bold"
                             onClick={async () => {
                                 const ok = await mfa.stepUp();
                                 if (!ok) return;
@@ -110,7 +110,7 @@ export default function SendNativeSheet() {
                         </button>
                         <button
                             type="button"
-                            className="rounded-lg border border-white/15 px-3 py-1.5 uppercase"
+                            className="rounded-lg border border-line-soft text-ink-muted hover:text-ink-strong px-3 py-1.5 uppercase"
                             onClick={() => setConfirming(false)}
                         >
                             Cancel
@@ -119,9 +119,9 @@ export default function SendNativeSheet() {
                 </div>
             )}
 
-            {status === "pending" && <p className="text-ludo-sm text-white/60">Sending…</p>}
+            {status === "pending" && <p className="text-ludo-sm text-ink-muted">Sending…</p>}
             {status === "success" && (
-                <p className="text-ludo-sm text-emerald-300 break-all">
+                <p className="text-ludo-sm text-positive break-all">
                     Sent.{" "}
                     {txHash && (
                         <a
@@ -135,7 +135,7 @@ export default function SendNativeSheet() {
                     )}
                 </p>
             )}
-            {error && <p className="text-ludo-sm text-red-300">{error}</p>}
+            {error && <p className="text-ludo-sm text-negative">{error}</p>}
         </div>
     );
 }

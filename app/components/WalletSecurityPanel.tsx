@@ -10,6 +10,7 @@ import { useWalletMode } from "@/hooks/useWalletMode";
 import WalletDetailsSheet from "./WalletDetailsSheet";
 import WalletLinkPanel from "./WalletLinkPanel";
 import Button from "./Button";
+import { HudSectionLabel } from "./HudPrimitives";
 
 /**
  * Wallet → Security (Settings-style cards).
@@ -19,19 +20,10 @@ import Button from "./Button";
 
 type View = "main" | "exportConfirm" | "exportKey";
 
-const SectionLabel = ({ children }: { children: React.ReactNode }) => (
-    <div className="flex items-center gap-2.5 mb-2">
-        <span className="px-2 py-0.5 rounded-md bg-white/[0.07] border border-white/10 text-ludo-xs font-black tracking-[0.18em] text-white/60 font-mono uppercase">
-            {children}
-        </span>
-        <div className="flex-1 h-px bg-gradient-to-r from-white/15 to-transparent" />
-    </div>
-);
-
 const IconTile = ({ children, danger }: { children: React.ReactNode; danger?: boolean }) => (
     <div
         className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-            danger ? "bg-red-500/15 text-red-300" : "bg-cyan-500/15 text-cyan-300"
+            danger ? "bg-negative/15 text-negative" : "bg-accent-soft text-accent"
         }`}
     >
         {children}
@@ -149,13 +141,13 @@ export default function WalletSecurityPanel() {
                 <div className="flex items-center gap-2 mb-3">
                     <button
                         type="button"
-                        className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/70"
+                        className="w-9 h-9 rounded-full bg-surface-recessed hover:bg-surface-hover flex items-center justify-center text-ink-muted hover:text-ink-strong border border-line-soft"
                         aria-label="Back"
                         onClick={() => setView("main")}
                     >
                         <BackIcon />
                     </button>
-                    <h3 className="text-ludo-md font-black uppercase tracking-[0.18em] text-white/70">
+                    <h3 className="text-ludo-md font-bold label-chrome uppercase tracking-[0.18em] text-ink-muted">
                         Export private key
                     </h3>
                 </div>
@@ -215,7 +207,7 @@ export default function WalletSecurityPanel() {
                     >
                         <BackIcon />
                     </Button>
-                    <h3 className="text-ludo-md font-black uppercase tracking-[0.18em] text-white/70">
+                    <h3 className="text-ludo-md font-bold label-chrome uppercase tracking-[0.18em] text-ink-muted">
                         Private key
                     </h3>
                 </div>
@@ -248,15 +240,15 @@ export default function WalletSecurityPanel() {
     return (
         <div className="sec-sheet">
             <section>
-                <SectionLabel>Notifications</SectionLabel>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden divide-y divide-white/5">
+                <HudSectionLabel>Notifications</HudSectionLabel>
+                <div className="rounded-2xl border border-line-soft bg-surface-recessed overflow-hidden divide-y divide-line-soft">
                     <div className="flex items-center gap-3 p-3.5">
                         <IconTile>
                             <BellIcon />
                         </IconTile>
                         <div className="flex-1 min-w-0">
-                            <div className="text-ludo-md font-bold text-white truncate">Turn & claim nudges</div>
-                            <div className="text-ludo-xs font-bold text-white/35 truncate">
+                            <div className="text-ludo-md font-bold text-ink-strong truncate">Turn & claim nudges</div>
+                            <div className="text-ludo-xs font-bold text-ink-faint truncate">
                                 {push.remote === "subscribed"
                                     ? "Remote push on"
                                     : push.permission === "granted"
@@ -267,7 +259,7 @@ export default function WalletSecurityPanel() {
                         <div className="flex gap-1.5 shrink-0">
                             <button
                                 type="button"
-                                className="rounded-lg bg-cyan-500/15 border border-cyan-400/30 px-2.5 py-1.5 text-ludo-xs font-bold uppercase text-white disabled:opacity-40"
+                                className="rounded-lg bg-accent-soft border border-accent/35 text-accent px-2.5 py-1.5 text-ludo-xs font-bold uppercase disabled:opacity-40"
                                 disabled={!id.address}
                                 onClick={async () => {
                                     setNote(null);
@@ -282,7 +274,7 @@ export default function WalletSecurityPanel() {
                             </button>
                             <button
                                 type="button"
-                                className="rounded-lg border border-white/15 px-2.5 py-1.5 text-ludo-xs font-bold uppercase text-white/80 disabled:opacity-40"
+                                className="rounded-lg border border-line-soft text-ink-strong hover:bg-surface-hover px-2.5 py-1.5 text-ludo-xs font-bold uppercase disabled:opacity-40"
                                 disabled={!id.address}
                                 onClick={async () => {
                                     setNote(null);
@@ -297,7 +289,7 @@ export default function WalletSecurityPanel() {
                             </button>
                             <button
                                 type="button"
-                                className="rounded-lg border border-white/15 px-2.5 py-1.5 text-ludo-xs font-bold uppercase text-white/60 disabled:opacity-40"
+                                className="rounded-lg border border-line-soft text-ink-muted hover:text-ink-strong px-2.5 py-1.5 text-ludo-xs font-bold uppercase disabled:opacity-40"
                                 disabled={!id.address}
                                 onClick={async () => {
                                     setNote(null);
@@ -317,11 +309,11 @@ export default function WalletSecurityPanel() {
 
             {isInGame && (
                 <section>
-                    <SectionLabel>Export</SectionLabel>
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden">
+                    <HudSectionLabel>Export</HudSectionLabel>
+                    <div className="rounded-2xl border border-line-soft bg-surface-recessed overflow-hidden">
                         <button
                             type="button"
-                            className="w-full flex items-center gap-3 p-3.5 text-left hover:bg-white/5 transition-colors"
+                            className="w-full flex items-center gap-3 p-3.5 text-left hover:bg-surface-hover transition-colors"
                             disabled={busy}
                             onClick={startExport}
                         >
@@ -329,12 +321,12 @@ export default function WalletSecurityPanel() {
                                 <KeyIcon />
                             </IconTile>
                             <div className="flex-1 min-w-0">
-                                <div className="text-ludo-md font-bold text-white truncate">Export Private Key</div>
-                                <div className="text-ludo-xs font-bold text-white/35 truncate">
+                                <div className="text-ludo-md font-bold text-ink-strong truncate">Export Private Key</div>
+                                <div className="text-ludo-xs font-bold text-ink-faint truncate">
                                     Reveal · device unlock · owner key
                                 </div>
                             </div>
-                            <span className="rounded-lg bg-red-500/15 border border-red-400/30 px-2.5 py-1.5 text-ludo-xs font-bold uppercase text-red-200">
+                            <span className="rounded-lg bg-negative/15 border border-negative/35 px-2.5 py-1.5 text-ludo-xs font-bold uppercase text-negative">
                                 Reveal
                             </span>
                         </button>
@@ -344,11 +336,11 @@ export default function WalletSecurityPanel() {
 
             {isInGame && (
                 <section>
-                    <SectionLabel>Linked wallets</SectionLabel>
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden">
+                    <HudSectionLabel>Linked wallets</HudSectionLabel>
+                    <div className="rounded-2xl border border-line-soft bg-surface-recessed overflow-hidden">
                         <button
                             type="button"
-                            className="w-full flex items-center gap-3 p-3.5 text-left hover:bg-white/5 transition-colors"
+                            className="w-full flex items-center gap-3 p-3.5 text-left hover:bg-surface-hover transition-colors"
                             onClick={() => setShowLinks((v) => !v)}
                             aria-expanded={showLinks}
                         >
@@ -356,14 +348,14 @@ export default function WalletSecurityPanel() {
                                 <LinkIcon />
                             </IconTile>
                             <div className="flex-1 min-w-0">
-                                <div className="text-ludo-md font-bold text-white truncate">Play as & link</div>
-                                <div className="text-ludo-xs font-bold text-white/35 truncate">
+                                <div className="text-ludo-md font-bold text-ink-strong truncate">Play as & link</div>
+                                <div className="text-ludo-xs font-bold text-ink-faint truncate">
                                     Switch session wallet · link another address
                                 </div>
                             </div>
                             <svg
                                 viewBox="0 0 24 24"
-                                className={`w-3.5 h-3.5 text-white/45 transition-transform ${showLinks ? "rotate-180" : ""}`}
+                                className={`w-3.5 h-3.5 text-ink-faint transition-transform ${showLinks ? "rotate-180" : ""}`}
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="2.2"
@@ -372,7 +364,7 @@ export default function WalletSecurityPanel() {
                             </svg>
                         </button>
                         {showLinks && (
-                            <div className="px-3.5 pb-3.5 pt-3 border-t border-white/5">
+                            <div className="px-3.5 pb-3.5 pt-3 border-t border-line-soft">
                                 <WalletLinkPanel />
                             </div>
                         )}
@@ -381,11 +373,11 @@ export default function WalletSecurityPanel() {
             )}
 
             <section>
-                <SectionLabel>Details</SectionLabel>
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] overflow-hidden">
+                <HudSectionLabel>Details</HudSectionLabel>
+                <div className="rounded-2xl border border-line-soft bg-surface-recessed overflow-hidden">
                     <button
                         type="button"
-                        className="w-full flex items-center gap-3 p-3.5 text-left hover:bg-white/5 transition-colors"
+                        className="w-full flex items-center gap-3 p-3.5 text-left hover:bg-surface-hover transition-colors"
                         onClick={() => setShowDetails((v) => !v)}
                         aria-expanded={showDetails}
                     >
@@ -393,14 +385,14 @@ export default function WalletSecurityPanel() {
                             <InfoIcon />
                         </IconTile>
                         <div className="flex-1 min-w-0">
-                            <div className="text-ludo-md font-bold text-white truncate">Wallet details</div>
-                            <div className="text-ludo-xs font-bold text-white/35 truncate">
+                            <div className="text-ludo-md font-bold text-ink-strong truncate">Wallet details</div>
+                            <div className="text-ludo-xs font-bold text-ink-faint truncate">
                                 Address · mode · owner key (view only)
                             </div>
                         </div>
                         <svg
                             viewBox="0 0 24 24"
-                            className={`w-3.5 h-3.5 text-white/45 transition-transform ${showDetails ? "rotate-180" : ""}`}
+                            className={`w-3.5 h-3.5 text-ink-faint transition-transform ${showDetails ? "rotate-180" : ""}`}
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="2.2"
@@ -409,7 +401,7 @@ export default function WalletSecurityPanel() {
                         </svg>
                     </button>
                     {showDetails && (
-                        <div className="px-3.5 pb-3.5 border-t border-white/5 pt-3">
+                        <div className="px-3.5 pb-3.5 border-t border-line-soft pt-3">
                             <WalletDetailsSheet />
                         </div>
                     )}

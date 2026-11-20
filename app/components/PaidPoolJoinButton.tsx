@@ -22,7 +22,7 @@ export function PaidPoolJoinButton({
 
     if (!live) {
         return (
-            <div className="text-ludo-xs font-bold text-white/35 text-center">
+            <div className="text-ludo-xs font-bold text-ink-faint text-center">
                 CHIPS pool not live on this env yet
             </div>
         );
@@ -43,19 +43,19 @@ export function PaidPoolJoinButton({
                 type="button"
                 onClick={() => void join()}
                 disabled={disabled || isPending || step === "done"}
-                className={`w-full min-h-[44px] rounded-2xl text-ludo-sm font-black uppercase tracking-[0.18em] transition-all active:scale-[0.99] ${
+                className={`w-full min-h-[44px] rounded-2xl text-ludo-sm font-bold label-chrome uppercase tracking-[0.18em] transition-all active:scale-[0.99] ${
                     step === "done"
-                        ? "bg-green-500/20 text-green-300 border border-green-500/40"
-                        : "bg-white text-black hover:bg-white/90"
+                        ? "bg-positive/20 text-positive border border-positive/40"
+                        : "bg-accent text-accent-ink hover:opacity-90"
                 }`}
             >
                 {label}
             </button>
-            <p className="text-ludo-xs font-mono text-white/30 text-center">
+            <p className="text-ludo-xs font-mono text-ink-faint text-center">
                 Pool {shortHex(poolId)}
             </p>
             {error && (
-                <p className="text-ludo-xs font-bold text-red-300 text-center">{error}</p>
+                <p className="text-ludo-xs font-bold text-negative text-center">{error}</p>
             )}
         </div>
     );

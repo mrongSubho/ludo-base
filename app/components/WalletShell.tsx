@@ -46,12 +46,12 @@ export default function WalletShell() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="text-ludo-sm font-black uppercase tracking-[0.25em] text-white/70">Wallet</h3>
+                <h3 className="text-ludo-sm font-bold label-chrome uppercase tracking-[0.25em] text-ink-muted">Wallet</h3>
                 <div className="flex gap-2">
                     {push.permission !== "granted" && push.permission !== "unsupported" && (
                         <button
                             type="button"
-                            className="text-ludo-xs uppercase text-white/50 underline"
+                            className="text-ludo-xs uppercase text-ink-muted hover:text-ink-strong underline"
                             onClick={() => {
                                 // User gesture: enable push end-to-end (permission → VAPID → save).
                                 void push.enableRemotePush({
@@ -66,7 +66,7 @@ export default function WalletShell() {
                     {push.permission === "granted" && push.remote !== "subscribed" && (
                         <button
                             type="button"
-                            className="text-ludo-xs uppercase text-white/50 underline"
+                            className="text-ludo-xs uppercase text-ink-muted hover:text-ink-strong underline"
                             onClick={() => {
                                 void push.enableRemotePush({
                                     walletAddress: address || "",
@@ -79,7 +79,7 @@ export default function WalletShell() {
                     )}
                     <button
                         type="button"
-                        className="text-ludo-xs uppercase text-white/50 underline"
+                        className="text-ludo-xs uppercase text-ink-muted hover:text-ink-strong underline"
                         onClick={() => void refresh()}
                     >
                         Refresh
@@ -88,25 +88,25 @@ export default function WalletShell() {
             </div>
 
             {showGate && (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 space-y-2">
-                    <h4 className="text-ludo-sm font-black uppercase tracking-[0.25em] text-white/70">
+                <div className="rounded-2xl border border-line-soft bg-surface-recessed p-4 space-y-2">
+                    <h4 className="text-ludo-sm font-bold label-chrome uppercase tracking-[0.25em] text-ink-muted">
                         Unlock wallet
                     </h4>
-                    <p className="text-ludo-sm text-white/45">
+                    <p className="text-ludo-sm text-ink-faint">
                         Face ID / Touch ID / device passcode (local lock — not on-chain).
                     </p>
                     <button
                         type="button"
-                        className="rounded-lg bg-cyan-500/20 border border-cyan-400/40 px-3 py-2 text-ludo-sm font-bold uppercase"
+                        className="rounded-lg bg-accent-soft border border-accent/40 text-accent px-3 py-2 text-ludo-sm font-bold uppercase"
                         disabled={bio.busy}
                         onClick={() => void bio.unlock()}
                     >
                         {bio.busy ? "Waiting for biometric…" : "Unlock with biometrics"}
                     </button>
-                    {bio.error && <p className="text-ludo-sm text-red-300">{bio.error}</p>}
+                    {bio.error && <p className="text-ludo-sm text-negative">{bio.error}</p>}
                     <button
                         type="button"
-                        className="text-ludo-xs text-white/40 underline"
+                        className="text-ludo-xs text-ink-faint hover:text-ink-muted underline"
                         onClick={() => setBioSkipped(true)}
                     >
                         Continue without lock
@@ -115,7 +115,7 @@ export default function WalletShell() {
             )}
 
             {needsReconnect && (
-                <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-3 text-ludo-sm text-amber-100">
+                <div className="rounded-xl border border-warn/40 bg-warn/10 p-3 text-ludo-sm text-warn">
                     In-game session expired — reconnect to restore wallet access. Your external wallet is
                     unchanged.
                 </div>
@@ -123,27 +123,27 @@ export default function WalletShell() {
 
             {!showGate && tab === "home" && (
                 <div className="space-y-3">
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                        <div className="text-ludo-xs text-white/40 uppercase tracking-wider">Address</div>
-                        <div className="font-mono text-ludo-sm break-all text-white/85">{address || "—"}</div>
+                    <div className="rounded-2xl border border-line-soft bg-surface-recessed p-4">
+                        <div className="text-ludo-xs text-ink-faint uppercase tracking-wider">Address</div>
+                        <div className="font-mono text-ludo-sm break-all text-ink-strong">{address || "—"}</div>
                         <div className="mt-3 space-y-2">
                             {tokens.map((t) => (
                                 <div key={t.key} className="flex items-center justify-between text-ludo-md">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-bold text-white/90">{t.label}</span>
+                                        <span className="font-bold text-ink-strong">{t.label}</span>
                                         {t.unpriced && (
-                                            <span className="rounded-full border border-white/20 px-1.5 py-0.5 text-ludo-xs uppercase text-white/50">
+                                            <span className="rounded-full border border-line-soft px-1.5 py-0.5 text-ludo-xs uppercase text-ink-muted">
                                                 unpriced
                                             </span>
                                         )}
                                     </div>
-                                    <span className="font-mono text-white/80">
+                                    <span className="font-mono text-ink-muted">
                                         {loading ? "…" : t.formatted}
                                     </span>
                                 </div>
                             ))}
                         </div>
-                        <p className="mt-3 text-ludo-xs text-white/40 leading-relaxed">
+                        <p className="mt-3 text-ludo-xs text-ink-faint leading-relaxed">
                             USD total shows priced assets only (ETH, USDC). CHIPS is excluded until a real
                             market exists.
                         </p>
@@ -151,28 +151,28 @@ export default function WalletShell() {
                     <div className="flex gap-2">
                         <button
                             type="button"
-                            className="flex-1 rounded-xl bg-cyan-500/20 border border-cyan-400/40 py-3 text-ludo-sm font-black uppercase tracking-wider"
+                            className="flex-1 rounded-xl bg-accent-soft border border-accent/40 text-accent py-3 text-ludo-sm font-bold label-chrome uppercase tracking-wider"
                             onClick={() => setTab("send")}
                         >
                             Send
                         </button>
                         <button
                             type="button"
-                            className="flex-1 rounded-xl border border-white/15 py-3 text-ludo-sm font-black uppercase tracking-wider"
+                            className="flex-1 rounded-xl border border-line-soft text-ink-strong hover:bg-surface-hover py-3 text-ludo-sm font-bold label-chrome uppercase tracking-wider"
                             onClick={() => setTab("swap")}
                         >
                             Swap
                         </button>
                         <button
                             type="button"
-                            className="flex-1 rounded-xl border border-white/15 py-3 text-ludo-sm font-black uppercase tracking-wider"
+                            className="flex-1 rounded-xl border border-line-soft text-ink-strong hover:bg-surface-hover py-3 text-ludo-sm font-bold label-chrome uppercase tracking-wider"
                             onClick={() => setTab("receive")}
                         >
                             Receive
                         </button>
                     </div>
                     <BuyCryptoButton />
-                    <p className="text-ludo-xs text-white/40">
+                    <p className="text-ludo-xs text-ink-faint">
                         NFTs live in the Marketplace tab — not duplicated in Wallet. Chain: <strong>Base</strong> only.
                     </p>
                 </div>
@@ -186,7 +186,7 @@ export default function WalletShell() {
             {!showGate && tab === "apps" && <WcWalletPanel />}
             {!showGate && tab === "security" && <WalletSecurityPanel />}
 
-            <div className={`flex gap-1 border-t border-white/10 pt-2 overflow-x-auto ${showGate ? "hidden" : ""}`}>
+            <div className={`flex gap-1 border-t border-line-soft pt-2 overflow-x-auto ${showGate ? "hidden" : ""}`}>
                 {(
                     [
                         ["home", "Home"],
@@ -203,7 +203,7 @@ export default function WalletShell() {
                         key={k}
                         type="button"
                         className={`flex-1 rounded-lg py-2 text-ludo-xs font-bold uppercase tracking-wider ${
-                            tab === k ? "bg-white/10 text-white" : "text-white/45"
+                            tab === k ? "bg-surface-active text-ink-strong" : "text-ink-faint hover:text-ink-muted"
                         }`}
                         onClick={() => setTab(k)}
                     >

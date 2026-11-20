@@ -67,13 +67,9 @@ function TokenIcon({ kind }: { kind: "eth" | "usdc" | "chips" }) {
     }
     return (
         <div
-            className="cb-asset-icon"
-            style={{
-                background: "linear-gradient(145deg, rgba(0, 229, 255, 0.24) 0%, #09131f 100%)",
-                border: "1px solid rgba(0, 229, 255, 0.45)",
-            }}
+            className="cb-asset-icon bg-accent-soft border border-accent/40 text-accent"
         >
-            <ChipsHexIcon className="w-5 h-5 text-cyan-300" active />
+            <ChipsHexIcon className="w-5 h-5 text-accent" active />
         </div>
     );
 }
@@ -81,7 +77,7 @@ function TokenIcon({ kind }: { kind: "eth" | "usdc" | "chips" }) {
 function BaseIcon({ className = "w-3.5 h-3.5" }: { className?: string }) {
     return (
         <svg viewBox="0 0 512 512" className={className} fill="none" aria-hidden="true">
-            <rect width="512" height="512" rx="118" fill="#0052FF" />
+            <rect width="512" height="512" rx="118" fill="rgb(0 82 255)" />
             <path
                 fillRule="evenodd"
                 clipRule="evenodd"
@@ -362,13 +358,13 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                             <div className="flex items-center gap-1">
                                 {mode === "ingame" ? (
                                     <>
-                                        <InGameIcon className="w-3.5 h-3.5 text-cyan-400" />
-                                        <span className="text-cyan-400 font-semibold">In-Game</span>
+                                        <InGameIcon className="w-3.5 h-3.5 text-accent" />
+                                        <span className="text-accent font-semibold">In-Game</span>
                                     </>
                                 ) : mode === "external" ? (
                                     <>
-                                        <ExternalWalletIcon className="w-3.5 h-3.5 text-amber-300" />
-                                        <span className="text-amber-300 font-semibold">External</span>
+                                        <ExternalWalletIcon className="w-3.5 h-3.5 text-warn" />
+                                        <span className="text-warn font-semibold">External</span>
                                     </>
                                 ) : (
                                     <>
@@ -503,13 +499,9 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                         onClick={() => setScreen("send")}
                                     >
                                         <div
-                                            className="cb-asset-icon"
-                                            style={{
-                                                background: "#09131f",
-                                                border: "1px solid rgba(0, 229, 255, 0.45)",
-                                            }}
+                                            className="cb-asset-icon bg-accent-soft border border-accent/40 text-accent"
                                         >
-                                            <ChipsHexIcon className="w-4 h-4 text-cyan-300" active />
+                                            <ChipsHexIcon className="w-4 h-4 text-accent" active />
                                         </div>
                                         <div className="cb-asset-meta">
                                             <div className="cb-asset-name">In Wallet</div>
@@ -533,15 +525,11 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                         onClick={() => setScreen("claims")}
                                     >
                                         <div
-                                            className="cb-asset-icon"
-                                            style={{
-                                                background: "#0b1a29",
-                                                border: "1px solid rgba(56, 189, 248, 0.45)",
-                                            }}
+                                            className="cb-asset-icon bg-accent-soft border border-accent/40 text-accent"
                                         >
                                             <svg
                                                 viewBox="0 0 24 24"
-                                                className="w-4 h-4 text-cyan-300"
+                                                className="w-4 h-4 text-accent"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 strokeWidth="2"
@@ -575,15 +563,11 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                     {totalChips.vaultReservedChips > 0 && (
                                         <div className="cb-asset-row static">
                                             <div
-                                                className="cb-asset-icon"
-                                                style={{
-                                                    background: "#1c1507",
-                                                    border: "1px solid rgba(251, 191, 36, 0.45)",
-                                                }}
+                                                className="cb-asset-icon bg-warn/15 border border-warn/40 text-warn"
                                             >
                                                 <svg
                                                     viewBox="0 0 24 24"
-                                                    className="w-4 h-4 text-amber-300"
+                                                    className="w-4 h-4 text-warn"
                                                     fill="none"
                                                     stroke="currentColor"
                                                     strokeWidth="2"
@@ -620,15 +604,11 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                         onClick={() => setScreen("claims")}
                                     >
                                         <div
-                                            className="cb-asset-icon"
-                                            style={{
-                                                background: "#071f17",
-                                                border: "1px solid rgba(52, 211, 153, 0.45)",
-                                            }}
+                                            className="cb-asset-icon bg-positive/15 border border-positive/40 text-positive"
                                         >
                                             <svg
                                                 viewBox="0 0 24 24"
-                                                className="w-4 h-4 text-emerald-300"
+                                                className="w-4 h-4 text-positive"
                                                 fill="none"
                                                 stroke="currentColor"
                                                 strokeWidth="2"
@@ -677,15 +657,11 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                     {totalChips.escrowChips > 0 && (
                                         <div className="cb-asset-row static">
                                             <div
-                                                className="cb-asset-icon"
-                                                style={{
-                                                    background: "#121722",
-                                                    border: "1px solid rgba(148, 163, 184, 0.35)",
-                                                }}
+                                                className="cb-asset-icon bg-surface-recessed border border-line-soft text-accent"
                                             >
                                                 <svg
                                                     viewBox="0 0 24 24"
-                                                    className="w-4 h-4 text-cyan-300"
+                                                    className="w-4 h-4 text-accent"
                                                     fill="none"
                                                     stroke="currentColor"
                                                     strokeWidth="2"
@@ -781,7 +757,7 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                             <div className="cb-card cb-more-card">
                                 <MoreRow
                                     icon={
-                                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-accent" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                                             <path d="m9 12 2 2 4-4" />
                                         </svg>
@@ -792,7 +768,7 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                 />
                                 <MoreRow
                                     icon={
-                                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-warn" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
                                             <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
                                             <path d="M4 22h16" />

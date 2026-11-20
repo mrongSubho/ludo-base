@@ -15,29 +15,29 @@ export default function WalletDetailsSheet() {
 
     return (
         <div className="space-y-3">
-            <h4 className="text-ludo-sm font-black uppercase tracking-[0.25em] text-white/70">
+            <h4 className="text-ludo-sm font-bold label-chrome uppercase tracking-[0.25em] text-ink-muted">
                 Wallet details
             </h4>
-            <div className="space-y-2 text-ludo-sm text-white/65 leading-relaxed">
-                <div className="rounded-xl border border-white/10 p-3">
-                    <div className="text-ludo-xs uppercase text-white/40">Active player address</div>
-                    <div className="font-mono text-white/85 break-all">{player.address || "—"}</div>
-                    <div className="mt-1 text-white/45">
+            <div className="space-y-2 text-ludo-sm text-ink-muted leading-relaxed">
+                <div className="rounded-xl border border-line-soft bg-surface-recessed p-3">
+                    <div className="text-ludo-xs uppercase text-ink-faint">Active player address</div>
+                    <div className="font-mono text-ink-strong break-all">{player.address || "—"}</div>
+                    <div className="mt-1 text-ink-faint">
                         Mode: <span className="uppercase">{player.mode}</span>
                         {player.needsReconnect && " · session expired — reconnect"}
                     </div>
                 </div>
                 {player.mode === "ingame" && (
                     <>
-                        <div className="rounded-xl border border-white/10 p-3">
-                            <div className="text-ludo-xs uppercase text-white/40">Owner key (export only)</div>
-                            <div className="font-mono text-white/70 break-all">{id.cdpOwnerEoa || "—"}</div>
-                            <p className="mt-1 text-white/45">
+                        <div className="rounded-xl border border-line-soft bg-surface-recessed p-3">
+                            <div className="text-ludo-xs uppercase text-ink-faint">Owner key (export only)</div>
+                            <div className="font-mono text-ink-muted break-all">{id.cdpOwnerEoa || "—"}</div>
+                            <p className="mt-1 text-ink-faint">
                                 MetaMask shows this address after export — <strong>not</strong> the in-game
                                 profile address above. CHIPS sit on the smart account.
                             </p>
                         </div>
-                        <p className="text-white/45">
+                        <p className="text-ink-faint">
                             In-game wallet is a <strong>CDP Smart Account</strong> for Ludo. It is not your
                             Base app / keys.coinbase.com wallet unless you used Sign in with Base (external
                             mode).
@@ -45,7 +45,7 @@ export default function WalletDetailsSheet() {
                     </>
                 )}
                 {player.mode === "external" && (
-                    <p className="text-white/45">
+                    <p className="text-ink-faint">
                         External wallet (Base / MetaMask / Phantom). This address matches what that wallet
                         app shows.
                     </p>

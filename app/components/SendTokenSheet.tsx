@@ -20,7 +20,7 @@ export type SendAsset = "eth" | SendTokenKey;
 const ASSETS: { key: SendAsset; label: string; name: string; decimals: number; unpriced?: boolean; tint: string }[] = [
     { key: "eth", label: "ETH", name: "Ethereum", decimals: 18, tint: "#627EEA" },
     { key: "usdc", label: "USDC", name: "USD Coin", decimals: 6, tint: "#2775CA" },
-    { key: "chips", label: "CHIPS", name: "Game token", decimals: 18, unpriced: true, tint: "#0052FF" },
+    { key: "chips", label: "CHIPS", name: "Game token", decimals: 18, unpriced: true, tint: "var(--accent, #00E5FF)" },
 ];
 
 const PCTS = [

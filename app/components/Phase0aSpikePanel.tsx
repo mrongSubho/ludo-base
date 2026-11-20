@@ -251,23 +251,23 @@ export default function Phase0aSpikePanel() {
     const ready = Boolean(playerId);
 
     return (
-        <div className="ludo-wallet-scope rounded-2xl border border-white/10 bg-black/40 p-6 max-w-xl space-y-4 text-sm text-white/90">
+        <div className="ludo-wallet-scope rounded-2xl border border-line-soft bg-surface-panel p-6 max-w-xl space-y-4 text-sm text-ink-strong">
             <div>
                 <h2 className="text-base font-bold uppercase tracking-wider">
                     Phase 1 — Continue with Base
                 </h2>
-                <p className="text-white/50 text-xs mt-1">
+                <p className="text-ink-muted text-xs mt-1">
                     Option A: player id = Base Account (Base app address). Email/CDP embedded is never
                     wallet_address.
                 </p>
             </div>
 
-            <div className="rounded-lg border border-white/10 p-3 space-y-1 font-mono text-xs">
+            <div className="rounded-lg border border-line-soft bg-surface-recessed p-3 space-y-1 font-mono text-xs">
                 <div>player (Base Account): {playerId ?? "—"}</div>
                 <div>cdp embedded smart (diag only): {id.cdpSmartAccount ?? "—"}</div>
                 <div>cdp owner EOA (never id): {id.cdpOwnerEoa ?? "—"}</div>
                 <div>userId: {id.userId ?? "—"}</div>
-                <div className="text-white/40">
+                <div className="text-ink-faint">
                     proofs via @base-org/account personal_sign / eth_signTypedData_v4
                 </div>
             </div>
@@ -275,13 +275,13 @@ export default function Phase0aSpikePanel() {
             {!ready ? (
                 <div className="space-y-2">
                     <button
-                        className="rounded bg-cyan-500/20 border border-cyan-400/40 px-4 py-2 uppercase font-bold"
+                        className="rounded bg-accent-soft border border-accent/40 text-accent px-4 py-2 uppercase font-bold"
                         disabled={busy}
                         onClick={continueWithBase}
                     >
                         Continue with Base
                     </button>
-                    <p className="text-white/40 text-xs">
+                    <p className="text-ink-faint text-xs">
                         Signs in with your Base Account (keys.coinbase.com / Base app). Same address in
                         Ludo 3077 and the Base app.
                     </p>
@@ -290,28 +290,28 @@ export default function Phase0aSpikePanel() {
                 <div className="space-y-3">
                     <div className="flex gap-2 flex-wrap">
                         <button
-                            className="rounded bg-cyan-500/20 border border-cyan-400/40 px-3 py-1 uppercase"
+                            className="rounded bg-accent-soft border border-accent/40 text-accent px-3 py-1 uppercase"
                             disabled={busy}
                             onClick={runSiwe}
                         >
                             C2 · Ludo SIWE
                         </button>
                         <button
-                            className="rounded bg-cyan-500/20 border border-cyan-400/40 px-3 py-1 uppercase"
+                            className="rounded bg-accent-soft border border-accent/40 text-accent px-3 py-1 uppercase"
                             disabled={busy}
                             onClick={runEip712}
                         >
                             C3 · Match EIP-712
                         </button>
                         <button
-                            className="rounded bg-cyan-500/20 border border-cyan-400/40 px-3 py-1 uppercase"
+                            className="rounded bg-accent-soft border border-accent/40 text-accent px-3 py-1 uppercase"
                             disabled={busy}
                             onClick={runMoveProof}
                         >
                             C4 · Move sign
                         </button>
                         <button
-                            className="rounded border border-white/20 px-3 py-1 uppercase"
+                            className="rounded border border-line-strong text-ink-muted hover:text-ink-strong px-3 py-1 uppercase"
                             disabled={busy}
                             onClick={() => signOut()}
                         >
@@ -320,22 +320,22 @@ export default function Phase0aSpikePanel() {
                     </div>
                     <div className="space-y-1 text-xs">
                         {auth && (
-                            <div className={auth.ok ? "text-emerald-300" : "text-red-300"}>
+                            <div className={auth.ok ? "text-positive" : "text-negative"}>
                                 Base: {auth.ok ? "PASS" : "FAIL"} — {auth.detail}
                             </div>
                         )}
                         {siwe && (
-                            <div className={siwe.ok ? "text-emerald-300" : "text-red-300"}>
+                            <div className={siwe.ok ? "text-positive" : "text-negative"}>
                                 SIWE: {siwe.ok ? "PASS" : "FAIL"} — {siwe.detail}
                             </div>
                         )}
                         {eip712 && (
-                            <div className={eip712.ok ? "text-emerald-300" : "text-red-300"}>
+                            <div className={eip712.ok ? "text-positive" : "text-negative"}>
                                 EIP-712: {eip712.ok ? "PASS" : "FAIL"} — {eip712.detail}
                             </div>
                         )}
                         {move && (
-                            <div className={move.ok ? "text-emerald-300" : "text-red-300"}>
+                            <div className={move.ok ? "text-positive" : "text-negative"}>
                                 Move: {move.ok ? "PASS" : "FAIL"} — {move.detail}
                             </div>
                         )}
@@ -344,7 +344,7 @@ export default function Phase0aSpikePanel() {
             )}
 
             {log.length > 0 && (
-                <pre className="text-ludo-xs text-white/40 whitespace-pre-wrap max-h-32 overflow-auto">
+                <pre className="text-ludo-xs text-ink-faint whitespace-pre-wrap max-h-32 overflow-auto">
                     {log.join("\n")}
                 </pre>
             )}
