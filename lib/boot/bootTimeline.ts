@@ -1,15 +1,17 @@
 export const BOOT_VIDEO_SRC = '/boot/ludo-3077-boot-v3.mp4';
 export const BOOT_POSTER_SRC = '/boot/ludo-3077-boot-v3-poster.jpg';
+/** Exact byte length of v3 MP4 used when CDN omits Content-Length over HTTP/2. */
+export const BOOT_VIDEO_BYTES = 1561129;
 
 /** Minimum time Phase 1 pure-code 3077 lockup charges before auto-launching Phase 2 video. */
 export const BOOT_LOCKUP_MIN_MS = 1800;
-/** Maximum time Phase 1 waits for <video> buffer readiness before launching Phase 2. */
-export const BOOT_BUFFER_MAX_WAIT_MS = 3400;
+/** Max network wait to stream the boot MP4 into memory before falling back cleanly. */
+export const BOOT_FETCH_TIMEOUT_MS = 12000;
 
 export const BOOT_DURATION_S = 8.79;
 export const BOOT_DURATION_MS = 8790;
-/** Stall window (with zero playback/network progress) before falling back to static HUD splash. */
-export const BOOT_STALL_TIMEOUT_MS = 8000;
+/** Stall window during playback before falling back to static HUD splash. */
+export const BOOT_STALL_TIMEOUT_MS = 6000;
 /** Extreme safety ceiling so a broken OS media decoder can never lock boot permanently. */
 export const BOOT_MAX_TIMEOUT_MS = 28000;
 
