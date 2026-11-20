@@ -494,16 +494,18 @@ export default function Page() {
     setAppState('dashboard');
   }, []);
 
-  const [bootMode, setBootMode] = useState<'pending' | 'static' | 'cinematic'>('pending');
+  const [reducedMotion, setReducedMotion] = useState(false);
   const [minDwellPassed, setMinDwellPassed] = useState(false);
   const [maxTimeoutPassed, setMaxTimeoutPassed] = useState(false);
 
   useEffect(() => {
-    setBootMode(prefersReducedMotion() ? 'static' : 'cinematic');
+    if (prefersReducedMotion()) {
+      setReducedMotion(true);
+    }
   }, []);
 
   useEffect(() => {
-    if (bootMode !== 'static') return;
+    if (!reducedMotion) return;
     let alive = true;
     const dwellTimer = setTimeout(() => {
       if (alive) setMinDwellPassed(true);
@@ -518,10 +520,10 @@ export default function Page() {
       clearTimeout(dwellTimer);
       clearTimeout(maxTimer);
     };
-  }, [bootMode]);
+  }, [reducedMotion]);
 
   useEffect(() => {
-    if (bootMode !== 'static') return;
+    if (!reducedMotion) return;
     // Fail-safe timeout ensures the app never hangs on splash indefinitely
     if (maxTimeoutPassed) {
       setShowSplash(false);
@@ -533,7 +535,7 @@ export default function Page() {
     if (minDwellPassed && !isSessionChecking) {
       setShowSplash(false);
     }
-  }, [bootMode, minDwellPassed, isSessionChecking, maxTimeoutPassed]);
+  }, [reducedMotion, minDwellPassed, isSessionChecking, maxTimeoutPassed]);
 
   // Sync state to ref for back-button hardware popstate interceptor
   const stateRef = useRef({ activeTab, appState, showQuitWarning });
@@ -782,13 +784,13 @@ export default function Page() {
   return (
     <>
       {showSplash &&
-        (bootMode === 'cinematic' ? (
+        (reducedMotion ? (
+          <SplashScreen />
+        ) : (
           <BootSequence
             isSessionChecking={isSessionChecking}
             onComplete={handleBootComplete}
           />
-        ) : (
-          <SplashScreen />
         ))}
 
       <PresenceManager />

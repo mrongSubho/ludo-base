@@ -16,14 +16,14 @@ export interface BootPreloadSnapshot {
 }
 
 /**
- * Parallel background preload orchestrator executed during the 9.6s cold-boot
- * animation. Warms auth/session state, social/DB caches, ECDH identity key,
- * CHIPS/vault refresh events, live arena directory, and heavy lazy UI chunks
- * without ever prompting for wallet signatures or blocking the UI thread.
+ * Parallel background preload orchestrator executed during the cold-boot video.
+ * Defers heavy chunk imports and directory network fetches until `canStartHeavy`
+ * flips true (right after video frame-1 starts playing, or after a 1.5s fallback)
+ * so initial boot bandwidth & CPU belong 100% to instant video startup.
  */
-export function useBootPreload(isSessionChecking: boolean): BootPreloadSnapshot {
+export function useBootPreload(isSessionChecking: boolean, canStartHeavy = true): BootPreloadSnapshot {
     const gameData = useGameData();
-    const startedRef = useRef(false);
+    const heavyStartedRef = useRef(false);
 
     const [ecdhWarmed, setEcdhWarmed] = useState(false);
     const [ledgerWarmed, setLedgerWarmed] = useState(false);
@@ -32,8 +32,9 @@ export function useBootPreload(isSessionChecking: boolean): BootPreloadSnapshot 
 
     const ownerId = gameData.myProfile?.wallet_address ?? null;
 
-    // 1. Warm IndexedDB ECDH identity key once wallet address is available (zero wallet prompt)
+    // 1. Warm IndexedDB ECDH identity key once wallet address is available (deferred until video plays)
     useEffect(() => {
+        if (!canStartHeavy) return;
         if (!ownerId) {
             setEcdhWarmed(true);
             return;
@@ -47,11 +48,11 @@ export function useBootPreload(isSessionChecking: boolean): BootPreloadSnapshot 
         return () => {
             alive = false;
         };
-    }, [ownerId]);
+    }, [canStartHeavy, ownerId]);
 
     useEffect(() => {
-        if (startedRef.current) return;
-        startedRef.current = true;
+        if (!canStartHeavy || heavyStartedRef.current) return;
+        heavyStartedRef.current = true;
         let alive = true;
 
         // 2. Broadcast passive ledger refresh so wallet/vault/claims caches hydrate in parallel
@@ -94,7 +95,7 @@ export function useBootPreload(isSessionChecking: boolean): BootPreloadSnapshot 
             window.clearTimeout(arenaTimeout);
             controller.abort();
         };
-    }, []);
+    }, [canStartHeavy]);
 
     const authReady = !isSessionChecking;
     const socialReady = gameData.isBootComplete || (!gameData.isBooting && ecdhWarmed);

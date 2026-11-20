@@ -5,7 +5,7 @@ import {
     BOOT_DURATION_MS,
     BOOT_MAX_TIMEOUT_MS,
     BOOT_POSTER_SRC,
-    BOOT_START_TIMEOUT_MS,
+    BOOT_STALL_TIMEOUT_MS,
     BOOT_VIDEO_SRC,
     getBootTelemetryForTime,
 } from '@/lib/boot/bootTimeline';
@@ -22,12 +22,12 @@ export interface BootSequenceProps {
 
 export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, onComplete }) => {
     const { preferences } = usePreferences();
-    const preload = useBootPreload(isSessionChecking);
 
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const completedRef = useRef(false);
-    const playbackStartedRef = useRef(false);
     const videoEndedRef = useRef(false);
+    const lastTimeRef = useRef(0);
+    const lastProgressAtRef = useRef(0);
     const sessionCheckingRef = useRef(isSessionChecking);
     sessionCheckingRef.current = isSessionChecking;
     const onCompleteRef = useRef(onComplete);
@@ -35,10 +35,13 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
     const sfxPrefRef = useRef(preferences.sfx);
     sfxPrefRef.current = preferences.sfx;
 
-    const [isMuted, setIsMuted] = useState(!preferences.sfx);
+    const [canPreloadHeavy, setCanPreloadHeavy] = useState(false);
+    const [isMuted, setIsMuted] = useState(true);
     const [videoFailed, setVideoFailed] = useState(false);
     const [telemetry, setTelemetry] = useState('BOOT // KERNEL INIT');
     const [videoProgress, setVideoProgress] = useState(0);
+
+    const preload = useBootPreload(isSessionChecking, canPreloadHeavy);
 
     const finishBoot = useCallback(() => {
         if (completedRef.current) return;
@@ -53,7 +56,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
         }
     }, [isSessionChecking, videoFailed, finishBoot]);
 
-    // Keep audio synced with Settings SFX toggle
+    // Respect Settings SFX mute toggle
     useEffect(() => {
         const video = videoRef.current;
         if (!video) return;
@@ -63,88 +66,105 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
         }
     }, [preferences.sfx]);
 
-    // Playback lifecycle: runs strictly once on mount (never restarts on parent re-renders).
-    // Attempts unmuted autoplay first; if blocked by browser autoplay policy, silently
-    // starts muted and unmutes automatically on first interaction with no nag banner.
+    // Playback lifecycle: mounts muted so mobile native autoplay decodes frame 1 immediately,
+    // never steals mount bandwidth before playback starts, and uses a progress-based watchdog
+    // so an actively playing video is NEVER skipped from the middle.
     useEffect(() => {
         if (prefersReducedMotion()) {
             if (!sessionCheckingRef.current) finishBoot();
             return;
         }
 
+        lastProgressAtRef.current = performance.now();
         const video = videoRef.current;
+
+        // Release heavy preload chunks even if playback is delayed past 1.5s
+        const heavyUnlockTimer = window.setTimeout(() => {
+            setCanPreloadHeavy(true);
+        }, 1500);
+
         let removeGestureListeners = () => {};
 
         if (video) {
             video.setAttribute('webkit-playsinline', 'true');
-            const wantAudio = sfxPrefRef.current;
+            video.muted = true;
 
-            const startPlayback = async () => {
-                if (wantAudio) {
-                    try {
-                        video.muted = false;
-                        video.volume = 1;
-                        await video.play();
+            const tryAutoUnmute = () => {
+                if (!sfxPrefRef.current || video.muted === false) return;
+                const ua =
+                    typeof navigator !== 'undefined'
+                        ? (navigator as { userActivation?: { hasBeenActive?: boolean } }).userActivation
+                        : undefined;
+                if (ua?.hasBeenActive) {
+                    video.muted = false;
+                    video.volume = 1;
+                    // Guard against WebKit auto-pausing when unmuted without fresh gesture
+                    if (video.paused) {
+                        video.muted = true;
+                        setIsMuted(true);
+                        void video.play().catch(() => undefined);
+                    } else {
                         setIsMuted(false);
-                        return;
-                    } catch {
-                        // Browser blocked unmuted autoplay before gesture; fall back quietly to muted
                     }
-                }
-                try {
-                    video.muted = true;
-                    setIsMuted(true);
-                    await video.play();
-                } catch {
-                    // Handled by the startup guard if device refuses autoplay completely
-                }
-
-                if (wantAudio) {
-                    const unmuteOnGesture = () => {
-                        removeGestureListeners();
-                        if (!sfxPrefRef.current || completedRef.current) return;
-                        video.muted = false;
-                        video.volume = 1;
-                        setIsMuted(false);
-                        if (video.paused && !video.ended) {
-                            void video.play().catch(() => {
-                                video.muted = true;
-                                setIsMuted(true);
-                            });
-                        }
-                    };
-                    document.addEventListener('pointerdown', unmuteOnGesture, { passive: true, capture: true });
-                    document.addEventListener('keydown', unmuteOnGesture, { passive: true, capture: true });
-                    removeGestureListeners = () => {
-                        document.removeEventListener('pointerdown', unmuteOnGesture, { capture: true });
-                        document.removeEventListener('keydown', unmuteOnGesture, { capture: true });
-                    };
                 }
             };
 
-            void startPlayback();
+            void video
+                .play()
+                .then(() => {
+                    tryAutoUnmute();
+                })
+                .catch(() => {
+                    // Watched by stall watchdog below
+                });
+
+            if (sfxPrefRef.current) {
+                const unmuteOnGesture = () => {
+                    removeGestureListeners();
+                    if (!sfxPrefRef.current || completedRef.current) return;
+                    video.muted = false;
+                    video.volume = 1;
+                    setIsMuted(false);
+                    if (video.paused && !video.ended) {
+                        void video.play().catch(() => {
+                            video.muted = true;
+                            setIsMuted(true);
+                        });
+                    }
+                };
+                document.addEventListener('pointerdown', unmuteOnGesture, { passive: true, capture: true });
+                document.addEventListener('keydown', unmuteOnGesture, { passive: true, capture: true });
+                removeGestureListeners = () => {
+                    document.removeEventListener('pointerdown', unmuteOnGesture, { capture: true });
+                    document.removeEventListener('keydown', unmuteOnGesture, { capture: true });
+                };
+            }
         }
 
-        const startGuard = window.setTimeout(() => {
-            if (playbackStartedRef.current) return;
-            // Do not skip a video that is still actively buffering over cellular
-            if (video && (video.readyState >= 2 || video.networkState === HTMLMediaElement.NETWORK_LOADING)) {
-                return;
+        // Progress watchdog: only triggers fallback if BOTH time & buffering stall completely
+        const watchdog = window.setInterval(() => {
+            if (videoEndedRef.current || completedRef.current) return;
+            const stalledMs = performance.now() - lastProgressAtRef.current;
+            const activelyLoading = video && video.networkState === HTMLMediaElement.NETWORK_LOADING;
+            if (!activelyLoading && stalledMs >= BOOT_STALL_TIMEOUT_MS) {
+                setCanPreloadHeavy(true);
+                setVideoFailed(true);
+                setTelemetry('SYS.LINK // FAST BOOT');
+                if (!sessionCheckingRef.current) {
+                    finishBoot();
+                }
             }
-            setVideoFailed(true);
-            setTelemetry('SYS.LINK // FAST BOOT');
-            if (!sessionCheckingRef.current) {
-                finishBoot();
-            }
-        }, BOOT_START_TIMEOUT_MS);
+        }, 1000);
 
         const maxFailSafe = window.setTimeout(() => {
+            setCanPreloadHeavy(true);
             finishBoot();
         }, BOOT_MAX_TIMEOUT_MS);
 
         return () => {
             removeGestureListeners();
-            window.clearTimeout(startGuard);
+            window.clearTimeout(heavyUnlockTimer);
+            window.clearInterval(watchdog);
             window.clearTimeout(maxFailSafe);
         };
     }, [finishBoot]);
@@ -152,6 +172,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
     const markVideoEnded = useCallback(() => {
         if (videoEndedRef.current) return;
         videoEndedRef.current = true;
+        setCanPreloadHeavy(true);
         setVideoProgress(100);
         setTelemetry('SYS.READY // 100%');
         if (!sessionCheckingRef.current) {
@@ -160,15 +181,22 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
     }, [finishBoot]);
 
     const handlePlaying = useCallback(() => {
-        playbackStartedRef.current = true;
+        lastProgressAtRef.current = performance.now();
+        setCanPreloadHeavy(true);
+    }, []);
+
+    const handleNetworkProgress = useCallback(() => {
+        lastProgressAtRef.current = performance.now();
     }, []);
 
     const handleTimeUpdate = useCallback(() => {
         const video = videoRef.current;
         if (!video) return;
         const cur = video.currentTime || 0;
-        if (cur > 0.05) {
-            playbackStartedRef.current = true;
+        if (cur > lastTimeRef.current + 0.02) {
+            lastTimeRef.current = cur;
+            lastProgressAtRef.current = performance.now();
+            setCanPreloadHeavy(true);
         }
         const hasValidDur = Number.isFinite(video.duration) && video.duration >= 1;
         const dur = hasValidDur ? video.duration : BOOT_DURATION_MS / 1000;
@@ -182,6 +210,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
     }, [markVideoEnded]);
 
     const handleVideoError = useCallback(() => {
+        setCanPreloadHeavy(true);
         setVideoFailed(true);
         setTelemetry('SYS.LINK // FAST BOOT');
         if (!sessionCheckingRef.current) {
@@ -225,10 +254,11 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ isSessionChecking, o
                     src={BOOT_VIDEO_SRC}
                     poster={BOOT_POSTER_SRC}
                     autoPlay
-                    muted={!preferences.sfx}
+                    muted
                     playsInline
                     preload="auto"
                     onPlaying={handlePlaying}
+                    onProgress={handleNetworkProgress}
                     onTimeUpdate={handleTimeUpdate}
                     onEnded={markVideoEnded}
                     onError={handleVideoError}
