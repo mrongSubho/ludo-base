@@ -127,18 +127,19 @@ export const PhoneLinkIcon = ({ className = 'w-4 h-4' }: IconProps) => (
 );
 
 export const BrandMark3077Icon = ({ className = 'w-6 h-6', active }: IconProps) => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-        <polygon
-            points="7.5,2.5 16.5,2.5 21.5,7.5 21.5,16.5 16.5,21.5 7.5,21.5 2.5,16.5 2.5,7.5"
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+        <circle
+            cx="12"
+            cy="12"
+            r="9.2"
             fill="currentColor"
-            fillOpacity={active ? 0.22 : 0.1}
+            fillOpacity={active ? 0.18 : 0.08}
         />
-        <polygon points="12,5.5 18.5,12 12,18.5 5.5,12" strokeWidth="1.4" opacity="0.65" />
-        <circle cx="9" cy="9" r="1.15" fill="currentColor" stroke="none" />
-        <circle cx="15" cy="9" r="1.15" fill="currentColor" stroke="none" />
-        <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
-        <circle cx="9" cy="15" r="1.15" fill="currentColor" stroke="none" />
-        <circle cx="15" cy="15" r="1.15" fill="currentColor" stroke="none" />
+        <rect x="1.6" y="10.2" width="1.8" height="3.6" rx="0.6" fill="currentColor" stroke="none" />
+        <polygon points="12,5.6 13.8,7.4 12,9.2 10.2,7.4" fill="currentColor" stroke="none" />
+        <polygon points="8.6,9.4 11.2,12 8.6,14.6 6,12" strokeWidth="1.35" />
+        <polygon points="15.4,9.4 18,12 15.4,14.6 12.8,12" strokeWidth="1.35" />
+        <polygon points="12,12.8 14.6,15.4 12,18 9.4,15.4" strokeWidth="1.35" />
     </svg>
 );
 

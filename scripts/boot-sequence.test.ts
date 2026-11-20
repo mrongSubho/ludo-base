@@ -86,4 +86,25 @@ test('BootSequence & page.tsx: syncs twin cyber-shutter transition into pre-moun
     assert.match(pageSrc, /lobbyRevealing/);
     assert.match(pageSrc, /handleBootComplete/);
     assert.match(pageSrc, /BootSequence/);
+    assert.match(pageSrc, /Ludo3077Emblem/);
+});
+
+test('Ludo3077Emblem: official brand mark is wired across Sign-In, Boot, Splash, Navbar, Modal & SVG asset', () => {
+    const logoSrc = readRepoFile('app/components/Ludo3077Logo.tsx');
+    assert.match(logoSrc, /export function Ludo3077Emblem/);
+
+    const walletCardSrc = readRepoFile('app/components/WalletConnectCard.tsx');
+    assert.match(walletCardSrc, /panel-shell-3077/);
+    assert.match(walletCardSrc, /<Ludo3077Emblem/);
+    assert.match(walletCardSrc, /LUDO\s*<span[^>]*>3077<\/span>/);
+    assert.doesNotMatch(walletCardSrc, /DiceMark/);
+    assert.doesNotMatch(walletCardSrc, /Ludo\s+<span[^>]*>Base<\/span>/);
+
+    assert.match(readRepoFile('app/components/BootSequence.tsx'), /<Ludo3077Emblem/);
+    assert.match(readRepoFile('app/components/landing/LandingNavbar.tsx'), /<Ludo3077Emblem/);
+    assert.match(readRepoFile('app/components/LudoWalletModal.tsx'), /<Ludo3077Emblem/);
+
+    const publicLogoSvg = readRepoFile('public/ludo-base-logo.svg');
+    assert.match(publicLogoSvg, /#00E5FF/);
+    assert.match(publicLogoSvg, /rotate\(45/);
 });

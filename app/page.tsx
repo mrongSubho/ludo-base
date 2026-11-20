@@ -12,8 +12,8 @@ const AudioDriver = dynamic(() => import('./components/AudioToggle'));
 import NoticeStrip from './components/NoticeStrip';
 import { SessionAuthBanner } from './components/SessionAuthBanner';
 import { HeaderNavPanel, TokenIcon } from './components/HeaderNavPanel';
-import { BrandMark3077Icon } from './components/icons';
 import { HudCornerTicks } from './components/HudPrimitives';
+import { Ludo3077Emblem } from './components/Ludo3077Logo';
 import { BootSequence } from './components/BootSequence';
 import { BurnPanel } from './components/BurnPanel';
 import { FooterNavPanel } from './components/FooterNavPanel';
@@ -94,34 +94,8 @@ const SplashScreen = () => (
     <HudCornerTicks className="m-4" />
 
     <div className="flex flex-col items-center relative z-10 px-6">
-      {/* Precision Tactical Boot Reticle + Chamfered Core Emblem */}
-      <div className="w-28 h-28 mb-6 relative flex items-center justify-center">
-        <svg
-          viewBox="0 0 120 120"
-          className="absolute inset-0 w-full h-full text-accent opacity-60 animate-hud-reticle-spin"
-          fill="none"
-          aria-hidden="true"
-        >
-          <circle cx="60" cy="60" r="56" stroke="currentColor" strokeWidth="1" strokeDasharray="8 6 2 6" />
-          <path d="M60 2V10M60 110V118M2 60H10M110 60H118" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-        <svg
-          viewBox="0 0 120 120"
-          className="absolute inset-2 w-[calc(100%-16px)] h-[calc(100%-16px)] text-accent opacity-35 animate-hud-reticle-spin-rev"
-          fill="none"
-          aria-hidden="true"
-        >
-          <circle cx="60" cy="60" r="46" stroke="currentColor" strokeWidth="1" strokeDasharray="18 10" />
-        </svg>
-        <div
-          className="relative w-16 h-16 flex items-center justify-center border border-line-strong bg-surface-panel shadow-[0_0_28px_color-mix(in_srgb,var(--accent)_25%,transparent)]"
-          style={{
-            clipPath: 'polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px)',
-          }}
-        >
-          <BrandMark3077Icon className="w-9 h-9 text-accent" active />
-        </div>
-      </div>
+      {/* Official 3077 Hatch-Dial Emblem + Orbiting Reticles */}
+      <Ludo3077Emblem size="lg" showReticle className="mb-5" />
 
       <h1 className="text-4xl md:text-5xl font-extrabold tracking-wider mb-1.5 text-center uppercase">
         <span className="text-ink-strong">LUDO </span>
@@ -822,7 +796,7 @@ export default function Page() {
       </div>
 
       {showSplash && !lobbyRevealing ? null : !isConnected ? (
-        <div className="fixed inset-0 z-40 bg-black/80 flex items-center justify-center">
+        <div className="fixed inset-0 z-40 bg-surface-page/85 backdrop-blur-sm flex items-center justify-center">
           <WalletConnectCard onGuest={() => enterGuest()} />
         </div>
       ) : !onboarded ? (

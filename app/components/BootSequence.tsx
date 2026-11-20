@@ -19,7 +19,7 @@ import { BootPhase1Synth } from '@/lib/boot/bootPhase1Audio';
 import { useBootPreload } from '@/hooks/useBootPreload';
 import { usePreferences } from '@/hooks/usePreferences';
 import { prefersReducedMotion } from '@/lib/motion';
-import { BrandMark3077Icon } from '@/app/components/icons';
+import { Ludo3077Emblem } from '@/app/components/Ludo3077Logo';
 import { HudCornerTicks } from '@/app/components/HudPrimitives';
 
 export interface BootSequenceProps {
@@ -31,10 +31,6 @@ export interface BootSequenceProps {
 type BootPhase = 'lockup' | 'video' | 'fallback' | 'exit-close' | 'exit-open';
 
 const GRADUATION_TICKS = Array.from({ length: 32 }, (_, idx) => idx);
-const DIAL_RIVETS = Array.from({ length: 8 }, (_, idx) => {
-    const a = (idx / 8) * Math.PI * 2;
-    return { cx: 110 + Math.cos(a) * 65, cy: 110 + Math.sin(a) * 65 };
-});
 
 export const BootSequence: React.FC<BootSequenceProps> = ({
     isSessionChecking,
@@ -512,112 +508,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                             </div>
                         </div>
 
-                        <div className="relative w-56 h-56 mb-4 flex items-center justify-center">
-                            <svg
-                                viewBox="0 0 220 220"
-                                className="absolute inset-0 w-full h-full animate-hud-reticle-spin"
-                                fill="none"
-                                aria-hidden="true"
-                            >
-                                <circle
-                                    cx="110"
-                                    cy="110"
-                                    r="102"
-                                    stroke="#00E5FF"
-                                    strokeWidth="1.2"
-                                    strokeOpacity="0.6"
-                                    strokeDasharray="180 44 120 40"
-                                />
-                                <circle cx="152" cy="17" r="3.6" fill="#00E5FF" />
-                                <circle cx="52" cy="193" r="3.2" fill="#00E5FF" />
-                            </svg>
-
-                            <svg
-                                viewBox="0 0 220 220"
-                                className="absolute inset-0 w-full h-full animate-hud-reticle-spin-rev"
-                                fill="none"
-                                aria-hidden="true"
-                            >
-                                <circle
-                                    cx="110"
-                                    cy="110"
-                                    r="86"
-                                    stroke="#00E5FF"
-                                    strokeWidth="1"
-                                    strokeOpacity="0.4"
-                                    strokeDasharray="34 14 8 14"
-                                />
-                            </svg>
-
-                            <svg viewBox="0 0 220 220" className="relative w-full h-full" fill="none" aria-hidden="true">
-                                <defs>
-                                    <radialGradient id="boot-dial-bg" cx="42%" cy="34%" r="68%">
-                                        <stop offset="0%" stopColor="#1E2530" />
-                                        <stop offset="65%" stopColor="#0E131B" />
-                                        <stop offset="100%" stopColor="#06080D" />
-                                    </radialGradient>
-                                    <filter id="boot-cyan-glow" x="-30%" y="-30%" width="160%" height="160%">
-                                        <feGaussianBlur stdDeviation="2.4" result="blur" />
-                                        <feMerge>
-                                            <feMergeNode in="blur" />
-                                            <feMergeNode in="SourceGraphic" />
-                                        </feMerge>
-                                    </filter>
-                                </defs>
-
-                                <circle cx="110" cy="110" r="71" fill="#171C24" stroke="#334155" strokeWidth="2" />
-                                <rect x="35" y="101" width="7" height="18" rx="2" fill="#273140" stroke="#475569" strokeWidth="1" />
-                                <circle cx="110" cy="110" r="58" fill="url(#boot-dial-bg)" stroke="#00E5FF" strokeOpacity="0.35" strokeWidth="1.2" />
-
-                                {DIAL_RIVETS.map((rivet, idx) => (
-                                    <circle
-                                        key={idx}
-                                        cx={rivet.cx}
-                                        cy={rivet.cy}
-                                        r="2"
-                                        fill="#090D12"
-                                        stroke="#475569"
-                                        strokeWidth="0.7"
-                                    />
-                                ))}
-
-                                <g stroke="#00E5FF" strokeOpacity="0.06" strokeWidth="1">
-                                    <line x1="72" y1="74" x2="148" y2="146" />
-                                    <line x1="88" y1="62" x2="156" y2="130" />
-                                    <line x1="64" y1="90" x2="132" y2="158" />
-                                </g>
-
-                                <polygon
-                                    points="110,68 121,79 110,90 99,79"
-                                    fill="#00E5FF"
-                                    filter="url(#boot-cyan-glow)"
-                                />
-
-                                {[
-                                    { cx: 88, cy: 108 },
-                                    { cx: 132, cy: 108 },
-                                    { cx: 110, cy: 132 },
-                                ].map((tile, idx) => (
-                                    <g key={idx} transform={`rotate(45 ${tile.cx} ${tile.cy})`} filter="url(#boot-cyan-glow)">
-                                        <rect
-                                            x={tile.cx - 12}
-                                            y={tile.cy - 12}
-                                            width="24"
-                                            height="24"
-                                            rx="4"
-                                            fill="rgba(0, 229, 255, 0.14)"
-                                            stroke="#00E5FF"
-                                            strokeWidth="1.5"
-                                        />
-                                        <circle cx={tile.cx - 5.5} cy={tile.cy - 5.5} r="1.8" fill="#00E5FF" />
-                                        <circle cx={tile.cx + 5.5} cy={tile.cy - 5.5} r="1.8" fill="#00E5FF" />
-                                        <circle cx={tile.cx} cy={tile.cy} r="2.1" fill="#00E5FF" />
-                                        <circle cx={tile.cx - 5.5} cy={tile.cy + 5.5} r="1.8" fill="#00E5FF" />
-                                        <circle cx={tile.cx + 5.5} cy={tile.cy + 5.5} r="1.8" fill="#00E5FF" />
-                                    </g>
-                                ))}
-                            </svg>
-                        </div>
+                        <Ludo3077Emblem size="xl" showReticle className="mb-4" />
 
                         <div className="flex flex-col items-center leading-none mb-7">
                             <span className="text-4xl font-extrabold uppercase tracking-[0.06em]" style={{ color: '#F8FAFC' }}>
@@ -726,15 +617,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                 {phase === 'fallback' && (
                     <div className="relative z-10 flex flex-col items-center justify-center w-full h-full px-6">
                         <HudCornerTicks className="m-4" />
-                        <div
-                            className="relative w-16 h-16 mb-5 flex items-center justify-center border border-line-strong bg-surface-panel shadow-[0_0_28px_color-mix(in_srgb,var(--accent)_25%,transparent)]"
-                            style={{
-                                clipPath:
-                                    'polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px), 0 10px)',
-                            }}
-                        >
-                            <BrandMark3077Icon className="w-9 h-9 text-accent" active />
-                        </div>
+                        <Ludo3077Emblem size="lg" showReticle className="mb-5" />
                         <h1 className="text-4xl font-extrabold tracking-wider mb-1 text-center uppercase">
                             <span className="text-ink-strong">LUDO </span>
                             <span className="text-accent">3077</span>

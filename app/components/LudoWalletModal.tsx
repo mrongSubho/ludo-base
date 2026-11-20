@@ -11,6 +11,7 @@ import { useWalletMode } from '@/hooks/useWalletMode';
 import { useIsSignedIn, useCurrentUser } from '@coinbase/cdp-hooks';
 import { resolvePlayerIdentity } from '@/lib/playerIdentity';
 import { hasSeenWalletReady } from '@/lib/walletOnboarding';
+import { Ludo3077Emblem } from './Ludo3077Logo';
 
 interface LudoWalletModalProps {
     isOpen: boolean;
@@ -224,18 +225,21 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                     >
                         {/* Header — hidden on the in-game sign-in page */}
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '18px' }} hidden={showInGame}>
-                            <div>
-                                <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--modal-muted, rgba(255,255,255,0.45))' }}>
-                                    Sign in
-                                </p>
-                                <h3 style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 700, color: 'var(--modal-ink, #ffffff)', textTransform: 'none', lineHeight: 1.25 }}>
-                                    Ludo 3077 · Onchain Arena
-                                </h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <Ludo3077Emblem size="xs" showReticle={false} />
+                                <div>
+                                    <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--modal-muted, rgba(255,255,255,0.45))' }}>
+                                        Sign in
+                                    </p>
+                                    <h3 style={{ margin: '4px 0 0', fontSize: '18px', fontWeight: 700, color: 'var(--modal-ink, #ffffff)', textTransform: 'none', lineHeight: 1.25 }}>
+                                        Ludo 3077 · Onchain Arena
+                                    </h3>
+                                </div>
                             </div>
                             <button
                                 onClick={onClose}
                                 aria-label="Close wallet options"
-                                className="bg-white/10 hover:bg-white/20 transition-colors"
+                                className="bg-surface-hover hover:bg-surface-active transition-colors"
                                 style={{
                                     width: '32px',
                                     height: '32px',

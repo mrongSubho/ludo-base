@@ -1,36 +1,23 @@
-/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import LudoWalletModal from './LudoWalletModal';
 import { acceptTos } from '@/lib/onboarding';
-
-// ─── Theme-agnostic contract (holds for current + future themes) ───────────
-// Same vocabulary as the synced panels: white-ink + white-opacity surfaces +
-// cyan accents on the shared dark-glass surface. No font-family is set
-// (inherits the active theme's display font). Spacing inside
-// `.ludo-wallet-scope` is re-asserted in globals.css (the global unlayered
-// reset zeroes Tailwind utilities).
-
-// Dice mark: white die face (replaces the emoji, keeps the entrance identity).
-const DiceMark = () => (
-    <svg viewBox="0 0 100 100" className="w-12 h-12 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
-        <rect x="6" y="6" width="88" height="88" rx="20" fill="#fff" />
-        {[[30, 30], [70, 30], [50, 50], [30, 70], [70, 70]].map(([cx, cy], i) => (
-            <circle key={i} cx={cx} cy={cy} r="9" fill="#0b0b12" />
-        ))}
-    </svg>
-);
+import { Ludo3077Emblem } from './Ludo3077Logo';
+import { HudCornerTicks } from './HudPrimitives';
+import { Button } from './Button';
+import { CheckGlyphIcon } from './icons';
 
 interface WalletConnectCardProps {
     onConnect?: () => void;
     onGuest?: () => void;
 }
 
-export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectCardProps) {
+export default function WalletConnectCard({ onGuest }: WalletConnectCardProps) {
     const [mounted, setMounted] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    // ToS + Privacy consent: pre-ticked (a dead button with no explanation
-    // reads as "broken"). Unchecking locks both entrances. Acceptance is
-    // persisted per device whenever the user proceeds.
+    // ToS + Privacy consent: pre-ticked so new players can launch cleanly;
+    // unchecking locks both sign-in and guest entrance.
     const [agreed, setAgreed] = useState(true);
 
     useEffect(() => {
@@ -38,7 +25,7 @@ export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectC
     }, []);
 
     const toggleAgreed = () => {
-        setAgreed(prev => {
+        setAgreed((prev) => {
             const next = !prev;
             if (next) acceptTos();
             return next;
@@ -47,122 +34,155 @@ export default function WalletConnectCard({ onConnect, onGuest }: WalletConnectC
 
     return (
         <div
-            className="ludo-wallet-scope w-[calc(100%-32px)] max-w-[420px] rounded-[32px] border border-white/10 px-8 py-10 flex flex-col items-center gap-8 relative overflow-hidden group shadow-2xl"
-            style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
+            className="panel-shell-3077 ludo-wallet-scope w-[calc(100%-32px)] max-w-[404px] rounded-[32px] px-7 py-8 flex flex-col items-center gap-6 relative overflow-hidden"
+            style={{
+                background: 'var(--panel-bg)',
+                border: '1px solid var(--panel-border)',
+                boxShadow: 'var(--panel-shadow)',
+                color: 'var(--ink-strong)',
+                backdropFilter: 'blur(32px)',
+                WebkitBackdropFilter: 'blur(32px)',
+            }}
         >
-            {/* Animated Flare Decorators to match Lobby */}
-            <div className="absolute -top-24 -left-24 w-48 h-48 bg-cyan-500/20 blur-[60px] rounded-full animate-pulse" />
-            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-white/5 blur-[60px] rounded-full animate-pulse transition-all duration-1000 group-hover:bg-cyan-600/30" />
+            <HudCornerTicks />
 
-            {/* Dice Header Area */}
-            <div className="relative flex flex-col items-center">
-                <div className="absolute inset-x-0 inset-y-0 bg-white/20 blur-3xl rounded-full scale-150 animate-pulse" />
-                <div className="w-24 h-24 rounded-[28px] bg-gradient-to-br from-black/50 to-black/35 flex items-center justify-center border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.2)] relative z-10 overflow-hidden group-hover:scale-105 transition-transform duration-500">
-                    <DiceMark />
-                </div>
+            {/* Subtle top HUD scan wash */}
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 top-0 h-28 opacity-75"
+                style={{
+                    background:
+                        'radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 72%)',
+                }}
+            />
 
-                {/* Mode Label Style Title */}
-                <div className="mt-8 inline-block px-6 py-2 bg-[rgba(0,0,0,0.35)] border border-white/10 rounded-full backdrop-blur-md relative z-10 shadow-lg">
-                    <h3 className="text-white/90 text-ludo-sm font-black uppercase tracking-[0.3em] text-center drop-shadow-md">
+            {/* Official 3077 Emblem + Entrance Kicker */}
+            <div className="relative z-10 flex flex-col items-center gap-3.5">
+                <Ludo3077Emblem size="lg" showReticle />
+
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 bg-surface-recessed border border-line-soft rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                    <span className="text-ink-strong text-ludo-xs font-mono font-bold uppercase tracking-[0.24em]">
                         Arena Entrance
-                    </h3>
+                    </span>
                 </div>
             </div>
 
-            {/* Content Section */}
-            <div className="text-center flex flex-col gap-3 relative z-10">
-                <h2 className="text-4xl font-black text-white tracking-tight drop-shadow-[0_0_15px_rgba(255,255,255,0.2)] uppercase">
-                    Ludo <span className="text-cyan-400 drop-shadow-[0_0_10px_rgba(0,255,255,0.4)]">Base</span>
-                </h2>
-                <p className="text-white/60 text-sm font-medium leading-relaxed max-w-[280px] mx-auto">
+            {/* Official Title & Copy */}
+            <div className="text-center flex flex-col gap-1.5 relative z-10">
+                <h1 className="text-3xl sm:text-4xl font-extrabold uppercase tracking-[0.06em] text-ink-strong leading-none">
+                    LUDO <span className="text-accent">3077</span>
+                </h1>
+                <p className="font-mono text-ludo-xs font-bold uppercase tracking-[0.26em] text-accent">
+                    {'// THE ONCHAIN ARENA //'}
+                </p>
+                <p className="text-ludo-md text-ink-muted font-medium leading-relaxed max-w-[285px] mx-auto mt-1">
                     Connect your Web3 identity to access global matchmaking and claim your victory rewards.
                 </p>
             </div>
 
-            {/* Wallet Integration Section */}
-            <div className="w-full relative z-20 flex justify-center">
+            {/* Entrance Controls */}
+            <div className="w-full relative z-20 flex flex-col">
                 {mounted ? (
-                    <div className="group/btn relative w-full flex flex-col items-stretch">
-                        {/* Custom Glow behind button */}
-                        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 to-cyan-600 blur-xl opacity-20 group-hover/btn:opacity-40 transition-opacity pointer-events-none" />
-
-                        {/* ToS + Privacy consent */}
+                    <div className="w-full flex flex-col items-stretch gap-3">
+                        {/* ToS + Privacy Consent */}
                         <button
+                            type="button"
                             onClick={toggleAgreed}
                             aria-pressed={agreed}
-                            className="mb-3 flex items-start gap-2.5 text-left active:scale-[0.99] transition-transform"
+                            className="flex items-start gap-2.5 text-left px-1 py-1 active:scale-[0.99] transition-transform cursor-pointer"
                         >
                             <span
-                                className={`mt-0.5 w-5 h-5 flex-none rounded-md border flex items-center justify-center transition-all ${agreed ? 'bg-cyan-400 border-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.5)]' : 'bg-white/5 border-white/25'}`}
-                                aria-hidden
+                                className={`mt-0.5 w-5 h-5 flex-none rounded-md border flex items-center justify-center transition-colors ${
+                                    agreed
+                                        ? 'bg-accent border-accent text-accent-ink'
+                                        : 'bg-surface-recessed border-line-strong text-transparent'
+                                }`}
+                                aria-hidden="true"
                             >
-                                {agreed && (
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="#06202a" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" className="w-3 h-3">
-                                        <polyline points="20 6 9 17 4 12" />
-                                    </svg>
-                                )}
+                                <CheckGlyphIcon className="w-3 h-3" />
                             </span>
-                            <span className="text-ludo-xs font-bold text-white/55 leading-relaxed">
+                            <span className="text-ludo-xs font-bold text-ink-muted leading-relaxed">
                                 I agree to the{' '}
-                                <a href="/terms" target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-cyan-300 underline underline-offset-2 hover:text-cyan-200">
+                                <a
+                                    href="/terms"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-accent underline underline-offset-2 hover:brightness-110"
+                                >
                                     Terms of Service
-                                </a>
-                                {' '}and{' '}
-                                <a href="/privacy" target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="text-cyan-300 underline underline-offset-2 hover:text-cyan-200">
+                                </a>{' '}
+                                and{' '}
+                                <a
+                                    href="/privacy"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-accent underline underline-offset-2 hover:brightness-110"
+                                >
                                     Privacy Policy
                                 </a>
                                 .
                             </span>
                         </button>
 
-                        <button
+                        {/* Primary Sign-In CTA */}
+                        <Button
+                            variant="primary"
+                            size="lg"
+                            fullWidth
+                            disabled={!agreed}
                             onClick={() => {
                                 if (!agreed) return;
                                 acceptTos();
                                 setIsModalOpen(true);
                             }}
-                            aria-disabled={!agreed}
-                            className={`w-full bg-white text-black text-lg font-black uppercase tracking-[0.2em] rounded-2xl py-5 transition-all shadow-[0_0_30px_rgba(255,255,255,0.2)] hover:shadow-[0_0_50px_rgba(255,255,255,0.4)] border-0 flex items-center justify-center h-auto active:scale-95 whitespace-nowrap ${agreed ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}
+                            className="uppercase tracking-[0.18em] font-extrabold shadow-[0_0_24px_color-mix(in_srgb,var(--accent)_28%,transparent)]"
                         >
                             Sign in to start
-                        </button>
+                        </Button>
 
+                        {/* Guest Entrance */}
                         {onGuest && (
-                            <div className="mt-3 flex flex-col items-center gap-1.5">
-                                <button
+                            <div className="flex flex-col items-center gap-1.5 pt-0.5">
+                                <Button
+                                    variant="secondary"
+                                    size="md"
+                                    disabled={!agreed}
                                     onClick={() => {
                                         if (!agreed) return;
                                         acceptTos();
                                         onGuest();
                                     }}
-                                    aria-disabled={!agreed}
-                                    className={`px-5 py-2 rounded-full bg-white/5 border border-white/10 text-white/50 text-ludo-sm font-black uppercase tracking-[0.2em] hover:bg-white/10 hover:text-white active:scale-95 whitespace-nowrap ${agreed ? '' : 'opacity-40 cursor-not-allowed'}`}
+                                    className="px-5 rounded-full uppercase tracking-[0.18em] text-ludo-xs font-bold"
                                 >
                                     Continue as Guest
-                                </button>
-                                <span className="text-ludo-xs font-bold text-white/25 tracking-wide">
+                                </Button>
+                                <span className="text-ludo-xs font-mono font-bold text-ink-faint tracking-wide">
                                     No wallet needed · practice vs AI
                                 </span>
                             </div>
                         )}
 
-                        <LudoWalletModal 
+                        <LudoWalletModal
                             isOpen={isModalOpen}
                             onClose={() => setIsModalOpen(false)}
                         />
                     </div>
                 ) : (
-                    <div className="w-full h-16 bg-white/5 rounded-2xl animate-pulse border border-white/10" />
+                    <div className="w-full h-12 bg-surface-recessed rounded-2xl animate-pulse border border-line-soft" />
                 )}
             </div>
 
-            {/* Subtle Footer */}
-            <div className="flex items-center gap-2 opacity-30 group-hover:opacity-50 transition-opacity">
-                <div className="h-[1px] w-8 bg-white" />
-                <span className="text-ludo-xs font-black tracking-widest uppercase">Safe & Secure</span>
-                <div className="h-[1px] w-8 bg-white" />
+            {/* Footer Security Telemetry */}
+            <div className="flex items-center gap-2.5 text-ink-faint relative z-10 w-full justify-center">
+                <div className="h-px w-8 bg-line-soft" />
+                <span className="text-ludo-xs font-mono font-bold tracking-[0.22em] uppercase">
+                    Safe &amp; Secure · Base
+                </span>
+                <div className="h-px w-8 bg-line-soft" />
             </div>
         </div>
     );
 }
-

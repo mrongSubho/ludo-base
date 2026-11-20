@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { usePreferences } from '@/hooks/usePreferences';
-import { BrandMark3077Icon, ChevronGlyphIcon, OverdriveBoltIcon, PhoneLinkIcon } from '../icons';
+import { ChevronGlyphIcon, OverdriveBoltIcon, PhoneLinkIcon } from '../icons';
+import { Ludo3077Emblem } from '../Ludo3077Logo';
 
 interface LandingNavbarProps {
   onEnterArena: () => void;
@@ -33,9 +34,7 @@ export default function LandingNavbar({ onEnterArena, onOpenQrModal }: LandingNa
         {/* Brand & Telemetry Badge */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-surface-recessed border border-accent/40 flex items-center justify-center text-accent shadow-[0_0_12px_rgba(0,229,255,0.25)]">
-              <BrandMark3077Icon className="w-5 h-5" />
-            </div>
+            <Ludo3077Emblem size="xs" showReticle={false} />
             <span className="text-lg font-extrabold uppercase tracking-widest text-ink-strong">
               Ludo <span className="text-accent">3077</span>
             </span>
