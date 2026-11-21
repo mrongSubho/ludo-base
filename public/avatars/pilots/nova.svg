@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="bg-nova" cx="50%" cy="44%" r="60%">
+      <stop offset="0%" stop-color="#08283e"/>
+      <stop offset="55%" stop-color="#071221"/>
+      <stop offset="100%" stop-color="#04070e"/>
+    </radialGradient>
+    <radialGradient id="aura-nova" cx="50%" cy="46%" r="44%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.36"/>
+      <stop offset="65%" stop-color="#0284c7" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#04070e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="chrome-nova" x1="15%" y1="5%" x2="85%" y2="95%">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="32%" stop-color="#64748b"/>
+      <stop offset="68%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <radialGradient id="plasma-nova" cx="38%" cy="34%" r="66%">
+      <stop offset="0%" stop-color="#cffafe"/>
+      <stop offset="28%" stop-color="#00e5ff"/>
+      <stop offset="68%" stop-color="#0369a1"/>
+      <stop offset="100%" stop-color="#082f49"/>
+    </radialGradient>
+    <filter id="glow-nova" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="256" height="256" fill="url(#bg-nova)"/>
+  <circle cx="128" cy="120" r="108" fill="url(#aura-nova)"/>
+  <!-- Orbital star-pilot arc -->
+  <ellipse cx="128" cy="124" rx="102" ry="38" fill="none" stroke="#00e5ff" stroke-opacity="0.22" stroke-width="1.2" transform="rotate(-18 128 124)"/>
+
+  <!-- EVA space-suit collar & shoulders -->
+  <path d="M30 256 C40 212 68 192 96 186 L128 196 L160 186 C188 192 216 212 226 256 Z" fill="url(#chrome-nova)" stroke="#94a3b8" stroke-width="1.6"/>
+  <ellipse cx="128" cy="196" rx="46" ry="14" fill="#0f172a" stroke="#00e5ff" stroke-opacity="0.65" stroke-width="2.2"/>
+  <path d="M74 256 L92 208 L128 220 L164 208 L182 256 Z" fill="#0b1322" stroke="#334155" stroke-width="1.2"/>
+  <circle cx="128" cy="232" r="7" fill="#00e5ff" fill-opacity="0.25" stroke="#00e5ff" stroke-width="1.8" filter="url(#glow-nova)"/>
+
+  <!-- Hemispherical deep-space helmet shell -->
+  <circle cx="128" cy="122" r="68" fill="url(#chrome-nova)" stroke="#cbd5e1" stroke-width="2"/>
+  <path d="M70 100 C78 70 102 56 128 56 C154 56 178 70 186 100" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Full-face ionized plasma dome visor -->
+  <path d="M72 114 C72 80 96 66 128 66 C160 66 184 80 184 114 C184 152 162 178 128 178 C94 178 72 152 72 114 Z" fill="url(#plasma-nova)" stroke="#38bdf8" stroke-width="2.2"/>
+  <!-- Holographic orbital ring reflection inside visor -->
+  <ellipse cx="128" cy="124" rx="44" ry="15" fill="none" stroke="#e0f2fe" stroke-opacity="0.65" stroke-width="1.8" transform="rotate(-14 128 124)" filter="url(#glow-nova)"/>
+  <circle cx="128" cy="124" r="10" fill="#e0f2fe" fill-opacity="0.22" stroke="#ffffff" stroke-opacity="0.7" stroke-width="1.2"/>
+  <!-- Curved glass highlight -->
+  <path d="M84 102 C92 80 112 74 134 76 C116 86 100 98 90 120 Z" fill="#ffffff" opacity="0.55"/>
+
+  <!-- Side telemetry lock pods -->
+  <rect x="54" y="108" width="12" height="28" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.4"/>
+  <rect x="190" y="108" width="12" height="28" rx="6" fill="#0f172a" stroke="#94a3b8" stroke-width="1.4"/>
+  <circle cx="60" cy="122" r="3" fill="#00e5ff" filter="url(#glow-nova)"/>
+  <circle cx="196" cy="122" r="3" fill="#00e5ff" filter="url(#glow-nova)"/>
+</svg>

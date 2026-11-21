@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="bg-ronin" cx="50%" cy="44%" r="60%">
+      <stop offset="0%" stop-color="#2a0b16"/>
+      <stop offset="52%" stop-color="#110912"/>
+      <stop offset="100%" stop-color="#060910"/>
+    </radialGradient>
+    <radialGradient id="aura-ronin" cx="50%" cy="48%" r="42%">
+      <stop offset="0%" stop-color="#f43f5e" stop-opacity="0.34"/>
+      <stop offset="65%" stop-color="#e11d48" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#060910" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="shell-ronin" x1="20%" y1="5%" x2="80%" y2="95%">
+      <stop offset="0%" stop-color="#374151"/>
+      <stop offset="35%" stop-color="#1f2937"/>
+      <stop offset="75%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#090d16"/>
+    </linearGradient>
+    <linearGradient id="steel-ronin" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="45%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="visor-ronin" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#fb7185"/>
+      <stop offset="50%" stop-color="#ff1e4d"/>
+      <stop offset="100%" stop-color="#fb7185"/>
+    </linearGradient>
+    <filter id="glow-ronin" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="256" height="256" fill="url(#bg-ronin)"/>
+  <circle cx="128" cy="120" r="108" fill="url(#aura-ronin)"/>
+  <!-- Subtle tactical reticle -->
+  <circle cx="128" cy="124" r="96" fill="none" stroke="#f43f5e" stroke-opacity="0.16" stroke-width="1" stroke-dasharray="6 10"/>
+  <path d="M36 124h14M206 124h14M128 24v12" stroke="#f43f5e" stroke-opacity="0.28" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Shoulders & armored collar -->
+  <path d="M34 256 C42 214 68 194 94 188 L128 198 L162 188 C188 194 214 214 222 256 Z" fill="url(#shell-ronin)" stroke="#334155" stroke-width="1.5"/>
+  <path d="M54 256 L72 206 L104 214 L128 232 L152 214 L184 206 L202 256 Z" fill="#0d1320" stroke="#1e293b" stroke-width="1.2"/>
+  <path d="M76 206 L104 214 L100 226 L72 218 Z" fill="url(#steel-ronin)" opacity="0.65"/>
+  <path d="M180 206 L152 214 L156 226 L184 218 Z" fill="url(#steel-ronin)" opacity="0.65"/>
+  <path d="M104 214 L128 232 L152 214" fill="none" stroke="#f43f5e" stroke-width="2" stroke-opacity="0.8" filter="url(#glow-ronin)"/>
+
+  <!-- Neck armor -->
+  <path d="M102 178 L154 178 L150 212 L128 224 L106 212 Z" fill="#0b101b"/>
+  <path d="M108 188 H148 M110 197 H146 M113 206 H143" stroke="#334155" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Kabuto blade crest (back fin) -->
+  <path d="M128 32 L138 62 L128 54 L118 62 Z" fill="url(#steel-ronin)" stroke="#f43f5e" stroke-width="1"/>
+  <path d="M74 72 L52 54 L66 96 Z" fill="#1e293b" stroke="#475569" stroke-width="1.2"/>
+  <path d="M182 72 L204 54 L190 96 Z" fill="#1e293b" stroke="#475569" stroke-width="1.2"/>
+  <path d="M58 60 L72 78 M198 60 L184 78" stroke="#f43f5e" stroke-width="2" stroke-linecap="round" filter="url(#glow-ronin)"/>
+
+  <!-- Main helmet dome -->
+  <path d="M68 122 C66 74 90 50 128 48 C166 50 190 74 188 122 L180 162 L156 186 L128 194 L100 186 L76 162 Z" fill="url(#shell-ronin)" stroke="#475569" stroke-width="1.8"/>
+  <!-- Crown center ridge & specular -->
+  <path d="M128 48 L142 94 L128 106 L114 94 Z" fill="url(#steel-ronin)" opacity="0.5"/>
+  <path d="M128 50 L128 104" stroke="#cbd5e1" stroke-opacity="0.5" stroke-width="1.5"/>
+  <!-- Rim light highlights -->
+  <path d="M72 114 C72 78 92 56 122 52" fill="none" stroke="#94a3b8" stroke-opacity="0.45" stroke-width="2" stroke-linecap="round"/>
+  <path d="M184 114 C184 78 164 56 134 52" fill="none" stroke="#f43f5e" stroke-opacity="0.4" stroke-width="1.8" stroke-linecap="round"/>
+
+  <!-- Visor recess & glowing crimson blade-slit -->
+  <path d="M74 110 L108 118 L128 128 L148 118 L182 110 L176 136 L146 144 L128 148 L110 144 L80 136 Z" fill="#05070d" stroke="#334155" stroke-width="1.5"/>
+  <path d="M80 120 L114 129 L128 134 L142 129 L176 120 L172 130 L142 138 L128 141 L114 138 L84 130 Z" fill="url(#visor-ronin)" filter="url(#glow-ronin)"/>
+  <path d="M88 123 L116 131 L128 135 L140 131 L168 123" fill="none" stroke="#fff1f2" stroke-width="2" stroke-linecap="round" opacity="0.9"/>
+
+  <!-- Oni-inspired angular jaw & respirator guard -->
+  <path d="M82 142 L108 152 L128 160 L148 152 L174 142 L166 174 L148 188 L128 194 L108 188 L90 174 Z" fill="url(#steel-ronin)" stroke="#64748b" stroke-width="1.2"/>
+  <path d="M104 162 L128 172 L152 162 L148 184 L128 192 L108 184 Z" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <!-- Respirator vents -->
+  <path d="M113 171 L124 176 M114 178 L124 183 M143 171 L132 176 M142 178 L132 183" stroke="#f43f5e" stroke-width="2" stroke-linecap="round" opacity="0.85"/>
+  <!-- Cheek ear pods -->
+  <rect x="61" y="114" width="10" height="32" rx="4" fill="#1e293b" stroke="#64748b" stroke-width="1.2"/>
+  <rect x="185" y="114" width="10" height="32" rx="4" fill="#1e293b" stroke="#64748b" stroke-width="1.2"/>
+  <line x1="66" y1="122" x2="66" y2="138" stroke="#f43f5e" stroke-width="2" stroke-linecap="round"/>
+  <line x1="190" y1="122" x2="190" y2="138" stroke="#f43f5e" stroke-width="2" stroke-linecap="round"/>
+</svg>

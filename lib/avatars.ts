@@ -2,20 +2,28 @@
 
 // ─── Avatar library ─────────────────────────────────────────────────────────
 // FORMAT (stable contract — design ideas plug in here without touching UI):
-//   { id, label, kind, series, unlock, src?, bg? }
+//   { id, label, tagline?, featured?, kind, series, unlock, src?, bg? }
 // - `id` is stored in players.avatar_url as `avatar:<id>`.
-// - `kind: 'image'` renders `src` (/avatars/*.png). `kind: 'monogram'`
-//   renders the player's initial on the `bg` gradient (no asset needed).
+// - `kind: 'image'` renders `src` (/avatars/pilots/*.png|svg or legacy /avatars/*.png).
+//   `kind: 'monogram'` renders the player's initial on the `bg` gradient.
 // - `unlock` gates picking: default (everyone) | wins (total_wins >= count)
 //   | level (progression level >= level). Locked tiles show the requirement.
-// SERIES v1:
-// - legion   — Bot Legion: the 19 brand marks already in /avatars (default).
-// - monogram — initial tiles in 6 gradient flavors (default).
-// - trophy   — locked frames earned by wins (structure ready; art = monogram
-//              + gold ring for now, custom frames can replace `frame` later).
+// SERIES:
+// - pilots   — Custom Ludo 3077 Pilot Portraits & Tactical Helmets (player default).
+// - monogram — Initial badges in 6 cyber-tactical gradients (default).
+// - trophy   — Win-gated prestige frames (gold ring in UI).
+// - legion   — AI Bot brand marks (kept for legacy player resolution only; hidden from picker).
 
 export type AvatarKind = 'image' | 'monogram';
-export type AvatarSeries = 'legion' | 'monogram' | 'trophy';
+export type AvatarSeries = 'pilots' | 'monogram' | 'trophy' | 'legion';
+export type PlayerAvatarSeries = Exclude<AvatarSeries, 'legion'>;
+
+export const PLAYER_AVATAR_SERIES: readonly PlayerAvatarSeries[] = [
+    'pilots',
+    'monogram',
+    'trophy',
+] as const;
+
 export type AvatarUnlock =
     | { type: 'default' }
     | { type: 'wins'; count: number }
@@ -24,6 +32,10 @@ export type AvatarUnlock =
 export interface AvatarDef {
     id: string;
     label: string;
+    /** Short pilot role / flavor subtitle shown in the Identity overlay. */
+    tagline?: string;
+    /** Highlighted hero portrait card in the Pilots picker. */
+    featured?: boolean;
     kind: AvatarKind;
     series: AvatarSeries;
     unlock: AvatarUnlock;
@@ -33,42 +45,141 @@ export interface AvatarDef {
     bg?: string;
 }
 
+const PILOT_DEFS: readonly AvatarDef[] = [
+    {
+        id: 'pilot-cipher',
+        label: 'Cipher',
+        tagline: 'Recon Tactician',
+        featured: true,
+        kind: 'image',
+        series: 'pilots',
+        unlock: { type: 'default' },
+        src: '/avatars/pilots/cipher.png',
+    },
+    {
+        id: 'pilot-valkyrie',
+        label: 'Valkyrie',
+        tagline: 'Orbital Ace',
+        featured: true,
+        kind: 'image',
+        series: 'pilots',
+        unlock: { type: 'default' },
+        src: '/avatars/pilots/valkyrie.png',
+    },
+    {
+        id: 'pilot-ronin',
+        label: 'Ronin',
+        tagline: 'Crimson Blade',
+        kind: 'image',
+        series: 'pilots',
+        unlock: { type: 'default' },
+        src: '/avatars/pilots/ronin.svg',
+    },
+    {
+        id: 'pilot-kitsune',
+        label: 'Kitsune',
+        tagline: 'Neon Fox',
+        kind: 'image',
+        series: 'pilots',
+        unlock: { type: 'default' },
+        src: '/avatars/pilots/kitsune.svg',
+    },
+    {
+        id: 'pilot-vanguard',
+        label: 'Vanguard',
+        tagline: 'Orbital Breacher',
+        kind: 'image',
+        series: 'pilots',
+        unlock: { type: 'default' },
+        src: '/avatars/pilots/vanguard.svg',
+    },
+    {
+        id: 'pilot-solaris',
+        label: 'Solaris',
+        tagline: 'Solar Striker',
+        kind: 'image',
+        series: 'pilots',
+        unlock: { type: 'default' },
+        src: '/avatars/pilots/solaris.svg',
+    },
+    {
+        id: 'pilot-specter',
+        label: 'Specter',
+        tagline: 'Stealth Recon',
+        kind: 'image',
+        series: 'pilots',
+        unlock: { type: 'default' },
+        src: '/avatars/pilots/specter.svg',
+    },
+    {
+        id: 'pilot-nova',
+        label: 'Nova',
+        tagline: 'Quantum Pilot',
+        kind: 'image',
+        series: 'pilots',
+        unlock: { type: 'default' },
+        src: '/avatars/pilots/nova.svg',
+    },
+    {
+        id: 'pilot-warden',
+        label: 'Warden',
+        tagline: 'Aegis Sentinel',
+        kind: 'image',
+        series: 'pilots',
+        unlock: { type: 'default' },
+        src: '/avatars/pilots/warden.svg',
+    },
+    {
+        id: 'pilot-apex',
+        label: 'Apex',
+        tagline: 'Grandmaster',
+        kind: 'image',
+        series: 'pilots',
+        unlock: { type: 'default' },
+        src: '/avatars/pilots/apex.svg',
+    },
+];
+
 const LEGION_IDS = [
     'alibaba', 'claude', 'cohere', 'deepseek', 'elevenlabs', 'gemini', 'groq',
     'huggingface', 'meta', 'minimax', 'mistral', 'moonshot', 'nvidia', 'openai',
     'perplexity', 'qwen', 'xai', 'yi', 'zhipuai',
 ] as const;
 
-const MONOGRAM_BGS = [
-    'from-cyan-600 to-teal-400',
-    'from-fuchsia-600 to-purple-400',
-    'from-amber-500 to-orange-400',
-    'from-emerald-600 to-lime-400',
-    'from-rose-600 to-pink-400',
-    'from-blue-600 to-indigo-400',
+const MONOGRAM_FLAVORS: readonly { label: string; tagline: string; bg: string }[] = [
+    { label: 'Hyper Cyan', tagline: '3077 Signal', bg: 'from-cyan-600 to-teal-400' },
+    { label: 'Solar Amber', tagline: 'Apex Gold', bg: 'from-amber-500 to-orange-400' },
+    { label: 'Matrix Jade', tagline: 'Emerald Grid', bg: 'from-emerald-600 to-lime-400' },
+    { label: 'Crimson Pulse', tagline: 'Laser Red', bg: 'from-rose-600 to-red-400' },
+    { label: 'Cobalt Ice', tagline: 'Orbital Blue', bg: 'from-sky-600 to-blue-400' },
+    { label: 'Titanium Onyx', tagline: 'Stealth Steel', bg: 'from-slate-600 to-zinc-400' },
 ];
 
 export const AVATARS: AvatarDef[] = [
+    ...PILOT_DEFS,
+    ...MONOGRAM_FLAVORS.map((flavor, i) => ({
+        id: `mono-${i + 1}`,
+        label: flavor.label,
+        tagline: flavor.tagline,
+        kind: 'monogram' as const,
+        series: 'monogram' as const,
+        unlock: { type: 'default' } as AvatarUnlock,
+        bg: flavor.bg,
+    })),
+    // Trophy frames: same monogram core, gold ring in UI, gated by wins.
+    { id: 'trophy-10', label: 'Deca Victor', tagline: '10 Arena Wins', kind: 'monogram', series: 'trophy', unlock: { type: 'wins', count: 10 }, bg: 'from-yellow-500 to-amber-300' },
+    { id: 'trophy-50', label: 'Arena Hero', tagline: '50 Arena Wins', kind: 'monogram', series: 'trophy', unlock: { type: 'wins', count: 50 }, bg: 'from-orange-500 to-yellow-300' },
+    { id: 'trophy-100', label: 'Centurion', tagline: '100 Arena Wins', kind: 'monogram', series: 'trophy', unlock: { type: 'wins', count: 100 }, bg: 'from-amber-400 to-yellow-200' },
+    // Legacy bot-legion marks preserved for existing profiles only (not shown in player picker).
     ...LEGION_IDS.map((id) => ({
         id: `bot-${id}`,
         label: id[0].toUpperCase() + id.slice(1),
+        tagline: 'Bot Legion',
         kind: 'image' as const,
         series: 'legion' as const,
         unlock: { type: 'default' } as AvatarUnlock,
         src: `/avatars/${id}.png`,
     })),
-    ...MONOGRAM_BGS.map((bg, i) => ({
-        id: `mono-${i + 1}`,
-        label: `Monogram ${i + 1}`,
-        kind: 'monogram' as const,
-        series: 'monogram' as const,
-        unlock: { type: 'default' } as AvatarUnlock,
-        bg,
-    })),
-    // Trophy frames: same monogram core, gold ring in UI, gated by wins.
-    { id: 'trophy-10', label: 'Deca Victor', kind: 'monogram', series: 'trophy', unlock: { type: 'wins', count: 10 }, bg: 'from-yellow-500 to-amber-300' },
-    { id: 'trophy-50', label: 'Arena Hero', kind: 'monogram', series: 'trophy', unlock: { type: 'wins', count: 50 }, bg: 'from-orange-500 to-yellow-300' },
-    { id: 'trophy-100', label: 'Centurion', kind: 'monogram', series: 'trophy', unlock: { type: 'wins', count: 100 }, bg: 'from-amber-400 to-yellow-200' },
 ];
 
 export function isUnlocked(

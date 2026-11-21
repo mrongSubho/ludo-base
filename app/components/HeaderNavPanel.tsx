@@ -8,6 +8,7 @@ import {
     SlidersIcon,
 } from './icons';
 import { RankTierIcon } from './RankTierIcon';
+import { PilotAvatar } from './PilotAvatar';
 import { useTotalChips } from '@/hooks/useTotalChips';
 import { formatCompactChips } from '@/lib/chips';
 
@@ -102,12 +103,11 @@ export const HeaderNavPanel = ({
                 <div className="relative flex-shrink-0">
                     <div className="hud-avatar-frame w-7 h-7 sm:w-8 sm:h-8 rounded-lg overflow-hidden border border-line-strong bg-surface-panel flex items-center justify-center">
                         {finalAvatar ? (
-                            <img
-                                src={finalAvatar}
-                                alt={finalName}
-                                className="w-full h-full object-cover"
-                                width={96}
-                                height={96}
+                            <PilotAvatar
+                                avatarUrl={finalAvatar}
+                                name={finalName}
+                                size="xs"
+                                className="!w-full !h-full !rounded-none !border-0 !ring-0"
                             />
                         ) : (
                             <PilotAvatarFallbackIcon className="w-4 h-4 text-accent" active />

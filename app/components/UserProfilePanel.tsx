@@ -24,7 +24,8 @@ import { Button } from './Button';
 import { CheckGlyphIcon, ChipsHexIcon, PilotAvatarFallbackIcon } from './icons';
 import {
     AVATARS,
-    AvatarSeries,
+    PLAYER_AVATAR_SERIES,
+    PlayerAvatarSeries,
     encodeAvatar,
     isUnlocked,
     resolveAvatarDef,
@@ -101,9 +102,9 @@ export default function UserProfilePanel({
     const coins = profile?.coins || 0;
     const compactChips = formatCompactChips(totalChips.totalChips);
 
-    // ── Identity editor (callsign + avatar customizer) ────────────────────────
+    // ── Identity editor (callsign + avatar customizer overlay) ────────────────
     const [editing, setEditing] = useState(false);
-    const [avatarSeries, setAvatarSeries] = useState<AvatarSeries>('legion');
+    const [avatarSeries, setAvatarSeries] = useState<PlayerAvatarSeries>('pilots');
     const [draftName, setDraftName] = useState('');
     const [draftAvatarId, setDraftAvatarId] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
@@ -115,7 +116,9 @@ export default function UserProfilePanel({
         if (!guard('profile-edit')) return;
         setDraftName(profile?.username && !profile.username.startsWith('0x') ? profile.username : '');
         setDraftAvatarId(avatarDef?.id ?? null);
-        setAvatarSeries(avatarDef?.series ?? 'legion');
+        setAvatarSeries(
+            avatarDef && avatarDef.series !== 'legion' ? avatarDef.series : 'pilots',
+        );
         setSaveError(null);
         setEditing(true);
     };
@@ -126,6 +129,7 @@ export default function UserProfilePanel({
     }, [draftName]);
 
     const previewAvatarUrl = draftAvatarId ? encodeAvatar(draftAvatarId) : finalAvatar;
+    const previewAvatarDef = resolveAvatarDef(previewAvatarUrl);
     const previewName = draftName.trim() || finalName;
 
     const saveIdentity = async () => {
@@ -324,6 +328,14 @@ export default function UserProfilePanel({
     ];
 
     const seriesAvatars = AVATARS.filter((a) => a.series === avatarSeries);
+    const featuredPilots = useMemo(
+        () => seriesAvatars.filter((a) => a.featured),
+        [seriesAvatars],
+    );
+    const helmetPilots = useMemo(
+        () => seriesAvatars.filter((a) => !a.featured),
+        [seriesAvatars],
+    );
 
     const handleCopyAddress = async () => {
         if (!address || isGuest) return;
@@ -337,6 +349,7 @@ export default function UserProfilePanel({
     };
 
     return (
+        <>
         <GamePanelShell
             scopeClass="ludo-profile-scope"
             kicker="// PILOT DOSSIER"
@@ -413,12 +426,36 @@ export default function UserProfilePanel({
                 <div className="flex flex-col gap-3">
                     {/* Hero Dossier Card */}
                     <div className="rounded-2xl bg-surface-recessed border border-line-soft p-3.5 flex items-center gap-3">
-                        <PilotAvatar
-                            avatarUrl={finalAvatar}
-                            name={finalName}
-                            size="lg"
-                            tier={progression.tier}
-                        />
+                        <button
+                            type="button"
+                            onClick={openEditor}
+                            aria-label="Change pilot avatar"
+                            className="relative shrink-0 rounded-full group cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        >
+                            <PilotAvatar
+                                avatarUrl={finalAvatar}
+                                name={finalName}
+                                size="lg"
+                                tier={progression.tier}
+                                className="transition-transform group-hover:scale-[1.03]"
+                            />
+                            <span
+                                aria-hidden="true"
+                                className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-surface-panel border border-line-strong text-accent flex items-center justify-center shadow"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="w-2.5 h-2.5"
+                                >
+                                    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                                </svg>
+                            </span>
+                        </button>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 min-w-0">
                                 <h3 className="text-ludo-lg font-extrabold text-ink-strong truncate">
@@ -508,189 +545,6 @@ export default function UserProfilePanel({
                             </div>
                         </div>
                     </div>
-
-                    {/* Identity Editor & Avatar Customizer */}
-                    {editing && (
-                        <section className="flex flex-col gap-2">
-                            <HudSectionLabel>Edit Callsign &amp; Emblem</HudSectionLabel>
-                            <div className="rounded-2xl bg-surface-recessed border border-line-strong p-3.5 flex flex-col gap-3">
-                                {/* Live Header/Lobby Badge Preview */}
-                                <div className="rounded-xl bg-surface-panel border border-line-soft p-2.5 flex items-center justify-between gap-2.5">
-                                    <div className="flex items-center gap-2.5 min-w-0">
-                                        <PilotAvatar
-                                            avatarUrl={previewAvatarUrl}
-                                            name={previewName}
-                                            size="sm"
-                                            tier={progression.tier}
-                                        />
-                                        <div className="min-w-0">
-                                            <div className="text-ludo-xs font-mono uppercase tracking-[0.16em] text-ink-faint">
-                                                Live Badge Preview
-                                            </div>
-                                            <div className="flex items-center gap-1.5 min-w-0">
-                                                <span className="text-ludo-md font-extrabold text-ink-strong truncate">
-                                                    {previewName}
-                                                </span>
-                                                {profile?.clan_tag && (
-                                                    <span className="px-1 py-0.5 rounded-sm bg-accent-soft text-accent text-ludo-xs font-mono font-bold shrink-0">
-                                                        [{profile.clan_tag}]
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <span className="px-2 py-0.5 rounded-full bg-surface-recessed border border-line-soft text-ludo-xs font-mono font-bold text-accent shrink-0">
-                                        Lv.{progression.level}
-                                    </span>
-                                </div>
-
-                                {/* Series Filter Bar */}
-                                <div>
-                                    <div className="flex items-center justify-between mb-2 gap-2">
-                                        <span className="text-ludo-xs font-bold uppercase tracking-[0.18em] text-ink-muted">
-                                            Avatar Series
-                                        </span>
-                                        <div className="flex items-center gap-1 bg-surface-panel p-0.5 rounded-xl border border-line-soft">
-                                            {(['legion', 'monogram', 'trophy'] as const).map((series) => {
-                                                const active = avatarSeries === series;
-                                                return (
-                                                    <button
-                                                        key={series}
-                                                        type="button"
-                                                        onClick={() => setAvatarSeries(series)}
-                                                        className={`px-2 py-1 rounded-lg text-ludo-xs font-bold uppercase tracking-wider transition-colors capitalize ${
-                                                            active
-                                                                ? 'bg-accent-soft text-accent border border-accent/40'
-                                                                : 'text-ink-faint hover:text-ink-strong'
-                                                        }`}
-                                                    >
-                                                        {series}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-6 gap-1.5">
-                                        {seriesAvatars.map((item) => {
-                                            const { ok, hint } = isUnlocked(item, {
-                                                wins,
-                                                level: progression.level,
-                                            });
-                                            const selected = draftAvatarId === item.id;
-                                            return (
-                                                <button
-                                                    key={item.id}
-                                                    type="button"
-                                                    disabled={!ok}
-                                                    onClick={() => setDraftAvatarId(item.id)}
-                                                    title={ok ? item.label : `${item.label} — ${hint}`}
-                                                    aria-label={item.label}
-                                                    className={`relative aspect-square rounded-xl overflow-hidden border transition-all flex items-center justify-center ${
-                                                        selected
-                                                            ? 'border-accent ring-2 ring-accent/50 scale-[1.03]'
-                                                            : ok
-                                                              ? 'border-line-soft hover:border-line-strong'
-                                                              : 'border-line-soft opacity-45 cursor-not-allowed'
-                                                    }`}
-                                                >
-                                                    {item.kind === 'image' && item.src ? (
-                                                        <img
-                                                            src={item.src}
-                                                            alt={item.label}
-                                                            className="w-full h-full object-cover"
-                                                            width={96}
-                                                            height={96}
-                                                        />
-                                                    ) : (
-                                                        <span
-                                                            className={`w-full h-full bg-gradient-to-tr ${item.bg} flex items-center justify-center font-extrabold text-ludo-md`}
-                                                            style={{ color: '#ffffff' }}
-                                                        >
-                                                            {(previewName?.[0] || 'U').toUpperCase()}
-                                                        </span>
-                                                    )}
-                                                    {selected && (
-                                                        <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-accent text-accent-ink flex items-center justify-center shadow">
-                                                            <CheckGlyphIcon className="w-2.5 h-2.5" />
-                                                        </span>
-                                                    )}
-                                                    {!ok && (
-                                                        <span className="absolute inset-x-0 bottom-0 bg-surface-panel/90 text-ludo-xs font-bold text-warn text-center py-0.5 leading-none border-t border-line-soft">
-                                                            {hint}
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* Callsign Field + Validation */}
-                                <div>
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <span className="text-ludo-xs font-bold uppercase tracking-[0.18em] text-ink-muted">
-                                            Callsign
-                                        </span>
-                                        <span className="text-ludo-xs font-mono text-ink-faint tabular-nums">
-                                            {draftName.trim().length}/{NAME_RULES.max}
-                                        </span>
-                                    </div>
-                                    <input
-                                        value={draftName}
-                                        onChange={(e) => {
-                                            setDraftName(e.target.value);
-                                            if (saveError) setSaveError(null);
-                                        }}
-                                        maxLength={NAME_RULES.max}
-                                        placeholder={finalName}
-                                        autoComplete="off"
-                                        autoCorrect="off"
-                                        autoCapitalize="none"
-                                        spellCheck={false}
-                                        className="w-full bg-surface-panel border border-line-soft rounded-xl px-3 py-2 text-ludo-md font-bold text-ink-strong placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors"
-                                    />
-                                    <div className="flex items-center justify-between gap-2 mt-1">
-                                        <span className="text-ludo-xs font-bold text-ink-faint">
-                                            {NAME_RULES.help} · unique handle
-                                        </span>
-                                        {draftName.trim().length > 0 && !draftValidationErr && (
-                                            <span className="text-ludo-xs font-bold text-positive shrink-0">
-                                                Valid callsign
-                                            </span>
-                                        )}
-                                    </div>
-                                    {(saveError || draftValidationErr) && (
-                                        <div className="text-ludo-sm font-bold text-negative mt-1">
-                                            {saveError || draftValidationErr}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="flex gap-2">
-                                    <Button
-                                        variant="secondary"
-                                        size="md"
-                                        onClick={() => setEditing(false)}
-                                        disabled={saving}
-                                        className="flex-1"
-                                    >
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        variant="primary"
-                                        size="md"
-                                        onClick={saveIdentity}
-                                        loading={saving}
-                                        disabled={saving || !draftName.trim() || !!draftValidationErr}
-                                        className="flex-1"
-                                    >
-                                        {saving ? 'Saving…' : 'Save Identity'}
-                                    </Button>
-                                </div>
-                            </div>
-                        </section>
-                    )}
 
                     {/* 4-Tile KPI Strip */}
                     <section className="flex flex-col gap-2">
@@ -1015,5 +869,353 @@ export default function UserProfilePanel({
                 </div>
             )}
         </GamePanelShell>
+
+        {/* Dedicated Edit Profile Overlay Page */}
+        {editing && (
+            <GamePanelShell
+                overlay
+                scopeClass="ludo-profile-scope"
+                kicker="// PILOT IDENTITY"
+                hideOrbs
+                compactHeader
+                bodyScroll={false}
+                onClose={() => {
+                    if (!saving) setEditing(false);
+                }}
+                title={
+                    <span className="flex items-center gap-2">
+                        <span className="w-7 h-7 rounded-xl bg-accent-soft border border-accent/40 flex items-center justify-center text-accent shrink-0">
+                            <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="w-4 h-4"
+                            >
+                                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                            </svg>
+                        </span>
+                        <span>Edit Profile</span>
+                    </span>
+                }
+                subtitle={
+                    <span className="text-ludo-xs font-mono uppercase tracking-[0.16em] text-ink-muted truncate">
+                        Customize Callsign &amp; Pilot Emblem
+                    </span>
+                }
+            >
+                <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 sm:px-5 pt-3.5 pb-4 flex flex-col gap-4">
+                    {/* Hero Live Badge Preview */}
+                    <section className="rounded-2xl bg-surface-recessed border border-line-strong p-3.5 flex items-center gap-3.5">
+                        <PilotAvatar
+                            avatarUrl={previewAvatarUrl}
+                            name={previewName}
+                            size="xl"
+                            tier={progression.tier}
+                        />
+                        <div className="flex-1 min-w-0 flex flex-col gap-1">
+                            <div className="flex items-center justify-between gap-2">
+                                <span className="text-ludo-xs font-mono uppercase tracking-[0.18em] text-ink-faint">
+                                    Live Badge Preview
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full bg-surface-panel border border-line-soft text-ludo-xs font-mono font-bold text-accent shrink-0">
+                                    Lv.{progression.level}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-ludo-lg font-extrabold text-ink-strong truncate">
+                                    {previewName}
+                                </span>
+                                {profile?.clan_tag && (
+                                    <span className="px-1.5 py-0.5 rounded-sm bg-accent-soft border border-accent/35 text-accent text-ludo-xs font-mono font-bold shrink-0">
+                                        [{profile.clan_tag}]
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-wrap text-ludo-xs font-bold">
+                                <span className="inline-flex items-center gap-1 text-accent uppercase tracking-wider">
+                                    <RankTierIcon tier={progression.tier} className="w-3.5 h-3.5 shrink-0" />
+                                    <span>{progression.tier}</span>
+                                </span>
+                                {previewAvatarDef && (
+                                    <>
+                                        <span className="text-ink-faint" aria-hidden="true">·</span>
+                                        <span className="text-ink-muted truncate">
+                                            {previewAvatarDef.label}
+                                            {previewAvatarDef.tagline ? ` · ${previewAvatarDef.tagline}` : ''}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Callsign Field */}
+                    <section className="flex flex-col gap-2">
+                        <HudSectionLabel
+                            right={
+                                <span className="text-ludo-xs font-mono text-ink-faint tabular-nums">
+                                    {draftName.trim().length}/{NAME_RULES.max}
+                                </span>
+                            }
+                        >
+                            Callsign
+                        </HudSectionLabel>
+                        <div className="rounded-2xl bg-surface-recessed border border-line-soft p-3 flex flex-col gap-1.5">
+                            <input
+                                value={draftName}
+                                onChange={(e) => {
+                                    setDraftName(e.target.value);
+                                    if (saveError) setSaveError(null);
+                                }}
+                                maxLength={NAME_RULES.max}
+                                placeholder={finalName}
+                                autoComplete="off"
+                                autoCorrect="off"
+                                autoCapitalize="none"
+                                spellCheck={false}
+                                className="w-full bg-surface-panel border border-line-soft rounded-xl px-3.5 py-2.5 text-ludo-md font-bold text-ink-strong placeholder:text-ink-faint focus:outline-none focus:border-accent transition-colors"
+                            />
+                            <div className="flex items-center justify-between gap-2 px-0.5">
+                                <span className="text-ludo-xs font-bold text-ink-faint">
+                                    {NAME_RULES.help} · unique handle
+                                </span>
+                                {draftName.trim().length > 0 && !draftValidationErr && (
+                                    <span className="text-ludo-xs font-bold text-positive shrink-0">
+                                        Valid callsign
+                                    </span>
+                                )}
+                            </div>
+                            {(saveError || draftValidationErr) && (
+                                <div className="text-ludo-sm font-bold text-negative px-0.5">
+                                    {saveError || draftValidationErr}
+                                </div>
+                            )}
+                        </div>
+                    </section>
+
+                    {/* Avatar Series & Picker */}
+                    <section className="flex flex-col gap-2.5">
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="text-ludo-xs font-bold uppercase tracking-[0.18em] text-ink-muted">
+                                Avatar Series
+                            </span>
+                            <div className="flex items-center gap-1 bg-surface-recessed p-1 rounded-xl border border-line-soft">
+                                {PLAYER_AVATAR_SERIES.map((series) => {
+                                    const active = avatarSeries === series;
+                                    return (
+                                        <button
+                                            key={series}
+                                            type="button"
+                                            onClick={() => setAvatarSeries(series)}
+                                            className={`px-2.5 py-1 rounded-lg text-ludo-xs font-bold uppercase tracking-wider transition-colors capitalize cursor-pointer ${
+                                                active
+                                                    ? 'bg-accent-soft text-accent border border-accent/40'
+                                                    : 'text-ink-faint hover:text-ink-strong border border-transparent'
+                                            }`}
+                                        >
+                                            {series}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {avatarSeries === 'pilots' ? (
+                            <div className="flex flex-col gap-3">
+                                {/* Featured AAA Portraits */}
+                                {featuredPilots.length > 0 && (
+                                    <div className="flex flex-col gap-1.5">
+                                        <span className="text-ludo-xs font-mono uppercase tracking-[0.16em] text-ink-faint px-0.5">
+                                            Signature Portraits
+                                        </span>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {featuredPilots.map((item) => {
+                                                const selected = draftAvatarId === item.id;
+                                                return (
+                                                    <button
+                                                        key={item.id}
+                                                        type="button"
+                                                        onClick={() => setDraftAvatarId(item.id)}
+                                                        aria-label={item.label}
+                                                        className={`relative rounded-2xl p-2.5 border transition-all flex items-center gap-2.5 text-left cursor-pointer ${
+                                                            selected
+                                                                ? 'bg-accent-soft/40 border-accent ring-2 ring-accent/40'
+                                                                : 'bg-surface-recessed border-line-soft hover:border-line-strong'
+                                                        }`}
+                                                    >
+                                                        <div className="w-14 h-14 rounded-full overflow-hidden border border-line-strong bg-surface-panel shrink-0">
+                                                            {item.src && (
+                                                                <img
+                                                                    src={item.src}
+                                                                    alt={item.label}
+                                                                    className="w-full h-full object-cover"
+                                                                    width={96}
+                                                                    height={96}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="text-ludo-sm font-extrabold text-ink-strong uppercase tracking-wide truncate">
+                                                                {item.label}
+                                                            </div>
+                                                            {item.tagline && (
+                                                                <div className="text-ludo-xs font-bold text-ink-faint truncate mt-0.5">
+                                                                    {item.tagline}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {selected && (
+                                                            <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-accent text-accent-ink flex items-center justify-center shadow">
+                                                                <CheckGlyphIcon className="w-2.5 h-2.5" />
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Custom 3077 Tactical Helmets Grid */}
+                                <div className="flex flex-col gap-1.5">
+                                    <span className="text-ludo-xs font-mono uppercase tracking-[0.16em] text-ink-faint px-0.5">
+                                        3077 Pilot Helmets
+                                    </span>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {helmetPilots.map((item) => {
+                                            const { ok, hint } = isUnlocked(item, {
+                                                wins,
+                                                level: progression.level,
+                                            });
+                                            const selected = draftAvatarId === item.id;
+                                            return (
+                                                <button
+                                                    key={item.id}
+                                                    type="button"
+                                                    disabled={!ok}
+                                                    onClick={() => setDraftAvatarId(item.id)}
+                                                    title={ok ? `${item.label}${item.tagline ? ` · ${item.tagline}` : ''}` : `${item.label} — ${hint}`}
+                                                    aria-label={item.label}
+                                                    className={`relative rounded-2xl p-1.5 border transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
+                                                        selected
+                                                            ? 'bg-accent-soft/40 border-accent ring-2 ring-accent/45 scale-[1.02]'
+                                                            : ok
+                                                              ? 'bg-surface-recessed border-line-soft hover:border-line-strong'
+                                                              : 'bg-surface-recessed border-line-soft opacity-45 cursor-not-allowed'
+                                                    }`}
+                                                >
+                                                    <div className="w-full aspect-square rounded-xl overflow-hidden border border-line-soft bg-surface-panel">
+                                                        {item.src && (
+                                                            <img
+                                                                src={item.src}
+                                                                alt={item.label}
+                                                                className="w-full h-full object-cover"
+                                                                width={96}
+                                                                height={96}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    <span className="text-ludo-xs font-extrabold uppercase tracking-wider text-ink-strong truncate w-full text-center leading-none pb-0.5">
+                                                        {item.label}
+                                                    </span>
+                                                    {selected && (
+                                                        <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-accent text-accent-ink flex items-center justify-center shadow">
+                                                            <CheckGlyphIcon className="w-2.5 h-2.5" />
+                                                        </span>
+                                                    )}
+                                                    {!ok && (
+                                                        <span className="absolute inset-x-1 bottom-5 bg-surface-panel/90 text-ludo-xs font-bold text-warn text-center py-0.5 leading-none rounded border border-line-soft">
+                                                            {hint}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-2">
+                                {seriesAvatars.map((item) => {
+                                    const { ok, hint } = isUnlocked(item, {
+                                        wins,
+                                        level: progression.level,
+                                    });
+                                    const selected = draftAvatarId === item.id;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            disabled={!ok}
+                                            onClick={() => setDraftAvatarId(item.id)}
+                                            title={ok ? item.label : `${item.label} — ${hint}`}
+                                            aria-label={item.label}
+                                            className={`relative rounded-2xl p-2.5 border transition-all flex flex-col items-center gap-2 cursor-pointer ${
+                                                selected
+                                                    ? 'bg-accent-soft/40 border-accent ring-2 ring-accent/45'
+                                                    : ok
+                                                      ? 'bg-surface-recessed border-line-soft hover:border-line-strong'
+                                                      : 'bg-surface-recessed border-line-soft opacity-50 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`w-12 h-12 rounded-full bg-gradient-to-tr ${item.bg} flex items-center justify-center font-extrabold text-ludo-xl border ${
+                                                    item.series === 'trophy'
+                                                        ? 'ring-2 ring-warn/80 border-warn/60'
+                                                        : 'border-line-strong'
+                                                }`}
+                                                style={{ color: '#ffffff', textShadow: '0 1px 2px rgba(0, 0, 0, 0.45)' }}
+                                            >
+                                                {(previewName?.[0] || 'U').toUpperCase()}
+                                            </span>
+                                            <div className="w-full text-center min-w-0">
+                                                <div className="text-ludo-xs font-extrabold text-ink-strong uppercase tracking-wider truncate">
+                                                    {item.label}
+                                                </div>
+                                                <div className={`text-ludo-xs font-bold truncate mt-0.5 ${ok ? 'text-ink-faint' : 'text-warn'}`}>
+                                                    {ok ? item.tagline || 'Unlocked' : hint}
+                                                </div>
+                                            </div>
+                                            {selected && (
+                                                <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-accent text-accent-ink flex items-center justify-center shadow">
+                                                    <CheckGlyphIcon className="w-2.5 h-2.5" />
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </section>
+                </div>
+
+                {/* Pinned Save / Cancel Footer */}
+                <div className="shrink-0 px-4 sm:px-5 py-3 border-t border-line-soft bg-surface-panel/90 flex gap-2.5">
+                    <Button
+                        variant="secondary"
+                        size="md"
+                        onClick={() => setEditing(false)}
+                        disabled={saving}
+                        className="flex-1"
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="primary"
+                        size="md"
+                        onClick={saveIdentity}
+                        loading={saving}
+                        disabled={saving || !draftName.trim() || !!draftValidationErr}
+                        className="flex-1"
+                    >
+                        {saving ? 'Saving…' : 'Save Identity'}
+                    </Button>
+                </div>
+            </GamePanelShell>
+        )}
+        </>
     );
 }

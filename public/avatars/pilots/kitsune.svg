@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="bg-kitsune" cx="50%" cy="44%" r="60%">
+      <stop offset="0%" stop-color="#0b2434"/>
+      <stop offset="55%" stop-color="#08121f"/>
+      <stop offset="100%" stop-color="#050810"/>
+    </radialGradient>
+    <radialGradient id="aura-kitsune" cx="50%" cy="46%" r="44%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.32"/>
+      <stop offset="65%" stop-color="#0ea5e9" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#050810" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="pearl-kitsune" x1="18%" y1="10%" x2="82%" y2="90%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="45%" stop-color="#cbd5e1"/>
+      <stop offset="85%" stop-color="#64748b"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="carbon-kitsune" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#090d16"/>
+    </linearGradient>
+    <filter id="glow-kitsune" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="256" height="256" fill="url(#bg-kitsune)"/>
+  <circle cx="128" cy="122" r="108" fill="url(#aura-kitsune)"/>
+  <circle cx="128" cy="126" r="98" fill="none" stroke="#00e5ff" stroke-opacity="0.16" stroke-width="1"/>
+
+  <!-- Cyber jacket collar & shoulders -->
+  <path d="M36 256 C44 216 70 198 96 192 L128 206 L160 192 C186 198 212 216 220 256 Z" fill="url(#carbon-kitsune)" stroke="#334155" stroke-width="1.5"/>
+  <path d="M64 256 L82 204 L128 228 L174 204 L192 256 Z" fill="#0f172a" stroke="#00e5ff" stroke-opacity="0.35" stroke-width="1.4"/>
+  <path d="M90 212 L128 232 L166 212" fill="none" stroke="#00e5ff" stroke-width="2.2" filter="url(#glow-kitsune)"/>
+
+  <!-- Neck -->
+  <path d="M106 184 L150 184 L146 216 L128 226 L110 216 Z" fill="#090f1a"/>
+
+  <!-- Twin robotic fox ears -->
+  <path d="M74 106 L60 32 L106 72 Z" fill="url(#carbon-kitsune)" stroke="#94a3b8" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M182 106 L196 32 L150 72 Z" fill="url(#carbon-kitsune)" stroke="#94a3b8" stroke-width="1.6" stroke-linejoin="round"/>
+  <!-- Inner luminous cyan ear conduits -->
+  <path d="M76 92 L69 48 L96 74 Z" fill="#00e5ff" fill-opacity="0.22" stroke="#00e5ff" stroke-width="2" filter="url(#glow-kitsune)"/>
+  <path d="M180 92 L187 48 L160 74 Z" fill="#00e5ff" fill-opacity="0.22" stroke="#00e5ff" stroke-width="2" filter="url(#glow-kitsune)"/>
+
+  <!-- Head carbon hood -->
+  <path d="M72 114 C72 78 96 62 128 62 C160 62 184 78 184 114 L182 150 L158 182 L128 196 L98 182 L74 150 Z" fill="url(#carbon-kitsune)" stroke="#475569" stroke-width="1.6"/>
+
+  <!-- Pearl-white sculptural Kitsune faceplate -->
+  <path d="M76 116 L96 82 L128 74 L160 82 L180 116 L170 156 L144 186 L128 194 L112 186 L86 156 Z" fill="url(#pearl-kitsune)" stroke="#e2e8f0" stroke-width="1.4"/>
+  <!-- Center geometric nose bridge shadow -->
+  <path d="M128 76 L138 118 L128 166 L118 118 Z" fill="#94a3b8" opacity="0.32"/>
+  <path d="M128 78 L128 158" stroke="#ffffff" stroke-opacity="0.7" stroke-width="1.2"/>
+
+  <!-- Forehead diamond emblem -->
+  <path d="M128 86 L136 98 L128 110 L120 98 Z" fill="#f43f5e"/>
+  <path d="M128 91 L132 98 L128 105 L124 98 Z" fill="#ffe4e6"/>
+
+  <!-- Slanted cyber-fox eyes (visor cutouts) -->
+  <path d="M86 122 L117 132 L112 142 L88 135 Z" fill="#060910"/>
+  <path d="M170 122 L139 132 L144 142 L168 135 Z" fill="#060910"/>
+  <path d="M90 125 L114 133 L111 139 L91 133 Z" fill="#00e5ff" filter="url(#glow-kitsune)"/>
+  <path d="M166 125 L142 133 L145 139 L165 133 Z" fill="#00e5ff" filter="url(#glow-kitsune)"/>
+  <line x1="94" y1="128" x2="110" y2="134" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="162" y1="128" x2="146" y2="134" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Traditional-meets-cyber crimson cheek markings -->
+  <path d="M82 144 L98 150 M86 153 L100 158" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M174 144 L158 150 M170 153 L156 158" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Muzzle & dark carbon chin split -->
+  <path d="M114 166 L128 176 L142 166 L136 188 L128 194 L120 188 Z" fill="#0f172a" stroke="#475569" stroke-width="1"/>
+  <path d="M122 178 L128 182 L134 178" fill="none" stroke="#00e5ff" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

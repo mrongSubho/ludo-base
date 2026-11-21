@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="bg-apex" cx="50%" cy="44%" r="60%">
+      <stop offset="0%" stop-color="#221c0c"/>
+      <stop offset="52%" stop-color="#0b121c"/>
+      <stop offset="100%" stop-color="#04070d"/>
+    </radialGradient>
+    <radialGradient id="aura-apex" cx="50%" cy="46%" r="46%">
+      <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.34"/>
+      <stop offset="55%" stop-color="#00e5ff" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#04070d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="obsidian-apex" x1="15%" y1="5%" x2="85%" y2="95%">
+      <stop offset="0%" stop-color="#263042"/>
+      <stop offset="45%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#060911"/>
+    </linearGradient>
+    <linearGradient id="gold-apex" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="45%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </linearGradient>
+    <filter id="glow-apex" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="256" height="256" fill="url(#bg-apex)"/>
+  <circle cx="128" cy="122" r="110" fill="url(#aura-apex)"/>
+  <circle cx="128" cy="124" r="98" fill="none" stroke="url(#gold-apex)" stroke-opacity="0.28" stroke-width="1.2"/>
+
+  <!-- Sovereign carbon-and-gold shoulders -->
+  <path d="M26 256 C36 210 66 190 96 184 L128 198 L160 184 C190 190 220 210 230 256 Z" fill="url(#obsidian-apex)" stroke="url(#gold-apex)" stroke-width="1.8"/>
+  <path d="M56 256 L78 202 L128 226 L178 202 L200 256 Z" fill="#090e18" stroke="url(#gold-apex)" stroke-width="1.4"/>
+  <!-- Chest apex diamond core -->
+  <polygon points="128,220 138,234 128,248 118,234" fill="#00e5ff" filter="url(#glow-apex)"/>
+  <polygon points="128,225 133,234 128,243 123,234" fill="#ecfeff"/>
+
+  <!-- Neck -->
+  <path d="M104 176 L152 176 L148 210 L128 220 L108 210 Z" fill="#080c15"/>
+
+  <!-- Floating 3-peak championship crown crest -->
+  <path d="M84 74 L74 44 L106 60 L128 28 L150 60 L182 44 L172 74 Z" fill="url(#gold-apex)" stroke="#fef08a" stroke-width="1.2" stroke-linejoin="round" filter="url(#glow-apex)"/>
+  <polygon points="128,38 134,54 128,62 122,54" fill="#00e5ff"/>
+
+  <!-- Faceted sovereign obsidian helmet -->
+  <path d="M68 116 C68 74 92 56 128 56 C164 56 188 74 188 116 L180 162 L154 188 L128 196 L102 188 L76 162 Z" fill="url(#obsidian-apex)" stroke="url(#gold-apex)" stroke-width="2"/>
+  <!-- Gold filigree brow -->
+  <path d="M74 102 L128 116 L182 102 L176 92 L128 104 L80 92 Z" fill="url(#gold-apex)"/>
+
+  <!-- Razor-sharp cyber-cyan diamond visor -->
+  <path d="M78 114 L128 126 L178 114 L172 142 L128 154 L84 142 Z" fill="#040811" stroke="#334155" stroke-width="1.4"/>
+  <path d="M84 120 L128 131 L172 120 L166 136 L128 146 L90 136 Z" fill="#00e5ff" filter="url(#glow-apex)"/>
+  <path d="M92 124 L128 134 L164 124" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+
+  <!-- Sculpted gold-edged jaw guard -->
+  <path d="M88 148 L128 162 L168 148 L156 184 L128 194 L100 184 Z" fill="#111827" stroke="url(#gold-apex)" stroke-width="1.5"/>
+  <path d="M112 168 L128 176 L144 168 L138 186 L128 191 L118 186 Z" fill="url(#gold-apex)" opacity="0.85"/>
+</svg>
