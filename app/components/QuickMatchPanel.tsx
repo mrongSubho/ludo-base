@@ -16,6 +16,7 @@ import { useArenaVault } from '@/hooks/useArenaVault';
 import { useToast } from './Toast';
 import { HudCornerTicks } from './HudPrimitives';
 import { ChipsHexIcon, PilotAvatarFallbackIcon, QuickDeployIcon, SimBotIcon } from './icons';
+import { ENTRY_FEE_TIERS } from '@/lib/entryFeeDial';
 
 const PRO_TIPS = [
     "Safe zones protect you from capture!",
@@ -27,7 +28,7 @@ const PRO_TIPS = [
 ];
 
 /** Matchmaking snaps to the same fee ladders as the lobby. */
-const FEE_PRESETS = [0, 500, 1_000, 10_000, 100_000, 500_000, 1_000_000, 1_500_000, 5_000_000, 10_000_000] as const;
+const FEE_PRESETS = ENTRY_FEE_TIERS;
 
 function snapFee(n: number): number {
     return FEE_PRESETS.reduce((best, p) => (Math.abs(p - n) < Math.abs(best - n) ? p : best), FEE_PRESETS[0]);

@@ -959,3 +959,12 @@ body.theme-3077 .cb-activity-link {
 body.theme-3077 .cb-tab.active {
   color: #00e5ff;
 }
+
+/* ─── 12. Entry Fee Rotary Dial Console (3077 Only) ─── */
+body.theme-3077 .knob-console-3077 {
+  position: relative;
+}
+
+body.theme-3077 .knob-rotor-3077 {
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.72));
+}

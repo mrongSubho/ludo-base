@@ -49,7 +49,7 @@ export const DEMO_EXHIBITIONS: readonly DemoExhibitionConfig[] = [
         title: 'VIP 1v1 Classic AI Duel',
         gameMode: 'classic',
         matchShape: '1v1',
-        wager: 1_500_000,
+        wager: 3_000_000,
         defaultBetVolume: 120_000,
         summaryText: 'High-stakes 1v1 AI Duel · Watch live turns & bet winner',
         bots: [
@@ -119,7 +119,7 @@ export function buildDemoArenaRooms(existingRooms: ArenaDirectoryRoom[]): ArenaD
     const demoRooms: ArenaDirectoryRoom[] = [];
     const nowIso = new Date().toISOString();
 
-    // 1. Joinable instant AI matches (Free, 500K VIP, 1.5M VIP)
+    // 1. Joinable instant AI matches (Free, 500K VIP, 3M VIP)
     const joinableDemos: Array<{
         id: string;
         gameMode: ArenaGameMode;
@@ -139,10 +139,10 @@ export function buildDemoArenaRooms(existingRooms: ArenaDirectoryRoom[]): ArenaD
             ],
         },
         {
-            id: 'demo-join:vip-2v2-1m5',
+            id: 'demo-join:vip-2v2-3m',
             gameMode: 'power',
             matchShape: '2v2',
-            wager: 1_500_000,
+            wager: 3_000_000,
             summaryText: 'AI Squad Skirmish · Claim the 4th seat & launch 2v2 Power match',
             bots: [
                 { walletAddress: 'ai-bot-atlas', username: 'Bot Atlas', clanTag: '3077', rankTier: 'Master', rxp: 8900, wins: 57, totalGames: 84 },

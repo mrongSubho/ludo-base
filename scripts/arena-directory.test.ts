@@ -9,12 +9,12 @@ import { buildDemoArenaRooms, getDemoExhibitionByRoomCode } from '../lib/arena/d
 test('arena directory: full-spectrum wager tiers cover Free through 10M without level gating', () => {
     assert.deepEqual(
         [...ARENA_WAGER_PRESETS],
-        [0, 500, 1_000, 10_000, 100_000, 500_000, 1_000_000, 1_500_000, 5_000_000, 10_000_000],
+        [0, 500, 1_000, 10_000, 100_000, 500_000, 1_000_000, 3_000_000, 5_000_000, 10_000_000],
     );
 
     assert.equal(formatArenaChips(0), 'Free');
     assert.equal(formatArenaChips(500_000), '500K');
-    assert.equal(formatArenaChips(1_500_000), '1.5M');
+    assert.equal(formatArenaChips(3_000_000), '3M');
     assert.equal(formatArenaChips(5_000_000), '5M');
     assert.equal(formatArenaChips(10_000_000), '10M');
 
@@ -22,7 +22,7 @@ test('arena directory: full-spectrum wager tiers cover Free through 10M without 
     assert.equal(getArenaWagerTier(10_000).label, 'ARENA');
     assert.equal(getArenaWagerTier(100_000).label, 'HEATED');
     assert.equal(getArenaWagerTier(500_000).label, 'VIP');
-    assert.equal(getArenaWagerTier(1_500_000).isVip, true);
+    assert.equal(getArenaWagerTier(3_000_000).isVip, true);
     assert.equal(getArenaWagerTier(5_000_000).label, 'APEX');
     assert.equal(getArenaWagerTier(10_000_000).isVip, true);
 });
@@ -34,7 +34,7 @@ test('arena directory: builds open pools, room shouts, and live matches with hyd
                 player_id: '0xAlice0000000000000000000000000000000001',
                 game_mode: 'power',
                 match_type: '2v2',
-                wager: 1_500_000,
+                wager: 3_000_000,
                 room_code: null,
                 created_at: '2026-11-18T10:00:00Z',
             },
@@ -42,7 +42,7 @@ test('arena directory: builds open pools, room shouts, and live matches with hyd
                 player_id: '0xBob00000000000000000000000000000000002',
                 game_mode: 'power',
                 match_type: '2v2',
-                wager: 1_500_000,
+                wager: 3_000_000,
                 room_code: null,
                 created_at: '2026-11-18T10:01:00Z',
             },
@@ -118,7 +118,7 @@ test('arena directory: builds open pools, room shouts, and live matches with hyd
 
     const openPool = res.rooms.find((r) => r.joinMode === 'pool');
     assert.ok(openPool);
-    assert.equal(openPool.wager, 1_500_000);
+    assert.equal(openPool.wager, 3_000_000);
     assert.equal(openPool.matchShape, '2v2');
     assert.equal(openPool.maxSeats, 4);
     assert.equal(openPool.seats.length, 2);

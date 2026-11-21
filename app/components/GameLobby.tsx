@@ -35,11 +35,12 @@ import {
     OverdriveBoltIcon,
     VaultShieldIcon,
 } from './icons';
+import { EntryFeeKnob } from './EntryFeeKnob';
 
 /** Primary preset entry fees (CHIPS). 0 = Free. */
 const FEE_PRESETS = [0, 500, 1_000, 10_000, 100_000, 500_000] as const;
 /** High-roller presets revealed under the More toggle. */
-const MORE_FEE_PRESETS = [1_000_000, 1_500_000, 5_000_000, 10_000_000] as const;
+const MORE_FEE_PRESETS = [1_000_000, 3_000_000, 5_000_000, 10_000_000] as const;
 
 /**
  * Suggested default fee from balance:
@@ -646,100 +647,112 @@ export default function GameLobby({
                                     transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
                                     className="w-full px-1.5 pb-2 flex flex-col items-center gap-1"
                                 >
-                                    <div className="flex items-center justify-between w-full px-2 mb-1">
-                                        <button
-                                            onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }}
-                                            aria-label="Decrease entry fee"
-                                            className="fee-preset-3077 w-11 h-11 rounded-[14px] bg-surface-recessed border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200"
-                                        >
-                                            <LuMinus className="w-5 h-5 stroke-[3px]" />
-                                        </button>
-                                        <div className="flex-1 flex flex-col items-center justify-center relative">
-                                            <input
-                                                type="text"
-                                                inputMode="numeric"
-                                                autoComplete="off"
-                                                autoCorrect="off"
-                                                autoCapitalize="none"
-                                                spellCheck={false}
-                                                value={wager}
-                                                onChange={(e) => {
-                                                    const digits = e.target.value.replace(/\D/g, '');
-                                                    const next = Math.max(0, parseInt(digits || '0', 10) || 0);
-                                                    setWager(Math.min(next, playableChips));
-                                                }}
-                                                className="w-full bg-transparent text-center text-xl font-bold font-mono tabular-nums text-ink-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
-                                            />
-                                            <span className="text-ludo-xs font-mono font-bold text-ink-faint uppercase tracking-wider mt-0.5 tabular-nums">
-                                                CHIPS · {formatEntryFee(playableChips)} Total
-                                            </span>
-                                        </div>
-                                        <button
-                                            onClick={() => { playCoin(); setWager(Math.min(playableChips, wager + (wager >= 1000 ? 1000 : 100))); }}
-                                            aria-label="Increase entry fee"
-                                            disabled={wager >= playableChips}
-                                            className="fee-preset-3077 w-11 h-11 rounded-[14px] bg-surface-recessed border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
-                                        >
-                                            <LuPlus className="w-5 h-5 stroke-[3px]" />
-                                        </button>
-                                    </div>
-                                    <div className="flex gap-1.5 justify-center flex-wrap">
-                                        {FEE_PRESETS.map(val => {
-                                            const affordable = canAffordFee(playableChips, val);
-                                            return (
+                                    {is3077 ? (
+                                        <EntryFeeKnob
+                                            wager={wager}
+                                            playableChips={playableChips}
+                                            onChange={setWager}
+                                            sfxEnabled={preferences.sfx}
+                                            formatBalance={formatEntryFee}
+                                        />
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-between w-full px-2 mb-1">
                                                 <button
-                                                    key={val}
-                                                    disabled={!affordable}
-                                                    title={affordable ? undefined : 'Insufficient CHIPS'}
-                                                    onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
-                                                    className={`fee-preset-3077 px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold font-mono tabular-nums ${
-                                                        wager === val
-                                                            ? 'border-accent bg-accent-soft text-accent shadow-[0_0_15px_rgba(0,229,255,0.28)]'
-                                                            : affordable
-                                                                ? 'bg-surface-recessed hover:bg-surface-hover hover:scale-105 active:scale-95 border-line-soft text-ink-strong'
-                                                                : 'bg-surface-recessed border-line-soft text-ink-faint opacity-50 cursor-not-allowed'
+                                                    onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }}
+                                                    aria-label="Decrease entry fee"
+                                                    className="fee-preset-3077 w-11 h-11 rounded-[14px] bg-surface-recessed border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200"
+                                                >
+                                                    <LuMinus className="w-5 h-5 stroke-[3px]" />
+                                                </button>
+                                                <div className="flex-1 flex flex-col items-center justify-center relative">
+                                                    <input
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        autoComplete="off"
+                                                        autoCorrect="off"
+                                                        autoCapitalize="none"
+                                                        spellCheck={false}
+                                                        value={wager}
+                                                        onChange={(e) => {
+                                                            const digits = e.target.value.replace(/\D/g, '');
+                                                            const next = Math.max(0, parseInt(digits || '0', 10) || 0);
+                                                            setWager(Math.min(next, playableChips));
+                                                        }}
+                                                        className="w-full bg-transparent text-center text-xl font-bold font-mono tabular-nums text-ink-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-xl"
+                                                    />
+                                                    <span className="text-ludo-xs font-mono font-bold text-ink-faint uppercase tracking-wider mt-0.5 tabular-nums">
+                                                        CHIPS · {formatEntryFee(playableChips)} Total
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    onClick={() => { playCoin(); setWager(Math.min(playableChips, wager + (wager >= 1000 ? 1000 : 100))); }}
+                                                    aria-label="Increase entry fee"
+                                                    disabled={wager >= playableChips}
+                                                    className="fee-preset-3077 w-11 h-11 rounded-[14px] bg-surface-recessed border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover hover:scale-105 active:scale-95 shadow-lg backdrop-blur-md transition-all duration-200 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100"
+                                                >
+                                                    <LuPlus className="w-5 h-5 stroke-[3px]" />
+                                                </button>
+                                            </div>
+                                            <div className="flex gap-1.5 justify-center flex-wrap">
+                                                {FEE_PRESETS.map(val => {
+                                                    const affordable = canAffordFee(playableChips, val);
+                                                    return (
+                                                        <button
+                                                            key={val}
+                                                            disabled={!affordable}
+                                                            title={affordable ? undefined : 'Insufficient CHIPS'}
+                                                            onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
+                                                            className={`fee-preset-3077 px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold font-mono tabular-nums ${
+                                                                wager === val
+                                                                    ? 'border-accent bg-accent-soft text-accent shadow-[0_0_15px_rgba(0,229,255,0.28)]'
+                                                                    : affordable
+                                                                        ? 'bg-surface-recessed hover:bg-surface-hover hover:scale-105 active:scale-95 border-line-soft text-ink-strong'
+                                                                        : 'bg-surface-recessed border-line-soft text-ink-faint opacity-50 cursor-not-allowed'
+                                                            }`}
+                                                        >
+                                                            {formatEntryFee(val)}
+                                                        </button>
+                                                    );
+                                                })}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { playSelect(); setShowMoreFees(v => !v); }}
+                                                    className={`fee-preset-3077 px-3 min-h-[44px] inline-flex items-center gap-1 justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold ${
+                                                        isMoreFeeActive
+                                                            ? 'border-accent/60 bg-accent-soft text-accent'
+                                                            : 'bg-surface-recessed hover:bg-surface-hover border-line-soft text-ink-muted hover:text-ink-strong'
                                                     }`}
                                                 >
-                                                    {formatEntryFee(val)}
+                                                    <span>{showMoreFees ? 'Less' : 'More'}</span>
+                                                    <ChevronGlyphIcon direction={showMoreFees ? 'up' : 'down'} className="w-3 h-3" />
                                                 </button>
-                                            );
-                                        })}
-                                        <button
-                                            type="button"
-                                            onClick={() => { playSelect(); setShowMoreFees(v => !v); }}
-                                            className={`fee-preset-3077 px-3 min-h-[44px] inline-flex items-center gap-1 justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold ${
-                                                isMoreFeeActive
-                                                    ? 'border-accent/60 bg-accent-soft text-accent'
-                                                    : 'bg-surface-recessed hover:bg-surface-hover border-line-soft text-ink-muted hover:text-ink-strong'
-                                            }`}
-                                        >
-                                            <span>{showMoreFees ? 'Less' : 'More'}</span>
-                                            <ChevronGlyphIcon direction={showMoreFees ? 'up' : 'down'} className="w-3 h-3" />
-                                        </button>
-                                    </div>
-                                    {showMoreFees && (
-                                        <div className="flex gap-1.5 justify-center flex-wrap pt-1">
-                                            {MORE_FEE_PRESETS.map(val => {
-                                                const affordable = canAffordFee(playableChips, val);
-                                                return (
-                                                    <button
-                                                        key={val}
-                                                        disabled={!affordable}
-                                                        title={affordable ? undefined : 'Insufficient CHIPS'}
-                                                        onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
-                                                        className={`fee-preset-3077 px-3.5 min-h-[40px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold font-mono tabular-nums ${
-                                                            wager === val
-                                                                ? 'border-warn bg-warn/15 text-warn shadow-[0_0_15px_rgba(245,158,11,0.28)]'
-                                                                : affordable
-                                                                    ? 'bg-surface-recessed hover:bg-surface-hover border-line-soft text-warn'
-                                                                    : 'bg-surface-recessed border-line-soft text-ink-faint opacity-50 cursor-not-allowed'
-                                                        }`}
-                                                    >
-                                                        {formatEntryFee(val)}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                            </div>
+                                            {showMoreFees && (
+                                                <div className="flex gap-1.5 justify-center flex-wrap pt-1">
+                                                    {MORE_FEE_PRESETS.map(val => {
+                                                        const affordable = canAffordFee(playableChips, val);
+                                                        return (
+                                                            <button
+                                                                key={val}
+                                                                disabled={!affordable}
+                                                                title={affordable ? undefined : 'Insufficient CHIPS'}
+                                                                onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
+                                                                className={`fee-preset-3077 px-3.5 min-h-[40px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold font-mono tabular-nums ${
+                                                                    wager === val
+                                                                        ? 'border-warn bg-warn/15 text-warn shadow-[0_0_15px_rgba(245,158,11,0.28)]'
+                                                                        : affordable
+                                                                            ? 'bg-surface-recessed hover:bg-surface-hover border-line-soft text-warn'
+                                                                            : 'bg-surface-recessed border-line-soft text-ink-faint opacity-50 cursor-not-allowed'
+                                                                }`}
+                                                            >
+                                                                {formatEntryFee(val)}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                     {(vault.availableChips > 0 || wager > 0) && (
                                         <div className="w-full mt-1.5 px-3 py-1.5 rounded-xl bg-surface-recessed border border-line-soft flex items-center justify-between gap-2 text-ludo-xs font-mono">
