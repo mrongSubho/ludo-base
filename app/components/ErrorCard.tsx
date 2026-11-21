@@ -80,7 +80,7 @@ export default function ErrorCard({ kicker, copy, heading, raw, stack, actions }
             )}
             {stack && (
                 <pre
-                    className="panel-error-stack w-full max-h-28 overflow-auto text-left text-ludo-xs font-mono border rounded-xl p-2 whitespace-pre-wrap break-words"
+                    className="panel-error-stack w-full max-h-28 overflow-auto no-scrollbar text-left text-ludo-xs font-mono border rounded-xl p-2 whitespace-pre-wrap break-words"
                     style={{
                         background: 'var(--err-stack-bg)',
                         borderColor: 'var(--err-stack-border)',

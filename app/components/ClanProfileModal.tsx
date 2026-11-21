@@ -162,7 +162,7 @@ export default function ClanProfileModal({
                         </div>
 
                         {/* Scrollable Body */}
-                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar relative z-10">
+                        <div className="flex-1 overflow-y-auto p-4 no-scrollbar relative z-10">
                             {isLoading && !dossier ? (
                                 <div className="py-12 flex flex-col items-center justify-center gap-2.5 text-center">
                                     <ThinkingOrb state="searching" size={32} tone="accent" label="Decrypting syndicate dossier" />

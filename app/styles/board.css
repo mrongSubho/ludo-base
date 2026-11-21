@@ -1898,8 +1898,14 @@ body.theme-retro-futurism .token-dot-placeholder {
   flex-direction: column;
   gap: 10px;
   color: #e8eef7;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   position: relative;
+}
+.match-stats-card::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 body.theme-daybreak .match-stats-card {

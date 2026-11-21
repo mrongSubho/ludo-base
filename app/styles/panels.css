@@ -2176,31 +2176,15 @@ body.keyboard-open .app-shell {
 
 /* ─── Custom Scrollbar Utility ─── */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: content-box;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.5);
-  border: 2px solid transparent;
-  background-clip: content-box;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .custom-scrollbar {
-  scrollbar-width: auto;
-  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior: contain;
 }
 
 /* ─── No-Scrollbar Utility (app-like panels: touch/wheel scroll still works, bar hidden) ─── */
@@ -3358,15 +3342,13 @@ body.theme-daybreak .cb-banner {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0 14px 12px;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
-.cb-main::-webkit-scrollbar { width: 4px; }
-.cb-main::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-}
-body.theme-daybreak .cb-main::-webkit-scrollbar-thumb {
-  background: rgba(10, 11, 13, 0.15);
+.cb-main::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 .cb-screen {
   padding-top: 4px;

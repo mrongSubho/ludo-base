@@ -186,7 +186,7 @@ export default function WalletShell() {
             {!showGate && tab === "apps" && <WcWalletPanel />}
             {!showGate && tab === "security" && <WalletSecurityPanel />}
 
-            <div className={`flex gap-1 border-t border-line-soft pt-2 overflow-x-auto ${showGate ? "hidden" : ""}`}>
+            <div className={`flex gap-1 border-t border-line-soft pt-2 overflow-x-auto no-scrollbar ${showGate ? "hidden" : ""}`}>
                 {(
                     [
                         ["home", "Home"],

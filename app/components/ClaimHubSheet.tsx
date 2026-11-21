@@ -256,7 +256,7 @@ export default function ClaimHubSheet({
                         </div>
                     ) : (
                         <>
-                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                            <div className="space-y-2 max-h-40 overflow-y-auto no-scrollbar pr-1">
                                 {vault.claims.map((c) => (
                                     <div
                                         key={c.id}
@@ -366,7 +366,7 @@ export default function ClaimHubSheet({
                     </div>
 
                     {hasClanClaims && (
-                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                        <div className="space-y-2 max-h-40 overflow-y-auto no-scrollbar pr-1">
                             {clanClaims.claims.map((c) => {
                                 const labelMap: Record<string, string> = {
                                     war_principal: "War Principal Return",

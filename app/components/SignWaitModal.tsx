@@ -51,7 +51,7 @@ export const SignWaitModal: React.FC<SignWaitModalProps> = ({
             <div
                 className={`ludo-authwait-scope panel-shell-3077 relative border border-line-soft rounded-[28px] shadow-2xl ${
                     isTx ? 'max-w-md' : 'max-w-sm'
-                } w-full max-h-[92vh] overflow-y-auto p-5 sm:p-6 flex flex-col items-center text-center gap-3.5 sm:gap-4 animate-in zoom-in-95 duration-200`}
+                } w-full max-h-[92vh] overflow-y-auto no-scrollbar p-5 sm:p-6 flex flex-col items-center text-center gap-3.5 sm:gap-4 animate-in zoom-in-95 duration-200`}
                 onClick={(e) => e.stopPropagation()}
             >
                 <HudCornerTicks />

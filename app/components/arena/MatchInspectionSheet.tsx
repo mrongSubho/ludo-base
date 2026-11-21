@@ -113,7 +113,7 @@ export function MatchInspectionSheet({
                         </div>
 
                         {/* Body */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar relative z-10">
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3.5 no-scrollbar relative z-10">
                             {/* Telemetry Strip */}
                             <div className="grid grid-cols-3 gap-2">
                                 <div className="rounded-xl border border-line-soft bg-surface-panel p-2.5 text-center">

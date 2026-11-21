@@ -949,7 +949,7 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                             </span>
                                         </div>
 
-                                        <div ref={chatThreadRef} className="chat-thread-scroll flex-1 min-h-0 overflow-y-auto space-y-2.5 pr-1">
+                                        <div ref={chatThreadRef} className="chat-thread-scroll flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2.5 pr-1">
                                             {chatMessages.length === 0 ? (
                                                 <div className="h-full flex flex-col items-center justify-center text-ink-faint font-mono text-ludo-xs text-center gap-2 py-8">
                                                     <LuMessageSquare className="w-6 h-6 text-ink-faint" />
