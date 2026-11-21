@@ -49,6 +49,7 @@ export function PilotAvatar({
     const frameRing = trophyRing || tierRing || 'border-line-strong';
 
     if (def?.kind === 'image' && def.src) {
+        const isCutout = def.series === 'pilots';
         return (
             <div
                 className={`${box} rounded-full overflow-hidden shrink-0 bg-surface-recessed border ${frameRing} relative ${className}`}
@@ -57,7 +58,11 @@ export function PilotAvatar({
                 <img
                     src={def.src}
                     alt={def.label}
-                    className="w-full h-full object-cover"
+                    className={
+                        isCutout
+                            ? 'w-full h-full object-contain object-bottom'
+                            : 'w-full h-full object-cover'
+                    }
                     width={96}
                     height={96}
                 />

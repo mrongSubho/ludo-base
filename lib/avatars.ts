@@ -2,15 +2,16 @@
 
 // ─── Avatar library ─────────────────────────────────────────────────────────
 // FORMAT (stable contract — design ideas plug in here without touching UI):
-//   { id, label, tagline?, featured?, kind, series, unlock, src?, bg? }
+//   { id, label, tagline?, kind, series, unlock, src?, bg? }
 // - `id` is stored in players.avatar_url as `avatar:<id>`.
-// - `kind: 'image'` renders `src` (/avatars/pilots/*.png|svg or legacy /avatars/*.png).
+// - `kind: 'image'` renders `src` (/avatars/pilots/*.png transparent busts or legacy /avatars/*.png).
 //   `kind: 'monogram'` renders the player's initial on the `bg` gradient.
 // - `unlock` gates picking: default (everyone) | wins (total_wins >= count)
 //   | level (progression level >= level). Locked tiles show the requirement.
 // SERIES:
-// - pilots   — Custom Ludo 3077 Pilot Portraits & Tactical Helmets (player default).
-// - monogram — Initial badges in 6 cyber-tactical gradients (default).
+// - pilots   — 18 custom background-less transparent character portraits (humans,
+//              superhumans, superheroes, androids across kids/teens/20s/30s/40s).
+// - monogram — Initial badges in 6 cyber-tactical gradients.
 // - trophy   — Win-gated prestige frames (gold ring in UI).
 // - legion   — AI Bot brand marks (kept for legacy player resolution only; hidden from picker).
 
@@ -32,10 +33,8 @@ export type AvatarUnlock =
 export interface AvatarDef {
     id: string;
     label: string;
-    /** Short pilot role / flavor subtitle shown in the Identity overlay. */
+    /** Short character archetype / role subtitle shown in the Identity overlay. */
     tagline?: string;
-    /** Highlighted hero portrait card in the Pilots picker. */
-    featured?: boolean;
     kind: AvatarKind;
     series: AvatarSeries;
     unlock: AvatarUnlock;
@@ -46,99 +45,37 @@ export interface AvatarDef {
 }
 
 const PILOT_DEFS: readonly AvatarDef[] = [
-    {
-        id: 'pilot-cipher',
-        label: 'Cipher',
-        tagline: 'Recon Tactician',
-        featured: true,
-        kind: 'image',
-        series: 'pilots',
-        unlock: { type: 'default' },
-        src: '/avatars/pilots/cipher.png',
-    },
-    {
-        id: 'pilot-valkyrie',
-        label: 'Valkyrie',
-        tagline: 'Orbital Ace',
-        featured: true,
-        kind: 'image',
-        series: 'pilots',
-        unlock: { type: 'default' },
-        src: '/avatars/pilots/valkyrie.png',
-    },
-    {
-        id: 'pilot-ronin',
-        label: 'Ronin',
-        tagline: 'Crimson Blade',
-        kind: 'image',
-        series: 'pilots',
-        unlock: { type: 'default' },
-        src: '/avatars/pilots/ronin.svg',
-    },
-    {
-        id: 'pilot-kitsune',
-        label: 'Kitsune',
-        tagline: 'Neon Fox',
-        kind: 'image',
-        series: 'pilots',
-        unlock: { type: 'default' },
-        src: '/avatars/pilots/kitsune.svg',
-    },
-    {
-        id: 'pilot-vanguard',
-        label: 'Vanguard',
-        tagline: 'Orbital Breacher',
-        kind: 'image',
-        series: 'pilots',
-        unlock: { type: 'default' },
-        src: '/avatars/pilots/vanguard.svg',
-    },
-    {
-        id: 'pilot-solaris',
-        label: 'Solaris',
-        tagline: 'Solar Striker',
-        kind: 'image',
-        series: 'pilots',
-        unlock: { type: 'default' },
-        src: '/avatars/pilots/solaris.svg',
-    },
-    {
-        id: 'pilot-specter',
-        label: 'Specter',
-        tagline: 'Stealth Recon',
-        kind: 'image',
-        series: 'pilots',
-        unlock: { type: 'default' },
-        src: '/avatars/pilots/specter.svg',
-    },
-    {
-        id: 'pilot-nova',
-        label: 'Nova',
-        tagline: 'Quantum Pilot',
-        kind: 'image',
-        series: 'pilots',
-        unlock: { type: 'default' },
-        src: '/avatars/pilots/nova.svg',
-    },
-    {
-        id: 'pilot-warden',
-        label: 'Warden',
-        tagline: 'Aegis Sentinel',
-        kind: 'image',
-        series: 'pilots',
-        unlock: { type: 'default' },
-        src: '/avatars/pilots/warden.svg',
-    },
-    {
-        id: 'pilot-apex',
-        label: 'Apex',
-        tagline: 'Grandmaster',
-        kind: 'image',
-        series: 'pilots',
-        unlock: { type: 'default' },
-        src: '/avatars/pilots/apex.svg',
-    },
+    { id: 'pilot-kairo', label: 'Kairo', tagline: 'Street Runner', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/kairo.png' },
+    { id: 'pilot-valkyrie', label: 'Valkyrie', tagline: 'Orbital Ace', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/valkyrie.png' },
+    { id: 'pilot-aria', label: 'Aria-7', tagline: 'Synth Tactician', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/aria.png' },
+    { id: 'pilot-blaze', label: 'Blaze', tagline: 'Solar Striker', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/blaze.png' },
+    { id: 'pilot-spark', label: 'Spark', tagline: 'Tech Prodigy', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/spark.png' },
+    { id: 'pilot-mika', label: 'Mika', tagline: 'Arcade Ace', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/mika.png' },
+    { id: 'pilot-lyra', label: 'Lyra', tagline: 'Flare Hero', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/lyra.png' },
+    { id: 'pilot-nova', label: 'Nova', tagline: 'Star Guardian', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/nova.png' },
+    { id: 'pilot-jett', label: 'Jett', tagline: 'Shadow Blade', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/jett.png' },
+    { id: 'pilot-bolt', label: 'Bolt-9', tagline: 'Pulse Android', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/bolt.png' },
+    { id: 'pilot-titan', label: 'Titan', tagline: 'Vanguard Hero', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/titan.png' },
+    { id: 'pilot-sora', label: 'Sora', tagline: 'Jade Mystic', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/sora.png' },
+    { id: 'pilot-vex', label: 'Vex', tagline: 'Cyber Merc', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/vex.png' },
+    { id: 'pilot-elena', label: 'Elena', tagline: 'Tactical Vet', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/elena.png' },
+    { id: 'pilot-vance', label: 'Vance', tagline: 'Commander', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/vance.png' },
+    { id: 'pilot-stark', label: 'Stark', tagline: 'Nano Architect', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/stark.png' },
+    { id: 'pilot-aegis', label: 'Aegis', tagline: 'Titan Android', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/aegis.png' },
+    { id: 'pilot-kestrel', label: 'Kestrel', tagline: 'Bounty Legend', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/kestrel.png' },
 ];
+
+/** Back-compat aliases for retired v1 helmet IDs so saved profiles never break. */
+const LEGACY_PILOT_ALIASES: Record<string, string> = {
+    'pilot-cipher': 'pilot-kairo',
+    'pilot-ronin': 'pilot-jett',
+    'pilot-kitsune': 'pilot-mika',
+    'pilot-vanguard': 'pilot-vance',
+    'pilot-solaris': 'pilot-blaze',
+    'pilot-specter': 'pilot-vex',
+    'pilot-warden': 'pilot-aegis',
+    'pilot-apex': 'pilot-kestrel',
+};
 
 const LEGION_IDS = [
     'alibaba', 'claude', 'cohere', 'deepseek', 'elevenlabs', 'gemini', 'groq',
@@ -209,7 +146,9 @@ export function encodeAvatar(id: string): string {
  */
 export function resolveAvatarDef(ref: string | null | undefined): AvatarDef | null {
     if (!ref || !ref.startsWith('avatar:')) return null;
-    return AVATARS.find((a) => a.id === ref.slice('avatar:'.length)) || null;
+    const rawId = ref.slice('avatar:'.length);
+    const id = LEGACY_PILOT_ALIASES[rawId] ?? rawId;
+    return AVATARS.find((a) => a.id === id) || null;
 }
 
 /** Legacy avatar values (full URLs) still render directly. */

@@ -328,14 +328,6 @@ export default function UserProfilePanel({
     ];
 
     const seriesAvatars = AVATARS.filter((a) => a.series === avatarSeries);
-    const featuredPilots = useMemo(
-        () => seriesAvatars.filter((a) => a.featured),
-        [seriesAvatars],
-    );
-    const helmetPilots = useMemo(
-        () => seriesAvatars.filter((a) => !a.featured),
-        [seriesAvatars],
-    );
 
     const handleCopyAddress = async () => {
         if (!address || isGuest) return;
@@ -1024,118 +1016,63 @@ export default function UserProfilePanel({
                         </div>
 
                         {avatarSeries === 'pilots' ? (
-                            <div className="flex flex-col gap-3">
-                                {/* Featured AAA Portraits */}
-                                {featuredPilots.length > 0 && (
-                                    <div className="flex flex-col gap-1.5">
-                                        <span className="text-ludo-xs font-mono uppercase tracking-[0.16em] text-ink-faint px-0.5">
-                                            Signature Portraits
-                                        </span>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {featuredPilots.map((item) => {
-                                                const selected = draftAvatarId === item.id;
-                                                return (
-                                                    <button
-                                                        key={item.id}
-                                                        type="button"
-                                                        onClick={() => setDraftAvatarId(item.id)}
-                                                        aria-label={item.label}
-                                                        className={`relative rounded-2xl p-2.5 border transition-all flex items-center gap-2.5 text-left cursor-pointer ${
-                                                            selected
-                                                                ? 'bg-accent-soft/40 border-accent ring-2 ring-accent/40'
-                                                                : 'bg-surface-recessed border-line-soft hover:border-line-strong'
-                                                        }`}
-                                                    >
-                                                        <div className="w-14 h-14 rounded-full overflow-hidden border border-line-strong bg-surface-panel shrink-0">
-                                                            {item.src && (
-                                                                <img
-                                                                    src={item.src}
-                                                                    alt={item.label}
-                                                                    className="w-full h-full object-cover"
-                                                                    width={96}
-                                                                    height={96}
-                                                                />
-                                                            )}
-                                                        </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="text-ludo-sm font-extrabold text-ink-strong uppercase tracking-wide truncate">
-                                                                {item.label}
-                                                            </div>
-                                                            {item.tagline && (
-                                                                <div className="text-ludo-xs font-bold text-ink-faint truncate mt-0.5">
-                                                                    {item.tagline}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        {selected && (
-                                                            <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-accent text-accent-ink flex items-center justify-center shadow">
-                                                                <CheckGlyphIcon className="w-2.5 h-2.5" />
-                                                            </span>
-                                                        )}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Custom 3077 Tactical Helmets Grid */}
-                                <div className="flex flex-col gap-1.5">
-                                    <span className="text-ludo-xs font-mono uppercase tracking-[0.16em] text-ink-faint px-0.5">
-                                        3077 Pilot Helmets
-                                    </span>
-                                    <div className="grid grid-cols-4 gap-2">
-                                        {helmetPilots.map((item) => {
-                                            const { ok, hint } = isUnlocked(item, {
-                                                wins,
-                                                level: progression.level,
-                                            });
-                                            const selected = draftAvatarId === item.id;
-                                            return (
-                                                <button
-                                                    key={item.id}
-                                                    type="button"
-                                                    disabled={!ok}
-                                                    onClick={() => setDraftAvatarId(item.id)}
-                                                    title={ok ? `${item.label}${item.tagline ? ` · ${item.tagline}` : ''}` : `${item.label} — ${hint}`}
-                                                    aria-label={item.label}
-                                                    className={`relative rounded-2xl p-1.5 border transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
-                                                        selected
-                                                            ? 'bg-accent-soft/40 border-accent ring-2 ring-accent/45 scale-[1.02]'
-                                                            : ok
-                                                              ? 'bg-surface-recessed border-line-soft hover:border-line-strong'
-                                                              : 'bg-surface-recessed border-line-soft opacity-45 cursor-not-allowed'
-                                                    }`}
-                                                >
-                                                    <div className="w-full aspect-square rounded-xl overflow-hidden border border-line-soft bg-surface-panel">
-                                                        {item.src && (
-                                                            <img
-                                                                src={item.src}
-                                                                alt={item.label}
-                                                                className="w-full h-full object-cover"
-                                                                width={96}
-                                                                height={96}
-                                                            />
-                                                        )}
+                            <div className="grid grid-cols-3 gap-2.5">
+                                {seriesAvatars.map((item) => {
+                                    const { ok, hint } = isUnlocked(item, {
+                                        wins,
+                                        level: progression.level,
+                                    });
+                                    const selected = draftAvatarId === item.id;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            type="button"
+                                            disabled={!ok}
+                                            onClick={() => setDraftAvatarId(item.id)}
+                                            title={ok ? `${item.label}${item.tagline ? ` · ${item.tagline}` : ''}` : `${item.label} — ${hint}`}
+                                            aria-label={item.label}
+                                            className={`relative rounded-2xl p-2 border transition-all flex flex-col items-center gap-1.5 cursor-pointer ${
+                                                selected
+                                                    ? 'bg-accent-soft/45 border-accent ring-2 ring-accent/45 scale-[1.02]'
+                                                    : ok
+                                                      ? 'bg-surface-recessed border-line-soft hover:border-line-strong'
+                                                      : 'bg-surface-recessed border-line-soft opacity-45 cursor-not-allowed'
+                                            }`}
+                                        >
+                                            <div className="w-full aspect-square rounded-xl overflow-hidden bg-surface-panel/60 border border-line-soft/60 flex items-end justify-center pt-1">
+                                                {item.src && (
+                                                    <img
+                                                        src={item.src}
+                                                        alt={item.label}
+                                                        className="w-full h-full object-contain object-bottom"
+                                                        width={96}
+                                                        height={96}
+                                                    />
+                                                )}
+                                            </div>
+                                            <div className="w-full text-center min-w-0 px-0.5">
+                                                <div className="text-ludo-xs font-extrabold uppercase tracking-wider text-ink-strong truncate leading-tight">
+                                                    {item.label}
+                                                </div>
+                                                {item.tagline && (
+                                                    <div className="text-ludo-xs font-bold text-ink-faint truncate leading-tight mt-0.5">
+                                                        {item.tagline}
                                                     </div>
-                                                    <span className="text-ludo-xs font-extrabold uppercase tracking-wider text-ink-strong truncate w-full text-center leading-none pb-0.5">
-                                                        {item.label}
-                                                    </span>
-                                                    {selected && (
-                                                        <span className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full bg-accent text-accent-ink flex items-center justify-center shadow">
-                                                            <CheckGlyphIcon className="w-2.5 h-2.5" />
-                                                        </span>
-                                                    )}
-                                                    {!ok && (
-                                                        <span className="absolute inset-x-1 bottom-5 bg-surface-panel/90 text-ludo-xs font-bold text-warn text-center py-0.5 leading-none rounded border border-line-soft">
-                                                            {hint}
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+                                                )}
+                                            </div>
+                                            {selected && (
+                                                <span className="absolute top-2 right-2 w-4 h-4 rounded-full bg-accent text-accent-ink flex items-center justify-center shadow">
+                                                    <CheckGlyphIcon className="w-2.5 h-2.5" />
+                                                </span>
+                                            )}
+                                            {!ok && (
+                                                <span className="absolute inset-x-1.5 bottom-7 bg-surface-panel/90 text-ludo-xs font-bold text-warn text-center py-0.5 leading-none rounded border border-line-soft">
+                                                    {hint}
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="grid grid-cols-3 gap-2">
