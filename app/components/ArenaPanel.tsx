@@ -95,18 +95,18 @@ function ArenaPanelInner({
                 </span>
             )}
             subtitle={(
-                <span className="inline-flex items-center gap-2 font-mono uppercase tracking-wide">
+                <span className="arena-stats-8px inline-flex items-center gap-1.5 font-mono uppercase">
                     {(liveStats.live > 0 || liveStats.open > 0) && (
-                        <span className="hud-status-breath w-1.5 h-1.5 rounded-full bg-accent" />
+                        <span className="hud-status-breath w-1 h-1 rounded-full bg-accent" />
                     )}
                     <span className="font-bold text-accent tabular-nums">
                         {liveStats.open} open
                     </span>
-                    <span className="w-1 h-1 rounded-full bg-line-strong" />
+                    <span className="w-0.5 h-0.5 rounded-full bg-line-strong" />
                     <span className="font-bold text-ink-muted tabular-nums">
                         {liveStats.live} live
                     </span>
-                    <span className="w-1 h-1 rounded-full bg-line-strong" />
+                    <span className="w-0.5 h-0.5 rounded-full bg-line-strong" />
                     <span className="font-bold text-ink-muted tabular-nums">
                         {liveStats.watching.toLocaleString()} watching
                     </span>
@@ -114,9 +114,11 @@ function ArenaPanelInner({
             )}
             onClose={onClose}
             hideOrbs
+            compactHeader
+            bodyScroll={false}
         >
-            {/* Dual Hub Tab Switcher */}
-            <div className="px-5 pt-2.5 pb-2 border-b border-line-soft relative z-10 shrink-0">
+            {/* Dual Hub Tab Switcher — pulled cleanly up beneath header */}
+            <div className="px-3 pt-1.5 pb-1.5 border-b border-line-soft relative z-10 shrink-0">
                 <PanelTabs
                     cols={2}
                     value={activeHubTab}

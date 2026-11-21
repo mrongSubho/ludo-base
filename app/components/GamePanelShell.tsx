@@ -19,6 +19,10 @@ type Props = {
     hideOrbs?: boolean;
     /** Full-screen modal-level overlay (used above pre-login cards/modals where no header/footer exists). */
     overlay?: boolean;
+    /** Tightens the panel header spacing for dense directories such as Live Arena. */
+    compactHeader?: boolean;
+    /** Set false when a child view owns its own single scroller + pinned footer. */
+    bodyScroll?: boolean;
 };
 
 /* The panel paints itself from CSS custom properties (--panel-bg,
@@ -37,6 +41,8 @@ export function GamePanelShell({
     maxWidthPx = 500,
     hideOrbs = false,
     overlay = false,
+    compactHeader = false,
+    bodyScroll = true,
 }: Props) {
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
@@ -84,7 +90,7 @@ export function GamePanelShell({
                             </>
                         )}
 
-                        <div className="w-full flex justify-center pt-2 pb-1 relative z-10">
+                        <div className={`w-full flex justify-center ${compactHeader ? 'pt-1.5 pb-0.5' : 'pt-2 pb-1'} relative z-10`}>
                             <div
                                 className="panel-handle-bar w-12 h-1.5 rounded-full"
                                 style={{ background: "var(--line-strong)" }}
@@ -92,10 +98,10 @@ export function GamePanelShell({
                         </div>
 
                         <div
-                            className="px-5 pb-3 relative z-10"
+                            className={`${compactHeader ? 'px-4 pb-2' : 'px-5 pb-3'} relative z-10`}
                             style={{ borderBottom: "1px solid var(--line-soft)" }}
                         >
-                            <div className="flex items-center justify-between mb-1 mt-1 gap-2">
+                            <div className={`flex items-center justify-between ${compactHeader ? 'mb-0.5 mt-0.5' : 'mb-1 mt-1'} gap-2`}>
                                 <div className="min-w-0 flex flex-col">
                                     {kicker && (
                                         <p className="text-ludo-xs font-mono uppercase tracking-[0.22em] text-accent mb-0.5 truncate">
@@ -126,7 +132,13 @@ export function GamePanelShell({
                             )}
                         </div>
 
-                        <div className="panel-body-3077 flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-4 relative z-10 flex flex-col gap-4">
+                        <div
+                            className={`panel-body-3077 flex-1 min-h-0 relative z-10 flex flex-col ${
+                                bodyScroll
+                                    ? 'overflow-y-auto no-scrollbar px-5 pt-3 pb-4 gap-4'
+                                    : 'overflow-hidden px-0 pt-0 pb-0 gap-0'
+                            }`}
+                        >
                             {children}
                         </div>
                     </motion.div>

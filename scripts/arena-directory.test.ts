@@ -18,12 +18,17 @@ test('arena directory: full-spectrum wager tiers cover Free through 10M without 
     assert.equal(formatArenaChips(5_000_000), '5M');
     assert.equal(formatArenaChips(10_000_000), '10M');
 
-    assert.equal(getArenaWagerTier(0).label, 'FREE');
-    assert.equal(getArenaWagerTier(10_000).label, 'ARENA');
-    assert.equal(getArenaWagerTier(100_000).label, 'HEATED');
-    assert.equal(getArenaWagerTier(500_000).label, 'VIP');
+    assert.equal(getArenaWagerTier(0).label, 'SCOUT');
+    assert.equal(getArenaWagerTier(500).label, 'SPARK');
+    assert.equal(getArenaWagerTier(1_000).label, 'STRIKE');
+    assert.equal(getArenaWagerTier(10_000).label, 'PULSE');
+    assert.equal(getArenaWagerTier(100_000).label, 'SURGE');
+    assert.equal(getArenaWagerTier(500_000).label, 'BLITZ');
+    assert.equal(getArenaWagerTier(1_000_000).label, 'TITAN');
+    assert.equal(getArenaWagerTier(3_000_000).label, 'NOVA');
     assert.equal(getArenaWagerTier(3_000_000).isVip, true);
-    assert.equal(getArenaWagerTier(5_000_000).label, 'APEX');
+    assert.equal(getArenaWagerTier(5_000_000).label, 'OMEGA');
+    assert.equal(getArenaWagerTier(10_000_000).label, 'APEX');
     assert.equal(getArenaWagerTier(10_000_000).isVip, true);
 });
 
@@ -104,14 +109,14 @@ test('arena directory: builds open pools, room shouts, and live matches with hyd
     // Betting-open live match floats to the top
     assert.equal(res.rooms[0].kind, 'live');
     assert.equal(res.rooms[0].roomCode, 'LIVE88');
-    assert.equal(res.rooms[0].tier.label, 'VIP');
+    assert.equal(res.rooms[0].tier.label, 'BLITZ');
     assert.equal(res.rooms[0].seats[0].clanTag, 'SYND');
     assert.equal(res.rooms[0].seats[0].isHost, true);
 
     const openShout = res.rooms.find((r) => r.roomCode === 'VIP777');
     assert.ok(openShout);
     assert.equal(openShout.wager, 5_000_000);
-    assert.equal(openShout.tier.label, 'APEX');
+    assert.equal(openShout.tier.label, 'OMEGA');
     assert.equal(openShout.matchShape, '1v1');
     assert.equal(openShout.maxSeats, 2);
     assert.equal(openShout.seats[0].username, 'KingCharlie');

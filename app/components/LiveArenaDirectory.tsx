@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import { FiTv, FiStar } from "react-icons/fi";
 import { LuMonitor, LuRefreshCw, LuUsers, LuEye, LuCrown } from "react-icons/lu";
@@ -32,7 +32,7 @@ interface LiveArenaContentProps {
     onStats?: (live: number, watching: number, vol: number, openCount?: number) => void;
 }
 
-const PredictorsStrip = () => {
+const PredictorsStrip = ({ refreshSignal }: { refreshSignal: number }) => {
     const [board, setBoard] = useState<
         { rank: number; player_id: string; username: string; avatar_url: string | null; wins: number; profit: number }[]
     >([]);
@@ -42,30 +42,30 @@ const PredictorsStrip = () => {
     useEffect(() => {
         (async () => {
             try {
-                const res = await fetch("/api/predictors/board");
+                const res = await fetch(`/api/predictors/board?_t=${refreshSignal}`, { cache: "no-store" });
                 if (res.ok) setBoard((await res.json()).slice(0, 3));
             } catch {
                 /* decorative strip */
             }
         })();
         setFollowed(getFollowed(address));
-    }, [address]);
+    }, [address, refreshSignal]);
 
     if (board.length === 0) return null;
 
     return (
-        <div className="px-4 pt-2.5 relative z-10">
-            <div className="flex items-center gap-2 rounded-2xl border border-accent/25 bg-accent-soft/45 px-3 py-1.5">
+        <div className="px-3 pt-1.5 relative z-10 shrink-0">
+            <div className="flex items-center gap-2 rounded-xl border border-accent/25 bg-accent-soft/45 px-2.5 py-1">
                 <span className="text-ludo-xs font-bold uppercase tracking-[0.16em] text-accent shrink-0 font-mono">
                     Sharpest
                 </span>
-                <div className="flex-1 min-w-0 flex items-center gap-3 overflow-hidden">
+                <div className="flex-1 min-w-0 flex items-center gap-2.5 overflow-hidden">
                     {board.map((p) => (
-                        <div key={p.player_id} className="flex items-center gap-1.5 min-w-0">
+                        <div key={p.player_id} className="flex items-center gap-1 min-w-0">
                             <span className="text-ludo-xs font-bold text-accent/80 tabular-nums font-mono">
                                 #{p.rank}
                             </span>
-                            <span className="text-ludo-xs font-bold text-ink-strong truncate max-w-[78px]">
+                            <span className="text-ludo-xs font-bold text-ink-strong truncate max-w-[72px]">
                                 {p.username}
                             </span>
                             <span
@@ -85,7 +85,7 @@ const PredictorsStrip = () => {
                                             ? `Unfollow ${p.username}`
                                             : `Follow ${p.username}`
                                     }
-                                    className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full hover:bg-surface-hover transition-all"
+                                    className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full hover:bg-surface-hover transition-all"
                                 >
                                     <FiStar
                                         className={`w-3 h-3 ${
@@ -113,14 +113,20 @@ export const LiveArenaContent = ({
 }: LiveArenaContentProps) => {
     const [directory, setDirectory] = useState<ArenaDirectoryResponse | null>(null);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+    const [refreshSignal, setRefreshSignal] = useState(0);
     const [view, setView] = useState<"list" | "stage">("list");
     const [filter, setFilter] = useState<ArenaFilter>("all");
     const [inspectRoom, setInspectRoom] = useState<ArenaDirectoryRoom | null>(null);
     const [inspectClanTag, setInspectClanTag] = useState<string | null>(null);
+    const refreshingRef = useRef(false);
 
-    const fetchDirectory = useCallback(async () => {
+    const fetchDirectory = useCallback(async (bypassCache = false) => {
         try {
-            const res = await fetch("/api/live-arena/directory", { cache: "no-store" });
+            const url = bypassCache
+                ? `/api/live-arena/directory?_t=${Date.now()}`
+                : "/api/live-arena/directory";
+            const res = await fetch(url, { cache: "no-store" });
             if (!res.ok) return;
             const data = (await res.json()) as ArenaDirectoryResponse;
             setDirectory(data);
@@ -130,6 +136,20 @@ export const LiveArenaContent = ({
             setLoading(false);
         }
     }, []);
+
+    const handleManualRefresh = useCallback(async () => {
+        if (refreshingRef.current) return;
+        refreshingRef.current = true;
+        setRefreshing(true);
+        setRefreshSignal((s) => s + 1);
+        const minSpin = new Promise((r) => window.setTimeout(r, 420));
+        try {
+            await Promise.all([fetchDirectory(true), minSpin]);
+        } finally {
+            refreshingRef.current = false;
+            setRefreshing(false);
+        }
+    }, [fetchDirectory]);
 
     useEffect(() => {
         void fetchDirectory();
@@ -236,11 +256,11 @@ export const LiveArenaContent = ({
     const vipTotal = rooms.filter((r) => r.tier.isVip || Math.max(r.wager, r.totalBetVolume) >= 500_000).length;
 
     return (
-        <div className="flex-1 min-h-0 flex flex-col relative z-10">
-            <PredictorsStrip />
+        <div className="flex-1 min-h-0 flex flex-col relative z-10 overflow-hidden">
+            <PredictorsStrip refreshSignal={refreshSignal} />
 
-            {/* Filter & View Bar */}
-            <div className="px-4 pt-2.5 pb-2 flex items-center justify-between gap-2 shrink-0">
+            {/* Filter & Reload Bar (Stage relocated to panel footer) */}
+            <div className="px-3 pt-1.5 pb-1.5 flex items-center justify-between gap-2 shrink-0">
                 <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
                     {(
                         [
@@ -272,31 +292,20 @@ export const LiveArenaContent = ({
                     })}
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
-                    <button
-                        type="button"
-                        onClick={() => setView((v) => (v === "stage" ? "list" : "stage"))}
-                        className={`px-2.5 py-1 rounded-full border font-mono text-ludo-xs font-bold inline-flex items-center gap-1 transition-colors ${
-                            view === "stage"
-                                ? "bg-accent-soft border-accent/50 text-accent"
-                                : "bg-surface-panel border-line-soft text-ink-muted hover:text-ink-strong"
-                        }`}
-                        title={view === "stage" ? "Back to Room Cards" : "Open 3D LED Stage"}
-                    >
-                        <LuMonitor className="w-3 h-3" />
-                        <span>{view === "stage" ? "Cards" : "Stage"}</span>
-                    </button>
-
-                    <button
-                        type="button"
-                        onClick={() => void fetchDirectory()}
-                        className="p-1.5 rounded-full border border-line-soft bg-surface-panel text-ink-muted hover:text-ink-strong transition-colors"
-                        title="Refresh Arena Directory"
-                        aria-label="Refresh Arena Directory"
-                    >
-                        <LuRefreshCw className="w-3.5 h-3.5" />
-                    </button>
-                </div>
+                <button
+                    type="button"
+                    disabled={refreshing}
+                    onClick={() => void handleManualRefresh()}
+                    className={`p-1.5 rounded-full border border-line-soft bg-surface-panel transition-colors shrink-0 cursor-pointer disabled:opacity-70 ${
+                        refreshing
+                            ? "border-accent/50 text-accent"
+                            : "text-ink-muted hover:text-ink-strong"
+                    }`}
+                    title="Refresh Arena Directory"
+                    aria-label="Refresh Arena Directory"
+                >
+                    <LuRefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                </button>
             </div>
 
             {view === "stage" ? (
@@ -306,70 +315,83 @@ export const LiveArenaContent = ({
                     onSwitchToList={() => setView("list")}
                 />
             ) : (
-                <>
-                    <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 pb-4 space-y-2.5 relative z-10">
-                        {loading && rooms.length === 0 ? (
-                            <div className="py-14 flex flex-col items-center justify-center text-center space-y-2">
-                                <ThinkingOrb state="searching" size={32} tone="accent" label="Scanning live arena tables" />
-                                <p className="text-ludo-xs font-mono text-ink-faint uppercase tracking-wider">
-                                    Scanning Live Arena Tables...
+                <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-3 pb-2 space-y-1.5 relative z-10">
+                    {loading && rooms.length === 0 ? (
+                        <div className="py-14 flex flex-col items-center justify-center text-center space-y-2">
+                            <ThinkingOrb state="searching" size={32} tone="accent" label="Scanning live arena tables" />
+                            <p className="text-ludo-xs font-mono text-ink-faint uppercase tracking-wider">
+                                Scanning Live Arena Tables...
+                            </p>
+                        </div>
+                    ) : filteredRooms.length > 0 ? (
+                        filteredRooms.map((room) => (
+                            <ArenaRoomCard
+                                key={room.id}
+                                room={room}
+                                onInspect={(r) => setInspectRoom(r)}
+                                onJoinSeat={handleJoinSeat}
+                                onWatch={handleWatch}
+                                onOpenProfile={onOpenProfile}
+                            />
+                        ))
+                    ) : (
+                        <div className="rounded-2xl border border-line-soft bg-surface-panel p-6 text-center space-y-3 my-2">
+                            <div className="w-14 h-14 rounded-2xl bg-surface-recessed border border-line-soft mx-auto flex items-center justify-center text-accent">
+                                <FiTv className="w-6 h-6" />
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-ink-strong font-bold text-ludo-md">
+                                    {filter === "all"
+                                        ? "No Open or Live Tables Right Now"
+                                        : "No Tables Match This Filter"}
+                                </p>
+                                <p className="text-ink-muted text-ludo-xs max-w-xs mx-auto leading-relaxed">
+                                    Any player with enough CHIPS can start a match in the lobby or jump into the 3D Arena Demo Stage.
                                 </p>
                             </div>
-                        ) : filteredRooms.length > 0 ? (
-                            filteredRooms.map((room) => (
-                                <ArenaRoomCard
-                                    key={room.id}
-                                    room={room}
-                                    onInspect={(r) => setInspectRoom(r)}
-                                    onJoinSeat={handleJoinSeat}
-                                    onWatch={handleWatch}
-                                    onOpenProfile={onOpenProfile}
-                                />
-                            ))
-                        ) : (
-                            <div className="rounded-2xl border border-line-soft bg-surface-panel p-6 text-center space-y-3 my-2">
-                                <div className="w-14 h-14 rounded-2xl bg-surface-recessed border border-line-soft mx-auto flex items-center justify-center text-accent">
-                                    <FiTv className="w-6 h-6" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-ink-strong font-bold text-ludo-md">
-                                        {filter === "all"
-                                            ? "No Open or Live Tables Right Now"
-                                            : "No Tables Match This Filter"}
-                                    </p>
-                                    <p className="text-ink-muted text-ludo-xs max-w-xs mx-auto leading-relaxed">
-                                        Any player with enough CHIPS (Free to 10M) can start a match in the lobby or jump into the 3D Arena Demo Stage.
-                                    </p>
-                                </div>
-                                <div className="flex items-center justify-center gap-2 pt-1">
-                                    {filter !== "all" && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setFilter("all")}
-                                            className="px-3.5 py-2 rounded-xl border border-line-soft bg-surface-recessed text-ink-strong font-mono text-ludo-xs font-bold uppercase hover:bg-surface-hover"
-                                        >
-                                            Show All
-                                        </button>
-                                    )}
+                            <div className="flex items-center justify-center gap-2 pt-1">
+                                {filter !== "all" && (
                                     <button
                                         type="button"
-                                        onClick={() => handleWatch("ARENA-POWER-4P")}
-                                        className="px-3.5 py-2 rounded-xl bg-accent-soft border border-accent/45 text-accent font-mono text-ludo-xs font-bold uppercase hover:bg-accent/20"
+                                        onClick={() => setFilter("all")}
+                                        className="px-3.5 py-2 rounded-xl border border-line-soft bg-surface-recessed text-ink-strong font-mono text-ludo-xs font-bold uppercase hover:bg-surface-hover"
                                     >
-                                        Watch Exhibition
+                                        Show All
                                     </button>
-                                </div>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => handleWatch("ARENA-POWER-4P")}
+                                    className="px-3.5 py-2 rounded-xl bg-accent-soft border border-accent/45 text-accent font-mono text-ludo-xs font-bold uppercase hover:bg-accent/20"
+                                >
+                                    Watch Exhibition
+                                </button>
                             </div>
-                        )}
-                    </div>
-
-                    <div className="w-full px-4 py-2.5 bg-surface-recessed border-t border-line-soft text-center relative z-20 shrink-0">
-                        <span className="text-ludo-xs font-mono text-ink-faint uppercase tracking-[0.14em]">
-                            Tap [+] to Join Open Seats · Tap Card to Inspect · Free → 10M CHIPS
-                        </span>
-                    </div>
-                </>
+                        </div>
+                    )}
+                </div>
             )}
+
+            {/* Pinned Panel Footer (Instruction + Stage Toggle) */}
+            <div className="w-full px-3 py-2 bg-surface-recessed border-t border-line-soft flex items-center justify-between gap-2 relative z-20 shrink-0">
+                <span className="arena-stats-8px font-mono text-ink-faint uppercase truncate">
+                    Tap [+] to Join Open Seats · Tap Card to Inspect
+                </span>
+
+                <button
+                    type="button"
+                    onClick={() => setView((v) => (v === "stage" ? "list" : "stage"))}
+                    className={`px-2.5 py-1 rounded-full border font-mono text-ludo-xs font-bold inline-flex items-center gap-1 transition-colors shrink-0 cursor-pointer ${
+                        view === "stage"
+                            ? "bg-accent-soft border-accent/50 text-accent"
+                            : "bg-surface-panel border-line-soft text-ink-muted hover:text-ink-strong"
+                    }`}
+                    title={view === "stage" ? "Back to Room Cards" : "Open 3D LED Stage"}
+                >
+                    <LuMonitor className="w-3 h-3" />
+                    <span>{view === "stage" ? "Cards" : "Stage"}</span>
+                </button>
+            </div>
 
             <MatchInspectionSheet
                 room={inspectRoom}
