@@ -375,6 +375,15 @@
   animation: emblem-core-pulse 2.6s ease-in-out infinite;
 }
 
+@keyframes knob-alert-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.28; }
+}
+
+.animate-knob-alert-blink {
+  animation: knob-alert-blink 0.85s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-hud-reticle-spin,
   .animate-hud-reticle-spin-rev,
@@ -382,7 +391,8 @@
   .trap-mine-3077,
   .hud-status-breath,
   .home-deploy-badge-pulse,
-  .animate-emblem-core-pulse {
+  .animate-emblem-core-pulse,
+  .animate-knob-alert-blink {
     animation: none !important;
     transition-duration: 0.01ms !important;
   }

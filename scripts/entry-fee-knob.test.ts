@@ -4,8 +4,10 @@ import {
     DIAL_MAX_DEG,
     DIAL_MIN_DEG,
     ENTRY_FEE_TIERS,
+    ENTRY_FEE_TIER_NAMES,
     angleToTierIndex,
     formatDialTierLabel,
+    getEntryFeeTierName,
     maxAffordableTierIndex,
     pointerToDialAngle,
     stepTier,
@@ -13,7 +15,7 @@ import {
     wagerToAngle,
 } from '../lib/entryFeeDial';
 
-test('entry fee dial: 10 tiers span -135 to +135 at 30deg intervals with 3M replacing 1.5M', () => {
+test('entry fee dial: 10 tiers span -135 to +135 at 30deg intervals with smart names (no VIP)', () => {
     assert.deepEqual(
         [...ENTRY_FEE_TIERS],
         [0, 500, 1_000, 10_000, 100_000, 500_000, 1_000_000, 3_000_000, 5_000_000, 10_000_000],
@@ -25,6 +27,15 @@ test('entry fee dial: 10 tiers span -135 to +135 at 30deg intervals with 3M repl
     assert.equal(formatDialTierLabel(0), 'FREE');
     assert.equal(formatDialTierLabel(3_000_000), '3M');
     assert.equal(formatDialTierLabel(10_000_000), '10M');
+
+    for (const tier of ENTRY_FEE_TIERS) {
+        const name = ENTRY_FEE_TIER_NAMES[tier];
+        assert.ok(name && name !== 'VIP');
+        assert.equal(getEntryFeeTierName(tier), name);
+    }
+    assert.equal(getEntryFeeTierName(0), 'SCOUT');
+    assert.equal(getEntryFeeTierName(25_000), 'PULSE');
+    assert.equal(getEntryFeeTierName(10_000_000), 'APEX');
 });
 
 test('entry fee dial: wagerToAngle hits exact detents and interpolates custom intermediate values', () => {
@@ -39,29 +50,23 @@ test('entry fee dial: wagerToAngle hits exact detents and interpolates custom in
 });
 
 test('entry fee dial: pointerToDialAngle prevents bottom dead-zone wrap jumps', () => {
-    // Straight up (12 o'clock) -> 0°
     assert.equal(Math.round(pointerToDialAngle(0, -100, -45)), 0);
-    // Bottom-left detent (-135°)
     assert.equal(Math.round(pointerToDialAngle(-100, 100, -120)), -135);
-    // Bottom-right detent (+135°)
     assert.equal(Math.round(pointerToDialAngle(100, 100, 120)), 135);
 
-    // Crossing from -130° into the bottom dead-zone toward +160° must clamp to -135°, never jump to +135°
     assert.equal(pointerToDialAngle(20, 100, -130), DIAL_MIN_DEG);
-    // Crossing from +130° into the bottom dead-zone toward -160° must clamp to +135°, never jump to -135°
     assert.equal(pointerToDialAngle(-20, 100, 130), DIAL_MAX_DEG);
 });
 
-test('entry fee dial: angle snapping and tier stepping enforce playableChips ceiling', () => {
+test('entry fee dial: users can experience full 0..10M dial while maxAffordableTierIndex still computes balance cap', () => {
     assert.equal(maxAffordableTierIndex(0), 0);
     assert.equal(maxAffordableTierIndex(25_000), 3); // 10_000
     assert.equal(maxAffordableTierIndex(3_500_000), 7); // 3_000_000
 
-    // Scrubbing toward +135° with 25,000 chips stops at index 3 (10_000)
-    assert.equal(angleToTierIndex(135, 25_000), 3);
-    assert.equal(stepTier(10_000, 1, 25_000), 10_000);
-    assert.equal(stepTier(1_000_000, 1, 3_000_000), 3_000_000);
-    assert.equal(stepTier(3_000_000, -1, 3_000_000), 1_000_000);
-    assert.equal(stepTier(12_000, -1, 25_000), 10_000);
-    assert.equal(stepTier(12_000, 1, 100_000), 100_000);
+    assert.equal(angleToTierIndex(135), 9); // 10_000_000
+    assert.equal(stepTier(10_000, 1), 100_000);
+    assert.equal(stepTier(1_000_000, 1), 3_000_000);
+    assert.equal(stepTier(3_000_000, -1), 1_000_000);
+    assert.equal(stepTier(12_000, -1), 10_000);
+    assert.equal(stepTier(12_000, 1), 100_000);
 });

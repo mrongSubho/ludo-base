@@ -34,8 +34,10 @@ import {
     ClassicGridIcon,
     OverdriveBoltIcon,
     VaultShieldIcon,
+    WarningHexIcon,
 } from './icons';
 import { EntryFeeKnob } from './EntryFeeKnob';
+import { getEntryFeeTierName } from '@/lib/entryFeeDial';
 
 /** Primary preset entry fees (CHIPS). 0 = Free. */
 const FEE_PRESETS = [0, 500, 1_000, 10_000, 100_000, 500_000] as const;
@@ -173,10 +175,24 @@ export default function GameLobby({
     const [pendingJoin, setPendingJoin] = useState<{ code: string; since: number } | null>(null);
     const [joinError, setJoinError] = useState<string | null>(null);
     const [showFee, setShowFee] = useState(false);
+    const [dialWager, setDialWager] = useState(wager);
+    const [dialWarning, setDialWarning] = useState<string | null>(null);
     const [showMoreFees, setShowMoreFees] = useState(false);
     const feeTierRef = useRef<HTMLDivElement | null>(null);
     const lastJoinRef = useRef<{ code: string; seat?: number; secret?: string | null } | null>(null);
     const feeInitRef = useRef(false);
+
+    const openFeeSelector = useCallback(() => {
+        playSelect();
+        setShowFee((prev) => {
+            const next = !prev;
+            if (next) {
+                setDialWager(wager);
+                setDialWarning(null);
+            }
+            return next;
+        });
+    }, [playSelect, wager]);
 
     useEffect(() => {
         if (!is3077 || !showFee) return;
@@ -184,10 +200,14 @@ export default function GameLobby({
             const el = feeTierRef.current;
             if (el && !el.contains(e.target as Node)) {
                 setShowFee(false);
+                setDialWarning(null);
             }
         };
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') setShowFee(false);
+            if (e.key === 'Escape') {
+                setShowFee(false);
+                setDialWarning(null);
+            }
         };
         document.addEventListener('pointerdown', handlePointerDown);
         window.addEventListener('keydown', handleKeyDown);
@@ -642,7 +662,7 @@ export default function GameLobby({
                     >
                         <button
                             type="button"
-                            onClick={() => { playSelect(); setShowFee(v => !v); }}
+                            onClick={openFeeSelector}
                             aria-expanded={showFee}
                             className="w-full flex items-center justify-between px-3 py-2 rounded-[18px] hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform]"
                         >
@@ -681,17 +701,29 @@ export default function GameLobby({
                                         {/* Same Entry Fee top bar — tap to close the detailed knob HUD */}
                                         <button
                                             type="button"
-                                            onClick={() => { playSelect(); setShowFee(false); }}
+                                            onClick={() => {
+                                                playSelect();
+                                                setShowFee(false);
+                                                setDialWarning(null);
+                                            }}
                                             aria-expanded={true}
                                             className="relative z-10 w-full flex items-center justify-between px-3 py-2 rounded-[18px] hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform]"
                                         >
                                             <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
-                                                <ChipsHexIcon className="w-4 h-4 text-accent shrink-0" active={wager > 0} />
+                                                <ChipsHexIcon className="w-4 h-4 text-accent shrink-0" active={dialWager > 0} />
                                                 <span>Entry Fee</span>
                                             </span>
                                             <span className="inline-flex items-center gap-2">
-                                                <span className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${wager > 0 ? 'text-accent' : 'text-ink-muted'}`}>
-                                                    {formatEntryFee(wager)}
+                                                <span
+                                                    className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${
+                                                        dialWager > playableChips
+                                                            ? 'text-negative animate-knob-alert-blink'
+                                                            : dialWager > 0
+                                                              ? 'text-accent'
+                                                              : 'text-ink-muted'
+                                                    }`}
+                                                >
+                                                    {getEntryFeeTierName(dialWager)} · {formatEntryFee(dialWager)}
                                                 </span>
                                                 <ChevronGlyphIcon
                                                     direction="down"
@@ -700,22 +732,46 @@ export default function GameLobby({
                                             </span>
                                         </button>
 
-                                        <div className="relative z-10 w-full px-2.5 pb-3 pt-1 flex flex-col items-center gap-2.5">
+                                        <div className="relative z-10 w-full px-2.5 pb-3 pt-1 flex flex-col items-center gap-2">
                                             <EntryFeeKnob
-                                                wager={wager}
+                                                wager={dialWager}
                                                 playableChips={playableChips}
-                                                onChange={setWager}
+                                                onChange={(next) => {
+                                                    setDialWager(next);
+                                                    setDialWarning(null);
+                                                }}
                                                 sfxEnabled={preferences.sfx}
                                                 formatBalance={formatEntryFee}
                                             />
+                                            {dialWarning && (
+                                                <div
+                                                    role="alert"
+                                                    className="w-full px-3 py-1.5 rounded-xl bg-negative/15 border border-negative/40 text-negative flex items-center justify-center gap-1.5 text-ludo-xs font-mono font-bold"
+                                                >
+                                                    <WarningHexIcon className="w-3.5 h-3.5 shrink-0" />
+                                                    <span className="truncate">{dialWarning}</span>
+                                                </div>
+                                            )}
                                             <Button
-                                                variant="primary"
+                                                variant={dialWager > playableChips ? 'danger' : 'primary'}
                                                 size="md"
                                                 fullWidth
-                                                onClick={() => { playSelect(); setShowFee(false); }}
+                                                onClick={() => {
+                                                    if (dialWager > playableChips) {
+                                                        playSelect();
+                                                        setDialWarning(
+                                                            `Insufficient CHIPS · Balance: ${formatEntryFee(playableChips)}`,
+                                                        );
+                                                        return;
+                                                    }
+                                                    playSelect();
+                                                    setWager(dialWager);
+                                                    setDialWarning(null);
+                                                    setShowFee(false);
+                                                }}
                                                 className="uppercase tracking-[0.18em] font-extrabold"
                                             >
-                                                Confirm · {formatEntryFee(wager)}
+                                                Confirm · {formatEntryFee(dialWager)}
                                             </Button>
                                         </div>
                                     </motion.div>

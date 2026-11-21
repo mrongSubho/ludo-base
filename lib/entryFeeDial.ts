@@ -18,6 +18,20 @@ export const ENTRY_FEE_TIERS = [
 
 export type EntryFeeTier = (typeof ENTRY_FEE_TIERS)[number];
 
+/** Smart futuristic arena rank names for every preset from Free (0) to 10M. */
+export const ENTRY_FEE_TIER_NAMES: Record<EntryFeeTier, string> = {
+    0: 'SCOUT',
+    500: 'SPARK',
+    1_000: 'STRIKE',
+    10_000: 'PULSE',
+    100_000: 'SURGE',
+    500_000: 'BLITZ',
+    1_000_000: 'TITAN',
+    3_000_000: 'NOVA',
+    5_000_000: 'OMEGA',
+    10_000_000: 'APEX',
+};
+
 export const HIGH_ROLLER_MIN_WAGER = 1_000_000;
 
 export const DIAL_MIN_DEG = -135;
@@ -26,6 +40,17 @@ export const DIAL_SWEEP_DEG = DIAL_MAX_DEG - DIAL_MIN_DEG; // 270°
 /** 45 intervals × 6° = 270°; every 5th tick (0, 5, ..., 45) aligns with 30° tier detents. */
 export const DIAL_TICK_COUNT = 46;
 export const DIAL_TIER_STEP_DEG = DIAL_SWEEP_DEG / (ENTRY_FEE_TIERS.length - 1); // 30°
+
+/** Returns the smart arena name for any wager amount (`SCOUT` .. `APEX`). */
+export function getEntryFeeTierName(wager: number): string {
+    if (!Number.isFinite(wager) || wager <= 0) return ENTRY_FEE_TIER_NAMES[0];
+    let matched: EntryFeeTier = ENTRY_FEE_TIERS[0];
+    for (let i = 0; i < ENTRY_FEE_TIERS.length; i++) {
+        if (wager >= ENTRY_FEE_TIERS[i]) matched = ENTRY_FEE_TIERS[i];
+        else break;
+    }
+    return ENTRY_FEE_TIER_NAMES[matched];
+}
 
 /** Maps a tier index [0..9] to its angle in [-135°, +135°]. */
 export function tierIndexToAngle(index: number): number {
@@ -71,10 +96,8 @@ export function wagerToAngle(wager: number): number {
  */
 export function pointerToDialAngle(dx: number, dy: number, prevAngleDeg: number): number {
     if (dx === 0 && dy === 0) return Math.max(DIAL_MIN_DEG, Math.min(DIAL_MAX_DEG, prevAngleDeg));
-    // 0° = 12 o'clock (0, -1); -135° = bottom-left; +135° = bottom-right.
     const raw = (Math.atan2(dx, -dy) * 180) / Math.PI;
 
-    // Guard fast drags that jump across the bottom gap in a single frame
     if (prevAngleDeg < -90 && raw > 90) return DIAL_MIN_DEG;
     if (prevAngleDeg > 90 && raw < -90) return DIAL_MAX_DEG;
 
@@ -84,21 +107,19 @@ export function pointerToDialAngle(dx: number, dy: number, prevAngleDeg: number)
     return raw;
 }
 
-/** Snaps a dial angle to the nearest affordable tier index. */
-export function angleToTierIndex(angleDeg: number, playableChips: number): number {
+/** Snaps a dial angle to the nearest tier index across the full 0..10M dial. */
+export function angleToTierIndex(angleDeg: number): number {
     const clamped = Math.max(DIAL_MIN_DEG, Math.min(DIAL_MAX_DEG, angleDeg));
     const rawIdx = Math.round((clamped - DIAL_MIN_DEG) / DIAL_TIER_STEP_DEG);
-    const maxIdx = maxAffordableTierIndex(playableChips);
-    return Math.max(0, Math.min(maxIdx, rawIdx));
+    return Math.max(0, Math.min(ENTRY_FEE_TIERS.length - 1, rawIdx));
 }
 
-/** Steps up (+1) or down (-1) one tier relative to `currentWager`, respecting `playableChips`. */
-export function stepTier(currentWager: number, direction: -1 | 1, playableChips: number): number {
-    const cap = Math.max(0, Number.isFinite(playableChips) ? playableChips : 0);
+/** Steps up (+1) or down (-1) one tier across the full 0..10M ladder. */
+export function stepTier(currentWager: number, direction: -1 | 1): number {
     if (direction === 1) {
         for (let i = 0; i < ENTRY_FEE_TIERS.length; i++) {
             const tier = ENTRY_FEE_TIERS[i];
-            if (tier > currentWager && tier <= cap) return tier;
+            if (tier > currentWager) return tier;
         }
         return currentWager;
     }
