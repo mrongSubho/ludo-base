@@ -17,6 +17,7 @@ import { serviceDb } from './serverAuth';
 import { buildSiweMessage } from './sessionProof';
 import { verifyPersonalSign } from './walletVerify';
 import { DEFAULT_CHAIN_ID } from './chains';
+import { pickRandomPilotAvatar } from './avatars';
 import type { Database } from '@/types/database.types';
 
 export type SessionScope = 'app' | 'match' | 'spectator';
@@ -355,10 +356,13 @@ export async function issueAppSession(params: {
     const expiresAt = new Date(now + APP_SESSION_TTL_MS).toISOString();
     const idleExpiresAt = new Date(now + APP_IDLE_TTL_MS).toISOString();
 
-    // 1. Ensure player row exists
+    // 1. Ensure player row exists (assigning a random default pilot avatar on insert)
     await db
         .from('players')
-        .upsert({ wallet_address: wallet }, { onConflict: 'wallet_address', ignoreDuplicates: true });
+        .upsert(
+            { wallet_address: wallet, avatar_url: pickRandomPilotAvatar() },
+            { onConflict: 'wallet_address', ignoreDuplicates: true },
+        );
 
     // 2. Revoke prior active app sessions for this wallet
     await db

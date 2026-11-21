@@ -109,4 +109,34 @@ describe('Pilot Dossier & Public Profile Synchronization', () => {
             assert.match(src, /<span>Ranking<\/span>/);
         }
     });
+
+    it('Assigns random avatars from the 18 pilot list to existing empty players and all new players', async () => {
+        const { PILOT_AVATAR_IDS, pickRandomPilotAvatar } = await import('../lib/avatars');
+        assert.equal(PILOT_AVATAR_IDS.length, 18);
+        const validSet = new Set(PILOT_AVATAR_IDS.map((id) => `avatar:${id}`));
+        for (let i = 0; i < 40; i++) {
+            assert.ok(validSet.has(pickRandomPilotAvatar()));
+        }
+
+        const mig = read('supabase/migrations/202611220001_default_random_pilot_avatar.sql');
+        assert.match(mig, /^begin;/m);
+        assert.match(mig, /random_pilot_avatar\(\)/);
+        assert.match(mig, /players_default_random_avatar/);
+        assert.match(mig, /before insert on public\.players/i);
+        assert.match(mig, /update public\.players\s+set avatar_url = public\.random_pilot_avatar\(\)/i);
+        for (const id of PILOT_AVATAR_IDS) {
+            assert.match(mig, new RegExp(`'avatar:${id}'`));
+        }
+        assert.match(mig, /^commit;/m);
+
+        for (const f of [
+            'lib/serverAuth.ts',
+            'lib/sessionV2.ts',
+            'app/api/siwe/verify/route.ts',
+            'lib/spectatorBetting.ts',
+            'app/api/profile/route.ts',
+        ]) {
+            assert.match(read(f), /pickRandomPilotAvatar\(/, `${f} should assign pickRandomPilotAvatar()`);
+        }
+    });
 });

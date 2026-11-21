@@ -1,5 +1,3 @@
-'use client';
-
 // ─── Avatar library ─────────────────────────────────────────────────────────
 // FORMAT (stable contract — design ideas plug in here without touching UI):
 //   { id, label, tagline?, kind, series, unlock, src?, bg? }
@@ -64,6 +62,22 @@ const PILOT_DEFS: readonly AvatarDef[] = [
     { id: 'pilot-aegis', label: 'Aegis', tagline: 'Titan Android', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/aegis.png' },
     { id: 'pilot-kestrel', label: 'Kestrel', tagline: 'Bounty Legend', kind: 'image', series: 'pilots', unlock: { type: 'default' }, src: '/avatars/pilots/kestrel.png' },
 ];
+
+export const PILOT_AVATAR_IDS: readonly string[] = PILOT_DEFS.map((p) => p.id);
+
+/** Pick a random encoded avatar (`avatar:<id>`) from the 18 custom pilot portraits. */
+export function pickRandomPilotAvatar(): string {
+    const count = PILOT_AVATAR_IDS.length;
+    let index: number;
+    if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+        const buf = new Uint32Array(1);
+        globalThis.crypto.getRandomValues(buf);
+        index = buf[0] % count;
+    } else {
+        index = Math.floor(Math.random() * count);
+    }
+    return `avatar:${PILOT_AVATAR_IDS[index]}`;
+}
 
 /** Back-compat aliases for retired v1 helmet IDs so saved profiles never break. */
 const LEGACY_PILOT_ALIASES: Record<string, string> = {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { buildSiweMessage, APP_SESSION_TTL_MS } from '@/lib/sessionProof';
 import { parseChainId, DEFAULT_CHAIN_ID } from '@/lib/chains';
 import { verifyPersonalSign } from '@/lib/walletVerify';
+import { pickRandomPilotAvatar } from '@/lib/avatars';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 /** Lazy client — module eval at build time must not require secrets. */
@@ -116,7 +117,10 @@ export async function POST(request: Request) {
         // storm (constant signing popups). Idempotent, defaults fill the rest.
         const { error: playerError } = await db
             .from('players')
-            .upsert({ wallet_address: recovered }, { onConflict: 'wallet_address', ignoreDuplicates: true });
+            .upsert(
+                { wallet_address: recovered, avatar_url: pickRandomPilotAvatar() },
+                { onConflict: 'wallet_address', ignoreDuplicates: true },
+            );
         if (playerError) {
             console.error('[siwe] player provision failed', JSON.stringify({
                 code: playerError.code, message: playerError.message, hint: playerError.hint,

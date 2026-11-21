@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireSessionWallet, requireAppSession, serviceDb } from '@/lib/serverAuth';
 import { getClanTagsForWallets } from '@/lib/clan/clanService';
+import { pickRandomPilotAvatar } from '@/lib/avatars';
 
 /**
  * GET /api/profile?walletAddress=0x…
@@ -61,15 +62,29 @@ export async function POST(request: Request) {
             (await requireAppSession(walletAddress, sessionId));
         if (!authenticatedWallet) return NextResponse.json({ error: 'Invalid profile session' }, { status: 401 });
 
+        const db = serviceDb();
         const updates: Record<string, string | boolean | null> = {};
         if (username !== undefined) updates.username = username === null ? null : String(username).slice(0, 80);
-        if (avatarUrl !== undefined) updates.avatar_url = avatarUrl === null ? null : String(avatarUrl).slice(0, 500);
+        if (avatarUrl !== undefined) {
+            const trimmedAvatar = avatarUrl === null ? '' : String(avatarUrl).trim();
+            if (trimmedAvatar.length > 0) {
+                updates.avatar_url = trimmedAvatar.slice(0, 500);
+            } else {
+                const { data: existingPlayer } = await db
+                    .from('players')
+                    .select('avatar_url')
+                    .eq('wallet_address', authenticatedWallet)
+                    .maybeSingle();
+                if (!existingPlayer?.avatar_url || !String(existingPlayer.avatar_url).trim()) {
+                    updates.avatar_url = pickRandomPilotAvatar();
+                }
+            }
+        }
         if (peerId !== undefined) updates.peer_id = peerId === null ? null : String(peerId).slice(0, 200);
         if (typeof isPublic === 'boolean') updates.is_public = isPublic;
         if (typeof allowRequests === 'boolean') updates.allow_requests = allowRequests;
         if (Object.keys(updates).length === 0) return NextResponse.json({ success: true });
 
-        const db = serviceDb();
         if (typeof updates.username === 'string' && updates.username.length > 0) {
             const { data: clash } = await db.from('players').select('wallet_address')
                 .ilike('username', updates.username).neq('wallet_address', authenticatedWallet).limit(1);

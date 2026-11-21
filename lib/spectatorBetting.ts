@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { serviceDb } from '@/lib/serverAuth';
+import { pickRandomPilotAvatar } from '@/lib/avatars';
 import {
     SPECTATOR_BET_MAX_CHIPS,
     SPECTATOR_BET_MIN_CHIPS,
@@ -183,7 +184,12 @@ async function placeSpectatorBetFallback(
         };
     }
 
-    await db.from('players').upsert({ wallet_address: wallet }, { onConflict: 'wallet_address', ignoreDuplicates: true });
+    await db
+        .from('players')
+        .upsert(
+            { wallet_address: wallet, avatar_url: pickRandomPilotAvatar() },
+            { onConflict: 'wallet_address', ignoreDuplicates: true },
+        );
     await db
         .from('arena_vault_accounts')
         .upsert({ wallet_address: wallet, balance: 0 }, { onConflict: 'wallet_address', ignoreDuplicates: true });

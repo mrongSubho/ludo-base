@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database.types';
+import { pickRandomPilotAvatar } from './avatars';
 import {
     hashToken,
     parseSessionToken,
@@ -259,6 +260,9 @@ export async function ensurePlayerRow(walletAddress: string): Promise<string | n
     }
     const { error } = await serviceDb()
         .from('players')
-        .upsert({ wallet_address: wallet }, { onConflict: 'wallet_address', ignoreDuplicates: true });
+        .upsert(
+            { wallet_address: wallet, avatar_url: pickRandomPilotAvatar() },
+            { onConflict: 'wallet_address', ignoreDuplicates: true },
+        );
     return error ? error.message : null;
 }
