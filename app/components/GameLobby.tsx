@@ -35,7 +35,7 @@ import {
     OverdriveBoltIcon,
     VaultShieldIcon,
 } from './icons';
-import { EntryFeeDialOverlay } from './EntryFeeKnob';
+import { EntryFeeKnob } from './EntryFeeKnob';
 
 /** Primary preset entry fees (CHIPS). 0 = Free. */
 const FEE_PRESETS = [0, 500, 1_000, 10_000, 100_000, 500_000] as const;
@@ -174,8 +174,28 @@ export default function GameLobby({
     const [joinError, setJoinError] = useState<string | null>(null);
     const [showFee, setShowFee] = useState(false);
     const [showMoreFees, setShowMoreFees] = useState(false);
+    const feeTierRef = useRef<HTMLDivElement | null>(null);
     const lastJoinRef = useRef<{ code: string; seat?: number; secret?: string | null } | null>(null);
     const feeInitRef = useRef(false);
+
+    useEffect(() => {
+        if (!is3077 || !showFee) return;
+        const handlePointerDown = (e: PointerEvent) => {
+            const el = feeTierRef.current;
+            if (el && !el.contains(e.target as Node)) {
+                setShowFee(false);
+            }
+        };
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setShowFee(false);
+        };
+        document.addEventListener('pointerdown', handlePointerDown);
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('pointerdown', handlePointerDown);
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [is3077, showFee]);
 
     // Smart default fee from real CHIPS + Match Vault balance; clamp if balance can't cover current stake.
     useEffect(() => {
@@ -420,7 +440,7 @@ export default function GameLobby({
     const isMoreFeeActive = showMoreFees || (MORE_FEE_PRESETS as readonly number[]).includes(wager);
 
     return (
-        <div className={`ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-4 min-h-0 h-full flex flex-col items-center justify-start overflow-hidden${lobbyCompact ? ' lobby-compact' : ''}`}>
+        <div className={`ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-4 min-h-0 h-full flex flex-col items-center justify-start ${is3077 && showFee ? 'overflow-visible' : 'overflow-hidden'}${lobbyCompact ? ' lobby-compact' : ''}`}>
             {/* Theme photo backdrop (fixed layer, behind everything, taps pass through) */}
             <div className="lobby-backdrop" aria-hidden />
 
@@ -429,7 +449,7 @@ export default function GameLobby({
                 <div
                     key="setup"
                     ref={setupRef}
-                    className="w-full max-w-[420px] mx-auto flex flex-col gap-2 sm:gap-3 min-h-0 h-full setup-tier overflow-hidden"
+                    className={`w-full max-w-[420px] mx-auto flex flex-col gap-2 sm:gap-3 min-h-0 h-full setup-tier ${is3077 && showFee ? 'overflow-visible' : 'overflow-hidden'}`}
                 >
                     {/* 1. SELECTION GROUP */}
                     <div className="w-full space-y-3 flex flex-col">
@@ -615,8 +635,11 @@ export default function GameLobby({
                         </div>
                     </div>
 
-                    {/* 2. ENTRY FEE — collapsed by default. Presets gated by balance. */}
-                    <div className="fee-tier rounded-[20px] glass-panel bg-surface-panel flex flex-col items-center shadow-2xl border border-line-soft">
+                    {/* 2. ENTRY FEE — collapsed by default. In 3077, expands in-place from the pill over ActionDice so the lobby stays put. */}
+                    <div
+                        ref={feeTierRef}
+                        className="fee-tier relative z-40 rounded-[20px] glass-panel bg-surface-panel flex flex-col items-center shadow-2xl border border-line-soft"
+                    >
                         <button
                             type="button"
                             onClick={() => { playSelect(); setShowFee(v => !v); }}
@@ -638,19 +661,66 @@ export default function GameLobby({
                             </span>
                         </button>
                         {is3077 ? (
-                            <EntryFeeDialOverlay
-                                isOpen={showFee}
-                                wager={wager}
-                                playableChips={playableChips}
-                                onChange={setWager}
-                                onConfirm={() => {
-                                    playSelect();
-                                    setShowFee(false);
-                                }}
-                                onClose={() => setShowFee(false)}
-                                sfxEnabled={preferences.sfx}
-                                formatBalance={formatEntryFee}
-                            />
+                            <AnimatePresence initial={false}>
+                                {showFee && (
+                                    <motion.div
+                                        key="fee-knob-dropdown"
+                                        initial={{ opacity: 0, y: -4, scaleY: 0.94 }}
+                                        animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                                        exit={{ opacity: 0, y: -4, scaleY: 0.94 }}
+                                        transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
+                                        style={{
+                                            transformOrigin: 'top center',
+                                            background: 'var(--panel-bg)',
+                                            boxShadow: 'var(--panel-shadow)',
+                                        }}
+                                        className="fee-tier absolute top-0 left-0 right-0 z-40 rounded-[20px] border border-line-strong backdrop-blur-2xl flex flex-col items-center overflow-hidden"
+                                    >
+                                        <HudCornerTicks />
+
+                                        {/* Same Entry Fee top bar — tap to close the detailed knob HUD */}
+                                        <button
+                                            type="button"
+                                            onClick={() => { playSelect(); setShowFee(false); }}
+                                            aria-expanded={true}
+                                            className="relative z-10 w-full flex items-center justify-between px-3 py-2 rounded-[18px] hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform]"
+                                        >
+                                            <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
+                                                <ChipsHexIcon className="w-4 h-4 text-accent shrink-0" active={wager > 0} />
+                                                <span>Entry Fee</span>
+                                            </span>
+                                            <span className="inline-flex items-center gap-2">
+                                                <span className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${wager > 0 ? 'text-accent' : 'text-ink-muted'}`}>
+                                                    {formatEntryFee(wager)}
+                                                </span>
+                                                <ChevronGlyphIcon
+                                                    direction="down"
+                                                    className="w-3.5 h-3.5 text-ink-muted rotate-180 transition-transform duration-200"
+                                                />
+                                            </span>
+                                        </button>
+
+                                        <div className="relative z-10 w-full px-2.5 pb-3 pt-1 flex flex-col items-center gap-2.5">
+                                            <EntryFeeKnob
+                                                wager={wager}
+                                                playableChips={playableChips}
+                                                onChange={setWager}
+                                                sfxEnabled={preferences.sfx}
+                                                formatBalance={formatEntryFee}
+                                            />
+                                            <Button
+                                                variant="primary"
+                                                size="md"
+                                                fullWidth
+                                                onClick={() => { playSelect(); setShowFee(false); }}
+                                                className="uppercase tracking-[0.18em] font-extrabold"
+                                            >
+                                                Confirm · {formatEntryFee(wager)}
+                                            </Button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         ) : (
                             <AnimatePresence initial={false}>
                                 {showFee && (

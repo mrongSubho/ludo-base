@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { LuMinus, LuPlus } from 'react-icons/lu';
 import {
     DIAL_MIN_DEG,
@@ -19,9 +17,6 @@ import {
     wagerToAngle,
 } from '@/lib/entryFeeDial';
 import { onReducedMotionChange, prefersReducedMotion } from '@/lib/motion';
-import { Button } from './Button';
-import { HudCornerTicks } from './HudPrimitives';
-import { ChipsHexIcon, CloseReticleIcon } from './icons';
 
 interface EntryFeeKnobProps {
     wager: number;
@@ -294,7 +289,7 @@ export function EntryFeeKnob({
                     aria-valuenow={wager}
                     aria-valuetext={wager === 0 ? 'Free' : `${formatBalance(wager)} CHIPS`}
                     onKeyDown={handleKeyDown}
-                    className="relative w-full max-w-[228px] select-none rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="relative w-full max-w-[224px] select-none rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                     <svg
                         ref={svgRef}
@@ -620,123 +615,6 @@ export function EntryFeeKnob({
                 </button>
             </div>
         </div>
-    );
-}
-
-/**
- * Centered HUD dial overlay for 3077 Entry Fee selection.
- * Keeps the main lobby layout (`ActionDice` & `LiveBroadcastCard`) completely
- * stationary while giving the rotary knob clean breathing room.
- */
-export function EntryFeeDialOverlay({
-    isOpen,
-    wager,
-    playableChips,
-    onChange,
-    onConfirm,
-    onClose,
-    sfxEnabled,
-    formatBalance,
-}: EntryFeeKnobProps & {
-    isOpen: boolean;
-    onConfirm: () => void;
-    onClose: () => void;
-}) {
-    const [mounted, setMounted] = useState(false);
-
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    useEffect(() => {
-        if (!isOpen) return;
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [isOpen, onClose]);
-
-    if (!mounted) return null;
-
-    return createPortal(
-        <AnimatePresence>
-            {isOpen && (
-                <div
-                    className="fixed inset-0 z-[120] flex items-center justify-center p-4"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Select entry fee"
-                >
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
-                        onClick={onClose}
-                        className="fixed inset-0 bg-surface-page/75 backdrop-blur-md"
-                        aria-hidden="true"
-                    />
-
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                        transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="panel-shell-3077 relative z-10 w-full max-w-[368px] rounded-[20px] px-4 pt-3.5 pb-4 flex flex-col items-center gap-3 overflow-hidden"
-                        style={{
-                            background: 'var(--panel-bg)',
-                            border: '1px solid var(--panel-border)',
-                            boxShadow: 'var(--panel-shadow)',
-                            color: 'var(--ink-strong)',
-                        }}
-                    >
-                        <HudCornerTicks />
-
-                        {/* Header */}
-                        <div className="w-full flex items-center justify-between gap-2 relative z-10">
-                            <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
-                                <ChipsHexIcon className="w-4 h-4 text-accent shrink-0" active={wager > 0} />
-                                <span>Entry Fee</span>
-                            </span>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={onClose}
-                                aria-label="Close entry fee dial"
-                                className="panel-close-3077 bg-surface-recessed border border-line-soft shrink-0"
-                            >
-                                <CloseReticleIcon className="icon-md" />
-                            </Button>
-                        </div>
-
-                        {/* Tightened Rotary Dial */}
-                        <div className="w-full flex justify-center relative z-10">
-                            <EntryFeeKnob
-                                wager={wager}
-                                playableChips={playableChips}
-                                onChange={onChange}
-                                sfxEnabled={sfxEnabled}
-                                formatBalance={formatBalance}
-                            />
-                        </div>
-
-                        {/* Confirm CTA */}
-                        <Button
-                            variant="primary"
-                            size="lg"
-                            fullWidth
-                            onClick={onConfirm}
-                            className="relative z-10 uppercase tracking-[0.18em] font-extrabold"
-                        >
-                            Confirm · {formatBalance(wager)}
-                        </Button>
-                    </motion.div>
-                </div>
-            )}
-        </AnimatePresence>,
-        document.body,
     );
 }
 
