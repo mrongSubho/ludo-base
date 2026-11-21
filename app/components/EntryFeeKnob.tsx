@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { LuMinus, LuPlus } from 'react-icons/lu';
 import {
     DIAL_MIN_DEG,
@@ -17,6 +19,9 @@ import {
     wagerToAngle,
 } from '@/lib/entryFeeDial';
 import { onReducedMotionChange, prefersReducedMotion } from '@/lib/motion';
+import { Button } from './Button';
+import { HudCornerTicks } from './HudPrimitives';
+import { ChipsHexIcon, CloseReticleIcon } from './icons';
 
 interface EntryFeeKnobProps {
     wager: number;
@@ -263,7 +268,7 @@ export function EntryFeeKnob({
 
     return (
         <div
-            className="knob-console-3077 w-full flex flex-col items-center gap-1 pt-0.5 pb-1"
+            className="knob-console-3077 w-full max-w-[336px] flex flex-col items-center"
             onWheel={handleWheel}
         >
             <div className="relative w-full flex items-center justify-center">
@@ -274,7 +279,7 @@ export function EntryFeeKnob({
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => emitTierChange(stepTier(wager, -1, playableChips))}
                     aria-label="Decrease entry fee"
-                    className="fee-preset-3077 absolute left-1 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-surface-recessed border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    className="fee-preset-3077 absolute left-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-surface-recessed border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                 >
                     <LuMinus className="w-4 h-4 stroke-[2.75px]" />
                 </button>
@@ -289,7 +294,7 @@ export function EntryFeeKnob({
                     aria-valuenow={wager}
                     aria-valuetext={wager === 0 ? 'Free' : `${formatBalance(wager)} CHIPS`}
                     onKeyDown={handleKeyDown}
-                    className="relative w-full max-w-[266px] select-none rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className="relative w-full max-w-[228px] select-none rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                     <svg
                         ref={svgRef}
@@ -535,15 +540,19 @@ export function EntryFeeKnob({
                         />
                     </svg>
 
-                    {/* Stationary Center Interactive OLED Readout */}
+                    {/* Stationary Center Interactive OLED Readout (pinned to SVG circle center 140,118) */}
                     <div
-                        className="pointer-events-none absolute inset-0 flex items-center justify-center"
-                        style={{ paddingTop: '14px' }}
+                        className="pointer-events-none absolute flex items-center justify-center"
+                        style={{
+                            top: '54.63%',
+                            left: '50%',
+                            transform: 'translate(-50%, -50%)',
+                        }}
                     >
                         {isEditing ? (
                             <div
                                 onPointerDown={(e) => e.stopPropagation()}
-                                className="pointer-events-auto w-[78px] h-[78px] rounded-full flex flex-col items-center justify-center px-1.5 bg-surface-page/90 border border-accent"
+                                className="pointer-events-auto w-[72px] h-[72px] rounded-full flex flex-col items-center justify-center px-1.5 bg-surface-page/90 border border-accent"
                             >
                                 <input
                                     ref={inputRef}
@@ -579,7 +588,7 @@ export function EntryFeeKnob({
                                 onPointerDown={(e) => e.stopPropagation()}
                                 onClick={() => setIsEditing(true)}
                                 title="Tap to type exact CHIPS"
-                                className="pointer-events-auto w-[80px] h-[80px] rounded-full flex flex-col items-center justify-center gap-0.5 px-1 hover:bg-surface-hover/50 transition-colors cursor-pointer focus-visible:outline-none"
+                                className="pointer-events-auto w-[72px] h-[72px] rounded-full flex flex-col items-center justify-center gap-0.5 px-1 hover:bg-surface-hover/50 transition-colors cursor-pointer focus-visible:outline-none"
                             >
                                 <span
                                     className={`${displaySizeClass} font-mono font-extrabold tabular-nums leading-none tracking-tight`}
@@ -605,17 +614,129 @@ export function EntryFeeKnob({
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => emitTierChange(stepTier(wager, 1, playableChips))}
                     aria-label="Increase entry fee"
-                    className="fee-preset-3077 absolute right-1 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-surface-recessed border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    className="fee-preset-3077 absolute right-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-surface-recessed border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                 >
                     <LuPlus className="w-4 h-4 stroke-[2.75px]" />
                 </button>
             </div>
-
-            {/* Balance Telemetry Under Bottom Arc Gap */}
-            <p className="text-ludo-xs font-mono font-bold text-ink-faint uppercase tracking-wider tabular-nums -mt-2">
-                CHIPS · {formatBalance(playableChips)} Total
-            </p>
         </div>
+    );
+}
+
+/**
+ * Centered HUD dial overlay for 3077 Entry Fee selection.
+ * Keeps the main lobby layout (`ActionDice` & `LiveBroadcastCard`) completely
+ * stationary while giving the rotary knob clean breathing room.
+ */
+export function EntryFeeDialOverlay({
+    isOpen,
+    wager,
+    playableChips,
+    onChange,
+    onConfirm,
+    onClose,
+    sfxEnabled,
+    formatBalance,
+}: EntryFeeKnobProps & {
+    isOpen: boolean;
+    onConfirm: () => void;
+    onClose: () => void;
+}) {
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [isOpen, onClose]);
+
+    if (!mounted) return null;
+
+    return createPortal(
+        <AnimatePresence>
+            {isOpen && (
+                <div
+                    className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Select entry fee"
+                >
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
+                        onClick={onClose}
+                        className="fixed inset-0 bg-surface-page/75 backdrop-blur-md"
+                        aria-hidden="true"
+                    />
+
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                        transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="panel-shell-3077 relative z-10 w-full max-w-[368px] rounded-[20px] px-4 pt-3.5 pb-4 flex flex-col items-center gap-3 overflow-hidden"
+                        style={{
+                            background: 'var(--panel-bg)',
+                            border: '1px solid var(--panel-border)',
+                            boxShadow: 'var(--panel-shadow)',
+                            color: 'var(--ink-strong)',
+                        }}
+                    >
+                        <HudCornerTicks />
+
+                        {/* Header */}
+                        <div className="w-full flex items-center justify-between gap-2 relative z-10">
+                            <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
+                                <ChipsHexIcon className="w-4 h-4 text-accent shrink-0" active={wager > 0} />
+                                <span>Entry Fee</span>
+                            </span>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={onClose}
+                                aria-label="Close entry fee dial"
+                                className="panel-close-3077 bg-surface-recessed border border-line-soft shrink-0"
+                            >
+                                <CloseReticleIcon className="icon-md" />
+                            </Button>
+                        </div>
+
+                        {/* Tightened Rotary Dial */}
+                        <div className="w-full flex justify-center relative z-10">
+                            <EntryFeeKnob
+                                wager={wager}
+                                playableChips={playableChips}
+                                onChange={onChange}
+                                sfxEnabled={sfxEnabled}
+                                formatBalance={formatBalance}
+                            />
+                        </div>
+
+                        {/* Confirm CTA */}
+                        <Button
+                            variant="primary"
+                            size="lg"
+                            fullWidth
+                            onClick={onConfirm}
+                            className="relative z-10 uppercase tracking-[0.18em] font-extrabold"
+                        >
+                            Confirm · {formatBalance(wager)}
+                        </Button>
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>,
+        document.body,
     );
 }
 
