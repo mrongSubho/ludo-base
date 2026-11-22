@@ -60,12 +60,12 @@ export function TacticalChatComposer({
     className = '',
     onKeyDownExtra,
 }: TacticalChatComposerProps) {
-    const isBlocked = disabled || sending || cooldown > 0;
-    const canSend = Boolean(value.trim()) && !isBlocked;
-    const effectivePlaceholder = cooldown > 0 ? `Wait ${cooldown}s...` : placeholder;
+    const isFieldDisabled = disabled || sending;
+    const isCooldown = cooldown > 0;
+    const canSend = Boolean(value.trim()) && !isFieldDisabled && !isCooldown;
     const encodedLen = encodeChatDraft(value, emotes).length;
     const limitDisplay = maxEncodedLength ?? maxLength;
-    const nearLimit = encodedLen >= Math.max(20, limitDisplay - 24);
+    const nearLimit = encodedLen >= Math.max(20, limitDisplay - 20);
 
     return (
         <form
@@ -82,8 +82,16 @@ export function TacticalChatComposer({
                     value={value}
                     emotes={emotes}
                     onChange={(next) => {
+                        const retained = retainChatDraftEmotes(next, emotes);
+                        if (
+                            typeof maxEncodedLength === 'number' &&
+                            encodeChatDraft(next, retained).length > maxEncodedLength &&
+                            next.length > value.length
+                        ) {
+                            return;
+                        }
                         onValueChange(next);
-                        onEmotesChange(retainChatDraftEmotes(next, emotes));
+                        onEmotesChange(retained);
                     }}
                     onKeyDown={(e) => {
                         onKeyDownExtra?.(e);
@@ -92,8 +100,8 @@ export function TacticalChatComposer({
                             if (canSend) void onSend();
                         }
                     }}
-                    disabled={isBlocked}
-                    placeholder={effectivePlaceholder}
+                    disabled={isFieldDisabled}
+                    placeholder={placeholder}
                     maxLength={maxLength}
                     hasCounter={showCounter}
                     ariaLabel={ariaLabel}
@@ -124,7 +132,7 @@ export function TacticalChatComposer({
                     onEmotesChange(next.emotes);
                     onEmojiClose();
                 }}
-                disabled={isBlocked}
+                disabled={isFieldDisabled}
                 label="Add emote or emoji"
             />
 
@@ -133,11 +141,11 @@ export function TacticalChatComposer({
                 size="sm"
                 type="submit"
                 disabled={!canSend}
-                leftIcon={<LuSend className="w-3.5 h-3.5" />}
-                aria-label={cooldown > 0 ? `Cooldown ${cooldown}s` : 'Send message'}
-                className="rounded-full shrink-0 whitespace-nowrap font-mono px-3.5"
+                leftIcon={isCooldown ? undefined : <LuSend className="w-3.5 h-3.5" />}
+                aria-label={isCooldown ? `Send locked for ${cooldown}s` : 'Send message'}
+                className="rounded-full shrink-0 whitespace-nowrap font-mono px-3.5 tabular-nums"
             >
-                {cooldown > 0 ? `${cooldown}s` : sending ? '...' : 'Send'}
+                {isCooldown ? `${cooldown}s` : sending ? '...' : 'Send'}
             </Button>
         </form>
     );

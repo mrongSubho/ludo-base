@@ -9,6 +9,7 @@ import { ChatIcon, SquadLinkIcon } from './icons';
 import { GamePanelShell } from './GamePanelShell';
 import { HudSectionLabel } from './HudPrimitives';
 import { PilotAvatar } from './PilotAvatar';
+import { shortHex } from '@/lib/chips';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useAppSession } from '@/hooks/useAppSession';
 import { ThinkingOrb } from './ThinkingOrb';
@@ -132,7 +133,7 @@ const AvatarWithPresence = ({
     </div>
 );
 
-const IconBtn = ({
+const ActionIconBtn = ({
     onClick,
     title,
     label,
@@ -140,41 +141,37 @@ const IconBtn = ({
     children,
     disabled = false,
 }: {
-    onClick?: () => void;
+    onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
     title: string;
     label: string;
-    tone: 'ghost' | 'poke' | 'poke-back' | 'spectate' | 'dm' | 'accept' | 'reject';
+    tone: 'spectate' | 'accept' | 'reject';
     children: React.ReactNode;
     disabled?: boolean;
 }) => {
-    const tones: Record<string, string> = {
-        ghost: 'bg-surface-panel text-ink-muted border-line-soft hover:bg-surface-hover hover:text-ink-strong',
-        poke: 'bg-surface-panel text-ink-muted border-line-soft hover:bg-surface-hover hover:text-ink-strong',
-        'poke-back': 'bg-warn text-accent-ink border-warn hover:brightness-110 animate-pulse',
+    const tones: Record<typeof tone, string> = {
         spectate: 'bg-warn/15 text-warn border-warn/40 hover:bg-warn hover:text-accent-ink',
-        dm: 'bg-accent-soft text-accent border-accent/35 hover:bg-accent hover:text-accent-ink',
         accept: 'bg-positive/15 text-positive border-positive/35 hover:bg-positive hover:text-accent-ink',
         reject: 'bg-negative/10 text-negative border-negative/30 hover:bg-negative hover:text-accent-ink',
     };
     return (
-        <Button
-            size="sm"
+        <button
+            type="button"
             onClick={(e) => {
                 e.stopPropagation();
-                onClick?.();
+                onClick(e);
             }}
             disabled={disabled}
             title={title}
             aria-label={label}
-            className={`w-9 h-9 p-0 rounded-full border ${tones[tone]}`}
+            className={`w-8 h-8 rounded-full border inline-flex items-center justify-center shrink-0 transition-all active:scale-95 disabled:opacity-45 disabled:cursor-not-allowed ${tones[tone]}`}
         >
             {children}
-        </Button>
+        </button>
     );
 };
 
 export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate }: FriendsPanelProps) {
-    const { ensureAppSession, sessionId } = useAppSession();
+    const { ensureAppSession, peekAppSession, sessionId } = useAppSession();
     const { address: connectedAddress, isGuest } = useCurrentUser();
     const { guard } = useGuestWall();
     const toast = useToast();
@@ -184,29 +181,60 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
     const [searchQuery, setSearchQuery] = useState('');
     const { friends: globalFriends } = useGameData();
     const [directoryFriends, setDirectoryFriends] = useState<DirectoryRowInput[]>([]);
-
-    const sourceGlobal = (directoryFriends.length > 0 ? directoryFriends : globalFriends.gameFriends) as DirectoryRowInput[];
-    const gameFriends: Friend[] = sourceGlobal.map((f) => ({
-        wallet_address: f.wallet_address,
-        username: f.username || '',
-        avatar_url: f.avatar_url || null,
-        last_played_at: f.last_played_at,
-        current_room_code: f.current_room_code,
-        displayName:
-            f.username && !f.username.startsWith('0x')
-                ? f.username
-                : `User ${f.wallet_address.slice(-4).toUpperCase()}`,
-        status: f.status || 'Offline',
-    }));
-
+    const [acceptedDirectoryWallets, setAcceptedDirectoryWallets] = useState<string[]>([]);
     const [onchainFriends, setOnchainFriends] = useState<Friend[]>([]);
     const [pendingIncoming, setPendingIncoming] = useState<Request[]>([]);
     const [pendingOutgoing, setPendingOutgoing] = useState<Request[]>([]);
     const [incomingPokes, setIncomingPokes] = useState<PokeRecord[]>([]);
     const [pokingId, setPokingId] = useState<string | null>(null);
+    const [pokedToday, setPokedToday] = useState<string[]>([]);
+    const [addingWallet, setAddingWallet] = useState<string | null>(null);
     const [justSent, setJustSent] = useState<string[]>([]);
     const [onlineOnly, setOnlineOnly] = useState(false);
     const [activeOnly, setActiveOnly] = useState(false);
+
+    const toFriend = React.useCallback((f: DirectoryRowInput): Friend => {
+        let currentStatus: Friend['status'] = f.status || 'Offline';
+        if (currentStatus === 'Online' && f.last_played_at) {
+            if (Date.now() - new Date(f.last_played_at).getTime() > 5 * 60 * 1000) {
+                currentStatus = 'Offline';
+            }
+        }
+        return {
+            wallet_address: f.wallet_address,
+            username: f.username || '',
+            avatar_url: f.avatar_url || null,
+            last_played_at: f.last_played_at,
+            current_room_code: f.current_room_code,
+            displayName:
+                f.username && !f.username.startsWith('0x')
+                    ? f.username
+                    : `User ${f.wallet_address.slice(-4).toUpperCase()}`,
+            status: currentStatus,
+        };
+    }, []);
+
+    // Merge directory players + Farcaster follows for Global discovery, deduped by wallet.
+    const discoveryDirectory: Friend[] = React.useMemo(() => {
+        const base = (directoryFriends.length > 0 ? directoryFriends : globalFriends.gameFriends) as DirectoryRowInput[];
+        const extra = (globalFriends.onchainFriends || []) as DirectoryRowInput[];
+        const seen = new Set<string>();
+        const out: Friend[] = [];
+        for (const raw of [...base, ...extra]) {
+            const low = raw?.wallet_address?.toLowerCase();
+            if (!low || seen.has(low)) continue;
+            seen.add(low);
+            out.push(toFriend(raw));
+        }
+        return out;
+    }, [directoryFriends, globalFriends.gameFriends, globalFriends.onchainFriends, toFriend]);
+
+    const acceptedFriendWallets = React.useMemo(() => {
+        const set = new Set<string>();
+        onchainFriends.forEach((f) => set.add(f.wallet_address.toLowerCase()));
+        acceptedDirectoryWallets.forEach((w) => set.add(w.toLowerCase()));
+        return set;
+    }, [onchainFriends, acceptedDirectoryWallets]);
 
     const sortFriends = (list: Friend[]) =>
         [...list].sort((a, b) => {
@@ -234,14 +262,20 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
             return matches(f.displayName, f.wallet_address);
         }),
     );
-    const visibleGlobal = gameFriends.filter((f) => matches(f.displayName, f.wallet_address));
+    const selfLower = connectedAddress?.toLowerCase();
+    const visibleGlobal = discoveryDirectory.filter((f) => {
+        const low = f.wallet_address.toLowerCase();
+        if (selfLower && low === selfLower) return false;
+        if (acceptedFriendWallets.has(low)) return false;
+        return matches(f.displayName, f.wallet_address);
+    });
     const visibleIncoming = pendingIncoming.filter((r) => matches(r.name, r.wallet_address));
     const visibleOutgoing = pendingOutgoing.filter((r) => matches(r.name, r.wallet_address));
 
     const fetchPokes = React.useCallback(async () => {
         if (!connectedAddress) return;
         try {
-            const sid = await ensureAppSession();
+            const sid = sessionId || peekAppSession();
             if (!sid) return;
             const res = await fetch(`/api/social/poke?wallet=${encodeURIComponent(connectedAddress)}`, {
                 headers: {
@@ -256,13 +290,13 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
         } catch (err) {
             console.error('Fetch pokes error:', err);
         }
-    }, [connectedAddress, ensureAppSession]);
+    }, [connectedAddress, sessionId, peekAppSession]);
 
     const fetchFriends = React.useCallback(async () => {
         if (!connectedAddress) return;
         try {
             const currentAddrLower = connectedAddress.toLowerCase();
-            const sid = await ensureAppSession();
+            const sid = sessionId || peekAppSession();
             if (!sid) return;
             const response = await fetch(`/api/friendships?walletAddress=${encodeURIComponent(currentAddrLower)}`, {
                 headers: {
@@ -277,52 +311,10 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
             if (Array.isArray(data)) {
                 const formatted: Friend[] = data.map((item: { user_address: string; requester: DirectoryRowInput; receiver: DirectoryRowInput }) => {
                     const isRequester = item.user_address.toLowerCase() === currentAddrLower;
-                    const p = isRequester ? item.receiver : item.requester;
-                    const displayName =
-                        p.username && !p.username.startsWith('0x')
-                            ? p.username
-                            : `User ${p.wallet_address.slice(-4).toUpperCase()}`;
-
-                    let currentStatus: Friend['status'] = p.status || 'Offline';
-                    if (currentStatus === 'Online' && p.last_played_at) {
-                        if (Date.now() - new Date(p.last_played_at).getTime() > 5 * 60 * 1000) {
-                            currentStatus = 'Offline';
-                        }
-                    }
-
-                    return {
-                        wallet_address: p.wallet_address,
-                        username: p.username || '',
-                        avatar_url: p.avatar_url || null,
-                        last_played_at: p.last_played_at,
-                        current_room_code: p.current_room_code,
-                        displayName,
-                        status: currentStatus,
-                    };
+                    return toFriend(isRequester ? item.receiver : item.requester);
                 });
 
-                setOnchainFriends(() => {
-                    const fromContext = (globalFriends.onchainFriends as DirectoryRowInput[]).map((f) => ({
-                        wallet_address: f.wallet_address,
-                        username: f.username || '',
-                        avatar_url: f.avatar_url || null,
-                        last_played_at: f.last_played_at,
-                        current_room_code: f.current_room_code,
-                        displayName:
-                            f.username && !f.username.startsWith('0x')
-                                ? f.username
-                                : `User ${f.wallet_address.slice(-4).toUpperCase()}`,
-                        status: f.status || 'Offline',
-                    }));
-
-                    const merged = [...formatted];
-                    fromContext.forEach((f) => {
-                        if (!merged.some((m) => m.wallet_address.toLowerCase() === f.wallet_address.toLowerCase())) {
-                            merged.push(f);
-                        }
-                    });
-                    return merged;
-                });
+                setOnchainFriends(formatted);
             }
 
             const requestsData = [...(friendshipData.incoming || []), ...(friendshipData.outgoing || [])];
@@ -378,6 +370,9 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                     if (Array.isArray(fData.gameFriends) && fData.gameFriends.length > 0) {
                         setDirectoryFriends(fData.gameFriends);
                     }
+                    if (Array.isArray(fData.acceptedFriends)) {
+                        setAcceptedDirectoryWallets(fData.acceptedFriends);
+                    }
                 }
             } catch (dErr) {
                 console.warn('Directory refresh error:', dErr);
@@ -387,7 +382,7 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
         } catch (err) {
             console.error('Error fetching friends:', err);
         }
-    }, [connectedAddress, fetchPokes, globalFriends.onchainFriends, ensureAppSession]);
+    }, [connectedAddress, fetchPokes, sessionId, peekAppSession, toFriend]);
 
     useEffect(() => {
         const initialAddr = connectedAddress || '0x0000000000000000000000000000000000000001';
@@ -480,27 +475,48 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
     const handlePoke = async (friendAddress: string) => {
         if (!connectedAddress || pokingId) return;
         if (!guard('poke')) return;
-        setPokingId(friendAddress);
+        const target = friendAddress.toLowerCase();
+        setPokingId(target);
         try {
             const sid = await ensureAppSession({ context: 'social' });
-            if (!sid) return;
+            if (!sid) {
+                toast('Activate your session to poke friends', 'error');
+                return;
+            }
             const response = await fetch('/api/social/poke', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${sid}`,
+                    'x-session-id': sid,
+                },
                 body: JSON.stringify({
                     sender: connectedAddress.toLowerCase(),
-                    receiver: friendAddress,
+                    receiver: target,
                     walletAddress: connectedAddress.toLowerCase(),
                     sessionId: sid,
                 }),
             });
+            const data = await response.json().catch(() => ({}));
             if (response.ok) {
+                setPokedToday((prev) => (prev.includes(target) ? prev : [...prev, target]));
+                toast(
+                    data?.type === 'poke_back'
+                        ? data?.reward
+                            ? `Poked back! +${data.reward} CHIPS voucher`
+                            : 'Poked back!'
+                        : 'Poke sent!',
+                    'success',
+                );
                 await fetchPokes();
                 window.dispatchEvent(new CustomEvent('mission-update'));
                 window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
             } else {
-                const err = await response.json().catch(() => ({}));
-                toast(err.error || 'Failed to poke', 'error');
+                const msg = String(data?.error || 'Failed to poke');
+                if (/already/i.test(msg)) {
+                    setPokedToday((prev) => (prev.includes(target) ? prev : [...prev, target]));
+                }
+                toast(msg, 'error');
             }
         } catch (err) {
             toast(err instanceof Error && err.message ? err.message : 'Failed to poke', 'error');
@@ -510,20 +526,27 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
     };
 
     const handleAddFriend = async (wallet: string) => {
-        if (!connectedAddress) return;
+        if (!connectedAddress || addingWallet) return;
         if (!guard('friend-add')) return;
         const target = wallet.toLowerCase();
+        setAddingWallet(target);
         try {
             const sid = await ensureAppSession({ context: 'social' });
-            const response =
-                sid &&
-                (await fetch('/api/friendships', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ walletAddress: connectedAddress, sessionId: sid, action: 'request', target }),
-                }));
-            const data = response ? await response.json().catch(() => ({})) : {};
-            if (response && response.ok) {
+            if (!sid) {
+                toast('Activate your session to add friends', 'error');
+                return;
+            }
+            const response = await fetch('/api/friendships', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${sid}`,
+                    'x-session-id': sid,
+                },
+                body: JSON.stringify({ walletAddress: connectedAddress, sessionId: sid, action: 'request', target }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (response.ok) {
                 if (data.status === 'accepted') {
                     toast('Friend added!', 'success');
                 } else {
@@ -536,6 +559,8 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
             }
         } catch (err: unknown) {
             toast(err instanceof Error ? err.message : 'Failed to send request', 'error');
+        } finally {
+            setAddingWallet(null);
         }
     };
 
@@ -550,67 +575,115 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
         }
 
         return (
-            <div className="flex flex-col gap-1.5 pb-2">
+            <div className="flex flex-col gap-2 pb-2">
                 {friends.map((friend) => {
-                    const hasIncomingPoke = incomingPokes.some(
-                        (p) => p.sender_id.toLowerCase() === friend.wallet_address.toLowerCase(),
-                    );
-                    const isPoking = pokingId === friend.wallet_address;
+                    const low = friend.wallet_address.toLowerCase();
+                    const hasIncomingPoke = incomingPokes.some((p) => p.sender_id.toLowerCase() === low);
+                    const isPoking = pokingId === low;
+                    const alreadyPoked = pokedToday.includes(low);
                     const canSpectate = friend.status === 'In Match' && Boolean(friend.current_room_code);
 
                     return (
                         <div
                             key={friend.wallet_address}
-                            onClick={() => onOpenProfile?.(friend.wallet_address)}
-                            className="group relative rounded-xl bg-surface-recessed border border-line-soft overflow-hidden cursor-pointer transition-colors hover:border-line-strong hover:bg-surface-hover active:scale-[0.99]"
+                            className={`group relative rounded-2xl bg-surface-recessed border overflow-hidden transition-colors ${
+                                hasIncomingPoke
+                                    ? 'border-accent/55 shadow-[0_0_16px_color-mix(in_srgb,var(--accent)_14%,transparent)]'
+                                    : 'border-line-soft hover:border-accent/40 hover:bg-surface-hover'
+                            }`}
                         >
                             <div
-                                className={`absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full ${STATUS_BEAM[friend.status]}`}
+                                className={`absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full ${STATUS_BEAM[friend.status]}`}
                             />
-                            <div className="flex items-center gap-2.5 p-2.5 pl-3">
-                                <AvatarWithPresence
-                                    url={friend.avatar_url}
-                                    name={friend.displayName}
-                                    status={friend.status}
-                                />
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-ink-strong font-bold truncate text-ludo-md leading-tight">
-                                        {friend.displayName}
+                            <div className="flex items-center gap-2.5 p-3 pl-3.5">
+                                <button
+                                    type="button"
+                                    onClick={() => onOpenProfile?.(friend.wallet_address)}
+                                    aria-label={`Open ${friend.displayName} profile`}
+                                    className="flex-1 min-w-0 flex items-center gap-2.5 text-left focus-visible:outline-2 focus-visible:outline-accent rounded-xl"
+                                >
+                                    <AvatarWithPresence
+                                        url={friend.avatar_url}
+                                        name={friend.displayName}
+                                        status={friend.status}
+                                    />
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 min-w-0">
+                                            <span className="text-ink-strong font-bold truncate text-ludo-md leading-tight group-hover:text-accent transition-colors">
+                                                {friend.displayName}
+                                            </span>
+                                            {hasIncomingPoke && (
+                                                <span className="px-1.5 py-0.5 rounded-full bg-accent-soft border border-accent/35 text-accent text-ludo-xs font-mono font-bold uppercase tracking-wider shrink-0">
+                                                    Poked you
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                                            <span
+                                                className={`text-ludo-xs font-mono font-bold uppercase tracking-[0.14em] shrink-0 ${STATUS_TEXT[friend.status]}`}
+                                            >
+                                                {friend.status}
+                                            </span>
+                                            <span className="text-ink-faint text-ludo-xs" aria-hidden="true">·</span>
+                                            <span className="text-ludo-xs font-mono text-ink-faint truncate">
+                                                {shortHex(friend.wallet_address)}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div
-                                        className={`text-ludo-xs font-mono font-bold uppercase tracking-widest mt-0.5 ${STATUS_TEXT[friend.status]}`}
-                                    >
-                                        {friend.status}
-                                    </div>
-                                </div>
+                                </button>
+
                                 <div className="flex items-center gap-1.5 shrink-0">
-                                    <IconBtn
+                                    <button
+                                        type="button"
                                         onClick={() => void handlePoke(friend.wallet_address)}
-                                        disabled={isPoking}
-                                        title={hasIncomingPoke ? 'Poke Back' : 'Poke'}
-                                        label={hasIncomingPoke ? 'Poke back' : 'Poke friend'}
-                                        tone={hasIncomingPoke ? 'poke-back' : 'poke'}
+                                        disabled={isPoking || alreadyPoked}
+                                        title={
+                                            hasIncomingPoke
+                                                ? 'Poke Back for voucher'
+                                                : alreadyPoked
+                                                  ? 'Already poked today'
+                                                  : 'Poke friend'
+                                        }
+                                        aria-label={hasIncomingPoke ? 'Poke back' : 'Poke friend'}
+                                        className={`h-8 px-2.5 rounded-full border font-mono text-ludo-xs font-bold uppercase tracking-wider inline-flex items-center gap-1 transition-all active:scale-95 shrink-0 ${
+                                            hasIncomingPoke
+                                                ? 'bg-accent text-accent-ink border-accent shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_35%,transparent)] hover:brightness-110'
+                                                : alreadyPoked
+                                                  ? 'bg-surface-panel text-ink-faint border-line-soft opacity-60 cursor-default'
+                                                  : 'bg-accent-soft text-accent border-accent/40 hover:bg-accent hover:text-accent-ink'
+                                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                                     >
-                                        {isPoking ? <ThinkingOrb state="working" size={20} /> : <PokeIcon />}
-                                    </IconBtn>
+                                        {isPoking ? (
+                                            <ThinkingOrb state="working" size={20} />
+                                        ) : (
+                                            <PokeIcon />
+                                        )}
+                                        <span>
+                                            {hasIncomingPoke ? 'Back' : alreadyPoked ? 'Poked' : 'Poke'}
+                                        </span>
+                                    </button>
+
                                     {canSpectate && friend.current_room_code && (
-                                        <IconBtn
+                                        <ActionIconBtn
                                             onClick={() => onSpectate?.(friend.current_room_code!)}
                                             title="Spectate Match"
                                             label="Spectate match"
                                             tone="spectate"
                                         >
                                             <SpectateIcon />
-                                        </IconBtn>
+                                        </ActionIconBtn>
                                     )}
-                                    <IconBtn
+
+                                    <button
+                                        type="button"
                                         onClick={() => guard('dm', () => onDM?.(friend.wallet_address))}
-                                        title="Message"
-                                        label="Message friend"
-                                        tone="dm"
+                                        title="Direct Message"
+                                        aria-label={`Message ${friend.displayName}`}
+                                        className="h-8 px-2.5 rounded-full border bg-surface-panel text-accent border-accent/40 hover:bg-accent hover:text-accent-ink font-mono text-ludo-xs font-bold uppercase tracking-wider inline-flex items-center gap-1 transition-all active:scale-95 shrink-0"
                                     >
-                                        <ChatIcon className="w-4 h-4" />
-                                    </IconBtn>
+                                        <ChatIcon className="w-3.5 h-3.5" active />
+                                        <span>DM</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -627,73 +700,94 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
                     <div className="w-12 h-12 rounded-2xl bg-surface-panel border border-line-soft flex items-center justify-center mb-3 text-ink-faint">
                         <SearchIcon />
                     </div>
-                    <h3 className="text-ink-strong font-extrabold text-ludo-md mb-1">No players found</h3>
-                    <p className="text-ink-faint text-ludo-xs max-w-[220px]">Try a different search filter.</p>
+                    <h3 className="text-ink-strong font-extrabold text-ludo-md mb-1">No new pilots found</h3>
+                    <p className="text-ink-faint text-ludo-xs max-w-[220px]">
+                        Already-added friends stay in Social. Try a different search filter.
+                    </p>
                 </div>
             );
         }
-        const friendSet = new Set(onchainFriends.map((f) => f.wallet_address.toLowerCase()));
+
+        const incomingByWallet = new Map(
+            pendingIncoming.map((r) => [r.wallet_address.toLowerCase(), r.id] as const),
+        );
         const sentSet = new Set([
             ...pendingOutgoing.map((r) => r.wallet_address.toLowerCase()),
             ...justSent,
         ]);
 
         return (
-            <div className="flex flex-col gap-1.5 pb-2">
+            <div className="flex flex-col gap-2 pb-2">
                 {players.map((p) => {
                     const low = p.wallet_address.toLowerCase();
-                    const alreadyFriend = friendSet.has(low);
+                    const incomingId = incomingByWallet.get(low);
                     const pending = sentSet.has(low);
+                    const isAdding = addingWallet === low;
+
                     return (
                         <div
                             key={p.wallet_address}
-                            className="relative rounded-xl bg-surface-recessed border border-line-soft overflow-hidden transition-colors hover:border-line-strong hover:bg-surface-hover"
+                            className="group relative rounded-2xl bg-surface-recessed border border-line-soft overflow-hidden transition-colors hover:border-accent/40 hover:bg-surface-hover"
                         >
-                            <div className="flex items-center gap-2.5 p-2.5">
+                            <div
+                                className={`absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full ${STATUS_BEAM[p.status]}`}
+                            />
+                            <div className="flex items-center gap-2.5 p-3 pl-3.5">
                                 <button
                                     type="button"
                                     onClick={() => onOpenProfile?.(p.wallet_address)}
                                     aria-label={`Open ${p.displayName} profile`}
-                                    className="shrink-0 rounded-full hover:scale-105 transition-transform"
+                                    className="flex-1 min-w-0 flex items-center gap-2.5 text-left focus-visible:outline-2 focus-visible:outline-accent rounded-xl"
                                 >
                                     <AvatarWithPresence
                                         url={p.avatar_url}
                                         name={p.displayName}
                                         status={p.status}
                                     />
+                                    <div className="flex-1 flex flex-col min-w-0">
+                                        <span className="text-ink-strong font-bold text-ludo-md truncate leading-tight group-hover:text-accent transition-colors">
+                                            {p.displayName}
+                                        </span>
+                                        <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                                            <span
+                                                className={`text-ludo-xs font-mono font-bold uppercase tracking-[0.14em] shrink-0 ${STATUS_TEXT[p.status]}`}
+                                            >
+                                                {p.status}
+                                            </span>
+                                            <span className="text-ink-faint text-ludo-xs" aria-hidden="true">·</span>
+                                            <span className="text-ludo-xs font-mono text-ink-faint truncate">
+                                                {shortHex(p.wallet_address)}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => onOpenProfile?.(p.wallet_address)}
-                                    className="flex-1 flex flex-col min-w-0 text-left focus:outline-none"
-                                >
-                                    <span className="text-ink-strong font-bold text-ludo-md truncate leading-tight">
-                                        {p.displayName}
-                                    </span>
-                                    <span
-                                        className={`text-ludo-xs font-mono font-bold uppercase tracking-widest mt-0.5 ${STATUS_TEXT[p.status]}`}
+
+                                {incomingId ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => void handleAcceptRequest(incomingId)}
+                                        className="h-8 px-3 rounded-full bg-accent text-accent-ink font-mono text-ludo-xs font-bold uppercase tracking-wider inline-flex items-center gap-1 hover:brightness-110 active:scale-95 transition-all shrink-0 shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_30%,transparent)]"
                                     >
-                                        {p.status}
-                                    </span>
-                                </button>
-                                {alreadyFriend ? (
-                                    <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-positive/15 text-positive text-ludo-xs font-bold uppercase tracking-widest border border-positive/35 shrink-0">
                                         <AcceptIcon />
-                                        Friends
-                                    </span>
+                                        <span>Accept</span>
+                                    </button>
                                 ) : pending ? (
-                                    <span className="px-2.5 py-1 rounded-full bg-surface-panel text-ink-faint text-ludo-xs font-bold uppercase tracking-widest border border-line-soft shrink-0">
+                                    <span className="h-8 px-3 rounded-full bg-surface-panel text-ink-faint text-ludo-xs font-mono font-bold uppercase tracking-wider border border-line-soft inline-flex items-center shrink-0">
                                         Pending
                                     </span>
                                 ) : (
-                                    <Button
-                                        size="sm"
-                                        variant="secondary"
+                                    <button
+                                        type="button"
+                                        disabled={isAdding}
                                         onClick={() => void handleAddFriend(p.wallet_address)}
-                                        className="rounded-full bg-accent-soft text-accent border border-accent/40 hover:bg-accent hover:text-accent-ink uppercase tracking-widest shrink-0"
+                                        className="h-8 px-3 rounded-full bg-accent-soft text-accent border border-accent/45 hover:bg-accent hover:text-accent-ink font-mono text-ludo-xs font-bold uppercase tracking-wider inline-flex items-center gap-1 active:scale-95 transition-all shrink-0 disabled:opacity-50"
                                     >
-                                        Add
-                                    </Button>
+                                        {isAdding ? (
+                                            <ThinkingOrb state="working" size={20} />
+                                        ) : (
+                                            <span>+ Add</span>
+                                        )}
+                                    </button>
                                 )}
                             </div>
                         </div>
@@ -719,61 +813,61 @@ export default function FriendsPanel({ onClose, onDM, onOpenProfile, onSpectate 
         }
 
         return (
-            <div className="flex flex-col gap-1.5 pb-2">
+            <div className="flex flex-col gap-2 pb-2">
                 {requests.map((req) => (
                     <div
                         key={req.id}
-                        className="relative rounded-xl bg-surface-recessed border border-line-soft overflow-hidden transition-colors hover:border-line-strong"
+                        className="group relative rounded-2xl bg-surface-recessed border border-line-soft overflow-hidden transition-colors hover:border-accent/40 hover:bg-surface-hover"
                     >
-                        <div className="flex items-center gap-2.5 p-2.5">
+                        <div className="flex items-center gap-2.5 p-3">
                             <button
                                 type="button"
                                 onClick={() => onOpenProfile?.(req.wallet_address)}
                                 aria-label={`Open ${req.name} profile`}
-                                className="shrink-0 rounded-full hover:scale-105 transition-transform"
+                                className="flex-1 min-w-0 flex items-center gap-2.5 text-left focus-visible:outline-2 focus-visible:outline-accent rounded-xl"
                             >
                                 <AvatarWithPresence url={req.avatar} name={req.name} />
+                                <div className="flex-1 flex flex-col min-w-0">
+                                    <span className="text-ink-strong font-bold text-ludo-md truncate leading-tight group-hover:text-accent transition-colors">
+                                        {req.name}
+                                    </span>
+                                    <span className="text-ludo-xs text-ink-faint font-mono font-bold uppercase tracking-widest mt-0.5">
+                                        {req.time} · {shortHex(req.wallet_address)}
+                                    </span>
+                                </div>
                             </button>
-                            <div className="flex-1 flex flex-col min-w-0">
-                                <span className="text-ink-strong font-bold text-ludo-md truncate leading-tight">
-                                    {req.name}
-                                </span>
-                                <span className="text-ludo-xs text-ink-faint font-mono font-bold uppercase tracking-widest mt-0.5">
-                                    {req.time}
-                                </span>
-                            </div>
                             {isIncoming ? (
                                 <div className="flex items-center gap-1.5 shrink-0">
-                                    <IconBtn
+                                    <ActionIconBtn
                                         onClick={() => void handleAcceptRequest(req.id)}
                                         title="Accept"
                                         label="Accept request"
                                         tone="accept"
                                     >
                                         <AcceptIcon />
-                                    </IconBtn>
-                                    <IconBtn
+                                    </ActionIconBtn>
+                                    <ActionIconBtn
                                         onClick={() => void handleRejectCancelRequest(req.id, true)}
                                         title="Decline"
                                         label="Decline request"
                                         tone="reject"
                                     >
                                         <RejectIcon />
-                                    </IconBtn>
+                                    </ActionIconBtn>
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-1.5 shrink-0">
-                                    <span className="text-ludo-xs text-ink-faint font-bold uppercase tracking-widest pr-1">
+                                    <span className="text-ludo-xs text-ink-faint font-mono font-bold uppercase tracking-widest pr-1">
                                         Pending
                                     </span>
-                                    <IconBtn
+                                    <ActionIconBtn
                                         onClick={() => void handleRejectCancelRequest(req.id, false)}
                                         title="Cancel"
                                         label="Cancel request"
                                         tone="reject"
                                     >
                                         <RejectIcon />
-                                    </IconBtn>
+                                    </ActionIconBtn>
                                 </div>
                             )}
                         </div>

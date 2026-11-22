@@ -104,7 +104,7 @@ export default function MessagesPanel({
     const { guard } = useGuestWall();
     const toast = useToast();
 
-    const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+    const [selectedChatId, setSelectedChatId] = useState<string | null>(() => initialChatId ?? null);
     const {
         messages,
         conversations,
@@ -129,7 +129,9 @@ export default function MessagesPanel({
     const [emojiOpen, setEmojiOpen] = useState(false);
     const [cooldownTime, setCooldownTime] = useState(0);
     const [searchQuery, setSearchQuery] = useState('');
-    const [notifTab, setNotifTab] = useState<'notifications' | 'messages'>('notifications');
+    const [notifTab, setNotifTab] = useState<'notifications' | 'messages'>(() =>
+        initialChatId ? 'messages' : 'notifications',
+    );
 
     interface InboxCongrats {
         id: string;
@@ -383,7 +385,7 @@ export default function MessagesPanel({
     const handleSendMessage = async () => {
         if (!inputValue.trim() || !selectedChatId || !address || cooldownTime > 0) return;
         if (!guard('dm')) return;
-        const textToSent = encodeChatDraft(inputValue, inputEmotes).slice(0, 500);
+        const textToSent = encodeChatDraft(inputValue, inputEmotes).slice(0, 140);
         setInputValue('');
         setInputEmotes([]);
 
@@ -1035,8 +1037,8 @@ export default function MessagesPanel({
                                             onSend={() => void handleSendMessage()}
                                             placeholder="Transmit encrypted message..."
                                             ariaLabel="Message"
-                                            maxLength={500}
-                                            maxEncodedLength={500}
+                                            maxLength={140}
+                                            maxEncodedLength={140}
                                             cooldown={cooldownTime}
                                             showCounter
                                         />

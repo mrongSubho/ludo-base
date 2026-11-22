@@ -188,7 +188,7 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
     }, [msgs]);
 
     const sendChat = async () => {
-        const text = encodeChatDraft(input.trim(), inputEmotes).slice(0, 500);
+        const text = encodeChatDraft(input.trim(), inputEmotes).slice(0, 140);
         if (!text || cooldown > 0) return;
         if (!guard('dm')) return;
         const wallet = (identityAddress || '').toLowerCase();
@@ -332,8 +332,8 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                     onSend={sendChat}
                     placeholder="Transmit broadcast message..."
                     ariaLabel="Message"
-                    maxLength={500}
-                    maxEncodedLength={500}
+                    maxLength={140}
+                    maxEncodedLength={140}
                     cooldown={cooldown}
                     showCounter
                 />
@@ -888,7 +888,7 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
     }, [cooldown]);
 
     const sendChat = async () => {
-        const text = encodeChatDraft(input.trim(), inputEmotes).slice(0, 500);
+        const text = encodeChatDraft(input.trim(), inputEmotes).slice(0, 140);
         if (!text || cooldown > 0) return;
         if (!guard('dm')) return;
         const wallet = (identityAddress || '').toLowerCase();
@@ -1245,8 +1245,8 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                     onSend={sendChat}
                     placeholder="Transmit broadcast message..."
                     ariaLabel="Message"
-                    maxLength={500}
-                    maxEncodedLength={500}
+                    maxLength={140}
+                    maxEncodedLength={140}
                     cooldown={cooldown}
                     showCounter
                 />
