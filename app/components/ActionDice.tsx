@@ -62,6 +62,12 @@ const MODE_HEX_3077: Record<ModeId, string> = {
     offline: '#00FF66',
 };
 
+const MODE_HEX_DAYBREAK: Record<ModeId, string> = {
+    quick: '#0284C7',
+    team: '#D97706',
+    offline: '#059669',
+};
+
 // Canonical orientation bringing each face index to the front.
 const FACE_ALIGN = [
     { rx: 0, ry: 0 },       // Front
@@ -94,6 +100,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     const { triggerHaptic } = useAudio();
     const { preferences } = usePreferences();
     const is3077 = preferences.theme === '3077';
+    const isDaybreak = preferences.theme === 'light';
     const controls = useAnimation();
     const shadowControls = useAnimation();
 
@@ -356,13 +363,16 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             ) : (
                 <motion.div
                     animate={shadowControls}
-                    className="w-24 h-4 rounded-[100%] bg-black/80 blur-md pointer-events-none mt-2 transition-all"
-                    style={{ opacity: 0.6 }}
+                    className="w-24 h-3.5 rounded-[100%] blur-md pointer-events-none mt-1.5 transition-all"
+                    style={{
+                        backgroundColor: isDaybreak ? 'rgba(15, 23, 42, 0.28)' : 'rgba(0, 0, 0, 0.8)',
+                        opacity: isDaybreak ? 0.55 : 0.6,
+                    }}
                 />
             )}
 
-            {/* 3077 Curved Magnetic Shuttle Rail (drag or tap to switch deployment mode) */}
-            {is3077 && (
+            {/* Mode Switcher: Curved Magnetic Shuttle Rail in 3077; 3-chip chamfered rail in Retro & Daybreak */}
+            {is3077 ? (
                 <DeploymentModeRail
                     activeMode={activeId}
                     disabled={isRolling}
@@ -370,6 +380,53 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     hapticsEnabled={preferences.haptics}
                     onSelectMode={jumpToMode}
                 />
+            ) : (
+                <div
+                    className="mt-2.5 flex items-center justify-center gap-1.5"
+                    role="group"
+                    aria-label="Deployment Mode Switcher"
+                >
+                    {BASE_ACTIONS.map((m) => {
+                        const modeId = m.id as ModeId;
+                        const selected = activeId === modeId;
+                        const hex = isDaybreak ? MODE_HEX_DAYBREAK[modeId] : MODE_HEX_3077[modeId];
+                        return (
+                            <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => jumpToMode(modeId)}
+                                aria-pressed={selected}
+                                className={`px-3 py-1.5 rounded-lg text-ludo-xs font-mono font-bold uppercase tracking-wider border transition-[border-color,background-color,color,transform] active:scale-95 cursor-pointer flex items-center gap-1.5 ${
+                                    selected
+                                        ? 'bg-surface-active text-ink-strong border-line-strong'
+                                        : 'bg-surface-recessed text-ink-muted border-line-soft hover:text-ink-strong hover:border-line-strong'
+                                }`}
+                                style={
+                                    selected
+                                        ? {
+                                              borderColor: isDaybreak ? `${hex}80` : `${hex}99`,
+                                              backgroundColor: isDaybreak ? `${hex}14` : `${hex}18`,
+                                              color: hex,
+                                              boxShadow: isDaybreak
+                                                  ? `0 2px 8px ${hex}22`
+                                                  : `0 0 12px ${hex}26, inset 0 1px 0 ${hex}33`,
+                                          }
+                                        : undefined
+                                }
+                            >
+                                <span
+                                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                                    style={{
+                                        backgroundColor: selected ? hex : 'var(--ink-faint)',
+                                        boxShadow: selected && !isDaybreak ? `0 0 6px ${hex}` : undefined,
+                                    }}
+                                    aria-hidden="true"
+                                />
+                                {m.shortLabel}
+                            </button>
+                        );
+                    })}
+                </div>
             )}
 
             {/* Active mode blurb */}
