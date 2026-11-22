@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence, useAnimation, PanInfo } from 'framer-motion';
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { useAudio } from '../hooks/useAudio';
 import { usePreferences } from '@/hooks/usePreferences';
+import { DEPLOY_THEMES, readStoredDeployMode, setDeployModeTheme } from '@/lib/deployTheme';
 import {
     ChevronGlyphIcon,
     QuickDeployIcon,
@@ -13,9 +14,9 @@ import {
     SquadRoomIcon,
 } from './icons';
 import { DeploymentModeRail } from './DeploymentModeRail';
+import { TerminalTypeText } from './TerminalTypeText';
 
 interface ActionDiceProps {
-    gameMode?: 'classic' | 'power';
     onSelectQuickMatch: () => void;
     onSelectTeamUp: () => void;
     onSelectOfflineMatch: () => void;
@@ -58,9 +59,9 @@ const MODE_DOT: Record<ModeId, string> = {
 };
 
 const MODE_HEX_3077: Record<ModeId, string> = {
-    quick: '#00E5FF',
-    team: '#F59E0B',
-    offline: '#00FF66',
+    quick: DEPLOY_THEMES.quick.hex,
+    team: DEPLOY_THEMES.team.hex,
+    offline: DEPLOY_THEMES.offline.hex,
 };
 
 const MODE_HEX_DAYBREAK: Record<ModeId, string> = {
@@ -79,21 +80,12 @@ const FACE_ALIGN = [
     { rx: 90, ry: 0 },      // Bottom
 ];
 
-const LAST_MODE_KEY = 'ludo-last-mode';
-
 const readBootFace = (): number => {
-    try {
-        const last = localStorage.getItem(LAST_MODE_KEY);
-        const idx = MODE_ORDER.indexOf(last as ModeId);
-        const mode = idx >= 0 ? MODE_ORDER[idx] : MODE_ORDER[0];
-        return Math.max(0, FACE_MODE.indexOf(mode));
-    } catch {
-        return 0;
-    }
+    const mode = readStoredDeployMode();
+    return Math.max(0, FACE_MODE.indexOf(mode));
 };
 
 export const ActionDice: React.FC<ActionDiceProps> = ({
-    gameMode = 'power',
     onSelectQuickMatch,
     onSelectTeamUp,
     onSelectOfflineMatch,
@@ -110,16 +102,14 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     const [currentRotateX, setCurrentRotateX] = useState(() => FACE_ALIGN[bootFace].rx);
     const [currentRotateY, setCurrentRotateY] = useState(() => FACE_ALIGN[bootFace].ry);
 
-    const rulesetHex3077 = gameMode === 'power' ? '#F59E0B' : '#00E5FF';
-
     const faces = useMemo(
         () =>
             [1, 2, 3, 4, 5, 6].map((pips, i) => {
                 const id = FACE_MODE[i];
                 const action = BASE_ACTIONS.find((a) => a.id === id)!;
-                return { pips, id, label: action.label, dotColor: MODE_DOT[id], hex3077: rulesetHex3077 };
+                return { pips, id, label: action.label, dotColor: MODE_DOT[id], hex3077: MODE_HEX_3077[id] };
             }),
-        [rulesetHex3077],
+        [],
     );
 
     const [modeIndex, setModeIndex] = useState(() => MODE_ORDER.indexOf(FACE_MODE[bootFace]));
@@ -165,11 +155,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
 
         setModeIndex(nextModeIndex);
         setActiveIndex(bestFace);
-        try {
-            localStorage.setItem(LAST_MODE_KEY, targetId);
-        } catch {
-            /* workers/private mode — memory lasts for this session only */
-        }
+        setDeployModeTheme(targetId, true);
         setCurrentRotateX(targetX);
         setCurrentRotateY(targetY);
 
@@ -244,7 +230,11 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     };
 
     const activeId = FACE_MODE[activeIndex];
-    const modeColorHex = is3077 ? rulesetHex3077 : MODE_HEX_3077[activeId];
+    const modeColorHex = MODE_HEX_3077[activeId];
+
+    useEffect(() => {
+        setDeployModeTheme(activeId, false);
+    }, [activeId]);
 
     return (
         <div className="relative w-full flex flex-col items-center justify-center py-2" style={{ perspective: '1200px' }}>
@@ -260,28 +250,47 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 </span>
             </div>
 
-            <div
-                data-ruleset={gameMode}
-                className="lobby-dice-cube relative w-28 h-28 mt-1 mb-3 dice-tier cursor-grab active:cursor-grabbing [--tz:56px] flex items-center justify-center"
-            >
+            <div className="lobby-dice-cube relative w-28 h-28 mt-1 mb-3 dice-tier cursor-grab active:cursor-grabbing [--tz:56px] flex items-center justify-center">
                 {is3077 ? (
                     <>
-                        <button
+                        <motion.button
                             type="button"
                             onClick={() => stepMode(-1, 'y')}
                             aria-label="Previous game mode"
-                            className="hud-header-cluster absolute top-1/2 -translate-y-1/2 -left-16 sm:-left-20 min-w-[44px] min-h-[44px] flex items-center justify-center text-ink-muted hover:text-accent active:scale-95 transition-[color,border-color,transform] z-20 cursor-pointer"
+                            animate={isRolling ? { x: 0 } : { x: [0, -5, 0] }}
+                            transition={
+                                isRolling
+                                    ? { duration: 0.15 }
+                                    : { repeat: Infinity, duration: 1.9, ease: 'easeInOut' }
+                            }
+                            className="hud-header-cluster absolute top-1/2 -translate-y-1/2 -left-24 sm:-left-28 min-w-[44px] min-h-[44px] flex items-center justify-center hover:brightness-110 active:scale-95 transition-[color,border-color,transform] z-20 cursor-pointer"
+                            style={{
+                                borderColor: `${modeColorHex}88`,
+                                color: modeColorHex,
+                                boxShadow: `0 0 12px ${modeColorHex}26`,
+                            }}
                         >
                             <ChevronGlyphIcon direction="left" className="w-5 h-5" />
-                        </button>
-                        <button
+                        </motion.button>
+                        <motion.button
                             type="button"
                             onClick={() => stepMode(1, 'y')}
                             aria-label="Next game mode"
-                            className="hud-header-cluster absolute top-1/2 -translate-y-1/2 -right-16 sm:-right-20 min-w-[44px] min-h-[44px] flex items-center justify-center text-ink-muted hover:text-accent active:scale-95 transition-[color,border-color,transform] z-20 cursor-pointer"
+                            animate={isRolling ? { x: 0 } : { x: [0, 5, 0] }}
+                            transition={
+                                isRolling
+                                    ? { duration: 0.15 }
+                                    : { repeat: Infinity, duration: 1.9, ease: 'easeInOut' }
+                            }
+                            className="hud-header-cluster absolute top-1/2 -translate-y-1/2 -right-24 sm:-right-28 min-w-[44px] min-h-[44px] flex items-center justify-center hover:brightness-110 active:scale-95 transition-[color,border-color,transform] z-20 cursor-pointer"
+                            style={{
+                                borderColor: `${modeColorHex}88`,
+                                color: modeColorHex,
+                                boxShadow: `0 0 12px ${modeColorHex}26`,
+                            }}
                         >
                             <ChevronGlyphIcon direction="right" className="w-5 h-5" />
-                        </button>
+                        </motion.button>
                     </>
                 ) : (
                     <>
@@ -382,7 +391,6 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             {is3077 ? (
                 <DeploymentModeRail
                     activeMode={activeId}
-                    accentHex={rulesetHex3077}
                     disabled={isRolling}
                     sfxEnabled={preferences.sfx}
                     hapticsEnabled={preferences.haptics}
@@ -437,26 +445,33 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 </div>
             )}
 
-            {/* Active mode blurb */}
-            <div className="mt-2 h-4 flex items-center justify-center pointer-events-none">
-                <AnimatePresence mode="wait">
-                    {!isRolling && (
-                        <motion.span
-                            key={`${activeId}-${is3077 ? '3077' : 'std'}`}
-                            initial={{ opacity: 0, y: 3 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -3 }}
-                            transition={{ duration: 0.16 }}
-                            className={`text-ludo-xs uppercase font-bold text-center ${
-                                is3077
-                                    ? 'font-mono text-ink-muted tracking-[0.2em]'
-                                    : 'text-ink-faint tracking-[0.25em]'
-                            }`}
-                        >
-                            {is3077 ? MODE_BLURB_3077[activeId] : MODE_BLURB[activeId]}
-                        </motion.span>
-                    )}
-                </AnimatePresence>
+            {/* Active mode blurb (live terminal print in 3077) */}
+            <div className="mt-2 h-4 flex items-center justify-center pointer-events-none px-2">
+                {is3077 ? (
+                    !isRolling && (
+                        <TerminalTypeText
+                            text={MODE_BLURB_3077[activeId]}
+                            charMs={22}
+                            className="text-ludo-xs font-mono font-bold uppercase tracking-[0.2em] text-center"
+                            style={{ color: 'var(--accent-bright)' }}
+                        />
+                    )
+                ) : (
+                    <AnimatePresence mode="wait">
+                        {!isRolling && (
+                            <motion.span
+                                key={`${activeId}-std`}
+                                initial={{ opacity: 0, y: 3 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -3 }}
+                                transition={{ duration: 0.16 }}
+                                className="text-ludo-xs uppercase font-bold text-center text-ink-faint tracking-[0.25em]"
+                            >
+                                {MODE_BLURB[activeId]}
+                            </motion.span>
+                        )}
+                    </AnimatePresence>
+                )}
             </div>
         </div>
     );

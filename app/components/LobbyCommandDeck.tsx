@@ -4,7 +4,9 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { TEAM_PAIRINGS } from '@/lib/constants';
 import { seatedColorsFor } from '@/lib/engine/core';
 import { onReducedMotionChange, prefersReducedMotion } from '@/lib/motion';
+import { useDeployTheme } from '@/lib/deployTheme';
 import { ClassicGridIcon, OverdriveBoltIcon } from './icons';
+import { TerminalTypeText } from './TerminalTypeText';
 
 export type LobbyGameMode = 'classic' | 'power';
 export type LobbyMatchType = '1v1' | '2v2' | '4P';
@@ -194,11 +196,14 @@ export function LobbyCommandDeck({
         return onReducedMotionChange(setReducedMotion);
     }, []);
 
+    const { theme: deployTheme } = useDeployTheme();
+
     // Preview mode follows live drag across midpoint; 0 = POWER (left), 1 = CLASSIC (right)
     const activeRatio = dragRatio !== null ? dragRatio : gameMode === 'power' ? 0 : 1;
     const previewMode: LobbyGameMode = activeRatio < 0.5 ? 'power' : 'classic';
     const isPower = previewMode === 'power';
-    const accentHex = isPower ? '#F59E0B' : '#00E5FF';
+    // Deck accent follows active Deployment Mode (`QUICK` Cyan / `TEAM` Amber / `OFFLINE` Emerald)
+    const accentHex = deployTheme.hex;
 
     const commitGameMode = useCallback(
         (next: LobbyGameMode) => {
@@ -304,18 +309,18 @@ export function LobbyCommandDeck({
 
     return (
         <div className="lobby-deck-3077 relative w-full overflow-visible px-0.5 flex flex-col gap-2.5">
-            {/* ROW 1: RULESET — Open Floating Armed Slide-Breaker (POWER left -> Amber | CLASSIC right -> Cyan) */}
+            {/* ROW 1: RULESET — Open Floating Armed Slide-Breaker (POWER left | CLASSIC right) */}
             <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between px-1">
-                    <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.2em] text-ink-faint">
+                <div className="flex items-center justify-between px-1 gap-2">
+                    <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.2em] text-ink-faint shrink-0">
                         {'// RULESET'}
                     </span>
-                    <span
+                    <TerminalTypeText
+                        text={isPower ? '6 POWER TILES · BOOSTS ON' : 'ORIGINAL RULES · NO BOOSTS'}
+                        charMs={18}
                         className="text-ludo-xs font-mono font-bold uppercase tracking-[0.14em]"
-                        style={{ color: accentHex }}
-                    >
-                        {isPower ? '6 POWER TILES · BOOSTS ON' : 'ORIGINAL RULES · NO BOOSTS'}
-                    </span>
+                        style={{ color: deployTheme.bright }}
+                    />
                 </div>
 
                 <div
@@ -365,7 +370,6 @@ export function LobbyCommandDeck({
 
                     {MODE_ORDER.map((mode) => {
                         const selected = previewMode === mode;
-                        const modeHex = mode === 'power' ? '#F59E0B' : '#00E5FF';
                         return (
                             <button
                                 key={mode}
@@ -378,7 +382,7 @@ export function LobbyCommandDeck({
                                     commitGameMode(mode);
                                 }}
                                 className="relative z-10 flex items-center justify-center gap-1.5 px-2 text-ludo-sm font-mono font-extrabold uppercase tracking-[0.14em] transition-colors cursor-pointer"
-                                style={{ color: selected ? modeHex : 'var(--ink-muted)' }}
+                                style={{ color: selected ? deployTheme.bright : 'var(--ink-muted)' }}
                             >
                                 {mode === 'power' ? (
                                     <OverdriveBoltIcon className="w-3.5 h-3.5 shrink-0" active={selected} />
@@ -389,8 +393,8 @@ export function LobbyCommandDeck({
                                 <span
                                     className="w-1.5 h-1.5 rounded-full shrink-0"
                                     style={{
-                                        backgroundColor: selected ? modeHex : 'rgba(100, 116, 139, 0.45)',
-                                        boxShadow: selected ? `0 0 6px ${modeHex}` : undefined,
+                                        backgroundColor: selected ? accentHex : 'rgba(100, 116, 139, 0.45)',
+                                        boxShadow: selected ? `0 0 6px ${accentHex}` : undefined,
                                     }}
                                     aria-hidden="true"
                                 />
@@ -402,16 +406,16 @@ export function LobbyCommandDeck({
 
             {/* ROW 2: FORMATION — Open Floating 3-Bay Mechanical Radar Matrix (1v1 · 2v2 · 4P) */}
             <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between px-1">
-                    <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.2em] text-ink-faint">
+                <div className="flex items-center justify-between px-1 gap-2">
+                    <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.2em] text-ink-faint shrink-0">
                         {'// FORMATION'}
                     </span>
-                    <span
+                    <TerminalTypeText
+                        text={FORMATION_META[matchType]}
+                        charMs={18}
                         className="text-ludo-xs font-mono font-bold uppercase tracking-[0.14em]"
-                        style={{ color: accentHex }}
-                    >
-                        {FORMATION_META[matchType]}
-                    </span>
+                        style={{ color: deployTheme.bright }}
+                    />
                 </div>
 
                 <div
@@ -437,9 +441,7 @@ export function LobbyCommandDeck({
                                 style={
                                     active
                                         ? {
-                                              background: isPower
-                                                  ? 'linear-gradient(180deg, #1b1408 0%, #24190a 100%)'
-                                                  : 'linear-gradient(180deg, #0b1622 0%, #102030 100%)',
+                                              background: `linear-gradient(180deg, rgba(${deployTheme.rgb}, 0.14) 0%, rgba(${deployTheme.rgb}, 0.06) 100%)`,
                                               border: `1px solid ${accentHex}bf`,
                                               boxShadow: `inset 0 2px 8px rgba(0, 0, 0, 0.85), 0 0 12px ${accentHex}2e`,
                                           }

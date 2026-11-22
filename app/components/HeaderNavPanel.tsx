@@ -11,6 +11,7 @@ import { RankTierIcon } from './RankTierIcon';
 import { PilotAvatar } from './PilotAvatar';
 import { useTotalChips } from '@/hooks/useTotalChips';
 import { formatCompactChips } from '@/lib/chips';
+import { useDeployTheme } from '@/lib/deployTheme';
 
 // ─── Shared Token Glyph (back-compat re-export for BoardHeaderCompact/page) ──
 
@@ -53,6 +54,7 @@ export const HeaderNavPanel = ({
     onRevealMatchStatus,
 }: HeaderNavPanelProps) => {
     const chips = useTotalChips();
+    useDeployTheme();
     const showChips = Boolean(chips.configured && chips.address);
     const balanceDisplay = showChips
         ? chips.walletReady || chips.totalChips > 0
@@ -87,7 +89,7 @@ export const HeaderNavPanel = ({
                 <span className={`w-5 h-5 flex-shrink-0 ${showChips ? 'text-accent' : 'text-warn'}`}>
                     <ChipsHexIcon className="w-full h-full" active />
                 </span>
-                <span className="text-ludo-sm font-bold text-ink-strong font-mono tabular-nums truncate leading-none">
+                <span className="hud-header-coins-3077 text-ludo-sm font-bold text-ink-strong font-mono tabular-nums truncate leading-none">
                     {balanceDisplay}
                 </span>
             </button>
@@ -120,10 +122,10 @@ export const HeaderNavPanel = ({
                 </div>
 
                 <div className="flex flex-col items-start min-w-0 flex-1 leading-none">
-                    <span className="text-ludo-sm font-bold text-ink-strong uppercase tracking-tight truncate w-full">
+                    <span className="hud-header-name-3077 text-ludo-sm font-bold text-ink-strong uppercase tracking-tight truncate w-full">
                         {finalName}
                     </span>
-                    <span className="flex items-center gap-1 mt-0.5 min-w-0 w-full">
+                    <span className="hud-header-rank-3077 flex items-center gap-1 mt-0.5 min-w-0 w-full">
                         <RankTierIcon tier={tier} size={11} className="shrink-0" />
                         <span className="text-ludo-xs font-mono font-bold text-accent uppercase tracking-wider truncate">
                             LV.{level} · {tier}
@@ -136,7 +138,7 @@ export const HeaderNavPanel = ({
             <div className="hud-header-cluster flex-none h-[40px] sm:h-[44px] px-1 sm:px-1.5 flex items-center gap-0.5 rounded-xl bg-surface-recessed border border-line-soft text-ink-strong">
                 <button
                     type="button"
-                    className="w-9 h-9 flex items-center justify-center rounded-lg text-ink-muted hover:text-ink-strong hover:bg-surface-hover active:scale-95 transition-[color,background-color,transform] relative cursor-pointer"
+                    className="hud-header-action-3077 w-9 h-9 flex items-center justify-center rounded-lg text-ink-muted hover:text-ink-strong hover:bg-surface-hover active:scale-95 transition-[color,background-color,transform] relative cursor-pointer"
                     onClick={onMessagesClick}
                     title="Messages"
                     aria-label={unreadCount > 0 ? `Messages (${unreadCount} unread)` : 'Messages'}
@@ -156,7 +158,7 @@ export const HeaderNavPanel = ({
 
                 <button
                     type="button"
-                    className="w-9 h-9 flex items-center justify-center rounded-lg text-ink-muted hover:text-ink-strong hover:bg-surface-hover active:scale-95 transition-[color,background-color,transform] cursor-pointer"
+                    className="hud-header-action-3077 w-9 h-9 flex items-center justify-center rounded-lg text-ink-muted hover:text-ink-strong hover:bg-surface-hover active:scale-95 transition-[color,background-color,transform] cursor-pointer"
                     onClick={onSettingsClick}
                     title="Settings"
                     aria-label="Settings"

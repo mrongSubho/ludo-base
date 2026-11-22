@@ -17,11 +17,11 @@ import {
     wagerToAngle,
 } from '@/lib/entryFeeDial';
 import { onReducedMotionChange, prefersReducedMotion } from '@/lib/motion';
+import { useDeployTheme } from '@/lib/deployTheme';
 
 interface EntryFeeKnobProps {
     wager: number;
     playableChips: number;
-    gameMode?: 'classic' | 'power';
     onChange: (nextWager: number) => void;
     sfxEnabled: boolean;
     formatBalance: (val: number) => string;
@@ -97,7 +97,6 @@ function polarPoint(radius: number, angleDeg: number): { x: number; y: number } 
 export function EntryFeeKnob({
     wager,
     playableChips,
-    gameMode = 'classic',
     onChange,
     sfxEnabled,
     formatBalance,
@@ -105,6 +104,7 @@ export function EntryFeeKnob({
     const uid = useId().replace(/:/g, '');
     const svgRef = useRef<SVGSVGElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
+    const { theme: deployTheme } = useDeployTheme();
 
     const [reducedMotion, setReducedMotion] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -134,27 +134,15 @@ export function EntryFeeKnob({
     }, [isEditing]);
 
     const isUnaffordable = wager > 0 && wager > playableChips;
-    const isHighRoller = wager >= HIGH_ROLLER_MIN_WAGER;
     const isPaid = wager > 0;
 
-    const isPowerMode = gameMode === 'power';
-    const activeHex = isUnaffordable
-        ? '#f43f5e'
-        : isHighRoller || (isPaid && isPowerMode)
-          ? '#f59e0b'
-          : isPaid
-            ? '#00e5ff'
-            : isPowerMode
-              ? '#d97706'
-              : '#94a3b8';
+    const activeHex = isUnaffordable ? '#f43f5e' : deployTheme.hex;
 
     const activeToneColor = isUnaffordable
         ? 'var(--negative)'
-        : isHighRoller || (isPaid && isPowerMode)
-          ? 'var(--warn)'
-          : isPaid
-            ? 'var(--accent)'
-            : 'var(--ink-muted)';
+        : isPaid
+          ? 'var(--accent-bright)'
+          : 'var(--accent)';
 
     const emitTierChange = useCallback(
         (nextWager: number, tierIndexForAudio?: number) => {
@@ -291,7 +279,12 @@ export function EntryFeeKnob({
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => emitTierChange(stepTier(wager, -1))}
                     aria-label="Decrease entry fee"
-                    className="fee-preset-3077 absolute left-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-surface-recessed border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    className="fee-preset-3077 absolute left-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-surface-recessed border flex items-center justify-center hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    style={{
+                        borderColor: canStepDown ? `rgba(${deployTheme.rgb}, 0.52)` : 'var(--line-soft)',
+                        color: canStepDown ? deployTheme.bright : 'var(--ink-muted)',
+                        boxShadow: canStepDown ? `0 0 12px rgba(${deployTheme.rgb}, 0.16)` : undefined,
+                    }}
                 >
                     <LuMinus className="w-4 h-4 stroke-[2.75px]" />
                 </button>
@@ -359,16 +352,11 @@ export function EntryFeeKnob({
                                     angle,
                                 );
                                 const isLit = angle <= currentAngle + 0.5 && isPaid;
-                                const isHighZone = angle >= tierIndexToAngle(6) - 0.5;
 
-                                let stroke = 'rgba(241, 245, 249, 0.22)';
+                                let stroke = `rgba(${deployTheme.rgb}, 0.24)`;
                                 let opacity = isMajor ? 0.55 : 0.35;
                                 if (isLit) {
-                                    stroke = isUnaffordable
-                                        ? '#f43f5e'
-                                        : isHighZone
-                                          ? '#f59e0b'
-                                          : '#00e5ff';
+                                    stroke = isUnaffordable ? '#f43f5e' : deployTheme.hex;
                                     opacity = isMajor ? 1 : 0.85;
                                 }
 
@@ -399,13 +387,9 @@ export function EntryFeeKnob({
 
                                 let fill = overBalance ? 'rgba(244, 63, 94, 0.52)' : '#94a3b8';
                                 if (isSelected) {
-                                    fill = overBalance
-                                        ? '#fb7185'
-                                        : isHighTier
-                                          ? '#fbbf24'
-                                          : '#00e5ff';
+                                    fill = overBalance ? '#fb7185' : deployTheme.bright;
                                 } else if (!overBalance && isHighTier) {
-                                    fill = 'rgba(245, 158, 11, 0.78)';
+                                    fill = `rgba(${deployTheme.rgb}, 0.72)`;
                                 }
 
                                 return (
@@ -467,11 +451,7 @@ export function EntryFeeKnob({
                                 stroke={
                                     isUnaffordable
                                         ? 'rgba(244, 63, 94, 0.78)'
-                                        : isHighRoller
-                                          ? 'rgba(245, 158, 11, 0.45)'
-                                          : isPaid
-                                            ? 'rgba(0, 229, 255, 0.38)'
-                                            : 'rgba(255, 255, 255, 0.14)'
+                                        : `rgba(${deployTheme.rgb}, ${isPaid ? 0.5 : 0.32})`
                                 }
                                 strokeWidth={isUnaffordable ? '1.6' : '1.25'}
                             />
@@ -532,11 +512,7 @@ export function EntryFeeKnob({
                             stroke={
                                 isUnaffordable
                                     ? 'rgba(244, 63, 94, 0.65)'
-                                    : isHighRoller
-                                      ? 'rgba(245, 158, 11, 0.36)'
-                                      : isPaid
-                                        ? 'rgba(0, 229, 255, 0.3)'
-                                        : 'rgba(255, 255, 255, 0.12)'
+                                    : `rgba(${deployTheme.rgb}, ${isPaid ? 0.42 : 0.28})`
                             }
                             strokeWidth="1.25"
                         />
@@ -607,9 +583,8 @@ export function EntryFeeKnob({
                                     style={{
                                         color: isUnaffordable
                                             ? 'var(--negative)'
-                                            : isHighRoller
-                                              ? 'var(--warn)'
-                                              : 'var(--ink-faint)',
+                                            : deployTheme.hex,
+                                        opacity: isUnaffordable ? 1 : 0.78,
                                     }}
                                 >
                                     {tierName}
@@ -626,7 +601,12 @@ export function EntryFeeKnob({
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => emitTierChange(stepTier(wager, 1))}
                     aria-label="Increase entry fee"
-                    className="fee-preset-3077 absolute right-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-surface-recessed border border-line-soft flex items-center justify-center text-ink-strong hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    className="fee-preset-3077 absolute right-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-surface-recessed border flex items-center justify-center hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    style={{
+                        borderColor: canStepUp ? `rgba(${deployTheme.rgb}, 0.52)` : 'var(--line-soft)',
+                        color: canStepUp ? deployTheme.bright : 'var(--ink-muted)',
+                        boxShadow: canStepUp ? `0 0 12px rgba(${deployTheme.rgb}, 0.16)` : undefined,
+                    }}
                 >
                     <LuPlus className="w-4 h-4 stroke-[2.75px]" />
                 </button>

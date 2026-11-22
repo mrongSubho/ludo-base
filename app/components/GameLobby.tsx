@@ -34,6 +34,7 @@ import {
 } from './icons';
 import { EntryFeeKnob } from './EntryFeeKnob';
 import { LobbyCommandDeck } from './LobbyCommandDeck';
+import { useDeployTheme } from '@/lib/deployTheme';
 
 /** Primary preset entry fees (CHIPS). 0 = Free. */
 const FEE_PRESETS = [0, 500, 1_000, 10_000, 100_000, 500_000] as const;
@@ -128,6 +129,7 @@ export default function GameLobby({
     // Configuration State
     const { preferences } = usePreferences();
     const is3077 = preferences.theme === '3077';
+    const { theme: deployTheme } = useDeployTheme();
     const { playSelect, playCoin } = useSoundEffects();
     const [showTeamUpOptions, setShowTeamUpOptions] = useState(false);
     const [showOfflineOptions, setShowOfflineOptions] = useState(false);
@@ -491,10 +493,12 @@ export default function GameLobby({
                                             background: 'rgba(6, 11, 20, 0.72)',
                                             borderColor:
                                                 wager > playableChips
-                                                    ? 'rgba(244, 63, 94, 0.5)'
-                                                    : gameMode === 'power'
-                                                      ? 'rgba(245, 158, 11, 0.34)'
-                                                      : 'rgba(0, 229, 255, 0.3)',
+                                                    ? 'rgba(244, 63, 94, 0.55)'
+                                                    : `rgba(${deployTheme.rgb}, 0.42)`,
+                                            boxShadow:
+                                                wager > playableChips
+                                                    ? undefined
+                                                    : `0 0 14px rgba(${deployTheme.rgb}, 0.12)`,
                                         }}
                                     >
                                         <button
@@ -503,9 +507,12 @@ export default function GameLobby({
                                             aria-expanded={showFee}
                                             className="w-full flex items-center justify-between px-3 py-2 rounded-[11px] hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
                                         >
-                                            <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
+                                            <span
+                                                className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em]"
+                                                style={{ color: deployTheme.bright }}
+                                            >
                                                 <ChipsHexIcon
-                                                    className={`w-4 h-4 shrink-0 ${gameMode === 'power' ? 'text-warn' : 'text-accent'}`}
+                                                    className="w-4 h-4 shrink-0"
                                                     active={wager > 0}
                                                 />
                                                 <span>Entry Fee</span>
@@ -515,18 +522,15 @@ export default function GameLobby({
                                                     className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${
                                                         wager > playableChips
                                                             ? 'text-negative animate-knob-alert-blink'
-                                                            : wager > 0
-                                                              ? gameMode === 'power'
-                                                                ? 'text-warn'
-                                                                : 'text-accent'
-                                                              : 'text-ink-muted'
+                                                            : ''
                                                     }`}
+                                                    style={wager > playableChips ? undefined : { color: deployTheme.bright }}
                                                 >
                                                     {formatEntryFee(wager)}
                                                 </span>
                                                 <ChevronGlyphIcon
                                                     direction="down"
-                                                    className={`w-3.5 h-3.5 text-ink-muted transition-transform duration-200 ${showFee ? 'rotate-180' : ''}`}
+                                                    className={`w-3.5 h-3.5 transition-transform duration-200 ${showFee ? 'rotate-180' : ''}`}
                                                 />
                                             </span>
                                         </button>
@@ -542,9 +546,16 @@ export default function GameLobby({
                                                     style={{
                                                         transformOrigin: 'top center',
                                                         background: 'var(--panel-bg)',
-                                                        boxShadow: 'var(--panel-shadow)',
+                                                        borderColor:
+                                                            dialWager > playableChips
+                                                                ? 'rgba(244, 63, 94, 0.85)'
+                                                                : `rgba(${deployTheme.rgb}, 0.82)`,
+                                                        boxShadow:
+                                                            dialWager > playableChips
+                                                                ? '0 0 22px rgba(244, 63, 94, 0.25), var(--panel-shadow)'
+                                                                : `0 0 22px rgba(${deployTheme.rgb}, 0.24), var(--panel-shadow)`,
                                                     }}
-                                                    className="fee-tier absolute top-0 left-0 right-0 z-40 rounded-[16px] border border-line-strong backdrop-blur-2xl flex flex-col items-center overflow-hidden"
+                                                    className="fee-tier fee-tier-expanded-3077 absolute top-0 left-0 right-0 z-40 rounded-[16px] border backdrop-blur-2xl flex flex-col items-center overflow-hidden"
                                                 >
                                                     <HudCornerTicks />
 
@@ -559,30 +570,32 @@ export default function GameLobby({
                                                         aria-expanded={true}
                                                         className="relative z-10 w-full flex items-center justify-between px-3 py-2 rounded-[14px] hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
                                                     >
-                                                        <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
+                                                        <span
+                                                            className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em]"
+                                                            style={{ color: deployTheme.bright }}
+                                                        >
                                                             <ChipsHexIcon
-                                                                className={`w-4 h-4 shrink-0 ${gameMode === 'power' ? 'text-warn' : 'text-accent'}`}
+                                                                className="w-4 h-4 shrink-0"
                                                                 active={dialWager > 0}
                                                             />
                                                             <span>Entry Fee</span>
                                                         </span>
-                                                        <span className="inline-flex items-center gap-2">
+                                                        <span
+                                                            className="inline-flex items-center gap-2"
+                                                            style={{ color: deployTheme.bright }}
+                                                        >
                                                             <span
                                                                 className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${
                                                                     dialWager > playableChips
                                                                         ? 'text-negative animate-knob-alert-blink'
-                                                                        : dialWager > 0
-                                                                          ? gameMode === 'power'
-                                                                            ? 'text-warn'
-                                                                            : 'text-accent'
-                                                                          : 'text-ink-muted'
+                                                                        : ''
                                                                 }`}
                                                             >
                                                                 {formatEntryFee(dialWager)}
                                                             </span>
                                                             <ChevronGlyphIcon
                                                                 direction="down"
-                                                                className="w-3.5 h-3.5 text-ink-muted rotate-180 transition-transform duration-200"
+                                                                className="w-3.5 h-3.5 rotate-180 transition-transform duration-200"
                                                             />
                                                         </span>
                                                     </button>
@@ -591,7 +604,6 @@ export default function GameLobby({
                                                         <EntryFeeKnob
                                                             wager={dialWager}
                                                             playableChips={playableChips}
-                                                            gameMode={gameMode}
                                                             onChange={(next) => {
                                                                 setDialWager(next);
                                                                 setDialWarning(null);
@@ -890,7 +902,6 @@ export default function GameLobby({
                     {/* 3. ACTION DICE */}
                     <div className="w-full flex-1 flex items-center justify-center relative z-30 min-h-0">
                         <ActionDice
-                            gameMode={gameMode}
                             onSelectQuickMatch={() => handleStartQuickMatch()}
                             onSelectTeamUp={handleStartTeamUp}
                             onSelectOfflineMatch={() => setShowOfflineOptions(true)}

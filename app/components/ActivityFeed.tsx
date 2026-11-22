@@ -1503,22 +1503,25 @@ export const LiveBroadcastCard = ({
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <span
                                 className="ticker-status-dot w-2 h-2 rounded-full shrink-0"
-                                style={{ backgroundColor: activeTicker?.dotColor || 'var(--sig-info)' }}
+                                style={{ backgroundColor: 'var(--accent)' }}
                                 aria-hidden
                             />
                             <span
                                 key={activeTicker?.key}
                                 className="ticker-crossfade-3077 font-mono text-xs font-medium uppercase tracking-wider truncate"
-                                style={{ color: 'var(--ink-strong)' }}
+                                style={{ color: 'var(--accent-bright)' }}
                             >
                                 {activeTicker?.label}
                             </span>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0 pl-3 border-l" style={{ borderColor: 'var(--line-soft)' }}>
+                        <div
+                            className="flex items-center gap-2 shrink-0 pl-3 border-l"
+                            style={{ borderColor: 'rgba(var(--accent-rgb), 0.25)' }}
+                        >
                             <span className="font-mono text-xs font-semibold tabular-nums" style={{ color: 'var(--accent)' }}>
                                 {joinable}
                             </span>
-                            <span className="font-mono text-ludo-xs uppercase tracking-wider" style={{ color: 'var(--ink-muted)' }}>
+                            <span className="font-mono text-ludo-xs uppercase tracking-wider" style={{ color: 'var(--accent)', opacity: 0.85 }}>
                                 Live
                             </span>
                         </div>
