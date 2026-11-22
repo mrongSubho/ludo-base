@@ -949,3 +949,14 @@ body.theme-3077 .knob-console-3077 {
 body.theme-3077 .knob-rotor-3077 {
   filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.72));
 }
+
+/* ─── 13. Curved Magnetic Deployment Mode Rail (3077 Only) ─── */
+body.theme-3077 .mode-rail-3077:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+body.theme-3077 .mode-rail-shuttle-3077 {
+  filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.78));
+}

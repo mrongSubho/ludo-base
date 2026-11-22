@@ -12,6 +12,7 @@ import {
     SimBotIcon,
     SquadRoomIcon,
 } from './icons';
+import { DeploymentModeRail } from './DeploymentModeRail';
 
 interface ActionDiceProps {
     onSelectQuickMatch: () => void;
@@ -360,36 +361,15 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 />
             )}
 
-            {/* 3077 Direct Mode Rail (allows quick jump alongside cube swipe) */}
+            {/* 3077 Curved Magnetic Shuttle Rail (drag or tap to switch deployment mode) */}
             {is3077 && (
-                <div className="mt-1.5 flex items-center justify-center gap-1.5" role="group" aria-label="Deployment Mode Switcher">
-                    {BASE_ACTIONS.map((m) => {
-                        const modeId = m.id as ModeId;
-                        const selected = activeId === modeId;
-                        const hex = MODE_HEX_3077[modeId];
-                        return (
-                            <button
-                                key={m.id}
-                                type="button"
-                                onClick={() => jumpToMode(modeId)}
-                                aria-pressed={selected}
-                                className={`fee-preset-3077 px-2.5 py-1 text-ludo-xs font-mono font-bold uppercase tracking-wider border transition-[border-color,background-color,color] cursor-pointer flex items-center gap-1.5 ${
-                                    selected
-                                        ? 'bg-surface-active text-ink-strong border-line-strong'
-                                        : 'bg-surface-recessed text-ink-muted border-line-soft hover:text-ink-strong'
-                                }`}
-                                style={selected ? { borderColor: `${hex}88`, color: hex } : undefined}
-                            >
-                                <span
-                                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                                    style={{ backgroundColor: selected ? hex : 'var(--ink-faint)' }}
-                                    aria-hidden="true"
-                                />
-                                {m.shortLabel}
-                            </button>
-                        );
-                    })}
-                </div>
+                <DeploymentModeRail
+                    activeMode={activeId}
+                    disabled={isRolling}
+                    sfxEnabled={preferences.sfx}
+                    hapticsEnabled={preferences.haptics}
+                    onSelectMode={jumpToMode}
+                />
             )}
 
             {/* Active mode blurb */}
