@@ -15,6 +15,7 @@ import {
 import { DeploymentModeRail } from './DeploymentModeRail';
 
 interface ActionDiceProps {
+    gameMode?: 'classic' | 'power';
     onSelectQuickMatch: () => void;
     onSelectTeamUp: () => void;
     onSelectOfflineMatch: () => void;
@@ -92,6 +93,7 @@ const readBootFace = (): number => {
 };
 
 export const ActionDice: React.FC<ActionDiceProps> = ({
+    gameMode = 'power',
     onSelectQuickMatch,
     onSelectTeamUp,
     onSelectOfflineMatch,
@@ -108,14 +110,16 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     const [currentRotateX, setCurrentRotateX] = useState(() => FACE_ALIGN[bootFace].rx);
     const [currentRotateY, setCurrentRotateY] = useState(() => FACE_ALIGN[bootFace].ry);
 
+    const rulesetHex3077 = gameMode === 'power' ? '#F59E0B' : '#00E5FF';
+
     const faces = useMemo(
         () =>
             [1, 2, 3, 4, 5, 6].map((pips, i) => {
                 const id = FACE_MODE[i];
                 const action = BASE_ACTIONS.find((a) => a.id === id)!;
-                return { pips, id, label: action.label, dotColor: MODE_DOT[id], hex3077: MODE_HEX_3077[id] };
+                return { pips, id, label: action.label, dotColor: MODE_DOT[id], hex3077: rulesetHex3077 };
             }),
-        [],
+        [rulesetHex3077],
     );
 
     const [modeIndex, setModeIndex] = useState(() => MODE_ORDER.indexOf(FACE_MODE[bootFace]));
@@ -240,7 +244,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     };
 
     const activeId = FACE_MODE[activeIndex];
-    const modeColorHex = MODE_HEX_3077[activeId];
+    const modeColorHex = is3077 ? rulesetHex3077 : MODE_HEX_3077[activeId];
 
     return (
         <div className="relative w-full flex flex-col items-center justify-center py-2" style={{ perspective: '1200px' }}>
@@ -256,7 +260,10 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 </span>
             </div>
 
-            <div className="lobby-dice-cube relative w-28 h-28 mt-1 mb-3 dice-tier cursor-grab active:cursor-grabbing [--tz:56px] flex items-center justify-center">
+            <div
+                data-ruleset={gameMode}
+                className="lobby-dice-cube relative w-28 h-28 mt-1 mb-3 dice-tier cursor-grab active:cursor-grabbing [--tz:56px] flex items-center justify-center"
+            >
                 {is3077 ? (
                     <>
                         <button
@@ -375,6 +382,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             {is3077 ? (
                 <DeploymentModeRail
                     activeMode={activeId}
+                    accentHex={rulesetHex3077}
                     disabled={isRolling}
                     sfxEnabled={preferences.sfx}
                     hapticsEnabled={preferences.haptics}
@@ -529,6 +537,16 @@ const DiceFace = ({
                             ? 'w-[78%] min-h-[36px] px-1.5 py-1 border font-bold'
                             : 'w-[94%] min-h-[44px] px-1.5 py-1 rounded-full border glass-panel backdrop-blur-[1px] border-cyan-400/80 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95'
                     }`}
+                    style={
+                        is3077
+                            ? {
+                                  borderColor: `${faceHex}b3`,
+                                  color: faceHex,
+                                  backgroundColor: `${faceHex}14`,
+                                  boxShadow: `0 0 12px ${faceHex}26, inset 0 1px 0 ${faceHex}33`,
+                              }
+                            : undefined
+                    }
                 >
                     {is3077 && (
                         <span className="inline-flex items-center shrink-0">

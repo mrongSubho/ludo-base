@@ -633,6 +633,19 @@ body.theme-3077 .dice-tier button:has(span) span {
   letter-spacing: 0.08em !important;
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 229, 255, 0.35) !important;
 }
+body.theme-3077 .dice-tier[data-ruleset='power'] button:has(span) {
+  background: rgba(24, 15, 5, 0.54) !important;
+  border-color: rgba(245, 158, 11, 0.84) !important;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.28), inset 0 0 8px rgba(245, 158, 11, 0.14) !important;
+}
+body.theme-3077 .dice-tier[data-ruleset='power'] button:has(span):hover {
+  background: rgba(245, 158, 11, 0.22) !important;
+  border-color: #fcd34d !important;
+}
+body.theme-3077 .dice-tier[data-ruleset='power'] button:has(span) span {
+  color: #fcd34d !important;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9), 0 0 8px rgba(245, 158, 11, 0.42) !important;
+}
 
 body.theme-3077 .game-top-bar {
   background: var(--surface-1);
@@ -959,15 +972,4 @@ body.theme-3077 .mode-rail-3077:focus-visible {
 
 body.theme-3077 .mode-rail-shuttle-3077 {
   filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.78));
-}
-
-/* ─── 14. Tactical Command Console (3077 Only) ─── */
-body.theme-3077 .lobby-deck-rivet {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  border-radius: 9999px;
-  background: #080c13;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  pointer-events: none;
 }

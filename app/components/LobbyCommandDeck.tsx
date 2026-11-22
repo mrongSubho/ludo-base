@@ -303,22 +303,9 @@ export function LobbyCommandDeck({
     };
 
     return (
-        <div
-            className="lobby-deck-3077 relative w-full overflow-visible rounded-[18px] p-2.5 sm:p-3 flex flex-col gap-2.5"
-            style={{
-                background: 'linear-gradient(180deg, #151e2d 0%, #0b1019 52%, #070b12 100%)',
-                border: `1px solid ${accentHex}4d`,
-                boxShadow: `0 12px 28px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(226, 232, 240, 0.14), 0 0 20px ${accentHex}14`,
-            }}
-        >
-            {/* 4 CNC corner micro-fastener rivets */}
-            <span className="lobby-deck-rivet top-1.5 left-1.5" aria-hidden="true" />
-            <span className="lobby-deck-rivet top-1.5 right-1.5" aria-hidden="true" />
-            <span className="lobby-deck-rivet bottom-1.5 left-1.5" aria-hidden="true" />
-            <span className="lobby-deck-rivet bottom-1.5 right-1.5" aria-hidden="true" />
-
-            {/* ROW 1: RULESET — Armed Slide-Breaker (POWER first on left, CLASSIC on right) */}
-            <div className="flex flex-col gap-1.5">
+        <div className="lobby-deck-3077 relative w-full overflow-visible px-0.5 flex flex-col gap-2.5">
+            {/* ROW 1: RULESET — Open Floating Armed Slide-Breaker (POWER left -> Amber | CLASSIC right -> Cyan) */}
+            <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between px-1">
                     <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.2em] text-ink-faint">
                         {'// RULESET'}
@@ -341,11 +328,11 @@ export function LobbyCommandDeck({
                     onPointerMove={handleBreakerPointerMove}
                     onPointerUp={finishBreakerPointer}
                     onPointerCancel={finishBreakerPointer}
-                    className="relative h-[42px] rounded-[11px] p-[3px] grid grid-cols-2 touch-none select-none cursor-grab active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                    className="relative h-[42px] rounded-[11px] p-[3px] grid grid-cols-2 touch-none select-none cursor-grab active:cursor-grabbing backdrop-blur-md focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
                     style={{
-                        background: '#04070d',
-                        border: '1px solid rgba(148, 163, 184, 0.18)',
-                        boxShadow: 'inset 0 3px 8px rgba(0, 0, 0, 0.85)',
+                        background: 'rgba(5, 9, 16, 0.72)',
+                        border: `1px solid ${accentHex}38`,
+                        boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.75)',
                     }}
                 >
                     {/* Physical Knurled Alloy Slide-Actuator */}
@@ -413,8 +400,8 @@ export function LobbyCommandDeck({
                 </div>
             </div>
 
-            {/* ROW 2: FORMATION — 3-Bay Depressing Mechanical Radar Matrix (1v1 · 2v2 · 4P) */}
-            <div className="flex flex-col gap-1.5">
+            {/* ROW 2: FORMATION — Open Floating 3-Bay Mechanical Radar Matrix (1v1 · 2v2 · 4P) */}
+            <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between px-1">
                     <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.2em] text-ink-faint">
                         {'// FORMATION'}
@@ -430,11 +417,11 @@ export function LobbyCommandDeck({
                 <div
                     role="radiogroup"
                     aria-label="Match Type"
-                    className="rounded-[12px] p-1 grid grid-cols-3 gap-1.5"
+                    className="rounded-[12px] p-1 grid grid-cols-3 gap-1.5 backdrop-blur-md"
                     style={{
-                        background: '#04070d',
-                        border: '1px solid rgba(148, 163, 184, 0.14)',
-                        boxShadow: 'inset 0 2px 7px rgba(0, 0, 0, 0.85)',
+                        background: 'rgba(5, 9, 16, 0.66)',
+                        border: `1px solid ${accentHex}29`,
+                        boxShadow: 'inset 0 2px 7px rgba(0, 0, 0, 0.72)',
                     }}
                 >
                     {FORMATION_ORDER.map((type) => {

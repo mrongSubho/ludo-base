@@ -21,6 +21,7 @@ import { onReducedMotionChange, prefersReducedMotion } from '@/lib/motion';
 interface EntryFeeKnobProps {
     wager: number;
     playableChips: number;
+    gameMode?: 'classic' | 'power';
     onChange: (nextWager: number) => void;
     sfxEnabled: boolean;
     formatBalance: (val: number) => string;
@@ -96,6 +97,7 @@ function polarPoint(radius: number, angleDeg: number): { x: number; y: number } 
 export function EntryFeeKnob({
     wager,
     playableChips,
+    gameMode = 'classic',
     onChange,
     sfxEnabled,
     formatBalance,
@@ -135,17 +137,20 @@ export function EntryFeeKnob({
     const isHighRoller = wager >= HIGH_ROLLER_MIN_WAGER;
     const isPaid = wager > 0;
 
+    const isPowerMode = gameMode === 'power';
     const activeHex = isUnaffordable
         ? '#f43f5e'
-        : isHighRoller
-          ? '#fbbf24'
+        : isHighRoller || (isPaid && isPowerMode)
+          ? '#f59e0b'
           : isPaid
             ? '#00e5ff'
-            : '#94a3b8';
+            : isPowerMode
+              ? '#d97706'
+              : '#94a3b8';
 
     const activeToneColor = isUnaffordable
         ? 'var(--negative)'
-        : isHighRoller
+        : isHighRoller || (isPaid && isPowerMode)
           ? 'var(--warn)'
           : isPaid
             ? 'var(--accent)'

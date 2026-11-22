@@ -335,7 +335,7 @@ export default function Page() {
   const _finalAvatar = profile?.avatar_url || null;
 
   // Match Configuration State (Synced with GameLobby)
-  const [selectedMode, setSelectedMode] = useState<'classic' | 'power'>('classic');
+  const [selectedMode, setSelectedMode] = useState<'classic' | 'power'>('power');
   const [playerCount, setPlayerCount] = useState<'1v1' | '2v2' | '4P'>('1v1');
   const [betAmount, setBetAmount] = useState<number>(0);
   const [isBotMatch, setIsBotMatch] = useState(false);

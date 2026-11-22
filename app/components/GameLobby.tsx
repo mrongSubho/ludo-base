@@ -486,9 +486,9 @@ export default function GameLobby({
                                 feeDock={
                                     <div
                                         ref={feeTierRef}
-                                        className="fee-tier relative z-40 rounded-[12px] flex flex-col items-center border"
+                                        className="fee-tier relative z-40 rounded-[12px] flex flex-col items-center border backdrop-blur-md"
                                         style={{
-                                            background: 'linear-gradient(180deg, #0d1420 0%, #070b12 100%)',
+                                            background: 'rgba(6, 11, 20, 0.72)',
                                             borderColor:
                                                 wager > playableChips
                                                     ? 'rgba(244, 63, 94, 0.5)'
@@ -572,7 +572,9 @@ export default function GameLobby({
                                                                     dialWager > playableChips
                                                                         ? 'text-negative animate-knob-alert-blink'
                                                                         : dialWager > 0
-                                                                          ? 'text-accent'
+                                                                          ? gameMode === 'power'
+                                                                            ? 'text-warn'
+                                                                            : 'text-accent'
                                                                           : 'text-ink-muted'
                                                                 }`}
                                                             >
@@ -589,6 +591,7 @@ export default function GameLobby({
                                                         <EntryFeeKnob
                                                             wager={dialWager}
                                                             playableChips={playableChips}
+                                                            gameMode={gameMode}
                                                             onChange={(next) => {
                                                                 setDialWager(next);
                                                                 setDialWarning(null);
@@ -887,6 +890,7 @@ export default function GameLobby({
                     {/* 3. ACTION DICE */}
                     <div className="w-full flex-1 flex items-center justify-center relative z-30 min-h-0">
                         <ActionDice
+                            gameMode={gameMode}
                             onSelectQuickMatch={() => handleStartQuickMatch()}
                             onSelectTeamUp={handleStartTeamUp}
                             onSelectOfflineMatch={() => setShowOfflineOptions(true)}

@@ -7,10 +7,11 @@ const root = join(import.meta.dirname ?? __dirname, '..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
 
 describe('3077 Tactical Command Console (LobbyCommandDeck)', () => {
-    it('places POWER mode first on the armed slide-breaker and shifts Cyan <-> Amber accents', () => {
+    it('places POWER mode first on the armed slide-breaker and shifts Cyan <-> Amber accents without an overlay box', () => {
         const deck = read('app/components/LobbyCommandDeck.tsx');
         assert.match(deck, /const MODE_ORDER:\s*readonly LobbyGameMode\[\]\s*=\s*\['power',\s*'classic'\]/);
         assert.match(deck, /const accentHex = isPower \? '#F59E0B' : '#00E5FF'/);
+        assert.doesNotMatch(deck, /lobby-deck-rivet/);
         assert.match(deck, /role="radiogroup"/);
         assert.match(deck, /aria-label="Select Game Mode"/);
         assert.match(deck, /aria-label="Match Type"/);
@@ -34,5 +35,22 @@ describe('3077 Tactical Command Console (LobbyCommandDeck)', () => {
         assert.match(lobby, /\{formatEntryFee\(wager\)\}/);
         assert.match(lobby, /\{formatEntryFee\(dialWager\)\}/);
         assert.doesNotMatch(lobby, /getEntryFeeTierName/);
+    });
+
+    it('defaults lobby boot to Power + 1v1 + Quick Match and syncs ruleset color across ActionDice, DeploymentModeRail, and EntryFeeKnob', () => {
+        const page = read('app/page.tsx');
+        assert.match(page, /useState<'classic' \| 'power'>\('power'\)/);
+        assert.match(page, /useState<'1v1' \| '2v2' \| '4P'>\('1v1'\)/);
+
+        const dice = read('app/components/ActionDice.tsx');
+        assert.match(dice, /const rulesetHex3077 = gameMode === 'power' \? '#F59E0B' : '#00E5FF'/);
+        assert.match(dice, /accentHex=\{rulesetHex3077\}/);
+        assert.match(dice, /data-ruleset=\{gameMode\}/);
+
+        const css = read('app/styles/themes/theme-3077.css');
+        assert.match(css, /\.dice-tier\[data-ruleset='power'\]/);
+
+        const lobby = read('app/components/GameLobby.tsx');
+        assert.match(lobby, /<ActionDice\s+gameMode=\{gameMode\}/);
     });
 });

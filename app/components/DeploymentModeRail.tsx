@@ -23,6 +23,8 @@ import { onReducedMotionChange, prefersReducedMotion } from '@/lib/motion';
 
 interface DeploymentModeRailProps {
     activeMode: DeploymentModeId;
+    /** Optional unified ruleset accent hex (e.g. Overdrive Amber for POWER, Hyper-Cyan for CLASSIC). */
+    accentHex?: string;
     disabled?: boolean;
     sfxEnabled: boolean;
     hapticsEnabled: boolean;
@@ -105,6 +107,7 @@ function triggerShuttleHaptic(enabled: boolean): void {
  */
 export function DeploymentModeRail({
     activeMode,
+    accentHex,
     disabled = false,
     sfxEnabled,
     hapticsEnabled,
@@ -171,6 +174,7 @@ export function DeploymentModeRail({
     const previewMode = dragAngle !== null ? angleToRailMode(dragAngle) : activeMode;
     const activeStop =
         MODE_RAIL_STOPS.find((s) => s.id === previewMode) ?? MODE_RAIL_STOPS[0];
+    const resolvedHex = accentHex ?? activeStop.hex;
     const shuttlePos = railArcPoint(shuttleAngle, RAIL_RADIUS);
 
     // Precomputed static orbital chassis geometry
@@ -352,9 +356,9 @@ export function DeploymentModeRail({
 
                     {/* Upward holo projection cone from shuttle to dice pedestal */}
                     <radialGradient id={`rail-beam-${uid}`} cx="50%" cy="85%" r="72%">
-                        <stop offset="0%" stopColor={activeStop.hex} stopOpacity="0.34" />
-                        <stop offset="48%" stopColor={activeStop.hex} stopOpacity="0.1" />
-                        <stop offset="100%" stopColor={activeStop.hex} stopOpacity="0" />
+                        <stop offset="0%" stopColor={resolvedHex} stopOpacity="0.34" />
+                        <stop offset="48%" stopColor={resolvedHex} stopOpacity="0.1" />
+                        <stop offset="100%" stopColor={resolvedHex} stopOpacity="0" />
                     </radialGradient>
 
                     {/* Subtle neon glow filter for shuttle core & active trace */}
@@ -397,7 +401,7 @@ export function DeploymentModeRail({
                 <path
                     d={housingOuterLipPath}
                     fill="none"
-                    stroke={activeStop.hex}
+                    stroke={resolvedHex}
                     strokeOpacity="0.34"
                     strokeWidth="1"
                     strokeLinecap="round"
@@ -434,7 +438,7 @@ export function DeploymentModeRail({
                             y1={p1.y}
                             x2={p2.x}
                             y2={p2.y}
-                            stroke={isNearShuttle ? activeStop.hex : 'rgba(148, 163, 184, 0.45)'}
+                            stroke={isNearShuttle ? resolvedHex : 'rgba(148, 163, 184, 0.45)'}
                             strokeWidth={isMajor ? 1.5 : 0.9}
                             strokeLinecap="round"
                             opacity={isNearShuttle ? 0.95 : isMajor ? 0.7 : 0.4}
@@ -462,7 +466,7 @@ export function DeploymentModeRail({
                 <path
                     d={activeTracePath}
                     fill="none"
-                    stroke={activeStop.hex}
+                    stroke={resolvedHex}
                     strokeWidth="3"
                     strokeLinecap="round"
                     opacity="0.72"
@@ -473,6 +477,7 @@ export function DeploymentModeRail({
                 {MODE_RAIL_STOPS.map((stop) => {
                     const pt = railArcPoint(stop.angleDeg, RAIL_RADIUS);
                     const isSelected = previewMode === stop.id;
+                    const stopHex = accentHex ?? stop.hex;
                     return (
                         <g key={stop.id}>
                             <circle
@@ -480,14 +485,14 @@ export function DeploymentModeRail({
                                 cy={pt.y}
                                 r="4.8"
                                 fill="#070b12"
-                                stroke={isSelected ? stop.hex : 'rgba(148, 163, 184, 0.3)'}
+                                stroke={isSelected ? stopHex : 'rgba(148, 163, 184, 0.3)'}
                                 strokeWidth="1"
                             />
                             <circle
                                 cx={pt.x}
                                 cy={pt.y}
                                 r={isSelected ? 2.2 : 1.7}
-                                fill={stop.hex}
+                                fill={stopHex}
                                 opacity={isSelected ? 1 : 0.35}
                             />
                         </g>
@@ -503,7 +508,7 @@ export function DeploymentModeRail({
                     <path
                         d="M -27 -10.5 L 27 -10.5 L 32 -5.5 L 32 5.5 L 27 10.5 L -27 10.5 L -32 5.5 L -32 -5.5 Z"
                         fill={`url(#rail-shuttle-${uid})`}
-                        stroke={activeStop.hex}
+                        stroke={resolvedHex}
                         strokeOpacity={dragAngle !== null ? 0.95 : 0.78}
                         strokeWidth="1.25"
                     />
@@ -558,7 +563,7 @@ export function DeploymentModeRail({
                         width="10.4"
                         height="4.2"
                         rx="2.1"
-                        fill={activeStop.hex}
+                        fill={resolvedHex}
                         filter={`url(#rail-glow-${uid})`}
                     />
                     <line
@@ -574,7 +579,7 @@ export function DeploymentModeRail({
                     {/* Upward precision pointer notch aimed at the dice pedestal */}
                     <polygon
                         points="0,-14.4 -3.2,-10.8 3.2,-10.8"
-                        fill={activeStop.hex}
+                        fill={resolvedHex}
                         filter={`url(#rail-glow-${uid})`}
                     />
                 </g>
@@ -583,6 +588,7 @@ export function DeploymentModeRail({
                 {MODE_RAIL_STOPS.map((stop) => {
                     const labelPt = railArcPoint(stop.angleDeg, RAIL_RADIUS + 26.5);
                     const isSelected = previewMode === stop.id;
+                    const stopHex = accentHex ?? stop.hex;
                     return (
                         <g
                             key={stop.id}
@@ -594,7 +600,7 @@ export function DeploymentModeRail({
                                 y="0"
                                 textAnchor="middle"
                                 dominantBaseline="middle"
-                                fill={isSelected ? stop.hex : 'var(--ink-muted)'}
+                                fill={isSelected ? stopHex : 'var(--ink-muted)'}
                                 fontSize="9.5"
                                 fontWeight="800"
                                 letterSpacing="0.14em"
