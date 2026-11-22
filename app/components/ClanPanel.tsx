@@ -597,7 +597,7 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                     /* ── NOT IN A CLAN: Syndicate Directory & Forge ─────────── */
                     <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-4 relative z-10">
                         {/* Forge Hero Card */}
-                        <div className="p-4 rounded-2xl bg-surface-panel border border-accent/35 flex items-center justify-between gap-3 shadow-[0_0_24px_rgba(0,229,255,0.08)]">
+                        <div className="p-4 rounded-2xl bg-surface-panel border border-accent/35 flex items-center justify-between gap-3 shadow-[0_0_24px_color-mix(in_srgb,var(--accent)_8%,transparent)]">
                             <div className="flex items-center gap-3 min-w-0">
                                 <div className="w-11 h-11 rounded-2xl bg-accent-soft border border-accent/40 flex items-center justify-center text-accent shrink-0">
                                     <LuSparkles className="w-5 h-5" />

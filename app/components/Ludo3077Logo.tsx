@@ -387,9 +387,9 @@ export function Ludo3077Emblem({
                     </radialGradient>
 
                     <radialGradient id={ids.cyanWash} cx="50%" cy="52%" r="44%">
-                        <stop offset="0%" stopColor="#00E5FF" stopOpacity="0.22" />
-                        <stop offset="55%" stopColor="#00E5FF" stopOpacity="0.06" />
-                        <stop offset="100%" stopColor="#00E5FF" stopOpacity="0" />
+                        <stop offset="0%" stopColor="var(--accent, #00E5FF)" stopOpacity="0.22" />
+                        <stop offset="55%" stopColor="var(--accent, #00E5FF)" stopOpacity="0.06" />
+                        <stop offset="100%" stopColor="var(--accent, #00E5FF)" stopOpacity="0" />
                     </radialGradient>
 
                     <linearGradient id={ids.diamond} x1="30%" y1="0%" x2="70%" y2="100%">
@@ -591,8 +591,8 @@ export function Ludo3077Emblem({
                                         width="29"
                                         height="29"
                                         rx="6.6"
-                                        fill="rgba(0, 229, 255, 0.08)"
-                                        stroke="#6DF5FF"
+                                        fill="rgba(var(--accent-rgb, 0, 229, 255), 0.08)"
+                                        stroke="var(--accent-edge, #6DF5FF)"
                                         strokeWidth="2.5"
                                     />
                                     {pips.map(([dx, dy, r], pipIdx) => (
@@ -601,7 +601,7 @@ export function Ludo3077Emblem({
                                             cx={dx}
                                             cy={dy}
                                             r={r}
-                                            fill="#82F8FF"
+                                            fill="var(--accent-bright, #82F8FF)"
                                         />
                                     ))}
                                 </g>

@@ -159,7 +159,7 @@ const ThemeSwatch = ({ mode = 'retro', light: propLight, size = 52 }: { mode?: '
     }
     return (
         <div
-            className={`relative rounded-xl overflow-hidden shadow-lg border ${is3077 ? 'border-accent/50 shadow-[0_0_15px_rgba(0,229,255,0.25)]' : 'border-line-soft'}`}
+            className={`relative rounded-xl overflow-hidden shadow-lg border ${is3077 ? 'border-accent/50 shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_25%,transparent)]' : 'border-line-soft'}`}
             style={{ width: size, height: size, background: light ? '#e8e6f0' : is3077 ? '#07080b' : '#0a0b14' }}
         >
             <div className="grid grid-cols-5 w-full h-full" style={{ gap: 1.5, padding: 5 }}>
@@ -1486,7 +1486,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                         <span className="text-ludo-xs font-extrabold uppercase tracking-widest text-ink-faint">replaces</span>
                                     </div>
                                     <div className="flex flex-col items-center gap-1.5">
-                                        <div className={`w-14 h-14 rounded-2xl ${confirmItem.previewColor} border border-accent/60 flex items-center justify-center overflow-hidden shadow-[0_0_24px_rgba(0,229,255,0.28)]`}>
+                                        <div className={`w-14 h-14 rounded-2xl ${confirmItem.previewColor} border border-accent/60 flex items-center justify-center overflow-hidden shadow-[0_0_24px_color-mix(in_srgb,var(--accent)_28%,transparent)]`}>
                                             {itemPreview(confirmItem, 34)}
                                         </div>
                                         <span className="text-ludo-xs font-extrabold text-ink-strong max-w-[72px] truncate">{confirmItem.name}</span>

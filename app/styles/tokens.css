@@ -151,6 +151,7 @@
   --line-soft: rgba(255, 255, 255, 0.10);     /* hairline borders          */
   --line-strong: rgba(255, 255, 255, 0.25);
   --accent: #22d3ee;                          /* brand accent              */
+  --accent-rgb: 34, 211, 238;                 /* fallback rgb triplet      */
   --accent-soft: rgba(34, 211, 238, 0.15);    /* accent wash / chip fill   */
   /* Marketplace category-rail chips — theme-aware badge + active icon. The
      rail sits on --panel-bg (light in Daybreak), so the hardcoded white/cyan

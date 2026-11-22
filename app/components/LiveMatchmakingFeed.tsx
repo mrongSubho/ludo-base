@@ -83,7 +83,7 @@ export const LiveMatchmakingFeed = () => {
                         <div className="flex flex-col">
                             <span className="text-ludo-xs font-extrabold text-ink-faint uppercase tracking-[0.2em] italic">Network Grid</span>
                             <div className="flex items-center gap-3">
-                                <div className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_8px_rgba(0,229,255,0.8)] animate-pulse" />
+                                <div className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_80%,transparent)] animate-pulse" />
                                 <span className="text-xs font-extrabold text-accent italic uppercase tracking-wider">Establishing Active Links...</span>
                             </div>
                         </div>

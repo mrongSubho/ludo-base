@@ -86,7 +86,7 @@ export const BoardHeaderCompact = ({
                     <div className="flex-1 max-w-[158px] h-[34px] flex items-center justify-center">
                         <div className="flex items-center gap-1.5 w-full justify-center z-10 px-1">
                             <div className="relative flex-shrink-0">
-                                <div className="hud-avatar-frame w-6 h-6 rounded-full overflow-hidden border border-accent/60 bg-surface-recessed shadow-[0_0_12px_rgba(0,229,255,0.3)]">
+                                <div className="hud-avatar-frame w-6 h-6 rounded-full overflow-hidden border border-accent/60 bg-surface-recessed shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_30%,transparent)]">
                                     {finalAvatar ? (
                                         <img src={finalAvatar} alt={finalName} className="w-full h-full object-cover" width={96} height={96} />
                                     ) : (
@@ -129,7 +129,7 @@ export const BoardHeaderCompact = ({
                                     <span className="hud-status-breath absolute top-0 left-0 w-2 h-2 rounded-full bg-amber-400 border border-[#05070A] shadow-[0_0_10px_rgba(251,191,36,0.9)]" />
                                 )}
                                 {unreadCount > 0 && (
-                                    <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[14px] h-[14px] px-0.5 bg-accent text-accent-ink text-ludo-xs font-extrabold rounded-full shadow-[0_0_10px_rgba(0,229,255,0.65)]">
+                                    <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[14px] h-[14px] px-0.5 bg-accent text-accent-ink text-ludo-xs font-extrabold rounded-full shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_65%,transparent)]">
                                         {unreadCount > 99 ? '99+' : unreadCount}
                                     </span>
                                 )}

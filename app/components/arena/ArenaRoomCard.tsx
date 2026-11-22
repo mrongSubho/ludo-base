@@ -337,7 +337,7 @@ export function ArenaRoomCard({
                                 e.stopPropagation();
                                 onJoinSeat(room);
                             }}
-                            className="fee-preset-3077 px-2.5 py-1.5 rounded-lg bg-accent hover:opacity-90 text-accent-ink font-mono text-ludo-xs font-bold uppercase tracking-wider inline-flex items-center gap-1 shadow-[0_0_12px_rgba(0,229,255,0.26)] transition-all active:scale-95"
+                            className="fee-preset-3077 px-2.5 py-1.5 rounded-lg bg-accent hover:opacity-90 text-accent-ink font-mono text-ludo-xs font-bold uppercase tracking-wider inline-flex items-center gap-1 shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_26%,transparent)] transition-all active:scale-95"
                         >
                             <LuPlus className="w-3 h-3" />
                             <span>Join</span>

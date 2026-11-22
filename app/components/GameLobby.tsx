@@ -677,7 +677,7 @@ export default function GameLobby({
                                                     }}
                                                     className={`relative w-40 py-1.5 rounded-full border transition-all duration-200 ease-out glass-panel flex flex-col items-center justify-center hover:scale-[1.02] active:scale-95 ${
                                                         active
-                                                            ? 'border-accent shadow-[0_0_15px_rgba(0,229,255,0.2)] bg-surface-panel'
+                                                            ? 'border-accent shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_20%,transparent)] bg-surface-panel'
                                                             : 'border-line-soft hover:border-line-strong bg-surface-recessed'
                                                     }`}
                                                 >
@@ -721,7 +721,7 @@ export default function GameLobby({
                                                     }}
                                                     className={`w-12 h-12 rounded-full border transition-all duration-200 ease-out glass-panel flex items-center justify-center hover:scale-110 active:scale-90 relative ${
                                                         active
-                                                            ? 'border-accent shadow-[0_0_15px_rgba(0,229,255,0.28)] bg-surface-panel'
+                                                            ? 'border-accent shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_28%,transparent)] bg-surface-panel'
                                                             : 'border-line-soft hover:border-line-strong bg-surface-recessed'
                                                     }`}
                                                 >
@@ -823,7 +823,7 @@ export default function GameLobby({
                                                         onClick={() => { if (!affordable) return; playCoin(); setWager(val); }}
                                                         className={`fee-preset-3077 px-3 min-h-[44px] inline-flex items-center justify-center rounded-full border transition-all duration-200 backdrop-blur-md shadow-sm text-ludo-sm font-bold font-mono tabular-nums ${
                                                             wager === val
-                                                                ? 'border-accent bg-accent-soft text-accent shadow-[0_0_15px_rgba(0,229,255,0.28)]'
+                                                                ? 'border-accent bg-accent-soft text-accent shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_28%,transparent)]'
                                                                 : affordable
                                                                     ? 'bg-surface-recessed hover:bg-surface-hover hover:scale-105 active:scale-95 border-line-soft text-ink-strong'
                                                                     : 'bg-surface-recessed border-line-soft text-ink-faint opacity-50 cursor-not-allowed'

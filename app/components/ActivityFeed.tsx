@@ -1528,7 +1528,7 @@ export const LiveBroadcastCard = ({
                     </div>
                 ) : (
                     <div
-                        className="broadcast-tier pointer-events-auto h-[64px] w-full max-w-[480px] rounded-2xl flex items-center justify-between px-5 relative overflow-hidden transition-all group cursor-pointer border border-line-soft bg-surface-panel backdrop-blur-3xl hover:border-accent/50 hover:shadow-[0_0_24px_rgba(0,229,255,0.16)] active:scale-[0.98]"
+                        className="broadcast-tier pointer-events-auto h-[64px] w-full max-w-[480px] rounded-2xl flex items-center justify-between px-5 relative overflow-hidden transition-all group cursor-pointer border border-line-soft bg-surface-panel backdrop-blur-3xl hover:border-accent/50 hover:shadow-[0_0_24px_color-mix(in_srgb,var(--accent)_16%,transparent)] active:scale-[0.98]"
                         onClick={() => (onOpenArena ? onOpenArena('arena') : setIsOpen(true))}
                         role="button"
                         aria-label="Open live arena & broadcast"

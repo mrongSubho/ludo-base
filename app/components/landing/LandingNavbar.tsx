@@ -107,7 +107,7 @@ export default function LandingNavbar({ onEnterArena, onOpenQrModal }: LandingNa
           <button
             type="button"
             onClick={onEnterArena}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-ludo-sm uppercase tracking-widest label-chrome font-bold bg-accent text-surface-page hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_rgba(0,229,255,0.4)]"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-ludo-sm uppercase tracking-widest label-chrome font-bold bg-accent text-surface-page hover:brightness-110 active:scale-95 transition-all shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_40%,transparent)]"
           >
             <OverdriveBoltIcon className="w-4 h-4" />
             <span>ENTER ARENA</span>

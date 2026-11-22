@@ -92,7 +92,7 @@ export const SignWaitModal: React.FC<SignWaitModalProps> = ({
                         ) : isTx ? (
                             <ThinkingOrb state="solving" size={32} tone="accent" />
                         ) : (
-                            <div className="text-accent drop-shadow-[0_0_8px_rgba(0,229,255,0.5)]">
+                            <div className="text-accent drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_50%,transparent)]">
                                 <svg
                                     viewBox="0 0 24 24"
                                     fill="none"
@@ -359,7 +359,7 @@ export const SignWaitModal: React.FC<SignWaitModalProps> = ({
                 {/* Informational Micro-card */}
                 <div className="w-full flex flex-col gap-2 rounded-2xl bg-surface-recessed border border-line-soft px-3.5 py-2.5 text-left text-xs">
                     <div className="flex items-start gap-2.5">
-                        <span className="w-2 h-2 mt-1 rounded-full bg-accent shrink-0 shadow-[0_0_6px_rgba(0,229,255,0.65)]" />
+                        <span className="w-2 h-2 mt-1 rounded-full bg-accent shrink-0 shadow-[0_0_6px_color-mix(in_srgb,var(--accent)_65%,transparent)]" />
                         <span className="text-ludo-xs font-medium text-ink-muted leading-relaxed">
                             {explanationText ||
                                 (isTx

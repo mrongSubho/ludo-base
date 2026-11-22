@@ -62,7 +62,7 @@ export default function GuestWall({ action, onClose, onConnect }: GuestWallProps
                     </p>
 
                     <div className="flex items-center gap-2 rounded-2xl bg-surface-recessed border border-line-soft px-2.5 py-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_rgba(34,211,238,0.65)] shrink-0" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_65%,transparent)] shrink-0" />
                         <span className="text-ludo-sm font-bold text-ink-muted">{copy.unlock}</span>
                     </div>
 

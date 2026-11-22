@@ -172,7 +172,7 @@ export function PlayerRow({
                             />
                         )}
                         {isMyTurn && spectatorMode && localGameState.diceValue != null && (
-                            <div className="hud-chamfer-sm w-10 h-10 rounded-xl bg-surface-recessed border border-accent/40 flex items-center justify-center text-accent font-mono font-extrabold text-lg tabular-nums shadow-[0_0_12px_rgba(0,229,255,0.2)]">
+                            <div className="hud-chamfer-sm w-10 h-10 rounded-xl bg-surface-recessed border border-accent/40 flex items-center justify-center text-accent font-mono font-extrabold text-lg tabular-nums shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
                                 {localGameState.diceValue}
                             </div>
                         )}

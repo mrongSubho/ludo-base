@@ -107,7 +107,7 @@ export default function ClaimHubSheet({
         <div className="cb-screen space-y-4">
             {/* Header intro note */}
             <div className="p-3 rounded-2xl bg-surface-recessed border border-line-soft text-ludo-xs font-mono text-ink-muted leading-relaxed text-left flex items-start gap-2">
-                <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-accent shrink-0 shadow-[0_0_6px_rgba(0,229,255,0.65)]" />
+                <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-accent shrink-0 shadow-[0_0_6px_color-mix(in_srgb,var(--accent)_65%,transparent)]" />
                 <span>
                     Unified Match Vault &amp; Claim Hub: keep reusable CHIPS ready for 0-gas Quick Match &amp; TeamUp entry, or pull-claim winnings &amp; balances to your wallet anytime.
                 </span>

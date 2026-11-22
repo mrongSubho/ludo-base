@@ -514,10 +514,10 @@ const DiceFace = ({
                 ...(is3077
                     ? {
                           background: 'linear-gradient(145deg, #161E2C 0%, #0A0E16 62%, #05070B 100%)',
-                          borderColor: isActive ? `${faceHex}99` : 'rgba(0, 229, 255, 0.24)',
+                          borderColor: isActive ? `${faceHex}99` : 'rgba(var(--accent-rgb), 0.24)',
                           boxShadow: isActive
                               ? `inset 0 0 18px ${faceHex}22, 0 0 18px rgba(0, 0, 0, 0.75)`
-                              : 'inset 0 0 12px rgba(0, 229, 255, 0.08)',
+                              : 'inset 0 0 12px rgba(var(--accent-rgb), 0.08)',
                       }
                     : {}),
             }}
@@ -550,7 +550,7 @@ const DiceFace = ({
                     className={`relative mt-0.5 flex flex-col items-center justify-center gap-0.5 z-10 cursor-pointer transition-transform ${
                         is3077
                             ? 'w-[78%] min-h-[36px] px-1.5 py-1 border font-bold'
-                            : 'w-[94%] min-h-[44px] px-1.5 py-1 rounded-full border glass-panel backdrop-blur-[1px] border-cyan-400/80 shadow-[0_0_15px_rgba(34,211,238,0.3)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95'
+                            : 'w-[94%] min-h-[44px] px-1.5 py-1 rounded-full border glass-panel backdrop-blur-[1px] border-accent/80 shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95'
                     }`}
                     style={
                         is3077

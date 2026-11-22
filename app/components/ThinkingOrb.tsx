@@ -32,6 +32,7 @@
 import { useEffect, useState } from 'react';
 import { ThinkingOrb as BaseThinkingOrb, type OrbSize, type OrbState } from 'thinking-orbs';
 import { usePreferences } from '@/hooks/usePreferences';
+import { useDeployTheme } from '@/lib/deployTheme';
 import { onReducedMotionChange, prefersReducedMotion } from '@/lib/motion';
 
 /**
@@ -90,6 +91,7 @@ export interface ThinkingOrbProps {
 
 export function ThinkingOrb({ state, size = 20, className, theme = 'app', tone = 'neutral', label }: ThinkingOrbProps) {
     const { preferences } = usePreferences();
+    const { theme: deployTheme } = useDeployTheme();
     // Lazy init keeps the first client render honest; the server snapshot is
     // `false` (SSR has no window), and since the preference only affects the
     // canvas paint inside the effect, this cannot desync hydration.
@@ -102,7 +104,13 @@ export function ThinkingOrb({ state, size = 20, className, theme = 'app', tone =
 
     const resolvedTheme = theme === 'app' ? (preferences.theme === 'light' ? 'light' : 'dark') : theme;
     // Tint is opt-in and suppressed at the inline scale (see the `tone` doc).
-    const tint = tone !== 'neutral' && size !== 20 ? TONES[tone][resolvedTheme === 'light' ? 'light' : 'retro'] : undefined;
+    // In Ludo 3077 dark substrates, `accent` tracks the active deployment palette.
+    const tint =
+        tone !== 'neutral' && size !== 20
+            ? tone === 'accent' && preferences.theme === '3077' && resolvedTheme === 'dark'
+                ? deployTheme.edge
+                : TONES[tone][resolvedTheme === 'light' ? 'light' : 'retro']
+            : undefined;
 
     return (
         <BaseThinkingOrb

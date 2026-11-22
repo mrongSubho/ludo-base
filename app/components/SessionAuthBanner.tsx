@@ -34,12 +34,12 @@ export function SessionAuthBanner({ className = '' }: { className?: string }) {
 
     return (
         <div
-            className={`w-full rounded-2xl border border-accent/35 bg-surface-panel backdrop-blur-xl px-4 py-3 shadow-[0_0_24px_rgba(0,229,255,0.08)] flex items-center justify-between gap-3 ${className}`}
+            className={`w-full rounded-2xl border border-accent/35 bg-surface-panel backdrop-blur-xl px-4 py-3 shadow-[0_0_24px_color-mix(in_srgb,var(--accent)_8%,transparent)] flex items-center justify-between gap-3 ${className}`}
             role="status"
             aria-live="polite"
         >
             <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-xl bg-accent-soft border border-accent/35 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(34,211,238,0.18)]">
+                <div className="w-8 h-8 rounded-xl bg-accent-soft border border-accent/35 flex items-center justify-center shrink-0 shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_18%,transparent)]">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-accent">
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />

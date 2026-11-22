@@ -434,7 +434,7 @@ export const QuickMatchPanel = ({
                                             className={`absolute border rounded-full ${ring % 2 === 0 ? 'border-dashed' : 'border-dotted'}`}
                                             style={{
                                                 inset: ring * 24,
-                                                borderColor: `rgba(0, 229, 255, ${0.14 + (ring * 0.06)})`,
+                                                borderColor: `rgba(var(--accent-rgb, 0, 229, 255), ${0.14 + (ring * 0.06)})`,
                                             }}
                                         />
                                     ))}
@@ -448,7 +448,7 @@ export const QuickMatchPanel = ({
                                             className="absolute inset-0 flex items-start justify-center"
                                             style={{ transform: `rotate(${angle}deg)` }}
                                         >
-                                            <div className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_rgba(0,229,255,0.8)] mt-[-0.75px]" />
+                                            <div className="w-1.5 h-1.5 rounded-full bg-accent shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_80%,transparent)] mt-[-0.75px]" />
                                         </motion.div>
                                     ))}
 
@@ -458,7 +458,7 @@ export const QuickMatchPanel = ({
                                         transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
                                         className="absolute inset-0 rounded-full pointer-events-none"
                                         style={{
-                                            background: 'conic-gradient(from 0deg, transparent 60%, rgba(0, 229, 255, 0.16) 100%)',
+                                            background: 'conic-gradient(from 0deg, transparent 60%, rgba(var(--accent-rgb, 0, 229, 255), 0.16) 100%)',
                                         }}
                                     />
 
@@ -471,7 +471,7 @@ export const QuickMatchPanel = ({
                                             initial={{ y: -56 }}
                                             animate={{ y: 72 }}
                                             transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
-                                            className="absolute left-0 right-0 top-0 h-[2px] bg-accent/50 z-20 shadow-[0_0_12px_rgba(0,229,255,0.55)]"
+                                            className="absolute left-0 right-0 top-0 h-[2px] bg-accent/50 z-20 shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_55%,transparent)]"
                                         />
 
                                         <div className="relative z-30 flex flex-col items-center">
@@ -813,7 +813,7 @@ export const QuickMatchPanel = ({
 
                                 {/* VS Badge */}
                                 <div className="flex flex-col items-center">
-                                    <div className="hud-chamfer-sm w-14 h-14 md:w-16 md:h-16 rounded-full bg-accent text-accent-ink flex items-center justify-center text-xl md:text-2xl font-extrabold font-mono shadow-[0_0_28px_rgba(0,229,255,0.4)]">
+                                    <div className="hud-chamfer-sm w-14 h-14 md:w-16 md:h-16 rounded-full bg-accent text-accent-ink flex items-center justify-center text-xl md:text-2xl font-extrabold font-mono shadow-[0_0_28px_color-mix(in_srgb,var(--accent)_40%,transparent)]">
                                         VS
                                     </div>
                                 </div>

@@ -438,7 +438,7 @@ export default function Board({
                     initial={{ opacity: 0, y: 20, scale: 0.8 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -20, scale: 0.8 }}
-                    className="absolute top-16 left-1/2 -translate-x-1/2 z-[50] px-4 py-2 bg-black/80 backdrop-blur-md border border-cyan-500/40 rounded-full shadow-[0_0_20px_rgba(34,211,238,0.3)] flex items-center gap-2"
+                    className="absolute top-16 left-1/2 -translate-x-1/2 z-[50] px-4 py-2 bg-black/80 backdrop-blur-md border border-accent/40 rounded-full shadow-[0_0_20px_color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center gap-2"
                 >
                     <svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />

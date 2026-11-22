@@ -79,9 +79,9 @@ const ArrowMarker = ({ dir, color = "#ffffff" }: { dir: 'up' | 'down' | 'left' |
             <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 arrow-standard" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>
                 <path fill={color} d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
             </svg>
-            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 arrow-3077 hidden" style={{ filter: 'drop-shadow(0 0 4px #00e5ff)' }}>
-                <polyline points="7 4 15 12 7 20" fill="none" stroke="#00e5ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                <polyline points="13 4 21 12 13 20" fill="none" stroke="#00e5ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 arrow-3077 hidden" style={{ filter: 'drop-shadow(0 0 4px var(--accent, #00e5ff))' }}>
+                <polyline points="7 4 15 12 7 20" fill="none" stroke="var(--accent, #00e5ff)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="13 4 21 12 13 20" fill="none" stroke="var(--accent, #00e5ff)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
             </svg>
         </motion.div>
     );

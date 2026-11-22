@@ -52,7 +52,7 @@ export function CyberSticker({ id, size = 64, className = '', alt = 'Reaction' }
         alt={alt}
         width={size}
         height={size}
-        className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(0,229,255,0.4)]"
+        className="w-full h-full object-contain filter drop-shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_40%,transparent)]"
         loading="lazy"
       />
     </div>

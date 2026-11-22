@@ -54,28 +54,35 @@ export function TerminalTypeText({
 
     return (
         <span
-            className={`inline-flex items-center max-w-full ${className}`}
+            className={`relative inline-flex items-center max-w-full align-baseline overflow-hidden ${className}`}
             style={style}
             aria-label={text}
         >
-            <span className="truncate">{typed}</span>
-            {showCursor && !reducedMotion && (
-                <motion.span
-                    aria-hidden="true"
-                    className="inline-block w-[0.5ch] h-[0.95em] ml-0.5 shrink-0 rounded-[1px]"
-                    style={{ backgroundColor: 'currentColor' }}
-                    animate={
-                        isTyping
-                            ? { opacity: [1, 0.25, 1] }
-                            : { opacity: [0.85, 0.15, 0.85] }
-                    }
-                    transition={{
-                        duration: isTyping ? 0.42 : 1.05,
-                        repeat: Infinity,
-                        ease: 'easeInOut',
-                    }}
-                />
-            )}
+            {/* Full-string invisible footprint locks the start edge on the left from char 0 */}
+            <span aria-hidden="true" className="invisible select-none whitespace-pre pr-[0.75ch] truncate">
+                {text}
+            </span>
+            {/* Visible left-anchored typing track prints strictly left-to-right */}
+            <span className="absolute inset-y-0 left-0 right-0 flex items-center justify-start text-left whitespace-pre overflow-hidden">
+                <span className="truncate">{typed}</span>
+                {showCursor && !reducedMotion && (
+                    <motion.span
+                        aria-hidden="true"
+                        className="inline-block w-[0.5ch] h-[0.95em] ml-0.5 shrink-0 rounded-[1px]"
+                        style={{ backgroundColor: 'currentColor' }}
+                        animate={
+                            isTyping
+                                ? { opacity: [1, 0.25, 1] }
+                                : { opacity: [0.85, 0.15, 0.85] }
+                        }
+                        transition={{
+                            duration: isTyping ? 0.42 : 1.05,
+                            repeat: Infinity,
+                            ease: 'easeInOut',
+                        }}
+                    />
+                )}
+            </span>
         </span>
     );
 }

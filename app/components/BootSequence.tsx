@@ -479,7 +479,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                         style={{
                             backgroundColor: '#05070A',
                             backgroundImage:
-                                'linear-gradient(rgba(0, 229, 255, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 229, 255, 0.045) 1px, transparent 1px), radial-gradient(circle at 50% 42%, rgba(0, 229, 255, 0.14) 0%, transparent 58%)',
+                                'linear-gradient(rgba(var(--accent-rgb, 0, 229, 255), 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--accent-rgb, 0, 229, 255), 0.045) 1px, transparent 1px), radial-gradient(circle at 50% 42%, rgba(var(--accent-rgb, 0, 229, 255), 0.14) 0%, transparent 58%)',
                             backgroundSize: '28px 28px, 28px 28px, 100% 100%',
                         }}
                     >
@@ -489,20 +489,20 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                             className="pointer-events-none absolute inset-x-0 top-0 px-6 flex items-center justify-between font-mono text-ludo-sm font-bold tracking-[0.2em]"
                             style={{
                                 paddingTop: 'max(48px, calc(env(safe-area-inset-top) + 32px))',
-                                color: '#00E5FF',
+                                color: 'var(--accent, #00E5FF)',
                             }}
                         >
                             <div className="relative px-2 py-0.5">
                                 <span
                                     className="absolute top-0 left-0 w-2 h-2 border-t border-l"
-                                    style={{ borderColor: 'rgba(0, 229, 255, 0.55)' }}
+                                    style={{ borderColor: 'rgba(var(--accent-rgb, 0, 229, 255), 0.55)' }}
                                 />
                                 01
                             </div>
                             <div className="relative px-2 py-0.5">
                                 <span
                                     className="absolute top-0 right-0 w-2 h-2 border-t border-r"
-                                    style={{ borderColor: 'rgba(0, 229, 255, 0.55)' }}
+                                    style={{ borderColor: 'rgba(var(--accent-rgb, 0, 229, 255), 0.55)' }}
                                 />
                                 02
                             </div>
@@ -517,8 +517,8 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                             <span
                                 className="text-5xl font-extrabold uppercase tracking-[0.04em] mt-0.5"
                                 style={{
-                                    color: '#00E5FF',
-                                    textShadow: '0 0 22px rgba(0, 229, 255, 0.35)',
+                                    color: 'var(--accent, #00E5FF)',
+                                    textShadow: '0 0 22px rgba(var(--accent-rgb, 0, 229, 255), 0.35)',
                                 }}
                             >
                                 3077
@@ -541,15 +541,15 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                                                 key={node}
                                                 className="flex items-center gap-1 transition-opacity duration-150"
                                                 style={{
-                                                    color: active ? '#00E5FF' : '#64748B',
+                                                    color: active ? 'var(--accent, #00E5FF)' : '#64748B',
                                                     opacity: active ? 1 : 0.65,
                                                 }}
                                             >
                                                 <span
                                                     className="inline-block w-1.5 h-1.5 rotate-45"
                                                     style={{
-                                                        backgroundColor: active ? '#00E5FF' : '#334155',
-                                                        boxShadow: active ? '0 0 8px #00E5FF' : 'none',
+                                                        backgroundColor: active ? 'var(--accent, #00E5FF)' : '#334155',
+                                                        boxShadow: active ? '0 0 8px var(--accent, #00E5FF)' : 'none',
                                                     }}
                                                 />
                                                 {node}
@@ -560,7 +560,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                             </div>
 
                             <div className="flex items-center gap-1.5">
-                                <span className="font-mono text-ludo-xs font-bold" style={{ color: '#00E5FF' }}>
+                                <span className="font-mono text-ludo-xs font-bold" style={{ color: 'var(--accent, #00E5FF)' }}>
                                     [
                                 </span>
                                 <div
@@ -574,13 +574,13 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                                         <div
                                             className="w-full h-full rounded-sm"
                                             style={{
-                                                background: 'linear-gradient(90deg, rgba(0,229,255,0.25) 0%, #00E5FF 92%, #F8FAFC 100%)',
-                                                boxShadow: '0 0 12px rgba(0, 229, 255, 0.85)',
+                                                background: 'linear-gradient(90deg, rgba(var(--accent-rgb, 0, 229, 255), 0.25) 0%, var(--accent, #00E5FF) 92%, #F8FAFC 100%)',
+                                                boxShadow: '0 0 12px rgba(var(--accent-rgb, 0, 229, 255), 0.85)',
                                             }}
                                         />
                                     </div>
                                 </div>
-                                <span className="font-mono text-ludo-xs font-bold" style={{ color: '#00E5FF' }}>
+                                <span className="font-mono text-ludo-xs font-bold" style={{ color: 'var(--accent, #00E5FF)' }}>
                                     ]
                                 </span>
                             </div>
@@ -596,7 +596,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                                             y1={0}
                                             x2={x}
                                             y2={major ? 6 : 3}
-                                            stroke="#00E5FF"
+                                            stroke="var(--accent, #00E5FF)"
                                             strokeWidth={major ? 1.2 : 0.7}
                                         />
                                     );
@@ -605,7 +605,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
 
                             <div className="flex items-center justify-between font-mono text-ludo-xs font-bold tracking-[0.14em] uppercase">
                                 <span style={{ color: '#94A3B8' }}>{telemetry}</span>
-                                <span className="tabular-nums" style={{ color: '#00E5FF' }}>
+                                <span className="tabular-nums" style={{ color: 'var(--accent, #00E5FF)' }}>
                                     {lockupPct}% {lockupPct >= 100 ? 'READY' : 'SYNC'}
                                 </span>
                             </div>
@@ -665,7 +665,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                             style={{ textShadow: '0 1px 4px rgba(0, 0, 0, 0.9)' }}
                         >
                             <span style={{ color: '#CBD5E1' }}>{telemetry}</span>
-                            <span className="tabular-nums" style={{ color: '#00E5FF' }}>
+                            <span className="tabular-nums" style={{ color: 'var(--accent, #00E5FF)' }}>
                                 {preload.completedCount}/{preload.totalStages} · {activePct}%
                             </span>
                         </div>
@@ -680,8 +680,8 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                                 <div
                                     className="w-full h-full"
                                     style={{
-                                        background: 'linear-gradient(90deg, rgba(0,229,255,0.3) 0%, #00E5FF 94%, #F8FAFC 100%)',
-                                        boxShadow: '0 0 10px rgba(0, 229, 255, 0.9)',
+                                        background: 'linear-gradient(90deg, rgba(var(--accent-rgb, 0, 229, 255), 0.3) 0%, var(--accent, #00E5FF) 94%, #F8FAFC 100%)',
+                                        boxShadow: '0 0 10px rgba(var(--accent-rgb, 0, 229, 255), 0.9)',
                                     }}
                                 />
                             </div>
@@ -698,21 +698,21 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                             style={{
                                 backgroundColor: '#05070A',
                                 backgroundImage:
-                                    'linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px)',
+                                    'linear-gradient(rgba(var(--accent-rgb, 0, 229, 255), 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--accent-rgb, 0, 229, 255), 0.04) 1px, transparent 1px)',
                                 backgroundSize: '28px 28px',
                                 transitionDuration: `${isOpeningExit ? BOOT_EXIT_OPEN_MS : BOOT_EXIT_CLOSE_MS}ms`,
                                 transform: shutterClosed ? 'translateY(0%)' : 'translateY(-104%)',
                             }}
                         >
-                            <div className="px-4 pb-2 flex items-center justify-between font-mono text-ludo-xs font-bold tracking-[0.2em] uppercase" style={{ color: '#00E5FF' }}>
+                            <div className="px-4 pb-2 flex items-center justify-between font-mono text-ludo-xs font-bold tracking-[0.2em] uppercase" style={{ color: 'var(--accent, #00E5FF)' }}>
                                 <span>ARENA LINK // SYNCED</span>
                                 <span>3077</span>
                             </div>
                             <div
                                 className="w-full h-0.5"
                                 style={{
-                                    backgroundColor: '#00E5FF',
-                                    boxShadow: '0 0 16px rgba(0, 229, 255, 0.9)',
+                                    backgroundColor: 'var(--accent, #00E5FF)',
+                                    boxShadow: '0 0 16px rgba(var(--accent-rgb, 0, 229, 255), 0.9)',
                                 }}
                             />
                         </div>
@@ -723,7 +723,7 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                             style={{
                                 backgroundColor: '#05070A',
                                 backgroundImage:
-                                    'linear-gradient(rgba(0, 229, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 229, 255, 0.04) 1px, transparent 1px)',
+                                    'linear-gradient(rgba(var(--accent-rgb, 0, 229, 255), 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--accent-rgb, 0, 229, 255), 0.04) 1px, transparent 1px)',
                                 backgroundSize: '28px 28px',
                                 transitionDuration: `${isOpeningExit ? BOOT_EXIT_OPEN_MS : BOOT_EXIT_CLOSE_MS}ms`,
                                 transform: shutterClosed ? 'translateY(0%)' : 'translateY(104%)',
@@ -732,13 +732,13 @@ export const BootSequence: React.FC<BootSequenceProps> = ({
                             <div
                                 className="w-full h-0.5"
                                 style={{
-                                    backgroundColor: '#00E5FF',
-                                    boxShadow: '0 0 16px rgba(0, 229, 255, 0.9)',
+                                    backgroundColor: 'var(--accent, #00E5FF)',
+                                    boxShadow: '0 0 16px rgba(var(--accent-rgb, 0, 229, 255), 0.9)',
                                 }}
                             />
                             <div className="px-4 pt-2 flex items-center justify-between font-mono text-ludo-xs font-bold tracking-[0.2em] uppercase" style={{ color: '#94A3B8' }}>
                                 <span>ENTERING LOBBY</span>
-                                <span style={{ color: '#00E5FF' }}>SYS.OK</span>
+                                <span style={{ color: 'var(--accent, #00E5FF)' }}>SYS.OK</span>
                             </div>
                         </div>
                     </>

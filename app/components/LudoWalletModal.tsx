@@ -341,7 +341,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                 <button
                                     type="button"
                                     onClick={() => setDocTab('terms')}
-                                    style={{ color: '#22d3ee', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}
+                                    style={{ color: 'var(--accent, #22d3ee)', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}
                                 >
                                     Terms
                                 </button>
@@ -349,7 +349,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                 <button
                                     type="button"
                                     onClick={() => setDocTab('privacy')}
-                                    style={{ color: '#22d3ee', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}
+                                    style={{ color: 'var(--accent, #22d3ee)', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}
                                 >
                                     Privacy
                                 </button>
@@ -357,7 +357,7 @@ export default function LudoWalletModal({ isOpen, onClose }: LudoWalletModalProp
                                 <button
                                     type="button"
                                     onClick={() => setDocTab('about')}
-                                    style={{ color: '#22d3ee', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}
+                                    style={{ color: 'var(--accent, #22d3ee)', background: 'none', border: 'none', padding: 0, font: 'inherit', cursor: 'pointer' }}
                                 >
                                     About Ludo 3077
                                 </button>

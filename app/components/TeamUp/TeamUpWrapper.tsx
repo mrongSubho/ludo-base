@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCompetitiveConnection } from '../../../hooks/useCompetitiveConnection';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
-const DashedRadarRing = ({ color = "#22d3ee", className = "" }) => (
+const DashedRadarRing = ({ color = "var(--accent)", className = "" }) => (
     <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -26,7 +26,7 @@ const DashedRadarRing = ({ color = "#22d3ee", className = "" }) => (
         <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-            className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-500/10 to-transparent"
+            className="absolute inset-0 rounded-full bg-gradient-to-r from-accent/10 to-transparent"
             style={{ clipPath: 'polygon(50% 50%, 100% 0, 100% 50%)', maxWidth: '280px', margin: 'auto' }}
         />
     </motion.div>

@@ -48,8 +48,8 @@ const DICE_SKINS: Record<string, { face: string; pip: string; edge: string }> = 
 
 const DICE_3077_SKIN = {
     face: 'linear-gradient(145deg, #161E2C 0%, #0A0E16 62%, #05070B 100%)',
-    pip: '#00E5FF',
-    edge: 'rgba(0, 229, 255, 0.52)',
+    pip: 'var(--accent, #00E5FF)',
+    edge: 'rgba(var(--accent-rgb, 0, 229, 255), 0.52)',
 };
 
 const FACE_MAP = [
@@ -321,7 +321,7 @@ function DiceFace({
         <div
             className={`absolute inset-0 w-12 h-12 flex items-center justify-center p-1 border ${
                 isTacticalFace
-                    ? 'rounded-md shadow-[inset_0_0_8px_rgba(0,229,255,0.18),inset_0_1px_1px_rgba(255,255,255,0.16),0_1px_4px_rgba(0,0,0,0.6)]'
+                    ? 'rounded-md shadow-[inset_0_0_8px_color-mix(in_srgb,var(--accent)_18%,transparent),inset_0_1px_1px_rgba(255,255,255,0.16),0_1px_4px_rgba(0,0,0,0.6)]'
                     : 'rounded-lg shadow-[inset_0_-2px_4px_rgba(0,0,0,0.1),inset_0_1px_2px_rgba(255,255,255,1),0_1px_4px_rgba(0,0,0,0.1)]'
             }`}
             style={{
@@ -335,7 +335,7 @@ function DiceFace({
             <svg
                 viewBox="0 0 100 100"
                 className={`w-full h-full ${isTacticalFace ? 'opacity-95' : 'opacity-90 drop-shadow-sm'}`}
-                style={isTacticalFace ? { filter: 'drop-shadow(0 0 3px rgba(0, 229, 255, 0.75))' } : undefined}
+                style={isTacticalFace ? { filter: 'drop-shadow(0 0 3px color-mix(in srgb, var(--accent, #00E5FF) 75%, transparent))' } : undefined}
             >
                 {DOT_POSITIONS[num as keyof typeof DOT_POSITIONS].map(([cx, cy], i) => (
                     <circle key={i} cx={cx} cy={cy} r="8.5" fill={pipColor} />

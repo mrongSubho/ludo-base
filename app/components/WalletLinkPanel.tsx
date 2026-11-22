@@ -41,13 +41,13 @@ const ModeChip = ({
         aria-disabled={disabled}
         className={`flex-1 rounded-2xl border px-3 py-3 text-left transition-all disabled:opacity-45 disabled:cursor-not-allowed ${
             active && !disabled
-                ? "border-accent/50 bg-accent-soft shadow-[0_0_18px_rgba(34,211,238,0.12)]"
+                ? "border-accent/50 bg-accent-soft shadow-[0_0_18px_color-mix(in_srgb,var(--accent)_12%,transparent)]"
                 : "border-line-soft bg-surface-recessed hover:bg-surface-hover"
         }`}
     >
         <div className="flex items-center gap-2">
             <span
-                className={`w-2 h-2 rounded-full ${active ? "bg-accent shadow-[0_0_8px_rgba(34,211,238,0.65)]" : "bg-ink-faint/40"}`}
+                className={`w-2 h-2 rounded-full ${active ? "bg-accent shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_65%,transparent)]" : "bg-ink-faint/40"}`}
             />
             <span className="text-ludo-md font-extrabold tracking-[0.06em] uppercase text-ink-strong">
                 {label}

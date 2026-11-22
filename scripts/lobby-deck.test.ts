@@ -71,4 +71,39 @@ describe('3077 Tactical Command Console & Deployment-Mode Theme', () => {
         assert.match(css, /\.hud-header-action-3077/);
         assert.match(css, /\.panel-child-rail-3077/);
     });
+
+    it('prints TerminalTypeText strictly left-to-right from a locked left edge', () => {
+        const typeText = read('app/components/TerminalTypeText.tsx');
+        assert.match(typeText, /className="invisible select-none whitespace-pre/);
+        assert.match(typeText, /left-0 right-0 flex items-center justify-start text-left whitespace-pre/);
+    });
+
+    it('drives Settings preference icons, ThinkingOrb, and shared HUD components via reactive accent tokens', () => {
+        const settings = read('app/components/SettingsPanel.tsx');
+        assert.match(settings, /icon=\{<MusicIcon \/>\}[ \t]*tint="bg-accent-soft text-accent"/);
+        assert.match(settings, /icon=\{<HapticIcon \/>\}[ \t]*tint="bg-accent-soft text-accent"/);
+
+        const orb = read('app/components/ThinkingOrb.tsx');
+        assert.match(orb, /useDeployTheme/);
+        assert.match(orb, /deployTheme\.edge/);
+
+        const reactiveComponents = [
+            'app/components/ActionDice.tsx',
+            'app/components/QuickMatchPanel.tsx',
+            'app/components/TeamUpMatchPanel.tsx',
+            'app/components/AllowanceHubSheet.tsx',
+            'app/components/ClaimHubSheet.tsx',
+            'app/components/SignWaitModal.tsx',
+            'app/components/SessionAuthBanner.tsx',
+            'app/components/WalletLinkPanel.tsx',
+            'app/components/BoardHeaderCompact.tsx',
+            'app/components/Board.tsx',
+            'app/components/BoardGrid.tsx',
+        ];
+        for (const file of reactiveComponents) {
+            const src = read(file);
+            assert.doesNotMatch(src, /rgba\(0,\s*229,\s*255/, `${file} must not hardcode cyan rgba(0, 229, 255, ...)`);
+            assert.doesNotMatch(src, /rgba\(34,\s*211,\s*238/, `${file} must not hardcode cyan rgba(34, 211, 238, ...)`);
+        }
+    });
 });

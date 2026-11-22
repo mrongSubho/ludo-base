@@ -188,7 +188,7 @@ const TeamDisc = ({ slot, tint, you, onInvite, onKick, onDragStart, onDrop, sele
     const ring = selected
         ? 'border-warn shadow-[0_0_20px_rgba(252,211,77,0.45)]'
         : filled
-            ? (tint === 'accent' ? 'border-accent/70 shadow-[0_0_18px_rgba(0,229,255,0.28)]' : 'border-negative/60 shadow-[0_0_18px_rgba(251,113,133,0.28)]')
+            ? (tint === 'accent' ? 'border-accent/70 shadow-[0_0_18px_color-mix(in_srgb,var(--accent)_28%,transparent)]' : 'border-negative/60 shadow-[0_0_18px_rgba(251,113,133,0.28)]')
             : invited
                 ? 'border-dashed border-line-strong bg-surface-recessed'
                 : 'border-dashed border-line-soft bg-surface-recessed hover:border-accent/70 active:scale-90 cursor-pointer';
@@ -704,7 +704,7 @@ export const TeamUpMatchPanel = ({
                 subtitle={(
                     <span className="inline-flex items-center gap-2 uppercase tracking-wide">
                         <span className="inline-flex items-center gap-1.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${isLobbyConnected ? 'hud-status-breath bg-accent shadow-[0_0_8px_rgba(0,229,255,0.85)]' : 'bg-line-strong'}`} />
+                            <span className={`w-1.5 h-1.5 rounded-full ${isLobbyConnected ? 'hud-status-breath bg-accent shadow-[0_0_8px_color-mix(in_srgb,var(--accent)_85%,transparent)]' : 'bg-line-strong'}`} />
                             <span className={`font-extrabold ${isLobbyConnected ? 'text-accent' : 'text-ink-faint'}`}>
                                 {isLobbyConnected ? 'Online' : 'Offline'}
                             </span>

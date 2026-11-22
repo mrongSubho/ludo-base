@@ -451,12 +451,12 @@ export function SettingsPanel({
                                     on={preferences.sfx} onToggle={() => updatePreference('ludo-sfx', preferences.sfx ? 'off' : 'on')}
                                 />
                                 <PrefRow
-                                    icon={<MusicIcon />} tint="bg-warn/15 text-warn"
+                                    icon={<MusicIcon />} tint="bg-accent-soft text-accent"
                                     label="Game Music" hint="Lobby and arena ambience"
                                     on={preferences.music} onToggle={() => updatePreference('ludo-music', preferences.music ? 'off' : 'on')}
                                 />
                                 <PrefRow
-                                    icon={<HapticIcon />} tint="bg-warn/15 text-warn"
+                                    icon={<HapticIcon />} tint="bg-accent-soft text-accent"
                                     label="Haptics" hint="Vibration on key moments"
                                     on={preferences.haptics} onToggle={() => updatePreference('ludo-haptic', preferences.haptics ? 'off' : 'on')}
                                     last

@@ -56,10 +56,10 @@ export const ArrowMarker = ({ dir }: { dir: 'up' | 'down' | 'left' | 'right' }) 
             <svg
                 viewBox="0 0 24 24"
                 className="w-3.5 h-3.5 arrow-3077 hidden"
-                style={{ transform: `rotate(${rotation}deg)`, filter: 'drop-shadow(0 0 4px #00e5ff)' }}
+                style={{ transform: `rotate(${rotation}deg)`, filter: 'drop-shadow(0 0 4px var(--accent, #00e5ff))' }}
             >
-                <polyline points="7 4 15 12 7 20" fill="none" stroke="#00e5ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                <polyline points="13 4 21 12 13 20" fill="none" stroke="#00e5ff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
+                <polyline points="7 4 15 12 7 20" fill="none" stroke="var(--accent, #00e5ff)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="13 4 21 12 13 20" fill="none" stroke="var(--accent, #00e5ff)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
             </svg>
         </>
     );

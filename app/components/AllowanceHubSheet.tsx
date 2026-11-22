@@ -142,7 +142,7 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                     onClick={() => handleTokenSwitch("chips")}
                     className={`py-2 px-3 rounded-lg text-ludo-xs font-mono font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 ${
                         isChips
-                            ? "bg-accent text-accent-ink shadow-[0_0_12px_rgba(0,229,255,0.3)]"
+                            ? "bg-accent text-accent-ink shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_30%,transparent)]"
                             : "text-ink-muted hover:text-ink-strong hover:bg-surface-hover"
                     }`}
                 >
@@ -156,7 +156,7 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                     onClick={() => handleTokenSwitch("usdc")}
                     className={`py-2 px-3 rounded-lg text-ludo-xs font-mono font-bold tracking-wider uppercase transition-all flex items-center justify-center gap-1.5 ${
                         !isChips
-                            ? "bg-accent text-accent-ink shadow-[0_0_12px_rgba(0,229,255,0.3)]"
+                            ? "bg-accent text-accent-ink shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_30%,transparent)]"
                             : "text-ink-muted hover:text-ink-strong hover:bg-surface-hover"
                     }`}
                 >
@@ -227,7 +227,7 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
 
                     {/* Single clear message */}
                     <div className="rounded-xl bg-surface-recessed border border-line-soft p-2.5 text-ludo-xs font-mono text-ink-muted leading-relaxed text-left flex items-start gap-2">
-                        <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-accent shrink-0 shadow-[0_0_6px_rgba(0,229,255,0.65)]" />
+                        <span className="w-1.5 h-1.5 mt-1.5 rounded-full bg-accent shrink-0 shadow-[0_0_6px_color-mix(in_srgb,var(--accent)_65%,transparent)]" />
                         <span>
                             Set a pre-approved budget so you can enter games instantly with 1 click, skipping repetitive wallet confirmation popups.
                         </span>
@@ -260,7 +260,7 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                                       }}
                                       className={`flex flex-col items-start p-2.5 rounded-xl border transition-all text-left ${
                                           isSelected
-                                              ? "bg-accent-soft border-accent shadow-[0_0_12px_rgba(0,229,255,0.15)]"
+                                              ? "bg-accent-soft border-accent shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_15%,transparent)]"
                                               : "bg-surface-recessed border-line-soft hover:border-line-strong"
                                       }`}
                                   >
@@ -307,7 +307,7 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                                       }}
                                       className={`flex flex-col items-start p-2.5 rounded-xl border transition-all text-left ${
                                           isSelected
-                                              ? "bg-accent-soft border-accent shadow-[0_0_12px_rgba(0,229,255,0.15)]"
+                                              ? "bg-accent-soft border-accent shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_15%,transparent)]"
                                               : "bg-surface-recessed border-line-soft hover:border-line-strong"
                                       }`}
                                   >
@@ -347,7 +347,7 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
                         }}
                         className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-left transition-all ${
                             selectedPreset === "custom"
-                                ? "bg-accent-soft border-accent shadow-[0_0_12px_rgba(0,229,255,0.15)]"
+                                ? "bg-accent-soft border-accent shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_15%,transparent)]"
                                 : "bg-surface-recessed border-line-soft hover:border-line-strong"
                         }`}
                     >
