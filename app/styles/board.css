@@ -3095,10 +3095,10 @@ textarea:focus-visible {
   position: relative;
   width: 100%;
   padding: 8px;
-  border: 1px solid rgba(34, 211, 238, 0.28);
+  border: 1px solid rgba(var(--accent-rgb, 34, 211, 238), 0.28);
   border-radius: 18px;
   background:
-    radial-gradient(120% 90% at 0% 0%, rgba(34, 211, 238, 0.14), transparent 55%),
+    radial-gradient(120% 90% at 0% 0%, rgba(var(--accent-rgb, 34, 211, 238), 0.14), transparent 55%),
     linear-gradient(165deg, rgba(22, 28, 48, 0.96), rgba(12, 16, 28, 0.98));
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.32), inset 0 0 0 1px rgba(255,255,255,0.04);
   animation: chat-composer-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -3159,47 +3159,47 @@ body.theme-daybreak .team-chat-toggle.on {
 }
 .rich-field-back,
 .rich-field-input {
-  font-family: inherit;
-  font-size: 13px;
-  line-height: 20px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 18px;
   font-weight: 500;
   letter-spacing: normal;
-  padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
+  padding: 7px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 9999px;
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: break-word;
   overflow-y: auto;
   overflow-x: hidden;
-  max-height: 96px;
+  max-height: 88px;
 }
 .rich-field-back {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink-strong);
+  background: var(--surface-panel);
   overflow: hidden;
 }
 .rich-field-input {
   position: relative;
   display: block;
   width: 100%;
-  min-height: 42px;
+  min-height: 34px;
   resize: none;
   color: transparent;
-  caret-color: #22d3ee;
+  caret-color: var(--accent, #22d3ee);
   background: transparent;
   -webkit-text-fill-color: transparent;
 }
 .rich-field-input::placeholder {
-  color: rgba(255, 255, 255, 0.2);
-  -webkit-text-fill-color: rgba(255, 255, 255, 0.2);
+  color: var(--ink-faint);
+  -webkit-text-fill-color: var(--ink-faint);
 }
 .rich-field-input:focus {
   outline: none;
-  border-color: rgba(34, 197, 238, 0.5);
+  border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.6);
 }
 .rich-field-input:disabled {
   opacity: 0.5;
@@ -3242,12 +3242,12 @@ body.theme-daybreak .team-chat-toggle.on {
   z-index: 120;
   width: min(290px, calc(100vw - 28px));
   padding: 10px;
-  border: 1px solid rgba(34, 211, 238, 0.28);
+  border: 1px solid rgba(var(--accent-rgb, 34, 211, 238), 0.34);
   border-radius: 18px;
   background:
-    radial-gradient(120% 90% at 0% 0%, rgba(34, 211, 238, 0.14), transparent 55%),
+    radial-gradient(120% 90% at 0% 0%, rgba(var(--accent-rgb, 34, 211, 238), 0.14), transparent 55%),
     rgba(12, 16, 28, 0.98);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42), 0 0 24px rgba(34, 211, 238, 0.12);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42), 0 0 24px rgba(var(--accent-rgb, 34, 211, 238), 0.14);
 }
 .emoji-picker-content {
   display: flex;
@@ -3304,16 +3304,16 @@ body.theme-daybreak .team-chat-toggle.on {
 }
 .emoji-pack-tabs button:hover,
 .emoji-pack-tabs button:focus-visible {
-  background: rgba(34, 211, 238, 0.16);
-  border-color: rgba(34, 211, 238, 0.4);
+  background: rgba(var(--accent-rgb, 34, 211, 238), 0.16);
+  border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.42);
 }
 .emoji-pack-tabs button.active,
 .emote-pack-tabs-inline button.active {
-  color: #082f49;
-  background: linear-gradient(135deg, #67e8f9, #22d3ee);
+  color: var(--accent-ink, #082f49);
+  background: linear-gradient(135deg, var(--accent-edge, #67e8f9), var(--accent, #22d3ee));
   border-color: transparent;
   /* Symmetric glow — an offset shadow read as extra height on the active tab. */
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 0 10px rgba(34, 211, 238, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 0 10px rgba(var(--accent-rgb, 34, 211, 238), 0.24);
 }
 .emoji-pack-grid {
   display: grid;
@@ -3339,7 +3339,7 @@ body.theme-daybreak .team-chat-toggle.on {
 }
 .emoji-pack-item:hover,
 .emoji-pack-item:focus-visible {
-  background: rgba(34, 211, 238, 0.16);
+  background: rgba(var(--accent-rgb, 34, 211, 238), 0.16);
   transform: translateY(-1px);
 }
 .emoji-pack-item img {
@@ -3377,15 +3377,26 @@ body.theme-daybreak .team-chat-toggle.on {
 .chat-emoji-button {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid rgba(34,211,238,0.2);
-  border-radius: 999px;
-  background: rgba(255,255,255,0.06);
-  font-size: 19px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--line-soft);
+  border-radius: 9999px;
+  background: var(--surface-panel);
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
 }
+.chat-emoji-button:hover:not(:disabled),
 .chat-emoji-button.on,
-.chat-emoji-button:active { background: rgba(34,211,238,0.18); }
+.chat-emoji-button:active:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: rgba(var(--accent-rgb, 34, 211, 238), 0.55);
+  color: var(--accent);
+}
+.chat-emoji-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .chat-emoji-picker {
   position: absolute;
   left: 50%;
@@ -3860,7 +3871,7 @@ body.theme-daybreak .rich-field-back {
   border-color: rgba(15, 23, 42, 0.12);
 }
 body.theme-daybreak .rich-field-input {
-  caret-color: #0052ff;
+  caret-color: var(--accent, #0e7490);
 }
 body.theme-daybreak .rich-field-input::placeholder {
   color: rgba(15, 23, 42, 0.4);
@@ -3876,26 +3887,28 @@ body.theme-daybreak .rich-field-input::placeholder {
   border-radius: 9999px !important;
 }
 .chat-composer-send {
-  height: 40px;
-  min-width: 72px;
-  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
   border: none;
-  border-radius: 12px;
+  border-radius: 9999px;
   cursor: pointer;
+  font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #041018;
-  background: linear-gradient(180deg, #67e8f9, #22d3ee 55%, #0e9bb8);
-  box-shadow: 0 6px 14px rgba(34, 211, 238, 0.28);
+  font-weight: 700;
+  color: var(--accent-ink, #02090d);
+  background: var(--accent, #22d3ee);
+  transition: opacity 140ms ease, filter 140ms ease, transform 140ms ease;
 }
 .chat-composer-send:disabled {
   opacity: 0.45;
-  cursor: default;
+  cursor: not-allowed;
 }
 body.theme-daybreak .chat-composer-send {
-  color: #062a33;
+  color: var(--accent-ink, #ffffff);
 }
 
 /* ─── Seat speech bubbles (white cards + tail, ref) ─── */

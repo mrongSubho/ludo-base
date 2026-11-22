@@ -13,9 +13,8 @@ import { describeSendFailure } from '@/lib/sendErrors';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { GamePanelShell } from './GamePanelShell';
 import { PanelChildTabs } from './PanelTabs';
-import { EmojiPickerPopover, ChatContent } from './EmojiPicker';
-import { RichChatField } from './RichChatField';
-import { encodeChatDraft, insertDraftEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
+import { TacticalChatComposer, TacticalMessageBubble } from './TacticalChat';
+import { encodeChatDraft, type ChatDraftEmote } from '@/lib/emotes';
 import { usePreferences } from '@/hooks/usePreferences';
 import { prefersReducedMotion } from '@/lib/motion';
 import { HudSectionLabel } from './HudPrimitives';
@@ -241,142 +240,103 @@ export const LiveChatPanel = ({ onOpenProfile, onJoin }: { onOpenProfile?: (addr
                 />
             </div>
 
-            <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-2 pb-2">
-                {visibleMsgs.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center text-center py-16 px-6">
-                        <h3 className="text-ink-strong font-extrabold text-sm mb-1">Dead air</h3>
-                        <p className="text-ink-muted text-xs max-w-[220px]">
-                            {cscope === 'local' ? `No shouts from ${country} yet — be the first.` : 'No shouts yet — be the first.'}
-                        </p>
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-2 pb-2">
-                        {visibleMsgs.map((m) => {
-                            const mine = m.sender_id.toLowerCase() === me;
-                            const isRoom = !!m.room_code;
-                            const roomOpen = m.room_open !== false;
-                            const joinable = isRoom && roomOpen && !mine;
-                            const joinRoom = () => {
-                                if (!m.room_code) return;
-                                window.dispatchEvent(new CustomEvent('join_party', {
-                                    detail: { roomCode: m.room_code },
-                                }));
-                                onJoin?.();
-                            };
-                            return (
-                                <div key={m.id} className={`flex gap-2.5 ${mine ? 'flex-row-reverse' : ''}`}>
-                                    <button
-                                        onClick={() => !mine && onOpenProfile?.(m.sender_id)}
-                                        aria-label={mine ? 'Your avatar' : `Open ${m.username || 'user'} profile`}
-                                        disabled={mine}
-                                        className="w-8 h-8 rounded-full overflow-hidden bg-accent-soft border border-line-soft shrink-0 flex items-center justify-center disabled:cursor-default enabled:hover:scale-105 enabled:hover:ring-2 enabled:hover:ring-accent/60 transition-all"
-                                    >
-                                        {m.avatar_url ? (
-                                            <img loading="lazy" decoding="async" src={m.avatar_url} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" width={96} height={96} />
-                                        ) : (
-                                            <span className="text-ink-muted font-extrabold text-xs pointer-events-none">{(m.username?.[0] || 'U').toUpperCase()}</span>
-                                        )}
-                                    </button>
-                                    <div className={`flex flex-col min-w-0 max-w-[80%] ${mine ? 'items-end' : 'items-start'}`}>
-                                        <span className="text-ludo-xs font-bold text-ink-faint mb-0.5">
-                                            {mine ? 'You' : m.username || 'User'} · {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        </span>
-                                        {joinable ? (
+            <div className="flex-1 min-h-0 mx-5 mb-3 mt-2 flex flex-col justify-between rounded-2xl bg-surface-recessed border border-line-soft p-3.5">
+                <div ref={chatScrollRef} className="flex-1 min-h-0 overflow-y-auto no-scrollbar pr-1">
+                    {visibleMsgs.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center text-center py-16 px-6">
+                            <h3 className="text-ink-strong font-extrabold text-sm mb-1">Dead air</h3>
+                            <p className="text-ink-muted text-xs max-w-[220px]">
+                                {cscope === 'local' ? `No shouts from ${country} yet — be the first.` : 'No shouts yet — be the first.'}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-2.5 pb-1">
+                            {visibleMsgs.map((m) => {
+                                const mine = m.sender_id.toLowerCase() === me;
+                                const isRoom = !!m.room_code;
+                                const roomOpen = m.room_open !== false;
+                                const joinable = isRoom && roomOpen && !mine;
+                                const joinRoom = () => {
+                                    if (!m.room_code) return;
+                                    window.dispatchEvent(new CustomEvent('join_party', {
+                                        detail: { roomCode: m.room_code },
+                                    }));
+                                    onJoin?.();
+                                };
+                                return (
+                                    <TacticalMessageBubble
+                                        key={m.id}
+                                        isMine={mine}
+                                        sender={mine ? 'You' : m.username || 'User'}
+                                        meta={new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        content={m.content || '…'}
+                                        dimmed={isRoom && !roomOpen}
+                                        avatar={
                                             <button
-                                                onClick={joinRoom}
-                                                title={`Join room ${m.room_code}`}
-                                                className="room-join-row py-2.5 px-4 rounded-2xl rounded-tl-md border border-accent/40 bg-accent-soft text-left text-ludo-md leading-relaxed break-words [overflow-wrap:anywhere] text-ink-strong hover:bg-accent/20 hover:border-accent/60 active:scale-[0.99] transition-all cursor-pointer w-full"
+                                                type="button"
+                                                onClick={() => !mine && onOpenProfile?.(m.sender_id)}
+                                                aria-label={mine ? 'Your avatar' : `Open ${m.username || 'user'} profile`}
+                                                disabled={mine}
+                                                className="w-8 h-8 rounded-full overflow-hidden bg-accent-soft border border-line-soft shrink-0 flex items-center justify-center disabled:cursor-default enabled:hover:scale-105 enabled:hover:ring-2 enabled:hover:ring-accent/60 transition-all"
                                             >
-                                                <ChatContent value={m.content || '…'} className="text-ink-strong" />
-                                                <span className="block mt-1 text-ludo-xs font-extrabold uppercase tracking-[0.2em] text-accent">
-                                                    Tap to join →
-                                                </span>
-                                            </button>
-                                        ) : (
-                                            <div className={`py-2.5 px-4 rounded-2xl text-ludo-md leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-accent text-accent-ink rounded-tr-md shadow-lg' : 'bg-surface-panel text-ink-strong rounded-tl-md border border-line-soft'} ${isRoom && !roomOpen ? 'opacity-60' : ''}`}>
-                                                <ChatContent value={m.content || '…'} />
-                                                {isRoom && !roomOpen && (
-                                                    <span className="ml-2 px-1.5 py-0.5 rounded-md bg-surface-recessed text-ludo-xs font-extrabold uppercase tracking-[0.15em] text-ink-muted align-middle">
-                                                        Over
-                                                    </span>
+                                                {m.avatar_url ? (
+                                                    <img loading="lazy" decoding="async" src={m.avatar_url} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" width={96} height={96} />
+                                                ) : (
+                                                    <span className="text-ink-muted font-extrabold text-xs pointer-events-none">{(m.username?.[0] || 'U').toUpperCase()}</span>
                                                 )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                            </button>
+                                        }
+                                        joinAction={joinable ? {
+                                            title: `Join room ${m.room_code}`,
+                                            onClick: joinRoom,
+                                        } : undefined}
+                                        belowBubble={isRoom && !roomOpen ? (
+                                            <span className="ml-2 px-1.5 py-0.5 rounded-md bg-surface-recessed text-ludo-xs font-extrabold uppercase tracking-[0.15em] text-ink-muted align-middle">
+                                                Over
+                                            </span>
+                                        ) : undefined}
+                                    />
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {sendError && (
+                    <div
+                        role="alert"
+                        className="mt-2 flex items-start gap-2 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-ludo-sm leading-snug text-negative"
+                    >
+                        <WarningHexIcon className="icon-sm shrink-0 mt-0.5" />
+                        <span className="flex-1">{sendError}</span>
+                        <button
+                            type="button"
+                            onClick={() => setSendError(null)}
+                            aria-label="Dismiss"
+                            className="shrink-0 text-negative hover:opacity-80"
+                        >
+                            <CloseReticleIcon className="icon-sm" />
+                        </button>
                     </div>
                 )}
-            </div>
 
-            {sendError && (
-                <div
-                    role="alert"
-                    className="mx-5 mb-1 flex items-start gap-2 rounded-lg border border-negative/40 bg-negative/10 px-3 py-2 text-ludo-sm leading-snug text-negative"
-                >
-                    <WarningHexIcon className="icon-sm shrink-0 mt-0.5" />
-                    <span className="flex-1">{sendError}</span>
-                    <button
-                        type="button"
-                        onClick={() => setSendError(null)}
-                        aria-label="Dismiss"
-                        className="shrink-0 text-negative hover:opacity-80"
-                    >
-                        <CloseReticleIcon className="icon-sm" />
-                    </button>
-                </div>
-            )}
-
-            <div className="px-5 pt-2 pb-3">
-                <div className="flex gap-1.5 relative">
-                    <RichChatField
-                        value={input}
-                        emotes={inputEmotes}
-                        onChange={(next) => {
-                            setInput(next);
-                            setInputEmotes((items) => retainChatDraftEmotes(next, items));
-                        }}
-                        onKeyDown={(e) => e.key === 'Enter' && void sendChat()}
-                        disabled={cooldown > 0}
-                        placeholder={cooldown > 0 ? `Wait ${cooldown}s...` : 'Shout to the arena...'}
-                        maxLength={500}
-                        hasCounter
-                        ariaLabel="Message"
-                    />
-                    <EmojiPickerPopover
-                        open={emojiOpen}
-                        onToggle={() => setEmojiOpen((value) => !value)}
-                        onSelect={(emote) => {
-                            setInput((value) => {
-                                const next = insertDraftEmote(emote, value, inputEmotes, 500);
-                                setInputEmotes(next.emotes);
-                                return next.value;
-                            });
-                            setEmojiOpen(false);
-                        }}
-                        disabled={cooldown > 0}
-                    />
-                    <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-ludo-xs pointer-events-none ${input.length >= 480 ? 'text-negative font-bold' : 'text-ink-faint'}`}>
-                        {input.length}/500
-                    </div>
-                    <button
-                        onClick={() => void sendChat()}
-                        disabled={!input.trim() || cooldown > 0}
-                        aria-label="Send shout"
-                        className="chat-send w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-accent text-accent-ink disabled:opacity-45 transition-all hover:opacity-90 active:scale-95 relative overflow-hidden shadow-lg"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                            <line x1="22" y1="2" x2="11" y2="13" />
-                            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                        </svg>
-                        {cooldown > 0 && (
-                            <div className="absolute inset-0 bg-surface-page/70 flex items-center justify-center text-xs font-bold text-ink-strong backdrop-blur-sm">
-                                {cooldown}s
-                            </div>
-                        )}
-                    </button>
-                </div>
+                <TacticalChatComposer
+                    className="mt-3"
+                    value={input}
+                    emotes={inputEmotes}
+                    emojiOpen={emojiOpen}
+                    onValueChange={setInput}
+                    onEmotesChange={setInputEmotes}
+                    onEmojiToggle={() => setEmojiOpen((value) => !value)}
+                    onEmojiClose={() => setEmojiOpen(false)}
+                    onSend={sendChat}
+                    placeholder="Transmit broadcast message..."
+                    ariaLabel="Message"
+                    maxLength={500}
+                    maxEncodedLength={500}
+                    cooldown={cooldown}
+                    showCounter
+                />
             </div>
         </div>
     );
@@ -1217,46 +1177,38 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
                             const mRoomOpen = m.room_open !== false;
                             const joinable = mIsRoom && mRoomOpen && !mine;
                             return (
-                                <div key={it.key} className={`flex gap-2.5 ${mine ? 'flex-row-reverse' : ''}`}>
-                                    <button
-                                        onClick={() => !mine && onOpenProfile?.(m.sender_id)}
-                                        aria-label={mine ? 'Your avatar' : `Open ${m.username || 'user'} profile`}
-                                        disabled={mine}
-                                        className="w-8 h-8 rounded-full overflow-hidden bg-accent-soft border border-line-soft shrink-0 flex items-center justify-center disabled:cursor-default enabled:hover:scale-105 enabled:hover:ring-2 enabled:hover:ring-accent/60 transition-all"
-                                    >
-                                        {m.avatar_url ? (
-                                            <img loading="lazy" decoding="async" src={m.avatar_url} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" width={96} height={96} />
-                                        ) : (
-                                            <span className="text-ink-muted font-extrabold text-xs pointer-events-none">{(m.username?.[0] || 'U').toUpperCase()}</span>
-                                        )}
-                                    </button>
-                                    <div className={`flex flex-col min-w-0 max-w-[80%] ${mine ? 'items-end' : 'items-start'}`}>
-                                        <span className="text-ludo-xs font-bold text-ink-faint mb-0.5">
-                                            {mine ? 'You' : m.username || 'User'} · {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                <TacticalMessageBubble
+                                    key={it.key}
+                                    isMine={mine}
+                                    sender={mine ? 'You' : m.username || 'User'}
+                                    meta={new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    content={m.content || '…'}
+                                    dimmed={mIsRoom && !mRoomOpen}
+                                    avatar={
+                                        <button
+                                            type="button"
+                                            onClick={() => !mine && onOpenProfile?.(m.sender_id)}
+                                            aria-label={mine ? 'Your avatar' : `Open ${m.username || 'user'} profile`}
+                                            disabled={mine}
+                                            className="w-8 h-8 rounded-full overflow-hidden bg-accent-soft border border-line-soft shrink-0 flex items-center justify-center disabled:cursor-default enabled:hover:scale-105 enabled:hover:ring-2 enabled:hover:ring-accent/60 transition-all"
+                                        >
+                                            {m.avatar_url ? (
+                                                <img loading="lazy" decoding="async" src={m.avatar_url} alt="" aria-hidden className="w-full h-full object-cover pointer-events-none" width={96} height={96} />
+                                            ) : (
+                                                <span className="text-ink-muted font-extrabold text-xs pointer-events-none">{(m.username?.[0] || 'U').toUpperCase()}</span>
+                                            )}
+                                        </button>
+                                    }
+                                    joinAction={joinable ? {
+                                        title: m.room_code ? `Join room ${m.room_code}` : undefined,
+                                        onClick: () => m.room_code && joinRoom(m.room_code),
+                                    } : undefined}
+                                    belowBubble={mIsRoom && !mRoomOpen ? (
+                                        <span className="ml-2 px-1.5 py-0.5 rounded-md bg-surface-recessed text-ludo-xs font-extrabold uppercase tracking-[0.15em] text-ink-muted align-middle">
+                                            Over
                                         </span>
-                                        {joinable ? (
-                                            <button
-                                                onClick={() => m.room_code && joinRoom(m.room_code)}
-                                                title={m.room_code ? `Join room ${m.room_code}` : undefined}
-                                                className="room-join-row py-2.5 px-4 rounded-2xl rounded-tl-md border border-accent/40 bg-accent-soft text-left text-ludo-md leading-relaxed break-words [overflow-wrap:anywhere] text-ink-strong hover:bg-accent/20 hover:border-accent/60 active:scale-[0.99] transition-all cursor-pointer w-full"
-                                            >
-                                                <ChatContent value={m.content || '…'} className="text-ink-strong" />
-                                                <span className="block mt-1 text-ludo-xs font-extrabold uppercase tracking-[0.2em] text-accent">
-                                                    Tap to join →
-                                                </span>
-                                            </button>
-                                        ) : (
-                                            <div className={`py-2.5 px-4 rounded-2xl text-ludo-md leading-relaxed break-words [overflow-wrap:anywhere] ${mine ? 'chat-own bg-accent text-accent-ink rounded-tr-md shadow-lg' : 'bg-surface-panel text-ink-strong rounded-tl-md border border-line-soft'} ${mIsRoom && !mRoomOpen ? 'opacity-60' : ''}`}>
-                                                <ChatContent value={m.content || '…'} />
-                                                {mIsRoom && !mRoomOpen && (
-                                                    <span className="ml-2 px-1.5 py-0.5 rounded-md bg-surface-recessed text-ludo-xs font-extrabold uppercase tracking-[0.15em] text-ink-muted align-middle">
-                                                        Over
-                                                    </span>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                                    ) : undefined}
+                                />
                             );
                         })}
                     </div>
@@ -1282,54 +1234,22 @@ export const UnifiedBroadcastFeed = ({ onOpenProfile, onJoin, data }: { onOpenPr
             )}
 
             <div className="px-5 pt-2 pb-3">
-                <div className="flex gap-1.5 relative">
-                    <RichChatField
-                        value={input}
-                        emotes={inputEmotes}
-                        onChange={(next) => {
-                            setInput(next);
-                            setInputEmotes((items) => retainChatDraftEmotes(next, items));
-                        }}
-                        onKeyDown={(e) => e.key === 'Enter' && void sendChat()}
-                        disabled={cooldown > 0}
-                        placeholder={cooldown > 0 ? `Wait ${cooldown}s...` : 'Shout to the arena...'}
-                        maxLength={500}
-                        hasCounter
-                        ariaLabel="Message"
-                    />
-                    <EmojiPickerPopover
-                        open={emojiOpen}
-                        onToggle={() => setEmojiOpen((value) => !value)}
-                        onSelect={(emote) => {
-                            setInput((value) => {
-                                const next = insertDraftEmote(emote, value, inputEmotes, 500);
-                                setInputEmotes(next.emotes);
-                                return next.value;
-                            });
-                            setEmojiOpen(false);
-                        }}
-                        disabled={cooldown > 0}
-                    />
-                    <div className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-ludo-xs pointer-events-none ${input.length >= 480 ? 'text-negative font-bold' : 'text-ink-faint'}`}>
-                        {input.length}/500
-                    </div>
-                    <button
-                        onClick={() => void sendChat()}
-                        disabled={!input.trim() || cooldown > 0}
-                        aria-label="Send shout"
-                        className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl bg-accent text-accent-ink disabled:opacity-45 transition-all hover:opacity-90 relative overflow-hidden"
-                    >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-                            <line x1="22" y1="2" x2="11" y2="13" />
-                            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                        </svg>
-                        {cooldown > 0 && (
-                            <div className="absolute inset-0 bg-surface-page/70 flex items-center justify-center text-xs font-bold text-ink-strong backdrop-blur-sm">
-                                {cooldown}s
-                            </div>
-                        )}
-                    </button>
-                </div>
+                <TacticalChatComposer
+                    value={input}
+                    emotes={inputEmotes}
+                    emojiOpen={emojiOpen}
+                    onValueChange={setInput}
+                    onEmotesChange={setInputEmotes}
+                    onEmojiToggle={() => setEmojiOpen((value) => !value)}
+                    onEmojiClose={() => setEmojiOpen(false)}
+                    onSend={sendChat}
+                    placeholder="Transmit broadcast message..."
+                    ariaLabel="Message"
+                    maxLength={500}
+                    maxEncodedLength={500}
+                    cooldown={cooldown}
+                    showCounter
+                />
             </div>
         </div>
     );

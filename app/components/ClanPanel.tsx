@@ -20,7 +20,6 @@ import {
     LuPlus,
     LuRadio,
     LuSearch,
-    LuSend,
     LuSettings,
     LuShield,
     LuSparkles,
@@ -53,6 +52,8 @@ import ClanProfileModal from "./ClanProfileModal";
 import { MissionCard } from "./MissionCard";
 import { HudCornerTicks, HudProgressGauge, HudSectionLabel } from "./HudPrimitives";
 import { CloseReticleIcon, SyndicateShieldIcon } from "./icons";
+import { TacticalChatComposer, TacticalMessageBubble } from "./TacticalChat";
+import { encodeChatDraft, type ChatDraftEmote } from "@/lib/emotes";
 
 interface ClanPanelProps {
     isOpen: boolean;
@@ -135,6 +136,8 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
     const [activeTab, setActiveTab] = useState<ClanTab>("profile");
     const [scoutClanTarget, setScoutClanTarget] = useState<string | null>(null);
     const [chatInput, setChatInput] = useState("");
+    const [chatEmotes, setChatEmotes] = useState<ChatDraftEmote[]>([]);
+    const [chatEmojiOpen, setChatEmojiOpen] = useState(false);
     const [sendingChat, setSendingChat] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
     const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -267,14 +270,16 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
         onClose();
     };
 
-    const handleSendMessage = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!chatInput.trim() || sendingChat) return;
+    const handleSendMessage = async () => {
+        const text = encodeChatDraft(chatInput.trim(), chatEmotes).slice(0, 280);
+        if (!text || sendingChat) return;
         setSendingChat(true);
         setActionError(null);
+        setChatEmojiOpen(false);
         try {
-            await sendChatMessage(chatInput.trim());
+            await sendChatMessage(text);
             setChatInput("");
+            setChatEmotes([]);
         } catch (err) {
             showErr(err, "Failed to send chat message");
         } finally {
@@ -958,65 +963,43 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                                             ) : (
                                                 chatMessages.map((msg) => {
                                                     const isMine =
-                                                        address &&
-                                                        msg.wallet_address.toLowerCase() === address.toLowerCase();
+                                                        Boolean(
+                                                            address &&
+                                                            msg.wallet_address.toLowerCase() === address.toLowerCase(),
+                                                        );
                                                     return (
-                                                        <div
+                                                        <TacticalMessageBubble
                                                             key={msg.id}
-                                                            className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}
-                                                        >
-                                                            <div className="flex items-center gap-1.5 text-ludo-xs font-mono mb-0.5 px-1">
-                                                                <span className={isMine ? "text-accent font-bold" : "text-warn font-bold"}>
-                                                                    {msg.sender_name}
-                                                                </span>
-                                                                <span className="text-ink-faint">
-                                                                    {new Date(msg.created_at).toLocaleTimeString([], {
-                                                                        hour: "2-digit",
-                                                                        minute: "2-digit",
-                                                                    })}
-                                                                </span>
-                                                            </div>
-                                                            <div
-                                                                className={`max-w-[85%] px-3 py-2 rounded-2xl text-ludo-xs font-mono leading-relaxed break-words border ${
-                                                                    isMine
-                                                                        ? "bg-accent-soft border-accent/35 text-ink-strong rounded-tr-sm"
-                                                                        : "bg-surface-panel border-line-soft text-ink-strong rounded-tl-sm"
-                                                                }`}
-                                                            >
-                                                                {msg.content}
-                                                            </div>
-                                                        </div>
+                                                            isMine={isMine}
+                                                            sender={msg.sender_name}
+                                                            meta={new Date(msg.created_at).toLocaleTimeString([], {
+                                                                hour: "2-digit",
+                                                                minute: "2-digit",
+                                                            })}
+                                                            content={msg.content}
+                                                        />
                                                     );
                                                 })
                                             )}
                                             <div ref={chatEndRef} />
                                         </div>
 
-                                        <form onSubmit={handleSendMessage} className="mt-3 flex gap-2 pt-2.5 border-t border-line-soft shrink-0">
-                                            <input
-                                                type="text"
-                                                placeholder="Transmit tactical message..."
-                                                value={chatInput}
-                                                onChange={(e) => setChatInput(e.target.value)}
-                                                maxLength={280}
-                                                autoComplete="off"
-                                                autoCorrect="off"
-                                                autoCapitalize="none"
-                                                spellCheck={false}
-                                                enterKeyHint="send"
-                                                className="flex-1 min-w-0 px-3.5 py-2 rounded-xl bg-surface-panel border border-line-soft text-ink-strong placeholder:text-ink-faint text-ludo-xs font-mono focus:outline-none focus:border-accent/60"
-                                            />
-                                            <Button
-                                                variant="primary"
-                                                size="sm"
-                                                type="submit"
-                                                disabled={sendingChat || !chatInput.trim()}
-                                                leftIcon={<LuSend className="w-3.5 h-3.5" />}
-                                                className="shrink-0 whitespace-nowrap"
-                                            >
-                                                {sendingChat ? "..." : "Send"}
-                                            </Button>
-                                        </form>
+                                        <TacticalChatComposer
+                                            className="mt-3"
+                                            value={chatInput}
+                                            emotes={chatEmotes}
+                                            emojiOpen={chatEmojiOpen}
+                                            onValueChange={setChatInput}
+                                            onEmotesChange={setChatEmotes}
+                                            onEmojiToggle={() => setChatEmojiOpen((open) => !open)}
+                                            onEmojiClose={() => setChatEmojiOpen(false)}
+                                            onSend={handleSendMessage}
+                                            placeholder="Transmit tactical message..."
+                                            ariaLabel="Clan chat message"
+                                            maxLength={280}
+                                            maxEncodedLength={280}
+                                            sending={sendingChat}
+                                        />
                                     </div>
                                 </div>
                             )}

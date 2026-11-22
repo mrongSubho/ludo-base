@@ -136,12 +136,20 @@ export function insertDraftEmote(
     emote: EmojiEmote,
     value: string,
     emotes: readonly ChatDraftEmote[],
-    maxLength: number
+    maxLength: number,
+    maxEncodedLength?: number
 ): { value: string; emotes: ChatDraftEmote[] } {
     const token = uniqueShortcode(emote, value);
-    const next = `${value}${token}`.slice(0, maxLength);
-    if (next.length <= value.length) return { value, emotes: [...emotes] };
-    return { value: next, emotes: [...emotes, draftEmoteFrom(emote, token)] };
+    if (value.length + token.length > maxLength) return { value, emotes: [...emotes] };
+    const nextValue = `${value}${token}`;
+    const nextEmotes = [...emotes, draftEmoteFrom(emote, token)];
+    if (
+        typeof maxEncodedLength === 'number' &&
+        encodeChatDraft(nextValue, nextEmotes).length > maxEncodedLength
+    ) {
+        return { value, emotes: [...emotes] };
+    }
+    return { value: nextValue, emotes: nextEmotes };
 }
 
 export function encodeChatDraft(value: string, emotes: readonly ChatDraftEmote[]): string {

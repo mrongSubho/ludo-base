@@ -3,7 +3,10 @@
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
-import { FiX, FiMessageSquare, FiSend, FiTrendingUp, FiZap, FiChevronDown, FiChevronUp, FiAward } from 'react-icons/fi';
+import { FiX, FiMessageSquare, FiTrendingUp, FiZap, FiChevronDown, FiChevronUp, FiAward } from 'react-icons/fi';
+import { ChatContent } from './EmojiPicker';
+import { TacticalChatComposer } from './TacticalChat';
+import { encodeChatDraft, type ChatDraftEmote } from '@/lib/emotes';
 import { formatUnits } from 'viem';
 import { supabase } from '@/lib/supabase';
 import { ActiveBettingWindow } from '@/hooks/useSpectatorSync';
@@ -157,6 +160,8 @@ export const SpectatorHUD = ({
     const [selectedBetValue, setSelectedBetValue] = useState<string | null>(null);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [chatInput, setChatInput] = useState('');
+    const [chatEmotes, setChatEmotes] = useState<ChatDraftEmote[]>([]);
+    const [chatEmojiOpen, setChatEmojiOpen] = useState(false);
     const [isBetting, setIsBetting] = useState(false);
     const [betStatusStep, setBetStatusStep] = useState<string | null>(null);
     const [betResults, setBetResults] = useState<{ id: string; status: 'won' | 'lost'; text: string }[]>([]);
@@ -375,19 +380,22 @@ export const SpectatorHUD = ({
     }, [roomCode]);
 
     const sendChat = useCallback(async () => {
-        if (!chatInput.trim() || !address) return;
+        const text = encodeChatDraft(chatInput.trim(), chatEmotes).slice(0, 120);
+        if (!text || !address) return;
         const msg: ChatMessage = {
             id: crypto.randomUUID(),
             author: myProfile?.username ?? address.slice(0, 6) + '…',
-            text: chatInput.trim().slice(0, 120),
+            text,
             createdAt: Date.now(),
         };
         setChatMessages(prev => [...prev.slice(-49), msg]);
         setChatInput('');
+        setChatEmotes([]);
+        setChatEmojiOpen(false);
         await supabase.channel(`chat-${roomCode}`).send({
             type: 'broadcast', event: 'spectator-chat', payload: msg,
         });
-    }, [chatInput, address, myProfile, roomCode]);
+    }, [chatInput, chatEmotes, address, myProfile, roomCode]);
 
     const windowOpen = Boolean(
         effectiveWindow &&
@@ -980,8 +988,10 @@ export const SpectatorHUD = ({
                                                 className="flex flex-col relative pl-2"
                                             >
                                                 <div className="absolute left-0 top-0.5 bottom-0.5 w-[2px] bg-accent/50 rounded-full" />
-                                                <span className="text-ludo-xs font-bold text-ink-faint uppercase tracking-wider">{msg.author}</span>
-                                                <span className="text-ludo-sm font-medium text-ink-strong leading-snug">{msg.text}</span>
+                                                <span className="text-ludo-xs font-bold font-mono text-ink-faint uppercase tracking-wider">{msg.author}</span>
+                                                <span className="text-ludo-xs font-mono text-ink-strong leading-snug">
+                                                    <ChatContent value={msg.text} />
+                                                </span>
                                             </motion.div>
                                         )
                                     ))}
@@ -996,35 +1006,22 @@ export const SpectatorHUD = ({
                                 )}
                             </div>
 
-                            <div className="flex items-center gap-2 px-2.5 py-2 border-t border-line-soft bg-surface-panel shrink-0">
-                                <textarea
+                            <div className="px-2.5 py-2 border-t border-line-soft bg-surface-panel shrink-0">
+                                <TacticalChatComposer
+                                    compact
                                     value={chatInput}
-                                    onChange={e => setChatInput(e.target.value)}
-                                    rows={1}
-                                    onKeyDown={e => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            void sendChat();
-                                        }
-                                    }}
-                                    placeholder="Transmit data…"
+                                    emotes={chatEmotes}
+                                    emojiOpen={chatEmojiOpen}
+                                    onValueChange={setChatInput}
+                                    onEmotesChange={setChatEmotes}
+                                    onEmojiToggle={() => setChatEmojiOpen((open) => !open)}
+                                    onEmojiClose={() => setChatEmojiOpen(false)}
+                                    onSend={sendChat}
+                                    placeholder="Transmit tactical message..."
+                                    ariaLabel="Spectator chat message"
                                     maxLength={120}
-                                    autoComplete="off"
-                                    autoCorrect="off"
-                                    autoCapitalize="sentences"
-                                    spellCheck={false}
-                                    enterKeyHint="send"
-                                    className="flex-1 bg-surface-recessed border border-line-soft rounded-xl px-3 py-1.5 text-ludo-xs font-medium text-ink-strong placeholder:text-ink-faint outline-none focus:border-accent/60 transition-all"
+                                    maxEncodedLength={120}
                                 />
-                                <button
-                                    type="button"
-                                    onClick={() => void sendChat()}
-                                    disabled={!chatInput.trim()}
-                                    aria-label="Send broadcast message"
-                                    className="w-8 h-8 rounded-xl bg-accent-soft border border-accent/40 flex items-center justify-center text-accent hover:bg-accent hover:text-accent-ink transition-all disabled:opacity-35"
-                                >
-                                    <FiSend className="w-3.5 h-3.5" />
-                                </button>
                             </div>
                         </div>
                     </div>

@@ -10,14 +10,8 @@ import { supabase } from '@/lib/supabase';
 import { useNotifications } from '@/hooks/useNotifications';
 import { PanelTabs, TabCount } from './PanelTabs';
 import { EmptyState } from './EmptyState';
-import { ChatContent, EmojiPickerPopover } from './EmojiPicker';
-import { RichChatField } from './RichChatField';
-import {
-    encodeChatDraft,
-    insertDraftEmote,
-    retainChatDraftEmotes,
-    type ChatDraftEmote,
-} from '@/lib/emotes';
+import { TacticalChatComposer, TacticalMessageBubble } from './TacticalChat';
+import { encodeChatDraft, type ChatDraftEmote } from '@/lib/emotes';
 import { useToast } from './Toast';
 import { ThinkingOrb } from './ThinkingOrb';
 import { useConversationLive } from '@/hooks/useConversationLive';
@@ -960,12 +954,12 @@ export default function MessagesPanel({
                                 )
                             ) : (
                                 /* Chat Detail */
-                                <div className="flex flex-col flex-1 min-h-0">
-                                    <div
-                                        ref={scrollRef}
-                                        className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-5 pt-3 pb-2"
-                                    >
-                                        <div className="flex flex-col gap-2.5 pb-2">
+                                <div className="flex flex-col flex-1 min-h-0 px-4 pt-2 pb-3">
+                                    <div className="flex-1 min-h-0 flex flex-col justify-between rounded-2xl bg-surface-recessed border border-line-soft p-3.5">
+                                        <div
+                                            ref={scrollRef}
+                                            className="flex-1 min-h-0 overflow-y-auto no-scrollbar space-y-2.5 pr-1"
+                                        >
                                             {threadMessages.map((msg) => {
                                                 const isMe =
                                                     msg.sender_id.toLowerCase() === address?.toLowerCase();
@@ -981,165 +975,71 @@ export default function MessagesPanel({
                                                           ? `User ${address.slice(-4).toUpperCase()}`
                                                           : 'Guest';
                                                 return (
-                                                    <div
+                                                    <TacticalMessageBubble
                                                         key={msg.id}
-                                                        className={`flex w-full gap-2 items-end ${
-                                                            isMe ? 'flex-row-reverse' : ''
-                                                        }`}
-                                                    >
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                onOpenProfile?.(
-                                                                    isMe ? address || '' : selectedChatId!,
-                                                                )
-                                                            }
-                                                            aria-label={
-                                                                isMe
-                                                                    ? 'Open your profile'
-                                                                    : `Open ${otherName} profile`
-                                                            }
-                                                            className="shrink-0 rounded-full hover:scale-105 transition-transform"
-                                                        >
-                                                            <PilotAvatar
-                                                                avatarUrl={
-                                                                    isMe ? myProfile?.avatar_url : threadAvatar
+                                                        isMine={isMe}
+                                                        sender={isMe ? myName : otherName}
+                                                        meta={
+                                                            msg.send_status === 'sending'
+                                                                ? 'Sending…'
+                                                                : timeString
+                                                        }
+                                                        content={msg.content}
+                                                        sending={msg.send_status === 'sending'}
+                                                        failed={msg.send_status === 'failed'}
+                                                        failedError={msg.send_error}
+                                                        onRetry={
+                                                            isMe ? () => void retrySend(msg) : undefined
+                                                        }
+                                                        avatar={
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    onOpenProfile?.(
+                                                                        isMe ? address || '' : selectedChatId!,
+                                                                    )
                                                                 }
-                                                                name={isMe ? myName : otherName}
-                                                                size="xs"
-                                                            />
-                                                        </button>
-                                                        <div
-                                                            className={`max-w-[75%] flex flex-col ${
-                                                                isMe ? 'items-end' : 'items-start'
-                                                            } ${msg.send_status === 'sending' ? 'opacity-50' : ''}`}
-                                                        >
-                                                            <div
-                                                                className={`text-ludo-xs font-mono font-bold px-1 mb-0.5 text-ink-faint ${
-                                                                    isMe ? 'text-right' : 'text-left'
-                                                                }`}
+                                                                aria-label={
+                                                                    isMe
+                                                                        ? 'Open your profile'
+                                                                        : `Open ${otherName} profile`
+                                                                }
+                                                                className="shrink-0 rounded-full hover:scale-105 transition-transform"
                                                             >
-                                                                {msg.send_status === 'sending'
-                                                                    ? 'Sending…'
-                                                                    : isMe
-                                                                      ? `${myName} · ${timeString}`
-                                                                      : `${otherName} · ${timeString}`}
-                                                            </div>
-                                                            {msg.send_status === 'failed' && isMe ? (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => void retrySend(msg)}
-                                                                    className="w-fit min-w-12 max-w-full py-2.5 px-3.5 rounded-2xl text-ludo-md leading-relaxed break-words [overflow-wrap:anywhere] text-left bg-negative/15 text-negative border border-negative/40 rounded-tr-md hover:bg-negative/25 active:scale-[0.98] transition-colors"
-                                                                >
-                                                                    <ChatContent value={msg.content} />
-                                                                </button>
-                                                            ) : (
-                                                                <div
-                                                                    className={`w-fit min-w-12 max-w-full py-2.5 px-3.5 rounded-2xl text-ludo-md leading-relaxed break-words [overflow-wrap:anywhere] ${
-                                                                        isMe
-                                                                            ? 'bg-accent text-accent-ink rounded-tr-md font-medium'
-                                                                            : 'bg-surface-recessed text-ink-strong rounded-tl-md border border-line-soft'
-                                                                    }`}
-                                                                >
-                                                                    <ChatContent value={msg.content} />
-                                                                </div>
-                                                            )}
-                                                            {msg.send_status === 'failed' && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => isMe && void retrySend(msg)}
-                                                                    className="text-left text-ludo-xs text-negative mt-1 px-1 font-bold hover:brightness-110 transition-colors"
-                                                                >
-                                                                    {msg.send_error || "Couldn't send that message."}
-                                                                    <span className="ml-1 font-normal opacity-75">
-                                                                        · tap to retry
-                                                                    </span>
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </div>
+                                                                <PilotAvatar
+                                                                    avatarUrl={
+                                                                        isMe ? myProfile?.avatar_url : threadAvatar
+                                                                    }
+                                                                    name={isMe ? myName : otherName}
+                                                                    size="xs"
+                                                                />
+                                                            </button>
+                                                        }
+                                                    />
                                                 );
                                             })}
                                         </div>
-                                    </div>
 
-                                    {/* Input Area */}
-                                    <div className="px-5 pt-2 pb-3 border-t border-line-soft bg-surface-panel/70">
-                                        <div className="flex gap-1.5 relative">
-                                            <RichChatField
-                                                value={inputValue}
-                                                emotes={inputEmotes}
-                                                onChange={(next) => {
-                                                    setInputValue(next);
-                                                    setInputEmotes((items) =>
-                                                        retainChatDraftEmotes(next, items),
-                                                    );
-                                                    setTyping(next.trim().length > 0);
-                                                }}
-                                                onKeyDown={(e) => e.key === 'Enter' && void handleSendMessage()}
-                                                disabled={cooldownTime > 0}
-                                                placeholder={
-                                                    cooldownTime > 0
-                                                        ? `Wait ${cooldownTime}s…`
-                                                        : 'Type a message…'
-                                                }
-                                                maxLength={500}
-                                                hasCounter
-                                                ariaLabel="Message"
-                                            />
-                                            <EmojiPickerPopover
-                                                open={emojiOpen}
-                                                onToggle={() => setEmojiOpen((value) => !value)}
-                                                onSelect={(emote) => {
-                                                    setInputValue((value) => {
-                                                        const next = insertDraftEmote(
-                                                            emote,
-                                                            value,
-                                                            inputEmotes,
-                                                            500,
-                                                        );
-                                                        setInputEmotes(next.emotes);
-                                                        return next.value;
-                                                    });
-                                                    setEmojiOpen(false);
-                                                }}
-                                                disabled={cooldownTime > 0}
-                                            />
-                                            <div
-                                                className={`absolute right-[98px] top-1/2 -translate-y-1/2 text-ludo-xs font-mono pointer-events-none transition-colors ${
-                                                    inputValue.length >= 480
-                                                        ? 'text-negative font-bold'
-                                                        : 'text-ink-faint'
-                                                }`}
-                                            >
-                                                {inputValue.length}/500
-                                            </div>
-                                            <Button
-                                                variant="primary"
-                                                onClick={() => void handleSendMessage()}
-                                                disabled={!inputValue.trim() || cooldownTime > 0}
-                                                aria-label="Send message"
-                                                className="w-11 h-11 p-0 shrink-0 rounded-xl relative overflow-hidden"
-                                            >
-                                                <svg
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2.4"
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    className="w-5 h-5"
-                                                >
-                                                    <line x1="22" y1="2" x2="11" y2="13" />
-                                                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                                                </svg>
-                                                {cooldownTime > 0 && (
-                                                    <div className="absolute inset-0 bg-surface-panel/80 flex items-center justify-center text-ludo-xs font-mono font-bold text-ink-strong">
-                                                        {cooldownTime}s
-                                                    </div>
-                                                )}
-                                            </Button>
-                                        </div>
+                                        <TacticalChatComposer
+                                            className="mt-3"
+                                            value={inputValue}
+                                            emotes={inputEmotes}
+                                            emojiOpen={emojiOpen}
+                                            onValueChange={(next) => {
+                                                setInputValue(next);
+                                                setTyping(next.trim().length > 0);
+                                            }}
+                                            onEmotesChange={setInputEmotes}
+                                            onEmojiToggle={() => setEmojiOpen((value) => !value)}
+                                            onEmojiClose={() => setEmojiOpen(false)}
+                                            onSend={() => void handleSendMessage()}
+                                            placeholder="Transmit encrypted message..."
+                                            ariaLabel="Message"
+                                            maxLength={500}
+                                            maxEncodedLength={500}
+                                            cooldown={cooldownTime}
+                                            showCounter
+                                        />
                                     </div>
                                 </div>
                             )}

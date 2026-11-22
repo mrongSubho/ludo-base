@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, useMotionValue, animate, useTransform } from 'framer-motion';
+import { LuSend } from 'react-icons/lu';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
 import { PlayerColor, PowerType, PowerItem } from '@/lib/types';
@@ -547,7 +548,10 @@ export default function Board({
                                 }}
                                 label="Add emoji"
                             />
-                            <button type="button" className="chat-composer-send" onClick={sendChat} disabled={!chatDraft.trim()}>Send</button>
+                            <button type="button" className="chat-composer-send" onClick={sendChat} disabled={!chatDraft.trim()}>
+                                <LuSend className="w-3.5 h-3.5" />
+                                <span>Send</span>
+                            </button>
                         </div>
                     </div>
                 ) : (
