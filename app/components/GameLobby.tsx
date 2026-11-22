@@ -19,8 +19,6 @@ import { useToast } from './Toast';
 import SecurityLadderChip from './SecurityLadderChip';
 import ThemeNudge from './ThemeNudge';
 import { usePreferences } from '@/hooks/usePreferences';
-import { TEAM_PAIRINGS } from '@/lib/constants';
-import { seatedColorsFor } from '@/lib/engine/core';
 import { useArenaVault } from '@/hooks/useArenaVault';
 import { useChipsBalance } from '@/hooks/useChipsBalance';
 import { formatUnits } from 'viem';
@@ -31,13 +29,11 @@ import {
     CheckGlyphIcon,
     ChevronGlyphIcon,
     ChipsHexIcon,
-    ClassicGridIcon,
-    OverdriveBoltIcon,
     VaultShieldIcon,
     WarningHexIcon,
 } from './icons';
 import { EntryFeeKnob } from './EntryFeeKnob';
-import { getEntryFeeTierName } from '@/lib/entryFeeDial';
+import { LobbyCommandDeck } from './LobbyCommandDeck';
 
 /** Primary preset entry fees (CHIPS). 0 = Free. */
 const FEE_PRESETS = [0, 500, 1_000, 10_000, 100_000, 500_000] as const;
@@ -471,59 +467,184 @@ export default function GameLobby({
                     ref={setupRef}
                     className={`w-full max-w-[420px] mx-auto flex flex-col gap-2 sm:gap-3 min-h-0 h-full setup-tier ${is3077 && showFee ? 'overflow-visible' : 'overflow-hidden'}`}
                 >
-                    {/* 1. SELECTION GROUP */}
-                    <div className="w-full space-y-3 flex flex-col">
-                        {/* Mode Section */}
-                        <div className="flex flex-col items-center w-full">
-                            <div className="flex justify-center w-full mb-2 mt-1">
+                    {/* 1. SELECTION GROUP + ENTRY FEE */}
+                    {is3077 ? (
+                        <div className="w-full flex flex-col items-center">
+                            <div className="flex justify-center w-full mb-1.5 mt-0.5">
                                 <SecurityLadderChip />
                             </div>
-                            <div className="flex justify-center w-full mb-2">
+                            <div className="flex justify-center w-full mb-1.5">
                                 <ThemeNudge />
                             </div>
-                            {is3077 ? (
-                                <>
-                                    <h3 className="lobby-h2-3077 mb-2 text-center">Game Mode</h3>
-                                    <div role="radiogroup" aria-label="Select Game Mode" className="flex justify-center gap-2">
-                                        {(['classic', 'power'] as const).map(mode => {
-                                            const active = gameMode === mode;
-                                            return (
-                                                <div key={mode} className="seg-wrapper-3077">
+                            <LobbyCommandDeck
+                                gameMode={gameMode}
+                                onChangeGameMode={setGameMode}
+                                matchType={matchType}
+                                onChangeMatchType={setMatchType}
+                                sfxEnabled={preferences.sfx}
+                                hapticsEnabled={preferences.haptics}
+                                feeDock={
+                                    <div
+                                        ref={feeTierRef}
+                                        className="fee-tier relative z-40 rounded-[12px] flex flex-col items-center border"
+                                        style={{
+                                            background: 'linear-gradient(180deg, #0d1420 0%, #070b12 100%)',
+                                            borderColor:
+                                                wager > playableChips
+                                                    ? 'rgba(244, 63, 94, 0.5)'
+                                                    : gameMode === 'power'
+                                                      ? 'rgba(245, 158, 11, 0.34)'
+                                                      : 'rgba(0, 229, 255, 0.3)',
+                                        }}
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={openFeeSelector}
+                                            aria-expanded={showFee}
+                                            className="w-full flex items-center justify-between px-3 py-2 rounded-[11px] hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
+                                        >
+                                            <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
+                                                <ChipsHexIcon
+                                                    className={`w-4 h-4 shrink-0 ${gameMode === 'power' ? 'text-warn' : 'text-accent'}`}
+                                                    active={wager > 0}
+                                                />
+                                                <span>Entry Fee</span>
+                                            </span>
+                                            <span className="inline-flex items-center gap-2">
+                                                <span
+                                                    className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${
+                                                        wager > playableChips
+                                                            ? 'text-negative animate-knob-alert-blink'
+                                                            : wager > 0
+                                                              ? gameMode === 'power'
+                                                                ? 'text-warn'
+                                                                : 'text-accent'
+                                                              : 'text-ink-muted'
+                                                    }`}
+                                                >
+                                                    {formatEntryFee(wager)}
+                                                </span>
+                                                <ChevronGlyphIcon
+                                                    direction="down"
+                                                    className={`w-3.5 h-3.5 text-ink-muted transition-transform duration-200 ${showFee ? 'rotate-180' : ''}`}
+                                                />
+                                            </span>
+                                        </button>
+
+                                        <AnimatePresence initial={false}>
+                                            {showFee && (
+                                                <motion.div
+                                                    key="fee-knob-dropdown"
+                                                    initial={{ opacity: 0, y: -4, scaleY: 0.94 }}
+                                                    animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                                                    exit={{ opacity: 0, y: -4, scaleY: 0.94 }}
+                                                    transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
+                                                    style={{
+                                                        transformOrigin: 'top center',
+                                                        background: 'var(--panel-bg)',
+                                                        boxShadow: 'var(--panel-shadow)',
+                                                    }}
+                                                    className="fee-tier absolute top-0 left-0 right-0 z-40 rounded-[16px] border border-line-strong backdrop-blur-2xl flex flex-col items-center overflow-hidden"
+                                                >
+                                                    <HudCornerTicks />
+
+                                                    {/* Same Entry Fee top bar — tap to close the detailed knob HUD */}
                                                     <button
                                                         type="button"
-                                                        role="radio"
-                                                        aria-checked={active}
                                                         onClick={() => {
                                                             playSelect();
-                                                            setGameMode(mode);
+                                                            setShowFee(false);
+                                                            setDialWarning(null);
                                                         }}
-                                                        className="seg-btn-3077 w-[160px] h-[48px] flex items-center justify-center gap-2 px-3 cursor-pointer"
+                                                        aria-expanded={true}
+                                                        className="relative z-10 w-full flex items-center justify-between px-3 py-2 rounded-[14px] hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
                                                     >
-                                                        {mode === 'classic' ? (
-                                                            <ClassicGridIcon className="w-4 h-4 shrink-0" active={active} />
-                                                        ) : (
-                                                            <OverdriveBoltIcon className="w-4 h-4 shrink-0" active={active} />
-                                                        )}
-                                                        <span className="font-semibold text-sm uppercase tracking-wider leading-tight">
-                                                            {mode}
+                                                        <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
+                                                            <ChipsHexIcon
+                                                                className={`w-4 h-4 shrink-0 ${gameMode === 'power' ? 'text-warn' : 'text-accent'}`}
+                                                                active={dialWager > 0}
+                                                            />
+                                                            <span>Entry Fee</span>
                                                         </span>
-                                                        <span
-                                                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                                                                active ? 'bg-accent' : 'bg-line-strong'
-                                                            }`}
-                                                            aria-hidden="true"
-                                                        />
+                                                        <span className="inline-flex items-center gap-2">
+                                                            <span
+                                                                className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${
+                                                                    dialWager > playableChips
+                                                                        ? 'text-negative animate-knob-alert-blink'
+                                                                        : dialWager > 0
+                                                                          ? 'text-accent'
+                                                                          : 'text-ink-muted'
+                                                                }`}
+                                                            >
+                                                                {formatEntryFee(dialWager)}
+                                                            </span>
+                                                            <ChevronGlyphIcon
+                                                                direction="down"
+                                                                className="w-3.5 h-3.5 text-ink-muted rotate-180 transition-transform duration-200"
+                                                            />
+                                                        </span>
                                                     </button>
-                                                </div>
-                                            );
-                                        })}
+
+                                                    <div className="relative z-10 w-full px-2.5 pb-3 pt-1 flex flex-col items-center gap-2">
+                                                        <EntryFeeKnob
+                                                            wager={dialWager}
+                                                            playableChips={playableChips}
+                                                            onChange={(next) => {
+                                                                setDialWager(next);
+                                                                setDialWarning(null);
+                                                            }}
+                                                            sfxEnabled={preferences.sfx}
+                                                            formatBalance={formatEntryFee}
+                                                        />
+                                                        {dialWarning && (
+                                                            <div
+                                                                role="alert"
+                                                                className="w-full px-3 py-1.5 rounded-xl bg-negative/15 border border-negative/40 text-negative flex items-center justify-center gap-1.5 text-ludo-xs font-mono font-bold"
+                                                            >
+                                                                <WarningHexIcon className="w-3.5 h-3.5 shrink-0" />
+                                                                <span className="truncate">{dialWarning}</span>
+                                                            </div>
+                                                        )}
+                                                        <Button
+                                                            variant={dialWager > playableChips ? 'danger' : 'primary'}
+                                                            size="md"
+                                                            fullWidth
+                                                            onClick={() => {
+                                                                if (dialWager > playableChips) {
+                                                                    playSelect();
+                                                                    setDialWarning(
+                                                                        `Insufficient CHIPS · Balance: ${formatEntryFee(playableChips)}`,
+                                                                    );
+                                                                    return;
+                                                                }
+                                                                playSelect();
+                                                                setWager(dialWager);
+                                                                setDialWarning(null);
+                                                                setShowFee(false);
+                                                            }}
+                                                            className="uppercase tracking-[0.18em] font-extrabold"
+                                                        >
+                                                            Confirm · {formatEntryFee(dialWager)}
+                                                        </Button>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
-                                    <p className="lobby-mono-3077 mt-1.5 text-ludo-md leading-4 text-center" style={{ color: 'var(--ink-muted)' }}>
-                                        {gameMode === 'power' ? '6 POWER TILES · BOOSTS ON' : 'ORIGINAL RULES · NO BOOSTS'}
-                                    </p>
-                                </>
-                            ) : (
-                                <>
+                                }
+                            />
+                        </div>
+                    ) : (
+                        <>
+                            <div className="w-full space-y-3 flex flex-col">
+                                {/* Mode Section (Retro & Daybreak) */}
+                                <div className="flex flex-col items-center w-full">
+                                    <div className="flex justify-center w-full mb-2 mt-1">
+                                        <SecurityLadderChip />
+                                    </div>
+                                    <div className="flex justify-center w-full mb-2">
+                                        <ThemeNudge />
+                                    </div>
                                     <div className="flex justify-center w-full mb-3">
                                         <div className="inline-block px-5 py-1.5 bg-surface-panel border border-line-soft rounded-full backdrop-blur-md">
                                             <h3 className="text-ink-strong text-ludo-xs font-extrabold uppercase tracking-[0.2em] text-center">Select Game Mode</h3>
@@ -564,59 +685,10 @@ export default function GameLobby({
                                             );
                                         })}
                                     </div>
-                                </>
-                            )}
-                        </div>
+                                </div>
 
-                        {/* Match Type Section */}
-                        <div className="flex flex-col items-center w-full">
-                            {is3077 ? (
-                                <>
-                                    <h3 className="lobby-h2-3077 mt-1 mb-2 text-center">Match Type</h3>
-                                    <div role="radiogroup" aria-label="Match Type" className="flex justify-center gap-2">
-                                        {(['1v1', '2v2', '4P'] as const).map(type => {
-                                            const active = matchType === type;
-                                            const teamHex: Record<'green' | 'red' | 'blue' | 'yellow', string> = {
-                                                green: '#00FF66',
-                                                red: '#FF0055',
-                                                blue: '#0099FF',
-                                                yellow: '#FFD000',
-                                            };
-                                            const seated = seatedColorsFor(type);
-                                            const unseated = 'var(--line-soft, rgba(148,163,184,0.3))';
-                                            const tlColor = type === '2v2' ? teamHex.red : seated.includes('blue') ? teamHex.blue : unseated;
-                                            const trColor = type === '2v2' ? teamHex[TEAM_PAIRINGS.green] : seated.includes('yellow') ? teamHex.yellow : unseated;
-                                            const blColor = seated.includes('green') ? teamHex.green : unseated;
-                                            const brColor = type === '2v2' ? teamHex[TEAM_PAIRINGS.red] : seated.includes('red') ? teamHex.red : unseated;
-                                            return (
-                                                <div key={type} className="seg-wrapper-3077">
-                                                    <button
-                                                        type="button"
-                                                        role="radio"
-                                                        aria-checked={active}
-                                                        onClick={() => {
-                                                            playSelect();
-                                                            setMatchType(type);
-                                                        }}
-                                                        className="seg-btn-3077 w-[72px] h-[48px] flex flex-col items-center justify-center gap-1 cursor-pointer"
-                                                    >
-                                                        <span className="grid grid-cols-2 gap-[2px] w-3 h-3" aria-hidden>
-                                                            <span className="w-[4px] h-[4px] rounded-[1px]" style={{ backgroundColor: tlColor }} />
-                                                            <span className="w-[4px] h-[4px] rounded-[1px]" style={{ backgroundColor: trColor }} />
-                                                            <span className="w-[4px] h-[4px] rounded-[1px]" style={{ backgroundColor: blColor }} />
-                                                            <span className="w-[4px] h-[4px] rounded-[1px]" style={{ backgroundColor: brColor }} />
-                                                        </span>
-                                                        <span className="lobby-mono-3077 text-ludo-md font-semibold leading-none">
-                                                            {type}
-                                                        </span>
-                                                    </button>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </>
-                            ) : (
-                                <>
+                                {/* Match Type Section (Retro & Daybreak) */}
+                                <div className="flex flex-col items-center w-full">
                                     <div className="flex justify-center w-full mt-1 mb-3">
                                         <div className="inline-block px-5 py-1.5 bg-surface-panel border border-line-soft rounded-full backdrop-blur-md">
                                             <h3 className="text-ink-strong text-ludo-xs font-extrabold uppercase tracking-[0.2em] text-center">Match Type</h3>
@@ -650,144 +722,44 @@ export default function GameLobby({
                                             );
                                         })}
                                     </div>
-                                </>
-                            )}
-                        </div>
-                    </div>
+                                </div>
+                            </div>
 
-                    {/* 2. ENTRY FEE — collapsed by default. In 3077, expands in-place from the pill over ActionDice so the lobby stays put. */}
-                    <div
-                        ref={feeTierRef}
-                        className="fee-tier relative z-40 rounded-[20px] glass-panel bg-surface-panel flex flex-col items-center shadow-2xl border border-line-soft"
-                    >
-                        <button
-                            type="button"
-                            onClick={openFeeSelector}
-                            aria-expanded={showFee}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-[18px] hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform]"
-                        >
-                            <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
-                                <ChipsHexIcon className="w-4 h-4 text-accent shrink-0" active={wager > 0} />
-                                <span>Entry Fee</span>
-                            </span>
-                            <span className="inline-flex items-center gap-2">
-                                <span className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${wager > 0 ? 'text-accent' : 'text-ink-muted'}`}>
-                                    {formatEntryFee(wager)}
-                                </span>
-                                <ChevronGlyphIcon
-                                    direction="down"
-                                    className={`w-3.5 h-3.5 text-ink-muted transition-transform duration-200 ${showFee ? 'rotate-180' : ''}`}
-                                />
-                            </span>
-                        </button>
-                        {is3077 ? (
-                            <AnimatePresence initial={false}>
-                                {showFee && (
-                                    <motion.div
-                                        key="fee-knob-dropdown"
-                                        initial={{ opacity: 0, y: -4, scaleY: 0.94 }}
-                                        animate={{ opacity: 1, y: 0, scaleY: 1 }}
-                                        exit={{ opacity: 0, y: -4, scaleY: 0.94 }}
-                                        transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
-                                        style={{
-                                            transformOrigin: 'top center',
-                                            background: 'var(--panel-bg)',
-                                            boxShadow: 'var(--panel-shadow)',
-                                        }}
-                                        className="fee-tier absolute top-0 left-0 right-0 z-40 rounded-[20px] border border-line-strong backdrop-blur-2xl flex flex-col items-center overflow-hidden"
-                                    >
-                                        <HudCornerTicks />
-
-                                        {/* Same Entry Fee top bar — tap to close the detailed knob HUD */}
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                playSelect();
-                                                setShowFee(false);
-                                                setDialWarning(null);
-                                            }}
-                                            aria-expanded={true}
-                                            className="relative z-10 w-full flex items-center justify-between px-3 py-2 rounded-[18px] hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform]"
+                            {/* 2. ENTRY FEE (Retro & Daybreak) */}
+                            <div
+                                ref={feeTierRef}
+                                className="fee-tier relative z-40 rounded-[20px] glass-panel bg-surface-panel flex flex-col items-center shadow-2xl border border-line-soft"
+                            >
+                                <button
+                                    type="button"
+                                    onClick={openFeeSelector}
+                                    aria-expanded={showFee}
+                                    className="w-full flex items-center justify-between px-3 py-2 rounded-[18px] hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform]"
+                                >
+                                    <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
+                                        <ChipsHexIcon className="w-4 h-4 text-accent shrink-0" active={wager > 0} />
+                                        <span>Entry Fee</span>
+                                    </span>
+                                    <span className="inline-flex items-center gap-2">
+                                        <span className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${wager > 0 ? 'text-accent' : 'text-ink-muted'}`}>
+                                            {formatEntryFee(wager)}
+                                        </span>
+                                        <ChevronGlyphIcon
+                                            direction="down"
+                                            className={`w-3.5 h-3.5 text-ink-muted transition-transform duration-200 ${showFee ? 'rotate-180' : ''}`}
+                                        />
+                                    </span>
+                                </button>
+                                <AnimatePresence initial={false}>
+                                    {showFee && (
+                                        <motion.div
+                                            key="fee-drawer"
+                                            initial={{ opacity: 0, y: -6 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -4 }}
+                                            transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
+                                            className="w-full px-1.5 pb-2 flex flex-col items-center gap-1"
                                         >
-                                            <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
-                                                <ChipsHexIcon className="w-4 h-4 text-accent shrink-0" active={dialWager > 0} />
-                                                <span>Entry Fee</span>
-                                            </span>
-                                            <span className="inline-flex items-center gap-2">
-                                                <span
-                                                    className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${
-                                                        dialWager > playableChips
-                                                            ? 'text-negative animate-knob-alert-blink'
-                                                            : dialWager > 0
-                                                              ? 'text-accent'
-                                                              : 'text-ink-muted'
-                                                    }`}
-                                                >
-                                                    {getEntryFeeTierName(dialWager)} · {formatEntryFee(dialWager)}
-                                                </span>
-                                                <ChevronGlyphIcon
-                                                    direction="down"
-                                                    className="w-3.5 h-3.5 text-ink-muted rotate-180 transition-transform duration-200"
-                                                />
-                                            </span>
-                                        </button>
-
-                                        <div className="relative z-10 w-full px-2.5 pb-3 pt-1 flex flex-col items-center gap-2">
-                                            <EntryFeeKnob
-                                                wager={dialWager}
-                                                playableChips={playableChips}
-                                                onChange={(next) => {
-                                                    setDialWager(next);
-                                                    setDialWarning(null);
-                                                }}
-                                                sfxEnabled={preferences.sfx}
-                                                formatBalance={formatEntryFee}
-                                            />
-                                            {dialWarning && (
-                                                <div
-                                                    role="alert"
-                                                    className="w-full px-3 py-1.5 rounded-xl bg-negative/15 border border-negative/40 text-negative flex items-center justify-center gap-1.5 text-ludo-xs font-mono font-bold"
-                                                >
-                                                    <WarningHexIcon className="w-3.5 h-3.5 shrink-0" />
-                                                    <span className="truncate">{dialWarning}</span>
-                                                </div>
-                                            )}
-                                            <Button
-                                                variant={dialWager > playableChips ? 'danger' : 'primary'}
-                                                size="md"
-                                                fullWidth
-                                                onClick={() => {
-                                                    if (dialWager > playableChips) {
-                                                        playSelect();
-                                                        setDialWarning(
-                                                            `Insufficient CHIPS · Balance: ${formatEntryFee(playableChips)}`,
-                                                        );
-                                                        return;
-                                                    }
-                                                    playSelect();
-                                                    setWager(dialWager);
-                                                    setDialWarning(null);
-                                                    setShowFee(false);
-                                                }}
-                                                className="uppercase tracking-[0.18em] font-extrabold"
-                                            >
-                                                Confirm · {formatEntryFee(dialWager)}
-                                            </Button>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        ) : (
-                            <AnimatePresence initial={false}>
-                                {showFee && (
-                                    <motion.div
-                                        key="fee-drawer"
-                                        initial={{ opacity: 0, y: -6 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -4 }}
-                                        transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
-                                        className="w-full px-1.5 pb-2 flex flex-col items-center gap-1"
-                                    >
                                         <div className="flex items-center justify-between w-full px-2 mb-1">
                                             <button
                                                 onClick={() => { playCoin(); setWager(Math.max(0, wager - (wager >= 1000 ? 1000 : 100))); }}
@@ -905,11 +877,12 @@ export default function GameLobby({
                                                 </span>
                                             </div>
                                         )}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        )}
-                    </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </>
+                    )}
 
                     {/* 3. ACTION DICE */}
                     <div className="w-full flex-1 flex items-center justify-center relative z-30 min-h-0">
