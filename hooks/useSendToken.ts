@@ -14,14 +14,14 @@ import { useCdpUserOp } from "@/hooks/useCdpUserOp";
 import { showTxPrompt, updateAuthPromptStatus } from "@/hooks/useAuthPrompt";
 import { CHIPS_ERC20_ABI, chipsAddress } from "@/lib/chips";
 import { DEFAULT_CHAIN_ID } from "@/lib/chains";
+import { usdcTokenAddress } from "@/hooks/useChipsAllowance";
 
 export type SendTokenKey = "usdc" | "chips";
 
-const USDC_BASE = (process.env.NEXT_PUBLIC_USDC_ADDRESS ||
-    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913") as Address;
+const USDC_BASE_SEPOLIA = usdcTokenAddress();
 
 function tokenMeta(key: SendTokenKey) {
-    if (key === "usdc") return { address: USDC_BASE, decimals: 6, label: "USDC" };
+    if (key === "usdc") return { address: USDC_BASE_SEPOLIA, decimals: 6, label: "USDC" };
     const chips = chipsAddress();
     if (!chips) return null;
     return { address: chips, decimals: 18, label: "CHIPS" };
@@ -71,7 +71,7 @@ export function useSendToken() {
                     context: "token-send",
                     title: `SEND ${meta.label}`,
                     statusText: `Please approve the transfer in your wallet to send ${params.amount} ${meta.label} to ${to.slice(0, 6)}...${to.slice(-4)}.`,
-                    explanationText: `Direct ERC-20 transfer of ${params.amount} ${meta.label} on Base. Standard network gas fee applies.`,
+                    explanationText: `Direct ERC-20 transfer of ${params.amount} ${meta.label} on Base Sepolia. Standard network gas fee applies.`,
                 });
                 if (player.mode === "ingame" && cdpUserOp.isInGame) {
                     const res = await cdpUserOp.sendCalls([{ to: meta.address, data }]);

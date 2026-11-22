@@ -9,6 +9,8 @@ import { useCallback, useEffect, useState } from "react";
 import { usePublicClient } from "wagmi";
 import { formatUnits, type Address } from "viem";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
+import { usdcTokenAddress } from "@/hooks/useChipsAllowance";
+import { DEFAULT_CHAIN_ID } from "@/lib/chains";
 import { chipsAddress, CHIPS_ERC20_ABI, formatChips } from "@/lib/chips";
 
 export type TokenBalance = {
@@ -21,13 +23,12 @@ export type TokenBalance = {
     unpriced?: boolean;
 };
 
-/** USDC on Base (well-known). Override via env if needed. */
-const USDC_BASE = (process.env.NEXT_PUBLIC_USDC_ADDRESS ||
-    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913") as Address;
+/** USDC on Base Sepolia (chain 84532). */
+const USDC_BASE_SEPOLIA = usdcTokenAddress();
 
 export function useWalletAssets() {
     const player = usePlayerSigner();
-    const client = usePublicClient();
+    const client = usePublicClient({ chainId: DEFAULT_CHAIN_ID });
     const [eth, setEth] = useState<bigint | null>(null);
     const [chips, setChips] = useState<bigint | null>(null);
     const [usdc, setUsdc] = useState<bigint | null>(null);
@@ -46,7 +47,7 @@ export function useWalletAssets() {
                 client.getBalance({ address }),
                 client
                     .readContract({
-                        address: USDC_BASE,
+                        address: USDC_BASE_SEPOLIA,
                         abi: CHIPS_ERC20_ABI,
                         functionName: "balanceOf",
                         args: [address],

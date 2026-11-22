@@ -1,14 +1,31 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { encodeFunctionData, formatUnits, type Address } from 'viem';
+import { useAccount, useSendTransaction, useSwitchChain, useWriteContract } from 'wagmi';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePreferences } from '@/hooks/usePreferences';
 import { getOwned, addOwned } from '@/lib/inventory';
 import { useAppSession } from '@/hooks/useAppSession';
 import { usePlayerSigner } from '@/hooks/usePlayerSigner';
-import { showAuthPrompt } from '@/hooks/useAuthPrompt';
-import { buildPurchaseIntentMessage } from '@/lib/purchaseIntent';
-import { marketplaceTotalChips } from '@/lib/marketplacePrices';
+import { useCdpUserOp } from '@/hooks/useCdpUserOp';
+import { showTxPrompt, updateAuthPromptStatus } from '@/hooks/useAuthPrompt';
+import { useWalletAssets } from '@/hooks/useWalletAssets';
+import { CHIPS_ERC20_ABI, chipsAddress } from '@/lib/chips';
+import { DEFAULT_CHAIN_ID } from '@/lib/chains';
+import {
+    DEFAULT_CHIPS_ADDRESS,
+    MARKET_CURRENCIES,
+    formatCustomCurrencyAmount,
+    formatMarketAmount,
+    marketplaceTotalChips,
+    marketCurrencyAmountWei,
+    marketCurrencyDecimals,
+    marketCurrencyDisplayValue,
+    treasuryWalletAddress,
+    usdcAddress,
+    type MarketCurrency,
+} from '@/lib/marketplacePrices';
 import { getShowcased, setShowcased } from '@/lib/showcase';
 import { useGuestWall } from '@/hooks/GuestWallContext';
 import { GamePanelShell } from './GamePanelShell';
@@ -30,6 +47,7 @@ interface MarketActivity {
     from: string;
     to: string;
     price?: number;
+    currency?: MarketCurrency;
     duration?: string;
     date: string;
 }
@@ -72,19 +90,26 @@ interface MarketItem {
     previewIcon?: React.ReactNode;
 }
 
-// ─── Token Icon ───────────────────────────────────────────────────────────
-const CHIPS_E18 = BigInt(10) ** BigInt(18);
+// ─── Token Icon & Multi-Currency Formatters ─────────────────────────────────
+function formatBalanceShort(rawWei: bigint, currency: MarketCurrency): string {
+    const decimals = marketCurrencyDecimals(currency);
+    const num = Number(formatUnits(rawWei, decimals));
+    if (!Number.isFinite(num) || num <= 0) return '0';
+    if (currency === 'CHIPS') return Math.floor(num).toLocaleString();
+    if (currency === 'USDC') return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return num.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 5 });
+}
 
-/** Escrow balances move in base units (numeric); the panel gates in whole CHIPS. */
-function chipsBaseToWhole(v: unknown): number {
-    try {
-        const s = String(v ?? '0').split('.')[0].trim();
-        if (!/^[-+]?\d+$/.test(s)) return 0;
-        const whole = BigInt(s) / CHIPS_E18;
-        return whole <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(whole) : Number.MAX_SAFE_INTEGER;
-    } catch {
-        return 0;
-    }
+function formatCurrencyCompact(wholeChips: number, currency: MarketCurrency): string {
+    if (currency === 'CHIPS') return `${formatCompact(wholeChips)} CHIPS`;
+    return formatMarketAmount(wholeChips, currency);
+}
+
+function sanitizeDecimalInput(raw: string): string {
+    const cleaned = raw.replace(/[^0-9.]/g, '');
+    const parts = cleaned.split('.');
+    if (parts.length <= 1) return cleaned;
+    return `${parts[0]}.${parts.slice(1).join('').slice(0, 6)}`;
 }
 
 const TokenIcon = () => (
@@ -164,7 +189,7 @@ const ThemeSwatch = ({ mode = 'retro', light: propLight, size = 52 }: { mode?: '
         >
             <div className="grid grid-cols-5 w-full h-full" style={{ gap: 1.5, padding: 5 }}>
                 {cells.map((c, i) => (
-                    <div key={i} className="rounded-[2px]" style={{ background: c }} />
+                    <div key={i} className="rounded-xs" style={{ background: c }} />
                 ))}
             </div>
             <div
@@ -251,7 +276,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             stats: [{ label: 'Mode', value: 'HUD' }, { label: 'Applies', value: 'Instant' }],
             traits: [{ trait_type: 'Style', value: 'Cyber-Tactical', rarity_percent: 100 }],
             activity: [{ event: 'Created', from: 'Protocol 3077', to: 'Arena', date: 'Genesis' }],
-            chainInfo: { address: '0x307...777', standard: 'SBT', network: 'Base' },
+            chainInfo: { address: '0x307...777', standard: 'SBT', network: 'Base Sepolia' },
             previewColor: 'bg-[#07080b]',
         },
         {
@@ -264,7 +289,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             stats: [{ label: 'Mode', value: 'Dark' }, { label: 'Applies', value: 'Instant' }],
             traits: [{ trait_type: 'Style', value: 'Terminal', rarity_percent: 100 }],
             activity: [{ event: 'Created', from: 'System', to: 'Player', date: 'Genesis' }],
-            chainInfo: { address: '0x000...000', standard: 'SBT', network: 'Base' },
+            chainInfo: { address: '0x000...000', standard: 'SBT', network: 'Base Sepolia' },
             previewColor: 'bg-[#0a0b14]',
         },
         {
@@ -277,7 +302,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             stats: [{ label: 'Mode', value: 'Light' }, { label: 'Applies', value: 'Instant' }],
             traits: [{ trait_type: 'Style', value: 'Daybreak', rarity_percent: 35 }],
             activity: [{ event: 'Created', from: 'System', to: 'Market', date: 'Genesis' }],
-            chainInfo: { address: '0x111...222', standard: 'ERC-1155', network: 'Base' },
+            chainInfo: { address: '0x111...222', standard: 'ERC-1155', network: 'Base Sepolia' },
             previewColor: 'bg-[#e8e6f0]',
         },
         // ─── Dices (equip = real dice skin in matches) ───
@@ -291,7 +316,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             stats: [{ label: 'Reliability', value: 'Tier 1' }, { label: 'Applies', value: 'Instant' }],
             traits: [{ trait_type: 'Finish', value: 'Ivory', rarity_percent: 100 }],
             activity: [{ event: 'Created', from: 'System', to: 'Player', date: 'Genesis' }],
-            chainInfo: { address: '0x000...000', standard: 'SBT', network: 'Base' },
+            chainInfo: { address: '0x000...000', standard: 'SBT', network: 'Base Sepolia' },
             previewColor: 'bg-surface-recessed', previewIcon: <DicePreview face="#ffffff" pip="#0F172A" />,
         },
         {
@@ -304,7 +329,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             stats: [{ label: 'Glow', value: 'Neon' }, { label: 'Applies', value: 'Instant' }],
             traits: [{ trait_type: 'Finish', value: 'Void', rarity_percent: 25 }],
             activity: [{ event: 'Created', from: 'System', to: 'Market', date: 'Genesis' }],
-            chainInfo: { address: '0x333...444', standard: 'ERC-1155', network: 'Base' },
+            chainInfo: { address: '0x333...444', standard: 'ERC-1155', network: 'Base Sepolia' },
             previewColor: 'bg-[#0b1220]', previewIcon: <DicePreview face="#0b1220" pip="#22d3ee" />,
         },
         {
@@ -317,7 +342,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             stats: [{ label: 'Prestige', value: '99' }, { label: 'Applies', value: 'Instant' }],
             traits: [{ trait_type: 'Material', value: '24k Gold', rarity_percent: 3 }],
             activity: [{ event: 'Created', from: 'System', to: 'Market', date: 'Genesis' }],
-            chainInfo: { address: '0x555...666', standard: 'ERC-721', network: 'Base' },
+            chainInfo: { address: '0x555...666', standard: 'ERC-721', network: 'Base Sepolia' },
             previewColor: 'bg-[#451a03]', previewIcon: <DicePreview face="#451a03" pip="#fcd34a" />,
         },
         // ─── Tokens (equip = real pawn style in matches) ───
@@ -331,7 +356,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             stats: [{ label: 'Style', value: 'Ranked' }, { label: 'Applies', value: 'Instant' }],
             traits: [{ trait_type: 'Set', value: 'Full Chess', rarity_percent: 100 }],
             activity: [{ event: 'Created', from: 'System', to: 'Player', date: 'Genesis' }],
-            chainInfo: { address: '0x000...000', standard: 'SBT', network: 'Base' },
+            chainInfo: { address: '0x000...000', standard: 'SBT', network: 'Base Sepolia' },
             previewColor: 'bg-surface-recessed',
             previewIcon: <img loading="lazy" decoding="async" src="/tokens/king.png" alt="Chess" width={44} height={44} style={{ width: 44, height: 44, objectFit: 'contain' }} />,
         },
@@ -345,7 +370,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             stats: [{ label: 'Finish', value: 'Gloss' }, { label: 'Applies', value: 'Instant' }],
             traits: [{ trait_type: 'Core', value: 'Arcane', rarity_percent: 25 }],
             activity: [{ event: 'Created', from: 'System', to: 'Market', date: 'Genesis' }],
-            chainInfo: { address: '0x777...888', standard: 'ERC-1155', network: 'Base' },
+            chainInfo: { address: '0x777...888', standard: 'ERC-1155', network: 'Base Sepolia' },
             previewColor: 'bg-surface-recessed', previewIcon: <OrbPreview size={44} />,
         },
         // ─── Items (collectibles: own + showcase, no equip) ───
@@ -364,7 +389,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 { event: 'Sale', from: '0x441...111', to: '0x222...333', price: 175, date: '6h ago' },
                 { event: 'Created', from: 'System', to: '0x441...111', date: '1w ago' },
             ],
-            chainInfo: { address: '0x123...456', standard: 'ERC-1155', network: 'Base' },
+            chainInfo: { address: '0x123...456', standard: 'ERC-1155', network: 'Base Sepolia' },
             previewColor: 'bg-accent/25',
         },
         {
@@ -382,7 +407,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 { event: 'Transfer', from: '0x888...999', to: '0x222...333', date: '12h ago' },
                 { event: 'Sale', from: '0x555...666', to: '0x888...999', price: 290, date: '1d ago' },
             ],
-            chainInfo: { address: '0x987...654', standard: 'ERC-1155', network: 'Base' },
+            chainInfo: { address: '0x987...654', standard: 'ERC-1155', network: 'Base Sepolia' },
             previewColor: 'bg-orange-600/80',
         },
         {
@@ -400,21 +425,23 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 { event: 'Sale', from: '0xaaa...bbb', to: '0xccc...ddd', price: 1950, date: '3d ago' },
                 { event: 'Created', from: 'System', to: '0xaaa...bbb', date: '1mo ago' },
             ],
-            chainInfo: { address: '0xabc...def', standard: 'ERC-1155', network: 'Base' },
+            chainInfo: { address: '0xabc...def', standard: 'ERC-1155', network: 'Base Sepolia' },
             previewColor: 'bg-[#050608]',
         },
-        { id: 's4', type: 'items', kind: 'item', name: 'Neon-X', description: 'Electric skin.', lore: 'Pulsing neon.', price: 100, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 80, volume: 2000, owners: 4100 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-sky-600/70' },
-        { id: 's5', type: 'items', kind: 'item', name: 'Cyber-V', description: 'Matrix skin.', lore: 'The digital frontier.', price: 240, owned: false, rarity: 'rare', collection: 'Core', creator: 'G', collectionStats: { floor: 200, volume: 1800, owners: 1900 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-accent/40' },
-        { id: 's6', type: 'items', kind: 'item', name: 'Steel-Z', description: 'Metal skin.', lore: 'Cold steel.', price: 60, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 45, volume: 900, owners: 5200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'B' }, previewColor: 'bg-slate-600/70' },
+        { id: 's4', type: 'items', kind: 'item', name: 'Neon-X', description: 'Electric skin.', lore: 'Pulsing neon.', price: 100, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 80, volume: 2000, owners: 4100 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'Base Sepolia' }, previewColor: 'bg-sky-600/70' },
+        { id: 's5', type: 'items', kind: 'item', name: 'Cyber-V', description: 'Matrix skin.', lore: 'The digital frontier.', price: 240, owned: false, rarity: 'rare', collection: 'Core', creator: 'G', collectionStats: { floor: 200, volume: 1800, owners: 1900 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'Base Sepolia' }, previewColor: 'bg-accent/40' },
+        { id: 's6', type: 'items', kind: 'item', name: 'Steel-Z', description: 'Metal skin.', lore: 'Cold steel.', price: 60, owned: false, rarity: 'common', collection: 'Core', creator: 'G', collectionStats: { floor: 45, volume: 900, owners: 5200 }, stats: [], traits: [], activity: [], chainInfo: { address: '0x1', standard: 'ERC', network: 'Base Sepolia' }, previewColor: 'bg-slate-600/70' },
     ]);
 
     // ─── Mode + navigation state ───
     const [mode, setMode] = useState<Mode>('market');
     const [activeTab, setActiveTab] = useState<MarketTab>('themes');
+    const [currency, setCurrency] = useState<MarketCurrency>('CHIPS');
     const [selectedItem, setSelectedItem] = useState<MarketItem | null>(null);
     const [confirmItem, setConfirmItem] = useState<MarketItem | null>(null);
     const [isSelling, setIsSelling] = useState(false);
     const [sellPrice, setSellPrice] = useState('');
+    const [sellCurrency, setSellCurrency] = useState<MarketCurrency>('CHIPS');
     const [listingDuration, setListingDuration] = useState<'7d' | '30d' | 'indefinite'>('7d');
 
     // ─── Toolbar state ───
@@ -429,6 +456,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
     const [isProcessing, setIsProcessing] = useState(false);
     const [transactionResult, setTransactionResult] = useState<'success' | 'error' | null>(null);
     const [successNote, setSuccessNote] = useState('');
+    const [errorNote, setErrorNote] = useState('');
     const [ownedIds, setOwnedIds] = useState<string[]>(() => getOwned(null));
     const [showcasedId, setShowcasedId] = useState<string | null>(null);
 
@@ -455,39 +483,39 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         }
     }, [activeTab]);
 
-    // ─── Real inventory + escrowed CHIPS ───
+    // ─── Real inventory + Base Sepolia wallet balances ───
     const { address } = useCurrentUser();
     // Guests may browse + showcase, but buying hits the wall.
     const { guard } = useGuestWall();
     const { ensureAppSession } = useAppSession();
     const player = usePlayerSigner();
+    const { chainId } = useAccount();
+    const { switchChainAsync } = useSwitchChain();
+    const { writeContractAsync } = useWriteContract();
+    const { sendTransactionAsync } = useSendTransaction();
+    const cdpUserOp = useCdpUserOp(DEFAULT_CHAIN_ID);
+    const walletAssets = useWalletAssets();
     const { preferences, updatePreference } = usePreferences();
     const wallet = address?.toLowerCase() ?? null;
-    // Spendable balance is escrowed CHIPS (whole), not frozen coins.
-    // Starts at 0 so every buy gate stays closed until it resolves.
-    const [balance, setBalance] = useState(0);
+
+    const activeBalanceWei =
+        (currency === 'CHIPS' ? walletAssets.chips : currency === 'USDC' ? walletAssets.usdc : walletAssets.eth) ?? BigInt(0);
+    const hasEnoughFor = (wholeChips: number) =>
+        activeBalanceWei >= marketCurrencyAmountWei(wholeChips, currency);
+    const shortfallText = (wholeChips: number) => {
+        const required = marketCurrencyAmountWei(wholeChips, currency);
+        if (activeBalanceWei >= required) return `0 ${currency}`;
+        const diff = required - activeBalanceWei;
+        const decimals = marketCurrencyDecimals(currency);
+        const val = Number(formatUnits(diff, decimals));
+        return formatCustomCurrencyAmount(val, currency);
+    };
+
     useEffect(() => {
-        if (!isOpen || !wallet) {
-            setBalance(0);
-            return;
+        if (isOpen && wallet) {
+            void walletAssets.refresh();
         }
-        let cancelled = false;
-        void (async () => {
-            try {
-                const sessionId = await ensureAppSession();
-                if (!sessionId || cancelled) return;
-                const res = await fetch(
-                    `/api/chips/escrow-balance?walletAddress=${wallet}&sessionId=${sessionId}`,
-                );
-                const data = await res.json().catch(() => null);
-                if (!cancelled && res.ok) setBalance(chipsBaseToWhole(data?.balance));
-            } catch {
-                if (!cancelled) setBalance(0);
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, wallet]);
 
     useEffect(() => {
@@ -520,60 +548,123 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         setConfirmItem(null);
     };
 
-    // ─── Real purchase: signed CHIPS intent, escrow debit, ownership local ───
+    // ─── Real purchase: Base Sepolia CHIPS / USDC / ETH on-chain transfer ───
     // Shared core so grid quick-buy and the inspect sheet use one flow.
-    // One wallet signature per purchase (infrequent, non-repudiable). The
-    // server rebuilds the intent from the shared price table and verifies
-    // before debiting; requestId makes retries idempotent.
-    const sendPurchase = async (ids: string[]) => {
+    // External wallets enforce Base Sepolia chainId 84532; CDP smart accounts
+    // execute via paymaster-sponsored sendCallsAndWait. Server verifies the
+    // confirmed Base Sepolia receipt before unlocking inventory.
+    const sendPurchase = async (ids: string[], payCurrency: MarketCurrency) => {
         const sessionId = await ensureAppSession({ context: 'marketplace' });
         if (!sessionId || !wallet) throw new Error('Sign-in required');
         const total = marketplaceTotalChips(ids);
         if (total === null) throw new Error('Unknown item');
+        const amountWei = marketCurrencyAmountWei(total, payCurrency);
+        if (amountWei <= BigInt(0)) throw new Error('Invalid purchase amount');
+
+        const treasury = treasuryWalletAddress();
         const requestId = crypto.randomUUID();
-        const issuedAt = new Date().toISOString();
-        const message = buildPurchaseIntentMessage({ buyer: wallet, itemIds: ids, totalChips: total, requestId, issuedAt });
-        const hidePrompt = showAuthPrompt({
+        const priceLabel = formatMarketAmount(total, payCurrency);
+
+        const hidePrompt = showTxPrompt({
             context: 'marketplace',
-            title: 'AUTHORIZE PURCHASE',
-            badgeText: 'Awaiting Signature',
-            statusText: `Please approve the purchase authorization of ${total} CHIPS in your wallet.`,
-            explanationText: 'Zero gas fee. Cryptographically signs purchase intent.',
+            title: 'COMPLETE PURCHASE',
+            statusText: `Approve sending ${priceLabel} on Base Sepolia.`,
+            explanationText: `Direct Base Sepolia (Chain ${DEFAULT_CHAIN_ID}) payment in ${payCurrency} to the marketplace treasury.`,
         });
-        let signature: `0x${string}`;
+
+        let txHash: `0x${string}`;
         try {
-            signature = await player.signMessageAsync({ account: wallet as `0x${string}`, message });
+            if (player.mode === 'ingame' && cdpUserOp.isInGame) {
+                if (payCurrency === 'ETH') {
+                    txHash = await cdpUserOp.sendCallsAndWait(
+                        [{ to: treasury, value: amountWei, data: '0x' }],
+                        DEFAULT_CHAIN_ID,
+                    );
+                } else {
+                    const tokenAddr: Address =
+                        payCurrency === 'CHIPS'
+                            ? ((chipsAddress() || DEFAULT_CHIPS_ADDRESS) as Address)
+                            : usdcAddress();
+                    const data = encodeFunctionData({
+                        abi: CHIPS_ERC20_ABI,
+                        functionName: 'transfer',
+                        args: [treasury, amountWei],
+                    });
+                    txHash = await cdpUserOp.sendCallsAndWait([{ to: tokenAddr, data }], DEFAULT_CHAIN_ID);
+                }
+            } else {
+                if (chainId && chainId !== DEFAULT_CHAIN_ID) {
+                    await switchChainAsync({ chainId: DEFAULT_CHAIN_ID });
+                }
+                if (payCurrency === 'ETH') {
+                    txHash = await sendTransactionAsync({
+                        account: wallet as `0x${string}`,
+                        to: treasury,
+                        value: amountWei,
+                        chainId: DEFAULT_CHAIN_ID,
+                    });
+                } else {
+                    const tokenAddr: Address =
+                        payCurrency === 'CHIPS'
+                            ? ((chipsAddress() || DEFAULT_CHIPS_ADDRESS) as Address)
+                            : usdcAddress();
+                    txHash = await writeContractAsync({
+                        address: tokenAddr,
+                        abi: CHIPS_ERC20_ABI,
+                        functionName: 'transfer',
+                        args: [treasury, amountWei],
+                        chainId: DEFAULT_CHAIN_ID,
+                    });
+                }
+            }
+            updateAuthPromptStatus('Payment broadcast! Verifying on Base Sepolia...', 'Confirming On-Chain');
         } finally {
             hidePrompt();
         }
+
         const response = await fetch('/api/marketplace/purchase', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ walletAddress: wallet, sessionId, itemIds: ids, requestId, message, signature, issuedAt }),
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                walletAddress: wallet,
+                sessionId,
+                itemIds: ids,
+                requestId,
+                currency: payCurrency,
+                txHash,
+            }),
         });
         const data = await response.json().catch(() => null);
         if (!response?.ok) throw new Error(data?.error || 'Purchase failed');
-        setBalance(chipsBaseToWhole(data?.balance));
+
+        await walletAssets.refresh();
+        window.dispatchEvent(new CustomEvent('ludo-chips-refresh'));
         return data;
     };
 
     const buyItem = async (item: MarketItem) => {
         if (!wallet) return;
         if (!guard('market-buy')) return;
-        if (balance < item.price) return;
+        if (!hasEnoughFor(item.price)) return;
         setIsProcessing(true);
         setTransactionResult(null);
+        setErrorNote('');
 
         try {
-            await sendPurchase([item.id]);
+            await sendPurchase([item.id], currency);
 
             const next = addOwned(wallet, item.id);
             setOwnedIds(next);
 
-            // Purchase deducts escrowed CHIPS server-side — balance refreshed above.
             window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
 
             const newActivity: MarketActivity = {
-                event: 'Sale', from: 'Market', to: 'Player', price: item.price, date: 'Just now',
+                event: 'Sale',
+                from: 'Market',
+                to: 'Player',
+                price: marketCurrencyDisplayValue(item.price, currency),
+                currency,
+                date: 'Just now',
             };
             setMarketData(prev => prev.map(m =>
                 m.id === item.id
@@ -587,6 +678,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         } catch (err) {
             console.error('❌ [Market] Buy failed:', err);
             setIsProcessing(false);
+            setErrorNote(err instanceof Error ? err.message : 'Purchase failed — check your wallet and try again.');
             setTransactionResult('error');
         }
     };
@@ -597,11 +689,12 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
 
     // ─── Complete-the-set: buy every missing piece of the active tab at once ───
     const handleCompleteSet = async (missing: MarketItem[], total: number) => {
-        if (!wallet || missing.length === 0 || balance < total) return;
+        if (!wallet || missing.length === 0 || !hasEnoughFor(total)) return;
         setIsProcessing(true);
         setTransactionResult(null);
+        setErrorNote('');
         try {
-            await sendPurchase(missing.map(item => item.id));
+            await sendPurchase(missing.map(item => item.id), currency);
 
             let next = ownedIds;
             const now = 'Just now';
@@ -611,7 +704,21 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             setOwnedIds(next);
             setMarketData(prev => prev.map(item =>
                 boughtIds.has(item.id)
-                    ? { ...item, owned: true, activity: [{ event: 'Sale', from: 'Market', to: 'Player', price: item.price, date: now }, ...item.activity] }
+                    ? {
+                        ...item,
+                        owned: true,
+                        activity: [
+                            {
+                                event: 'Sale',
+                                from: 'Market',
+                                to: 'Player',
+                                price: marketCurrencyDisplayValue(item.price, currency),
+                                currency,
+                                date: now,
+                            },
+                            ...item.activity,
+                        ],
+                    }
                     : item,
             ));
             setIsProcessing(false);
@@ -620,6 +727,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         } catch (err) {
             console.error('❌ [Market] Complete-set failed:', err);
             setIsProcessing(false);
+            setErrorNote(err instanceof Error ? err.message : 'Complete-set failed — try again.');
             setTransactionResult('error');
         }
     };
@@ -629,6 +737,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         if (!selectedItem || !sellPrice) return;
         setIsProcessing(true);
         setTransactionResult(null);
+        setErrorNote('');
 
         await new Promise(resolve => setTimeout(resolve, 1500));
 
@@ -636,17 +745,21 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         setMarketData(prev => prev.map(item => {
             if (item.id === selectedItem.id) {
                 const newActivity: MarketActivity = {
-                    event: 'List', from: 'Player', to: 'Market', price: priceNum,
+                    event: 'List',
+                    from: 'Player',
+                    to: 'Market',
+                    price: priceNum,
+                    currency: sellCurrency,
                     duration: listingDuration === '7d' ? '7 Days' : listingDuration === '30d' ? '30 Days' : 'Indefinite',
                     date: 'Just now',
                 };
-                return { ...item, price: priceNum, activity: [newActivity, ...item.activity] };
+                return { ...item, activity: [newActivity, ...item.activity] };
             }
             return item;
         }));
 
         setIsProcessing(false);
-        setSuccessNote(`${selectedItem.name} listed for ${priceNum.toLocaleString()} coins.`);
+        setSuccessNote(`${selectedItem.name} listed for ${formatCustomCurrencyAmount(priceNum, sellCurrency)}.`);
         setTransactionResult('success');
     };
 
@@ -658,6 +771,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         setIsProcessing(false);
         setTransactionResult(null);
         setSuccessNote('');
+        setErrorNote('');
     };
 
     // ─── Derived: counts, filtering, sorting, set progress ───
@@ -769,6 +883,8 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
 
     const openSell = (item: MarketItem) => {
         setSelectedItem(item);
+        setSellCurrency(currency);
+        setSellPrice('');
         setIsSelling(true);
     };
 
@@ -783,6 +899,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
     return (
         <GamePanelShell
             scopeClass="ludo-market-scope"
+            bodyScroll={false}
             kicker="// ARMORY & LOADOUT"
             title={(
                 <span className="inline-flex items-center gap-2">
@@ -796,16 +913,16 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 <span className="inline-flex items-center gap-2">
                     <span className="inline-flex items-center gap-1">
                         <TokenIcon />
-                        <span className="font-bold text-accent tracking-wide">BASE NETWORK</span>
+                        <span className="font-bold text-accent tracking-wide">BASE SEPOLIA</span>
                     </span>
                     <span className="w-1 h-1 rounded-full bg-line-strong" />
                     <span
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-recessed border border-line-soft"
-                        title="Escrowed CHIPS available for purchases"
+                        title={`Available ${currency} balance on Base Sepolia`}
                     >
                         <ChipsHexIcon className="w-3 h-3 text-warn shrink-0" active />
                         <span className="font-extrabold text-ink-strong tabular-nums">
-                            {balance.toLocaleString()} CHIPS
+                            {formatBalanceShort(activeBalanceWei, currency)} {currency}
                         </span>
                     </span>
                 </span>
@@ -821,7 +938,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                             <ThinkingOrb state="searching" size={64} tone="accent" label="Updating vault inventory" />
                         </div>
                         <h3 className="text-xl font-extrabold text-ink-strong mb-2 uppercase tracking-tight">Updating your vault</h3>
-                        <p className="text-sm text-ink-muted max-w-[240px]">Writing to your inventory on Base…</p>
+                        <p className="text-sm text-ink-muted max-w-[240px]">Writing to your inventory on Base Sepolia…</p>
                     </div>
                 )}
 
@@ -874,6 +991,26 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                             {t.label}
                                             <span className={`market-chip-count shrink-0 px-1.5 rounded-md text-ludo-xs font-mono ${active ? 'is-active' : ''}`}>{n}</span>
                                         </Chip>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Payment currency toggle: CHIPS / USDC / ETH on Base Sepolia */}
+                        <div className="px-5 pt-2.5 relative z-10 shrink-0 flex items-center justify-between gap-2">
+                            <span className="text-ludo-xs font-extrabold uppercase tracking-widest text-ink-faint">Pay with</span>
+                            <div className="inline-flex items-center gap-1 p-0.5 rounded-xl bg-surface-recessed border border-line-soft">
+                                {MARKET_CURRENCIES.map((cur) => {
+                                    const active = currency === cur;
+                                    return (
+                                        <button
+                                            key={cur}
+                                            type="button"
+                                            onClick={() => setCurrency(cur)}
+                                            className={`px-2.5 py-1 rounded-lg text-ludo-xs font-extrabold uppercase tracking-wider transition-colors ${active ? 'bg-accent text-accent-ink shadow-sm' : 'text-ink-muted hover:text-ink-strong'}`}
+                                        >
+                                            {cur}
+                                        </button>
                                     );
                                 })}
                             </div>
@@ -998,14 +1135,14 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                         const marked = isLoadout && (equipped || showcased);
                                         // Quick action: store is BUY/SELL only, loadout is ACTIVATE/SHOWCASE only.
                                         const quickLabel = !isLoadout
-                                            ? (owned ? 'SELL' : `BUY · ${formatCompact(item.price)}`)
+                                            ? (owned ? 'SELL' : `BUY · ${formatCurrencyCompact(item.price, currency)}`)
                                             : (item.equipValue ? (equipped ? null : 'ACTIVATE') : (showcased ? null : 'SHOWCASE'));
                                         const runQuick = (e: React.MouseEvent) => {
                                             e.stopPropagation();
                                             if (!isLoadout) {
                                                 if (!owned) {
                                                     // Broke? Fall through to inspect where the shortfall is explained.
-                                                    if (wallet && balance >= item.price) buyItem(item);
+                                                    if (wallet && hasEnoughFor(item.price)) buyItem(item);
                                                     else setSelectedItem(item);
                                                 } else openSell(item);
                                             } else if ((item.equipValue && !equipped) || (!item.equipValue && !showcased)) {
@@ -1065,8 +1202,8 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     </h3>
                                                     <div className="flex items-center gap-1 mt-1">
                                                         <ChipsHexIcon className="w-3.5 h-3.5 text-warn shrink-0" active />
-                                                        <span className={`font-extrabold text-ink-strong font-mono tabular-nums ${density === 'comfort' ? 'text-ludo-md' : 'text-ludo-sm'}`}>
-                                                            {item.price.toLocaleString()}
+                                                        <span className={`font-extrabold text-ink-strong font-mono tabular-nums truncate ${density === 'comfort' ? 'text-ludo-md' : 'text-ludo-sm'}`}>
+                                                            {formatCurrencyCompact(item.price, currency)}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -1116,7 +1253,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 {cheapestMissing && (
                                                     <span className="block truncate text-ludo-xs font-bold text-ink-faint">
                                                         next: <span className="text-ink-strong">{cheapestMissing.name}</span>
-                                                        {' · '}<span className="text-warn font-mono">{formatCompact(cheapestMissing.price)}</span>
+                                                        {' · '}<span className="text-warn font-mono">{formatCurrencyCompact(cheapestMissing.price, currency)}</span>
                                                     </span>
                                                 )}
                                             </div>
@@ -1128,24 +1265,24 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                     tone="accent"
                                                 />
                                                 <div className="mt-1.5 text-ludo-xs font-bold text-ink-faint truncate">
-                                                    {missing.length} to go · {formatCompact(missingTotal)} total
+                                                    {missing.length} to go · {formatMarketAmount(missingTotal, currency)} total
                                                 </div>
                                             </div>
                                             <Button
                                                 variant="primary" size="sm"
                                                 onClick={() => handleCompleteSet(missing, missingTotal)}
-                                                disabled={balance < missingTotal}
+                                                disabled={!wallet || !hasEnoughFor(missingTotal)}
                                                 className="shrink-0 min-w-[92px] px-3 flex-col leading-tight shadow-md"
                                             >
-                                                {balance >= missingTotal ? (
+                                                {hasEnoughFor(missingTotal) ? (
                                                     <>
                                                         <span className="text-ludo-sm font-extrabold uppercase tracking-[0.12em]">Complete</span>
-                                                        <span className="text-ludo-xs font-bold font-mono opacity-80">{formatCompact(missingTotal)} CHIPS</span>
+                                                        <span className="text-ludo-xs font-bold font-mono opacity-80">{formatCurrencyCompact(missingTotal, currency)}</span>
                                                     </>
                                                 ) : (
                                                     <>
                                                         <span className="text-ludo-sm font-extrabold uppercase tracking-[0.12em]">Locked</span>
-                                                        <span className="text-ludo-xs font-bold font-mono opacity-80">need {formatCompact(missingTotal - balance)}</span>
+                                                        <span className="text-ludo-xs font-bold font-mono opacity-80">need {shortfallText(missingTotal)}</span>
                                                     </>
                                                 )}
                                             </Button>
@@ -1163,7 +1300,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         const showcased = showcasedId === selectedItem.id;
                         const isLoadout = mode === 'loadout';
                         const sale = lastSale(selectedItem);
-                        const canAfford = balance >= selectedItem.price;
+                        const canAfford = hasEnoughFor(selectedItem.price);
                         const liveTheme = marketData.find(i => i.kind === 'theme' && i.equipValue === preferences.theme);
                         const liveDice = marketData.find(i => i.kind === 'dice' && i.equipValue === preferences.diceStyle);
                         const liveTokens = marketData.find(i => i.kind === 'tokens' && i.equipValue === preferences.tokenStyle);
@@ -1265,23 +1402,52 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
 
                                     {/* Price box */}
                                     <div className="mt-4 rounded-2xl border border-line-soft bg-surface-recessed p-4">
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between gap-2">
                                             <span className="text-ludo-xs text-ink-faint font-extrabold uppercase tracking-widest">{owned ? 'You own this' : 'Price'}</span>
-                                            {sale !== undefined && <span className="text-ludo-xs font-bold text-ink-faint font-mono">last sale {sale.toLocaleString()}</span>}
+                                            <div className="inline-flex items-center gap-1 p-0.5 rounded-lg bg-surface-panel border border-line-soft">
+                                                {MARKET_CURRENCIES.map((cur) => {
+                                                    const active = currency === cur;
+                                                    return (
+                                                        <button
+                                                            key={cur}
+                                                            type="button"
+                                                            onClick={() => setCurrency(cur)}
+                                                            className={`px-2 py-0.5 rounded-md text-ludo-xs font-extrabold uppercase tracking-wider transition-colors ${active ? 'bg-accent text-accent-ink' : 'text-ink-muted hover:text-ink-strong'}`}
+                                                        >
+                                                            {cur}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <ChipsHexIcon className="w-4 h-4 text-warn shrink-0" active />
-                                            <span className="porcelain-hero text-3xl font-extrabold text-ink-strong font-mono tabular-nums">{selectedItem.price.toLocaleString()}</span>
-                                            <span className="text-sm font-bold text-ink-muted">CHIPS</span>
+                                        <div className="flex items-baseline justify-between gap-2 mt-2">
+                                            <div className="flex items-center gap-2">
+                                                <ChipsHexIcon className="w-4 h-4 text-warn shrink-0" active />
+                                                <span className="porcelain-hero text-3xl font-extrabold text-ink-strong font-mono tabular-nums">
+                                                    {formatMarketAmount(selectedItem.price, currency).split(' ')[0]}
+                                                </span>
+                                                <span className="text-sm font-bold text-ink-muted">{currency}</span>
+                                            </div>
+                                            {sale !== undefined && (
+                                                <span className="text-ludo-xs font-bold text-ink-faint font-mono">
+                                                    last sale {sale.toLocaleString()}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="mt-2 flex items-center justify-between text-ludo-xs font-bold text-ink-muted">
+                                            <span>Base Sepolia Balance</span>
+                                            <span className="font-mono text-ink-strong tabular-nums">
+                                                {formatBalanceShort(activeBalanceWei, currency)} {currency}
+                                            </span>
                                         </div>
                                         {!owned && !canAfford && (
                                             <p className="mt-1.5 text-ludo-sm font-bold text-negative">
-                                                You need {(selectedItem.price - balance).toLocaleString()} more CHIPS (escrowed).
+                                                You need {shortfallText(selectedItem.price)} more on Base Sepolia.
                                             </p>
                                         )}
                                         {transactionResult === 'error' && (
                                             <p className="mt-1.5 text-ludo-sm font-bold text-negative">
-                                                Purchase failed — check your connection and try again.
+                                                {errorNote || 'Purchase failed — check your connection and try again.'}
                                             </p>
                                         )}
                                     </div>
@@ -1320,7 +1486,11 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                             <span className="text-ink-strong font-bold">{act.event}</span>
                                                         </div>
                                                         <div className="flex items-center gap-2 font-mono text-ink-muted">
-                                                            {act.price !== undefined && <span className="text-ink-strong font-bold">{act.price.toLocaleString()} coins</span>}
+                                                            {act.price !== undefined && (
+                                                                <span className="text-ink-strong font-bold">
+                                                                    {act.price.toLocaleString(undefined, { maximumFractionDigits: 6 })} {act.currency ?? 'CHIPS'}
+                                                                </span>
+                                                            )}
                                                             <span className="text-ink-faint">{act.date}</span>
                                                         </div>
                                                     </div>
@@ -1334,7 +1504,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                 <div className="px-5 py-4 border-t border-line-soft bg-surface-panel/95 backdrop-blur-md shrink-0">
                                     {!isLoadout ? (
                                         owned ? (
-                                            <Button variant="primary" size="lg" fullWidth onClick={() => setIsSelling(true)} className="uppercase">
+                                            <Button variant="primary" size="lg" fullWidth onClick={() => openSell(selectedItem)} className="uppercase">
                                                 SELL
                                             </Button>
                                         ) : (
@@ -1343,7 +1513,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                 onClick={handleBuy}
                                                 disabled={!canAfford || !wallet}
                                             >
-                                                {!wallet ? 'CONNECT WALLET TO BUY' : `BUY · ${selectedItem.price.toLocaleString()} COINS`}
+                                                {!wallet ? 'CONNECT WALLET TO BUY' : `BUY · ${formatMarketAmount(selectedItem.price, currency)}`}
                                             </Button>
                                         )
                                     ) : selectedItem.equipValue ? (
@@ -1394,21 +1564,39 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                             </div>
 
                             <div className="mb-5">
-                                <label className="text-ludo-xs text-ink-faint font-extrabold uppercase tracking-widest mb-2 block">Set price (coins)</label>
+                                <label className="text-ludo-xs text-ink-faint font-extrabold uppercase tracking-widest mb-2 block">Currency</label>
+                                <div className="flex bg-surface-recessed p-1 rounded-2xl border border-line-soft gap-1">
+                                    {MARKET_CURRENCIES.map(cur => (
+                                        <Chip
+                                            key={cur}
+                                            type="filter"
+                                            size="sm"
+                                            active={sellCurrency === cur}
+                                            onClick={() => setSellCurrency(cur)}
+                                            className="flex-1 justify-center rounded-xl py-2.5 tracking-wider"
+                                        >
+                                            {cur}
+                                        </Chip>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className="mb-5">
+                                <label className="text-ludo-xs text-ink-faint font-extrabold uppercase tracking-widest mb-2 block">Set price ({sellCurrency})</label>
                                 <div className="relative">
                                     <input
                                         type="text"
-                                        inputMode="numeric"
+                                        inputMode="decimal"
                                         autoComplete="off"
                                         autoCorrect="off"
                                         autoCapitalize="none"
                                         spellCheck={false}
                                         placeholder="0"
                                         value={sellPrice}
-                                        onChange={e => setSellPrice(e.target.value.replace(/\D/g, ''))}
-                                        className="w-full bg-surface-recessed border border-line-soft rounded-2xl p-5 pr-20 text-3xl font-mono font-extrabold text-ink-strong focus:outline-none focus:border-accent/60 transition-all placeholder:text-ink-faint"
+                                        onChange={e => setSellPrice(sanitizeDecimalInput(e.target.value))}
+                                        className="w-full bg-surface-recessed border border-line-soft rounded-2xl p-5 pr-24 text-3xl font-mono font-extrabold text-ink-strong focus:outline-none focus:border-accent/60 transition-all placeholder:text-ink-faint"
                                     />
-                                    <div className="absolute right-5 top-1/2 -translate-y-1/2 text-sm font-extrabold text-ink-faint uppercase">coins</div>
+                                    <div className="absolute right-5 top-1/2 -translate-y-1/2 text-sm font-extrabold text-ink-faint uppercase">{sellCurrency}</div>
                                 </div>
                             </div>
 
@@ -1439,7 +1627,9 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs font-extrabold text-ink-strong uppercase tracking-wider">You receive</span>
                                     <span className="text-2xl font-extrabold font-mono text-positive">
-                                        {sellPrice && Number(sellPrice) > 0 ? (Number(sellPrice) * 0.975).toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'} <span className="text-ludo-xs">coins</span>
+                                        {sellPrice && Number(sellPrice) > 0
+                                            ? formatCustomCurrencyAmount(Number(sellPrice) * 0.975, sellCurrency)
+                                            : `0 ${sellCurrency}`}
                                     </span>
                                 </div>
                             </div>
