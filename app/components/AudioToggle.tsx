@@ -1,30 +1,67 @@
-"use client";
+'use client';
 
-import { useEffect } from 'react';
-import { useAudio } from '../hooks/useAudio';
+import { useEffect, useRef } from 'react';
 import { usePreferences } from '@/hooks/usePreferences';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
+import type { MatchConnectionStatus } from '@/lib/matchProtocol';
+
+export interface AudioToggleProps {
+    appState?: 'dashboard' | 'game' | 'spectating';
+    matchConnectionStatus?: MatchConnectionStatus;
+}
 
 /**
- * REA-13: this component existed but was never rendered anywhere — dead code
- * that happened to hold the only ambient-audio driver, so the "Game Music"
- * preference in Settings did nothing. It is now a headless driver mounted once
- * by `app/page.tsx` (see AudioDriver below), so the preference and the audio
- * it controls finally move together.
+ * Headless root audio driver mounted once by `app/page.tsx`.
+ *
+ * Keeps the singleton procedural `SoundEngine` synchronized with user
+ * preferences (theme, SFX/Music mute + volume sliders, haptics), installs
+ * autoplay gesture unlock + tab visibility auto-pause, updates active app
+ * scene (`dashboard` vs `game`/`spectating`), and reports network link cues.
  */
-export default function AudioToggle() {
-    const { playAmbient, stopAmbient } = useAudio();
+export default function AudioToggle({
+    appState = 'dashboard',
+    matchConnectionStatus,
+}: AudioToggleProps) {
     const { preferences } = usePreferences();
-    const isMuted = !preferences.music;
+    const prevConnRef = useRef<MatchConnectionStatus | undefined>(undefined);
 
     useEffect(() => {
-        const theme = preferences.theme || '3077';
-        if (!isMuted) {
-            playAmbient(theme);
-        } else {
-            stopAmbient();
-        }
-    }, [isMuted, preferences.theme, playAmbient, stopAmbient]);
+        const engine = getSoundEngine();
+        return engine.installLifecycleListeners();
+    }, []);
 
-    // No DOM of its own: the preference row in SettingsPanel is the control.
+    useEffect(() => {
+        getSoundEngine().updatePrefs({
+            theme: preferences.theme,
+            sfx: preferences.sfx,
+            music: preferences.music,
+            sfxVolume: preferences.sfxVolume,
+            musicVolume: preferences.musicVolume,
+            haptics: preferences.haptics,
+        });
+    }, [
+        preferences.theme,
+        preferences.sfx,
+        preferences.music,
+        preferences.sfxVolume,
+        preferences.musicVolume,
+        preferences.haptics,
+    ]);
+
+    useEffect(() => {
+        getSoundEngine().setAppScene(appState);
+    }, [appState]);
+
+    useEffect(() => {
+        const prev = prevConnRef.current;
+        prevConnRef.current = matchConnectionStatus;
+        if (!prev || prev === matchConnectionStatus) return;
+        if (matchConnectionStatus === 'reconnecting') {
+            getSoundEngine().play('net_lost');
+        } else if (prev === 'reconnecting' && matchConnectionStatus === 'connected') {
+            getSoundEngine().play('net_restored');
+        }
+    }, [matchConnectionStatus]);
+
     return null;
 }

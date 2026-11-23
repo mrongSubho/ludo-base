@@ -5,6 +5,7 @@ import { useTokenAllowance } from "@/hooks/useChipsAllowance";
 import { shortHex } from "@/lib/chips";
 import Button from "./Button";
 import { ThinkingOrb } from "./ThinkingOrb";
+import { getSoundEngine } from "@/lib/audio/SoundEngine";
 
 interface RevokeAllowanceSheetProps {
     onBack?: () => void;
@@ -28,11 +29,15 @@ export default function RevokeAllowanceSheet({ onBack }: RevokeAllowanceSheetPro
             setRevokingToken(token);
             const hook = token === "chips" ? chipsState : usdcState;
             await hook.revoke();
+            getSoundEngine().play("allowance_revoked");
             setStatusMsg({ text: `${hook.symbol} allowance revoked to 0.`, type: "ok" });
         } catch (err: unknown) {
             const raw = err instanceof Error ? err.message : String(err);
             if (!raw.includes("rejected") && !raw.includes("cancelled")) {
+                getSoundEngine().play("ui_error");
                 setStatusMsg({ text: raw.slice(0, 120), type: "err" });
+            } else {
+                getSoundEngine().play("tx_rejected");
             }
         } finally {
             setRevokingToken(null);
@@ -49,11 +54,15 @@ export default function RevokeAllowanceSheet({ onBack }: RevokeAllowanceSheetPro
             if (hasUsdcAllowance) {
                 await usdcState.revoke();
             }
+            getSoundEngine().play("allowance_revoked");
             setStatusMsg({ text: "All token allowances revoked to 0.", type: "ok" });
         } catch (err: unknown) {
             const raw = err instanceof Error ? err.message : String(err);
             if (!raw.includes("rejected") && !raw.includes("cancelled")) {
+                getSoundEngine().play("ui_error");
                 setStatusMsg({ text: raw.slice(0, 120), type: "err" });
+            } else {
+                getSoundEngine().play("tx_rejected");
             }
         } finally {
             setRevokingToken(null);

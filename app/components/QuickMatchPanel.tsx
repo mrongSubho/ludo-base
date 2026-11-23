@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useMatchmaking } from '@/hooks/useMatchmaking';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import { TeamUpWrapper } from './TeamUp/TeamUpWrapper';
 import { supabase } from '@/lib/supabase';
 import { getProgression } from '@/lib/progression';
@@ -138,6 +139,25 @@ export const QuickMatchPanel = ({
 
     const [isStalled, setIsStalled] = useState(false);
     const preAuthStartedRef = useRef(false);
+    const matchedSoundFiredRef = useRef(false);
+
+    // Queueing BGM tension stem + Match Found reveal stinger
+    useEffect(() => {
+        if (status === 'searching' || status === 'expanding') {
+            const engine = getSoundEngine();
+            engine.pushQueueing();
+            return () => engine.popQueueing();
+        }
+    }, [status]);
+
+    useEffect(() => {
+        if (status === 'matched' && !matchedSoundFiredRef.current) {
+            matchedSoundFiredRef.current = true;
+            getSoundEngine().play('match_found');
+        } else if (status !== 'matched') {
+            matchedSoundFiredRef.current = false;
+        }
+    }, [status]);
 
     // Auto-reveal expand overlay at 15s; vanish at 28s if ignored.
     useEffect(() => {

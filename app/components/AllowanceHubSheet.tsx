@@ -11,6 +11,7 @@ import {
 import { shortHex } from "@/lib/chips";
 import Button from "./Button";
 import { ThinkingOrb } from "./ThinkingOrb";
+import { getSoundEngine } from "@/lib/audio/SoundEngine";
 
 interface AllowanceHubSheetProps {
     onOpenRevoke?: () => void;
@@ -110,6 +111,7 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
             if (selectedPreset === "custom") {
                 const parsed = Number(customAmount);
                 if (!parsed || parsed <= 0) {
+                    getSoundEngine().play("ui_error");
                     setStatusMsg({ text: `Please enter a valid ${symbol} amount`, type: "err" });
                     return;
                 }
@@ -122,11 +124,15 @@ export default function AllowanceHubSheet({ onOpenRevoke }: AllowanceHubSheetPro
 
             await approve(targetAmount);
             userInteractedRef.current = false;
+            getSoundEngine().play("allowance_approved");
             setStatusMsg({ text: `${symbol} allowance updated successfully!`, type: "ok" });
         } catch (err: unknown) {
             const raw = err instanceof Error ? err.message : String(err);
             if (!raw.includes("rejected") && !raw.includes("cancelled")) {
+                getSoundEngine().play("ui_error");
                 setStatusMsg({ text: raw.slice(0, 120), type: "err" });
+            } else {
+                getSoundEngine().play("tx_rejected");
             }
         }
     };

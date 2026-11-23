@@ -130,6 +130,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useNotifications } from '@/hooks/useNotifications';
 import { prefersReducedMotion } from '@/lib/motion';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 
 const StreamToggle = ({ matchId, roomCode, hostAddress, isHost, small }: {
    matchId?: string;
@@ -311,6 +312,13 @@ export default function Page() {
   // DM unread badge reads the same GameData store the panel writes, so it
   // cleans the instant a thread opens (no second source of truth).
   const { totalUnreadCount } = useGameData();
+  const prevUnreadRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (prevUnreadRef.current !== null && totalUnreadCount > prevUnreadRef.current) {
+      getSoundEngine().play('dm_received');
+    }
+    prevUnreadRef.current = totalUnreadCount;
+  }, [totalUnreadCount]);
   const { notifCount } = useNotifications();
   const { gameState, broadcastAction, broadcastLobbyAction, updateGameState, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot, connectRoom, roomAuthority } = useTeamUp();
 
@@ -352,6 +360,7 @@ export default function Page() {
   useEffect(() => {
     if (level > prevLevelRef.current) {
       prevLevelRef.current = level;
+      getSoundEngine().play('level_up');
 
       // Reduced motion: no level-up particles (CSS_LAYOUT_ANIMATION_PLAN §3.4).
       if (prefersReducedMotion()) return;
@@ -780,7 +789,7 @@ export default function Page() {
       {/* REA-13: the ambient-audio driver. Mounted once at the app root, next to
           the presence manager (same "app-wide, no DOM" role), so the Game Music
           preference finally plays something. */}
-      <AudioDriver />
+      <AudioDriver appState={appState} matchConnectionStatus={matchConnectionStatus} />
 
       <div className={`fixed inset-0 cosmic-core-bg pointer-events-none z-[-2]${appState !== 'dashboard' ? ' orbs-calm' : ''}`}>
         {/* Subdued orbs to prevent washout while keeping depth */}

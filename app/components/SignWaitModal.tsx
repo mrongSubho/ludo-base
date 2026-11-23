@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ThinkingOrb } from './ThinkingOrb';
 import { HudCornerTicks } from './HudPrimitives';
 import Button from './Button';
 import type { PromptMode } from '@/hooks/useAuthPrompt';
 import type { PreflightTelemetry } from '@/lib/txSimulator';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 
 export interface SignWaitModalProps {
     isOpen: boolean;
@@ -32,13 +33,46 @@ export const SignWaitModal: React.FC<SignWaitModalProps> = ({
     telemetry,
     onCancel,
 }) => {
-    if (!isOpen) return null;
-
     const isTx = mode === 'transaction';
     const isConfirming = badgeText.toLowerCase().includes('confirming') || badgeText.toLowerCase().includes('mining');
     const isReverted = telemetry?.status === 'reverted';
     const isSimulating = telemetry?.status === 'simulating';
     const isPassed = telemetry?.status === 'passed';
+
+    const prevOpenRef = useRef(false);
+    const prevTelRef = useRef<string | undefined>(undefined);
+    const prevConfirmingRef = useRef(false);
+
+    useEffect(() => {
+        if (isOpen && !prevOpenRef.current) {
+            getSoundEngine().play(isTx ? 'tx_gas_open' : 'tx_sign_open');
+        }
+        prevOpenRef.current = isOpen;
+        if (!isOpen) {
+            prevTelRef.current = undefined;
+            prevConfirmingRef.current = false;
+        }
+    }, [isOpen, isTx]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const st = telemetry?.status;
+        if (st && st !== prevTelRef.current) {
+            if (st === 'reverted') getSoundEngine().play('tx_preflight_warning');
+            else if (st === 'passed') getSoundEngine().play('tx_preflight_pass');
+        }
+        prevTelRef.current = st;
+    }, [isOpen, telemetry?.status]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        if (isConfirming && !prevConfirmingRef.current) {
+            getSoundEngine().play('tx_submitted');
+        }
+        prevConfirmingRef.current = isConfirming;
+    }, [isOpen, isConfirming]);
+
+    if (!isOpen) return null;
 
     return (
         <div

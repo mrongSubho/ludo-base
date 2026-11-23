@@ -19,6 +19,7 @@ import { resolvePlayerIdentity } from "@/lib/playerIdentity";
 import Button from "./Button";
 import { useSecurityPrefs } from "@/hooks/useSecurityPrefs";
 import { useWalletMode } from "@/hooks/useWalletMode";
+import { getSoundEngine } from "@/lib/audio/SoundEngine";
 
 /** Reset on every full navigation / refresh — one unlock per boot. */
 let unlockedThisLoad = false;
@@ -101,6 +102,7 @@ export default function BootLock() {
 
     const fail = useCallback(
         (e: unknown) => {
+            getSoundEngine().play("biometric_lock");
             const next = attempts + 1;
             setAttempts(next);
             if (next >= MAX_ATTEMPTS) {
@@ -161,6 +163,7 @@ export default function BootLock() {
             }
 
             unlockedThisLoad = true;
+            getSoundEngine().play("biometric_unlock");
             setUnlocked(true);
         } catch (e) {
             fail(e);

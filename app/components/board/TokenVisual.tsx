@@ -6,6 +6,7 @@ import { gsap } from 'gsap';
 import { PlayerColor } from '@/lib/types';
 import { Point, getBoardCoordinate, ColorCorner, CORNER_SLOTS } from '@/lib/boardLayout';
 import { prefersReducedMotion } from '@/lib/motion';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import { ChessRank, ChessPiece, COLOR_PIECE, RANK_ORDER, shade } from '../ChessTokens';
 
 function alphaHex(hex: string, a: number): string {
@@ -334,6 +335,7 @@ const RunHomeGhost = ({ color, fromPos, cc, counterRotationDeg, onDone }: {
         }
 
         const tl = gsap.timeline({ onComplete: () => doneRef.current() });
+        getSoundEngine().play('run_home_sprint');
         for (let i = 0; i < m; i++) {
             const t0 = i * step;
             tl.to(travelRef.current, { xPercent: xP[i + 1], yPercent: yP[i + 1], duration: step, ease: 'none' }, t0);

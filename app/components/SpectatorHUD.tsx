@@ -26,6 +26,7 @@ import {
     type SpectatorPoolSummary,
 } from '@/lib/spectatorBettingMath';
 import { useToast } from './Toast';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 
 // ─────────────────────────────────────────────────────────────
 // SpectatorHUD — Solid, height-adjustable Watch & Bet overlay
@@ -250,10 +251,13 @@ export const SpectatorHUD = ({
 
                 fresh.push({ id: b.id, status: b.status, text });
                 if (b.status === 'won') {
+                    getSoundEngine().play('bet_win');
                     toast(text, 'success');
                     if (typeof window !== 'undefined') {
                         window.dispatchEvent(new CustomEvent('ludo-arena-vault-updated'));
                     }
+                } else if (b.status === 'lost') {
+                    getSoundEngine().play('bet_loss');
                 }
 
                 setTimeout(() => {
@@ -404,6 +408,29 @@ export const SpectatorHUD = ({
         timeLeft > 0,
     );
 
+    const prevWinOpenRef = useRef<boolean | null>(null);
+    const lastWinTickSecRef = useRef<number>(-1);
+    useEffect(() => {
+        const prev = prevWinOpenRef.current;
+        prevWinOpenRef.current = windowOpen;
+        if (prev === null) return;
+        if (windowOpen && !prev) {
+            getSoundEngine().play('bet_window_open');
+        } else if (!windowOpen && prev) {
+            getSoundEngine().play('bet_window_closed');
+            lastWinTickSecRef.current = -1;
+        }
+    }, [windowOpen]);
+
+    useEffect(() => {
+        if (!windowOpen) return;
+        const sec = Math.ceil(timeLeft / 1000);
+        if (sec >= 1 && sec <= 3 && sec !== lastWinTickSecRef.current) {
+            lastWinTickSecRef.current = sec;
+            getSoundEngine().play('bet_window_tick');
+        }
+    }, [windowOpen, timeLeft]);
+
     const placeBet = useCallback(async (betValue: string, label: string, betType: BetType = 'winner') => {
         if (!address) {
             toast('Connect wallet to place bets.', 'error');
@@ -460,11 +487,13 @@ export const SpectatorHUD = ({
             const body = await response.json().catch(() => ({}));
 
             if (!response.ok) {
+                getSoundEngine().play('ui_error');
                 toast(body?.error || 'Failed to place bet.', 'error');
                 await fetchBetSummary(sessionId);
                 return;
             }
 
+            getSoundEngine().play('bet_placed');
             setSelectedBetValue(betValue);
             await Promise.all([
                 fetchBetSummary(sessionId),

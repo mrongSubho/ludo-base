@@ -10,6 +10,7 @@ import { shortHex } from "@/lib/chips";
 import Button from "./Button";
 import Chip from "./Chip";
 import { ThinkingOrb } from "./ThinkingOrb";
+import { getSoundEngine } from "@/lib/audio/SoundEngine";
 
 const VAULT_TOPUP_PRESETS = [
     { label: "500", value: 500 },
@@ -53,18 +54,22 @@ export default function ClaimHubSheet({
         try {
             if (vaultMode === "topup") {
                 await vault.topUpVault(amt);
+                getSoundEngine().play("coin_chink");
                 setStatusNote(`Topped up ${amt.toLocaleString()} CHIPS into your Match Vault.`);
             } else if (vaultMode === "withdraw") {
                 if (amt > vault.availableChips) {
+                    getSoundEngine().play("ui_error");
                     setVaultErr(`Max available to withdraw is ${vault.availableChips.toLocaleString()} CHIPS`);
                     return;
                 }
                 await vault.withdrawFromVault(amt);
+                getSoundEngine().play("claim_reward_burst");
                 setStatusNote(`Withdrew ${amt.toLocaleString()} CHIPS to your wallet.`);
             }
             setVaultMode("none");
             await bal.refresh();
         } catch (err) {
+            getSoundEngine().play("ui_error");
             setVaultErr(err instanceof Error ? err.message : "Vault operation failed");
         }
     };
@@ -75,8 +80,10 @@ export default function ClaimHubSheet({
         try {
             await vault.claimVaultClaims();
             await bal.refresh();
+            getSoundEngine().play("claim_reward_burst");
             setStatusNote("Match prizes claimed directly to your wallet!");
         } catch (err) {
+            getSoundEngine().play("ui_error");
             setVaultErr(err instanceof Error ? err.message : "Claim failed");
         }
     };
@@ -86,8 +93,10 @@ export default function ClaimHubSheet({
         setStatusNote(null);
         try {
             await vault.rollPrizeToVault(claimId);
+            getSoundEngine().play("coin_chink");
             setStatusNote(`Moved ${amount.toLocaleString()} CHIPS into your Match Vault (0 gas)!`);
         } catch (err) {
+            getSoundEngine().play("ui_error");
             setVaultErr(err instanceof Error ? err.message : "Move failed");
         }
     };
@@ -100,6 +109,7 @@ export default function ClaimHubSheet({
         setStatusNote(null);
         await claimMany(claimablePoolIds);
         await bal.refresh();
+        getSoundEngine().play("claim_reward_burst");
         setStatusNote("Pool winnings claimed successfully!");
     };
 
@@ -394,7 +404,12 @@ export default function ClaimHubSheet({
                                         <button
                                             type="button"
                                             disabled={clanClaims.isClaimingAll || Boolean(clanClaims.claimingId)}
-                                            onClick={() => void clanClaims.claimSingle(c).catch(() => {})}
+                                            onClick={() =>
+                                                void clanClaims
+                                                    .claimSingle(c)
+                                                    .then(() => getSoundEngine().play("claim_reward_burst"))
+                                                    .catch(() => getSoundEngine().play("ui_error"))
+                                            }
                                             className="px-2.5 py-1.5 rounded-lg bg-positive/15 hover:bg-positive/25 border border-positive/30 text-positive font-mono text-ludo-xs font-bold shrink-0"
                                         >
                                             {isClaimingThis ? "Claiming…" : "Claim"}
@@ -410,7 +425,12 @@ export default function ClaimHubSheet({
                         size="md"
                         fullWidth
                         disabled={!hasClanClaims || clanClaims.isClaimingAll || Boolean(clanClaims.claimingId)}
-                        onClick={() => void clanClaims.claimAll().catch(() => {})}
+                        onClick={() =>
+                            void clanClaims
+                                .claimAll()
+                                .then(() => getSoundEngine().play("claim_reward_burst"))
+                                .catch(() => getSoundEngine().play("ui_error"))
+                        }
                         className="uppercase tracking-widest font-bold label-chrome text-ludo-xs"
                     >
                         {clanClaims.isClaimingAll ? (
@@ -455,7 +475,12 @@ export default function ClaimHubSheet({
                                 size="md"
                                 fullWidth
                                 disabled={!legacy.canClaim || legacy.claiming}
-                                onClick={() => void legacy.claim()}
+                                onClick={() =>
+                                    void legacy
+                                        .claim()
+                                        .then(() => getSoundEngine().play("claim_reward_burst"))
+                                        .catch(() => getSoundEngine().play("ui_error"))
+                                }
                                 className="uppercase tracking-widest font-bold label-chrome text-ludo-xs"
                             >
                                 {legacy.claiming ? "Claiming Legacy…" : `Claim ${legacy.humanAmount}`}

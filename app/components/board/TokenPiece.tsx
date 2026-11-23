@@ -9,6 +9,7 @@ import { Point, getBoardCoordinate, ColorCorner } from '@/lib/boardLayout';
 import { getIntermediatePathCoords, calculateNextPosition } from '@/lib/gameLogic';
 import { BASE_INDEX, BOARD_FINISH_INDEX } from '@/lib/constants';
 import { prefersReducedMotion } from '@/lib/motion';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import { ChessRank, ChessPiece, COLOR_PIECE, RANK_ORDER, shade } from '../ChessTokens';
 import { Token, ShatterFX, RunHomeGhost, colorMapSafe, alphaHex } from './TokenVisual';
 
@@ -75,6 +76,7 @@ export function TokenPiece({
     // Entrance for tokens coming OUT of the base: drop in + squash landing
     const playSpawn = React.useCallback(() => {
         console.log('[move-debug] spawn', color, 'at pos', pos);
+        getSoundEngine().play('token_spawn');
         setShowShockwave(true);
         const shock = setTimeout(() => setShowShockwave(false), 450);
         trackCleanup(() => clearTimeout(shock));
@@ -137,13 +139,13 @@ export function TokenPiece({
 
     // Latest render context, readable from the pos-only effect below without
     // re-triggering it (targetPt is a fresh object every parent render).
-    const ctxRef = React.useRef({ color, colorCorner, targetPt });
-    ctxRef.current = { color, colorCorner, targetPt };
+    const ctxRef = React.useRef({ color, colorCorner, targetPt, boosted });
+    ctxRef.current = { color, colorCorner, targetPt, boosted };
 
     // Layout effect: slot-commit (setVisualPt) and the GSAP offset-set must
     // land in the same paint — useEffect would paint the mismatched frame.
     React.useLayoutEffect(() => {
-        const { color: c, colorCorner: cc, targetPt: tp } = ctxRef.current;
+        const { color: c, colorCorner: cc, targetPt: tp, boosted: isBoosted } = ctxRef.current;
         if (!tp || prevPosRef.current === pos) {
             // First mount of a board token = it just left the base
             if (!mountedRef.current && tp) {
@@ -219,6 +221,7 @@ export function TokenPiece({
                 // is possible; engine state remains the single source of truth.
                 if (prefersReducedMotion()) {
                     gsap.set(glideRef.current, { x: 0, y: 0 });
+                    getSoundEngine().play('token_land');
                     isAnimatingRef.current = false;
                     setIsMoving(false);
                     return;
@@ -243,6 +246,13 @@ export function TokenPiece({
                 setIsMoving(true);
                 for (let i = 0; i < n; i++) {
                     const t0 = i * cellDur;
+                    tl.call(() => {
+                        getSoundEngine().play('token_hop', {
+                            step: i,
+                            totalSteps: n,
+                            boosted: isBoosted,
+                        });
+                    }, undefined, t0 + 0.02);
                     // constant-velocity travel: 0.12s leap with 0.02s grounded cushion
                     tl.to(glide, { x: xs[i + 1], y: ys[i + 1], duration: LEAP, ease: 'none' }, t0 + 0.02);
                     // leap up, then fall (vertical only — no lateral wobble)

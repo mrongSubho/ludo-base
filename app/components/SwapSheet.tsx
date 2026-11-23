@@ -11,6 +11,7 @@ import { useGetSwapPrice, useSwap } from "@coinbase/cdp-hooks";
 import { usePlayerSigner } from "@/hooks/usePlayerSigner";
 import { useMfaStepUp } from "@/hooks/useMfaStepUp";
 import Button from "./Button";
+import { getSoundEngine } from "@/lib/audio/SoundEngine";
 import {
     BASE_SWAP_TOKENS,
     searchSwapTokens,
@@ -121,6 +122,18 @@ export default function SwapSheet() {
     });
     const { swap, status, error } = useSwap();
 
+    const prevStatusRef = useRef(status);
+    useEffect(() => {
+        if (status === "success" && prevStatusRef.current !== "success") {
+            getSoundEngine().play("swap_complete");
+        }
+        prevStatusRef.current = status;
+    }, [status]);
+
+    useEffect(() => {
+        if (error) getSoundEngine().play("ui_error");
+    }, [error]);
+
     const price =
         quote.data && "toAmount" in quote.data ? (quote.data as { toAmount?: string }).toAmount : undefined;
     const issues =
@@ -129,6 +142,7 @@ export default function SwapSheet() {
             : undefined;
 
     const flip = () => {
+        getSoundEngine().play("swap_flip");
         setFromSymbol(toSymbol);
         setToSymbol(fromSymbol);
     };
@@ -231,6 +245,7 @@ export default function SwapSheet() {
                 onClick={async () => {
                     const ok = await mfa.stepUp();
                     if (!ok) return;
+                    getSoundEngine().play("swap_confirm");
                     await swap({
                         network: "base",
                         fromToken: fromMeta.address,

@@ -44,6 +44,9 @@ import { PlayerRow, getDisplayNameHelper } from './PlayerInfoRow';
 
 // Modular Hooks
 import { useBoardLayout } from '@/hooks/useBoardLayout';
+import { useBoardAudio } from '@/hooks/useBoardAudio';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
+import { emoteSoundIdFor } from '@/lib/audio/boardAudioState';
 
 export default function Board({
     showLeaderboard = false,
@@ -110,6 +113,7 @@ export default function Board({
             const parsed = parseEmotePayload((ev as CustomEvent).detail);
             if (!parsed) return;
             setEmoteFloats((f) => [...f.slice(-4), parsed]);
+            getSoundEngine().play(emoteSoundIdFor(parsed.emoteId, parsed.assetUrl));
         };
         window.addEventListener('ludo-emote', onEmote);
         return () => window.removeEventListener('ludo-emote', onEmote);
@@ -120,6 +124,7 @@ export default function Board({
             const parsed = parseChatPayload((ev as CustomEvent).detail);
             if (!parsed) return;
             setChatBubbles((b) => [...b.slice(-3), parsed]);
+            getSoundEngine().play(parsed.audience === 'team' ? 'chat_team' : 'chat_all');
         };
         window.addEventListener('ludo-chat', onChat);
         return () => window.removeEventListener('ludo-chat', onChat);
@@ -249,6 +254,15 @@ export default function Board({
 
     const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
 
+    useBoardAudio({
+        gameState: localGameState,
+        players,
+        myColor: myPlayer?.color,
+        playerCount,
+        colorCorner,
+        spectatorMode,
+    });
+
     // ─── Power inventory: own eyes only (+ targeting) ────────────────────
     // You see your inventory, never opponents'. (Teammate view is a future
     // patch.) Spendable on your own rolling turn; one power per roll.
@@ -300,7 +314,11 @@ export default function Board({
     const spendPower = (type: PowerType) => {
         if (!canSpend || !ownColor) return;
         if (type === 'nuke' || type === 'teleport') {
-            setTargeting(cur => (cur?.type === type ? null : { type }));
+            setTargeting(cur => {
+                const next = cur?.type === type ? null : { type };
+                getSoundEngine().play(next ? 'power_arm_target' : 'power_disarm');
+                return next;
+            });
             return;
         }
         setTargeting(null);

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { forwardRef, ButtonHTMLAttributes, ReactNode } from "react";
+import { getSoundEngine } from "@/lib/audio/SoundEngine";
 
 /**
  * The one button (UI_COMPONENT_AUDIT §4.1).
@@ -66,6 +67,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   brand?: boolean;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
+  sound?: "click" | "select" | "back" | "none";
 }
 
 function Spinner({ className }: { className: string }) {
@@ -97,7 +99,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     brand = false,
     leftIcon,
     rightIcon,
+    sound = "click",
     disabled,
+    onClick,
     className = "",
     children,
     type = "button",
@@ -108,12 +112,21 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   const brandFill =
     brand && variant === "primary" ? "bg-[#0052FF] text-white hover:brightness-95" : VARIANT[variant];
 
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!disabled && !loading && sound !== "none") {
+      const sid = sound === "select" ? "ui_select" : sound === "back" ? "ui_back" : "ui_click";
+      getSoundEngine().play(sid);
+    }
+    onClick?.(e);
+  };
+
   return (
     <button
       ref={ref}
       type={type}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
+      onClick={handleClick}
       className={[
         "inline-flex items-center font-sans select-none",
         "transition-[background-color,color,opacity,transform] duration-[var(--motion-control)] ease-[var(--ease-standard)]",

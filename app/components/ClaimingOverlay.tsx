@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThinkingOrb } from './ThinkingOrb';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 
 interface ClaimingOverlayProps {
     isClaiming: boolean;
@@ -15,6 +16,14 @@ export function ClaimingOverlay({
     title = 'CLAIMING REWARD...',
     subtitle = 'CONFIRM IN WALLET',
 }: ClaimingOverlayProps) {
+    useEffect(() => {
+        if (!isClaiming) return;
+        const engine = getSoundEngine();
+        engine.play('claim_radar_ping');
+        const iv = setInterval(() => engine.play('claim_radar_ping'), 1800);
+        return () => clearInterval(iv);
+    }, [isClaiming]);
+
     return (
         <AnimatePresence>
             {isClaiming && (

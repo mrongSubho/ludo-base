@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { useSoundEffects } from '../hooks/useSoundEffects';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import { useAppSession } from '@/hooks/useAppSession';
 import { HudCornerTicks } from './HudPrimitives';
 import Button from './Button';
@@ -93,7 +94,7 @@ export const InviteNotification = () => {
         setInvite(newInvite);
         setPhase('card');
         setJoinError(null);
-        playSelectRef.current?.();
+        getSoundEngine().play('invite_received');
         clearLifetimeTimers();
         expiresAtRef.current = Date.now() + INVITE_LIFETIME_S * 1000;
         setSecsLeft(INVITE_LIFETIME_S);
@@ -200,10 +201,12 @@ export const InviteNotification = () => {
 
     const handleAccept = () => {
         if (!invite || phase !== 'card') return;
+        getSoundEngine().play('invite_accept');
         startJoin(invite);
     };
 
     const handleIgnore = () => {
+        getSoundEngine().play('invite_reject');
         dismissAll();
     };
 

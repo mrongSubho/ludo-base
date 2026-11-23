@@ -10,6 +10,7 @@ import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { LobbyState, LobbySlot } from '@/lib/types';
 import { canStartMatch } from '@/lib/gameLogic';
 import { useSoundEffects } from '../hooks/useSoundEffects';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import { GamePanelShell } from './GamePanelShell';
 import { PanelTabs } from './PanelTabs';
 import { Button } from './Button';
@@ -363,7 +364,7 @@ export const TeamUpMatchPanel = ({
     entryFee = 0,
 }: TeamUpMatchPanelProps) => {
     const toast = useToast();
-    const { playSelect, playClick, playDiceLand } = useSoundEffects();
+    const { playSelect, playClick } = useSoundEffects();
     const { address } = useCurrentUser();
     const { roomSecret } = useTeamUpContext();
     const { peekAppSession, ensureAppSession } = useAppSession();
@@ -375,6 +376,31 @@ export const TeamUpMatchPanel = ({
     const joinedCount = lobbyState
         ? lobbyState.slots.filter(s => s.status === 'joined').length
         : 1;
+    const prevRoomRef = useRef<string>(roomCodeValue);
+    const prevJoinedRef = useRef<number>(joinedCount);
+
+    useEffect(() => {
+        if (roomCodeValue && roomCodeValue !== prevRoomRef.current) {
+            getSoundEngine().play('lobby_room_created');
+        }
+        prevRoomRef.current = roomCodeValue;
+    }, [roomCodeValue]);
+
+    useEffect(() => {
+        if (joinedCount > prevJoinedRef.current) {
+            getSoundEngine().play('lobby_player_join');
+        } else if (joinedCount < prevJoinedRef.current) {
+            getSoundEngine().play('lobby_player_leave');
+        }
+        prevJoinedRef.current = joinedCount;
+    }, [joinedCount]);
+
+    useEffect(() => {
+        if (!hunting) return;
+        const engine = getSoundEngine();
+        engine.pushQueueing();
+        return () => engine.popQueueing();
+    }, [hunting]);
     const isSelfHost = hostSlot?.playerId
         ? !!address && hostSlot.playerId.toLowerCase() === address.toLowerCase()
         : true;
@@ -608,9 +634,11 @@ export const TeamUpMatchPanel = ({
             }
         }
         if (!ok) {
+            getSoundEngine().play('ui_error');
             toast('Copy failed — tap the copy button beside the invite link again.', 'error');
             return;
         }
+        getSoundEngine().play('ui_copy');
         setCopiedKey(key);
         setTimeout(() => setCopiedKey(cur => (cur === key ? null : cur)), 1500);
     };
@@ -807,8 +835,14 @@ export const TeamUpMatchPanel = ({
                                             ]}
                                             isSelfHost={!!isSelfHost}
                                             onInviteSlot={(slot) => openInvitePopup(slot)}
-                                            onSwapPlayers={onSwapPlayers}
-                                            onKickPlayer={onKickPlayer}
+                                            onSwapPlayers={onSwapPlayers ? (a, b) => {
+                                                getSoundEngine().play('lobby_seat_swap');
+                                                onSwapPlayers(a, b);
+                                            } : undefined}
+                                            onKickPlayer={onKickPlayer ? (slotIdx) => {
+                                                getSoundEngine().play('lobby_player_kick');
+                                                onKickPlayer(slotIdx);
+                                            } : undefined}
                                             entryFee={fee}
                                             showLowBadges={isHost}
                                         />
@@ -1113,8 +1147,7 @@ export const TeamUpMatchPanel = ({
                                 disabled={!isHost || !isReady}
                                 onClick={() => {
                                     if (isHost && isReady) {
-                                        playDiceLand();
-                                        if (typeof window !== 'undefined' && navigator.vibrate) navigator.vibrate([40, 60, 40]);
+                                        getSoundEngine().play('lobby_countdown_go');
                                         markClosed('Started');
                                         onStartMatch();
                                     }

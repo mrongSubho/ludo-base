@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import type { Hex } from 'viem';
 import {
     LuSwords,
@@ -272,11 +273,23 @@ export function MatchStatsOverlay({
         const md = renderReceiptMarkdown(receipt);
         if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
             void navigator.clipboard.writeText(md).then(() => {
+                getSoundEngine().play('ui_copy');
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
             });
         }
     }, [receipt]);
+
+    useEffect(() => {
+        if (!open || !gameState.winner) return;
+        const engine = getSoundEngine();
+        const timers = [
+            setTimeout(() => engine.play('stats_tick', { step: 0 }), 140),
+            setTimeout(() => engine.play('stats_tick', { step: 1 }), 230),
+            setTimeout(() => engine.play('stats_tick', { step: 2 }), 320),
+        ];
+        return () => timers.forEach(clearTimeout);
+    }, [open, gameState.winner]);
 
     return (
         <AnimatePresence>

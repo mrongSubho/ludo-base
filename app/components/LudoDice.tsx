@@ -118,12 +118,11 @@ export default function LudoDice({
             rotationRef.current = { x: targetX, y: targetY };
         } 
         else if (!isRolling && wasExternalRolling.current) {
-            // Roll just finished
-            playDiceLand();
+            // Roll just finished — landing sound is dispatched once currentValue settles below
             triggerHaptic([30, 50, 30]);
         }
         wasExternalRolling.current = isRolling;
-    }, [isRolling, controls, playDiceRoll, playDiceLand, triggerHaptic]);
+    }, [isRolling, controls, playDiceRoll, triggerHaptic]);
 
     // Handle landing on specific value (snappy spring snap)
     useEffect(() => {
@@ -144,12 +143,15 @@ export default function LudoDice({
 
             if (pendingCritRef.current) {
                 pendingCritRef.current = false;
+                if (currentValue !== 6) {
+                    playDiceLand();
+                }
                 if (currentValue === 6 && !prefersReducedMotion()) {
                     setCritKey((k) => k + 1);
                 }
             }
         }
-    }, [currentValue, isRolling, controls]);
+    }, [currentValue, isRolling, controls, playDiceLand]);
 
     const performRoll = () => {
         if (isRolling || disabled) return;

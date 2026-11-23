@@ -2,6 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
+import { getSoundEngine } from "@/lib/audio/SoundEngine";
 
 /**
  * iOS-style switch — promoted verbatim from SettingsPanel (UI_COMPONENT_AUDIT
@@ -17,13 +18,19 @@ export interface SwitchProps {
   /** Accessible name — the row's label, not the state. */
   label: string;
   disabled?: boolean;
+  sound?: boolean;
 }
 
-export function Switch({ on, onToggle, label, disabled = false }: SwitchProps) {
+export function Switch({ on, onToggle, label, disabled = false, sound = true }: SwitchProps) {
   return (
     <button
       type="button"
-      onClick={onToggle}
+      onClick={() => {
+        if (!disabled && sound) {
+          getSoundEngine().play(on ? "pref_toggle_off" : "pref_toggle_on");
+        }
+        onToggle();
+      }}
       role="switch"
       aria-checked={on}
       aria-label={label}

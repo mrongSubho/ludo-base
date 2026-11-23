@@ -272,7 +272,19 @@ export function useGameEngine({
         playerCount,
         colorCorner,
         activeColorsArr,
-        audio: useMemo(() => ({ playMove, playCapture, playWin, playNuke, playShield, playBoost, playTeleport, playPickup }), [playMove, playCapture, playWin, playNuke, playShield, playBoost, playTeleport, playPickup]),
+        // Board-state audio (hops, captures, wins, powers, turns) is driven
+        // reactively by `useBoardAudio` inside Board.tsx + GSAP hop callbacks
+        // in TokenPiece.tsx so offline, P2P, and MatchRoom DO never double-play.
+        audio: useMemo(() => ({
+            playMove: () => {},
+            playCapture: () => {},
+            playWin: () => {},
+            playNuke: () => {},
+            playShield: () => {},
+            playBoost: () => {},
+            playTeleport: () => {},
+            playPickup: () => {},
+        }), []),
         triggerWinConfetti,
         recordWin,
         autoMoveTimeoutRef,
@@ -540,14 +552,7 @@ export function useGameEngine({
         });
     }, [playerCount, gameMode, pathCells, isBotMatch, botDifficulty, setBoardConfig, initialPlayers]);
 
-    useEffect(() => {
-        if (localGameState.winner) return;
-        const currentPlayerInfo = initialPlayers.find(p => p.color === localGameState.currentPlayer);
-        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.afkStats[localGameState.currentPlayer].isKicked;
-        if (!isCurrentlyBot && localGameState.gamePhase === 'rolling' && !localGameState.afkStats[localGameState.currentPlayer].isAutoPlaying) {
-            playTurn();
-        }
-    }, [localGameState.currentPlayer, localGameState.winner, localGameState.afkStats, playTurn, localGameState.gamePhase, initialPlayers]);
+    // Turn & networked-move audio cues are handled reactively by `useBoardAudio` + `TokenPiece`.
 
     // REA-11: the whole-state write-up used to fire on EVERY localGameState
     // change — including the ~1Hz timer ticks — pushing the entire board into
@@ -600,7 +605,7 @@ export function useGameEngine({
                         : prev.powerTiles,
                 };
             });
-            if (networkGameState.lastAction?.type === 'MOVE_TOKEN') playMove();
+            // Move hop & land audio is handled by TokenPiece + useBoardAudio.
         }
     }, [isLobbyConnected, networkGameState, localGameState.lastUpdate, playMove, initialPlayers, address]);
 

@@ -38,6 +38,7 @@ import { useClanClaims } from "@/hooks/useClanClaims";
 import { shortHex } from "@/lib/chips";
 import { GamePanelShell } from "./GamePanelShell";
 import Button from "./Button";
+import { getSoundEngine } from "@/lib/audio/SoundEngine";
 import Chip from "./Chip";
 import { ThinkingOrb } from "./ThinkingOrb";
 import {
@@ -247,6 +248,7 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
 
     const showErr = (err: unknown, fallback: string) => {
         setActionSuccess(null);
+        getSoundEngine().play("ui_error");
         setActionError(err instanceof Error ? err.message : fallback);
     };
 
@@ -307,8 +309,10 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
             setCreateName("");
             setCreateTag("");
             setCreateBio("");
+            getSoundEngine().play("clan_action");
             await refreshClan();
         } catch (err: unknown) {
+            getSoundEngine().play("ui_error");
             setCreateError(err instanceof Error ? err.message : "Failed to create clan");
         } finally {
             setCreateSubmitting(false);
@@ -321,6 +325,7 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
         setActionSuccess(null);
         try {
             const res = await requestJoin(targetClanId);
+            getSoundEngine().play("clan_action");
             setActionSuccess(res?.message || "Join request processed");
         } catch (err) {
             showErr(err, "Failed to join clan");
@@ -560,7 +565,11 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                         {totalClaimableChips > 0 && (
                             <button
                                 type="button"
-                                onClick={() => void claimAll().catch((e) => showErr(e, "Claim failed"))}
+                                onClick={() =>
+                                    void claimAll()
+                                        .then(() => getSoundEngine().play("claim_reward_burst"))
+                                        .catch((e) => showErr(e, "Claim failed"))
+                                }
                                 disabled={isClaimingAll}
                                 className="px-2.5 py-1 rounded-xl bg-positive/20 hover:bg-positive/30 border border-positive/40 text-positive font-mono text-ludo-xs font-bold flex items-center gap-1.5 transition-all shrink-0"
                             >

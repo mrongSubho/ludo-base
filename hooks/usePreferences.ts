@@ -7,6 +7,8 @@ export interface Preferences {
     theme: string;
     sfx: boolean;
     music: boolean;
+    sfxVolume: number;
+    musicVolume: number;
     haptics: boolean;
     tokenStyle: string;
     diceStyle: string;
@@ -16,10 +18,19 @@ const DEFAULTS: Preferences = {
     theme: '3077',
     sfx: true,
     music: true,
+    sfxVolume: 80,
+    musicVolume: 70,
     haptics: true,
     tokenStyle: 'orb',
     diceStyle: 'classic',
 };
+
+function parseVolume(raw: string | undefined, fallback: number): number {
+    if (raw === undefined || raw === '') return fallback;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(0, Math.min(100, Math.round(n)));
+}
 
 /** Cookie/localStorage invalidation: one event name for every write. */
 const PREF_CHANGE_EVENT = 'ludo-prefs-change';
@@ -73,30 +84,35 @@ function snapshot(): Preferences {
         getVal('ludo-haptic', 'on'),
         getVal('token-style', 'orb'),
         getVal('dice-style', 'classic'),
+        getVal('ludo-sfx-vol', '80'),
+        getVal('ludo-music-vol', '70'),
     ].join('|');
     if (cachedSnapshot && cachedRaw === raw) return cachedSnapshot;
 
     // Legacy 'dark'/'ui' cookies migrate to Retro-Futurism;
     // legacy 'porcelain' cookies migrate to Daybreak.
     // Valid themes: 3077 (flagship cyber-tactical, default) | retro (cosmic dark) | light (daybreak).
-    const themeRaw = raw.split('|')[0] ?? '3077';
+    const parts = raw.split('|');
+    const themeRaw = parts[0] ?? '3077';
     let theme = '3077';
     if (themeRaw === 'retro' || themeRaw === 'dark' || themeRaw === 'ui') theme = 'retro';
     else if (themeRaw === 'light' || themeRaw === 'porcelain') theme = 'light';
-    const sfx = (raw.split('|')[1] ?? 'on') === 'on';
-    const music = (raw.split('|')[2] ?? 'on') === 'on';
-    const haptics = (raw.split('|')[3] ?? 'on') === 'on';
-    // Orb is the default token style for everyone. `raw` is always six joined
-    // values, so `split('|')[4]` is never undefined — the previous `??
+    const sfx = (parts[1] ?? 'on') === 'on';
+    const music = (parts[2] ?? 'on') === 'on';
+    const haptics = (parts[3] ?? 'on') === 'on';
+    // Orb is the default token style for everyone. `raw` is always joined
+    // values, so `parts[4]` is never undefined — the previous `??
     // tokenFallback` was dead code and the guest/wallet branch above it never
     // ran, which is why "selected the default as orb" still rendered pawns.
     // An explicit 'pawn' cookie still wins; only the default moved.
-    const tokenStyle = (raw.split('|')[4] ?? 'orb') === 'pawn' ? 'pawn' : 'orb';
-    const diceRaw = raw.split('|')[5] ?? 'classic';
+    const tokenStyle = (parts[4] ?? 'orb') === 'pawn' ? 'pawn' : 'orb';
+    const diceRaw = parts[5] ?? 'classic';
     const diceStyle = diceRaw === 'midnight' || diceRaw === 'gold' ? diceRaw : 'classic';
+    const sfxVolume = parseVolume(parts[6], DEFAULTS.sfxVolume);
+    const musicVolume = parseVolume(parts[7], DEFAULTS.musicVolume);
 
     cachedRaw = raw;
-    cachedSnapshot = { theme, sfx, music, haptics, tokenStyle, diceStyle };
+    cachedSnapshot = { theme, sfx, music, sfxVolume, musicVolume, haptics, tokenStyle, diceStyle };
     return cachedSnapshot;
 }
 

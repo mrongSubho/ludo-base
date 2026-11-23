@@ -3,6 +3,7 @@
 import React, { useId } from 'react';
 import { motion } from 'framer-motion';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 
 // ─── Shared panel tabs (single source of truth) ─────────────────────────────
 // Every sandwich panel renders its tabs through these two components so the
@@ -45,7 +46,10 @@ export function PanelTabs<T extends string>({
                     <button
                         key={o.value}
                         type="button"
-                        onClick={() => onPick(o.value)}
+                        onClick={() => {
+                            if (o.value !== value) getSoundEngine().play('ui_tab_switch');
+                            onPick(o.value);
+                        }}
                         aria-label={o.ariaLabel}
                         aria-pressed={active}
                         className={`relative z-10 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-xl text-ludo-xs font-bold uppercase tracking-[0.16em] transition-colors ${
@@ -102,7 +106,10 @@ export function PanelChildTabs<T extends string>({
                         type="button"
                         role="tab"
                         aria-selected={active}
-                        onClick={() => onPick(o.value)}
+                        onClick={() => {
+                            if (o.value !== value) getSoundEngine().play('ui_tab_switch');
+                            onPick(o.value);
+                        }}
                         className={`pb-2 text-ludo-sm font-bold uppercase tracking-[0.18em] transition-colors relative rounded-sm ${
                             active ? 'text-ink-strong' : 'text-ink-muted hover:text-ink-strong'
                         }`}

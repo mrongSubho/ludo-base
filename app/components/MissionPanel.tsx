@@ -30,6 +30,7 @@ import { MissionCard } from './MissionCard';
 import { GamePanelShell } from './GamePanelShell';
 import { HudSectionLabel } from './HudPrimitives';
 import { CheckGlyphIcon, ChipsHexIcon, DirectiveTargetIcon } from './icons';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 
 type MissionTab = 'daily' | 'weekly' | 'onboard';
 type NavTab =
@@ -216,6 +217,7 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
             if (isMissionSystemConfigured() || missionClaimAddress()) {
                 const tx = await claimVoucher(missionId);
                 if (tx) {
+                    getSoundEngine().play('mission_complete');
                     window.dispatchEvent(new CustomEvent('ludo-profile-refresh'));
                     window.dispatchEvent(new CustomEvent('ludo-chips-refresh'));
                     await onChain.refresh();
@@ -224,8 +226,10 @@ export default function MissionPanel({ isOpen, onClose, onSwitchTab }: MissionPa
                 }
                 return;
             }
+            getSoundEngine().play('ui_error');
             toast('Mission rewards require the CHIPS contract to be configured.', 'error');
         } catch (err) {
+            getSoundEngine().play('ui_error');
             toast(err instanceof Error && err.message ? err.message : 'Claim failed — try again.', 'error');
         } finally {
             setClaimingId(null);

@@ -26,6 +26,8 @@ import {
     TokenOrbIcon,
 } from './icons';
 import { HudSectionLabel } from './HudPrimitives';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
+import type { AudioTheme } from '@/lib/audio/types';
 import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import { useWalletMode } from '@/hooks/useWalletMode';
 import { useBiometricGate } from '@/hooks/useBiometricGate';
@@ -131,9 +133,9 @@ const SectionLabel = ({ children }: { children: React.ReactNode }) => (
     <HudSectionLabel className="mb-2">{children}</HudSectionLabel>
 );
 
-const PrefRow = ({ icon, tint, label, hint, on, onToggle, last = false }: {
+const PrefRow = ({ icon, tint, label, hint, on, onToggle, sound, last = false }: {
     icon: React.ReactNode; tint: string; label: string; hint: string;
-    on: boolean; onToggle: () => void; last?: boolean;
+    on: boolean; onToggle: () => void; sound?: boolean; last?: boolean;
 }) => (
     <ListRow
         icon={icon}
@@ -141,8 +143,42 @@ const PrefRow = ({ icon, tint, label, hint, on, onToggle, last = false }: {
         label={label}
         hint={hint}
         last={last}
-        trailing={<Switch on={on} onToggle={onToggle} label={label} />}
+        trailing={<Switch on={on} onToggle={onToggle} label={label} sound={sound} />}
     />
+);
+
+const VolumeRow = ({
+    label,
+    value,
+    enabled,
+    onChange,
+}: {
+    label: string;
+    value: number;
+    enabled: boolean;
+    onChange: (next: number) => void;
+}) => (
+    <div className={`px-3.5 py-2.5 bg-surface-recessed/50 flex items-center gap-3 ${enabled ? '' : 'opacity-45'}`}>
+        <label className="flex-1 flex items-center gap-3 cursor-pointer">
+            <span className="text-ludo-xs font-mono font-bold uppercase tracking-wider text-ink-muted w-24 shrink-0">
+                {label}
+            </span>
+            <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={value}
+                disabled={!enabled}
+                aria-label={label}
+                onChange={(e) => onChange(Number(e.target.value))}
+                className="flex-1 h-1.5 rounded-full bg-surface-hover accent-accent cursor-pointer disabled:cursor-not-allowed"
+            />
+            <span className="text-ludo-xs font-mono font-bold text-accent tabular-nums w-9 text-right shrink-0">
+                {enabled ? `${value}%` : 'OFF'}
+            </span>
+        </label>
+    </div>
 );
 
 const LockIcon = () => (
@@ -448,12 +484,43 @@ export function SettingsPanel({
                                 <PrefRow
                                     icon={<SoundIcon />} tint="bg-accent-soft text-accent"
                                     label="Sound Effects" hint="Rolls, captures, UI taps"
-                                    on={preferences.sfx} onToggle={() => updatePreference('ludo-sfx', preferences.sfx ? 'off' : 'on')}
+                                    sound={false}
+                                    on={preferences.sfx}
+                                    onToggle={() => {
+                                        const next = !preferences.sfx;
+                                        if (next) {
+                                            updatePreference('ludo-sfx', 'on');
+                                            getSoundEngine().updatePrefs({ sfx: true });
+                                            getSoundEngine().play('pref_toggle_on', { force: true });
+                                        } else {
+                                            getSoundEngine().play('pref_toggle_off');
+                                            updatePreference('ludo-sfx', 'off');
+                                        }
+                                    }}
+                                />
+                                <VolumeRow
+                                    label="SFX Volume"
+                                    value={preferences.sfxVolume}
+                                    enabled={preferences.sfx}
+                                    onChange={(next) => {
+                                        updatePreference('ludo-sfx-vol', String(next));
+                                        getSoundEngine().updatePrefs({ sfxVolume: next });
+                                        getSoundEngine().play('ui_knob_tick', { tierIndex: Math.round((next / 100) * 9) });
+                                    }}
                                 />
                                 <PrefRow
                                     icon={<MusicIcon />} tint="bg-accent-soft text-accent"
                                     label="Game Music" hint="Lobby and arena ambience"
                                     on={preferences.music} onToggle={() => updatePreference('ludo-music', preferences.music ? 'off' : 'on')}
+                                />
+                                <VolumeRow
+                                    label="Music Volume"
+                                    value={preferences.musicVolume}
+                                    enabled={preferences.music}
+                                    onChange={(next) => {
+                                        updatePreference('ludo-music-vol', String(next));
+                                        getSoundEngine().updatePrefs({ musicVolume: next });
+                                    }}
                                 />
                                 <PrefRow
                                     icon={<HapticIcon />} tint="bg-accent-soft text-accent"
@@ -481,7 +548,11 @@ export function SettingsPanel({
                                     <PanelTabs
                                         cols={3}
                                         value={preferences.theme}
-                                        onPick={(v) => updatePreference('ludo-theme', v)}
+                                        onPick={(v) => {
+                                            updatePreference('ludo-theme', v);
+                                            getSoundEngine().updatePrefs({ theme: v });
+                                            getSoundEngine().play('pref_theme_swap', { theme: v as AudioTheme });
+                                        }}
                                         options={[
                                             { value: '3077', label: '3077', icon: <Theme3077Icon className="w-4 h-4" /> },
                                             { value: 'retro', label: 'Retro', icon: <ThemeRetroIcon className="w-4 h-4" /> },
@@ -494,7 +565,10 @@ export function SettingsPanel({
                                     <PanelTabs
                                         cols={2}
                                         value={preferences.tokenStyle}
-                                        onPick={(v) => updatePreference('token-style', v)}
+                                        onPick={(v) => {
+                                            updatePreference('token-style', v);
+                                            getSoundEngine().play('pref_cosmetic_swap');
+                                        }}
                                         options={[
                                             { value: 'pawn', label: 'Chess', icon: <TokenChessIcon className="w-4 h-4" /> },
                                             { value: 'orb', label: 'Orbs', icon: <TokenOrbIcon className="w-4 h-4" /> },

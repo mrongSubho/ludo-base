@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useLegacyClaim, useSeasonClaim } from "@/hooks/useMerkleClaim";
 import { shortHex } from "@/lib/chips";
 import { ThinkingOrb } from "./ThinkingOrb";
+import { getSoundEngine } from "@/lib/audio/SoundEngine";
 
 /**
  * Legacy coins → CHIPS and season merkle claims (pull-only).
@@ -11,6 +13,28 @@ import { ThinkingOrb } from "./ThinkingOrb";
 export default function MerkleClaimPanel({ epoch = "1" }: { epoch?: string }) {
     const legacy = useLegacyClaim();
     const season = useSeasonClaim(epoch);
+    const prevLegacyClaimed = useRef(legacy.claimed);
+    const prevSeasonClaimed = useRef(season.claimed);
+
+    useEffect(() => {
+        if (legacy.claimed && !prevLegacyClaimed.current) {
+            getSoundEngine().play("claim_reward_burst");
+        }
+        prevLegacyClaimed.current = legacy.claimed;
+    }, [legacy.claimed]);
+
+    useEffect(() => {
+        if (season.claimed && !prevSeasonClaimed.current) {
+            getSoundEngine().play("claim_reward_burst");
+        }
+        prevSeasonClaimed.current = season.claimed;
+    }, [season.claimed]);
+
+    useEffect(() => {
+        if (legacy.error || season.error) {
+            getSoundEngine().play("ui_error");
+        }
+    }, [legacy.error, season.error]);
 
     return (
         <div className="match-stats-claim ready" style={{ marginTop: 12 }}>

@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Button } from "./Button";
 import { HudCornerTicks } from "./HudPrimitives";
 import { CloseReticleIcon } from "./icons";
+import { getSoundEngine } from "@/lib/audio/SoundEngine";
 
 type Props = {
     scopeClass?: string;
@@ -45,14 +46,27 @@ export function GamePanelShell({
     bodyScroll = true,
 }: Props) {
     const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
+    useEffect(() => {
+        setMounted(true);
+        const engine = getSoundEngine();
+        engine.play("ui_sheet_open");
+        engine.pushModalDuck();
+        return () => {
+            engine.popModalDuck();
+        };
+    }, []);
     if (!mounted) return null;
+
+    const handleClose = () => {
+        getSoundEngine().play("ui_sheet_close");
+        onClose();
+    };
 
     return createPortal(
         <>
             {overlay ? (
                 <div
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="fixed inset-0 z-[1090] bg-surface-page/75 backdrop-blur-sm"
                     aria-hidden="true"
                 />
@@ -118,7 +132,8 @@ export function GamePanelShell({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={onClose}
+                                    sound="none"
+                                    onClick={handleClose}
                                     aria-label="Close panel"
                                     className="panel-close-3077 bg-surface-recessed border border-line-soft shrink-0"
                                 >

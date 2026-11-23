@@ -33,6 +33,7 @@ import { PanelTabs, TabCount } from './PanelTabs';
 import { Button } from './Button';
 import { Chip } from './Chip';
 import { HudCornerTicks, HudProgressGauge, HudSectionLabel } from './HudPrimitives';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import { ThinkingOrb } from './ThinkingOrb';
 import { ArmoryCrateIcon, CheckGlyphIcon, ChipsHexIcon } from './icons';
 
@@ -545,6 +546,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
         if (!confirmItem) return;
         if (confirmItem.equipValue) handleEquip(confirmItem);
         else setShowcasedId(setShowcased(wallet, confirmItem.id));
+        getSoundEngine().play('pref_cosmetic_swap');
         setConfirmItem(null);
     };
 
@@ -673,11 +675,13 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             ));
 
             setIsProcessing(false);
+            getSoundEngine().play('marketplace_purchase');
             setSuccessNote(`${item.name} added to your vault.`);
             setTransactionResult('success');
         } catch (err) {
             console.error('❌ [Market] Buy failed:', err);
             setIsProcessing(false);
+            getSoundEngine().play('ui_error');
             setErrorNote(err instanceof Error ? err.message : 'Purchase failed — check your wallet and try again.');
             setTransactionResult('error');
         }
@@ -722,11 +726,13 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                     : item,
             ));
             setIsProcessing(false);
+            getSoundEngine().play('marketplace_purchase');
             setSuccessNote(`${missing.length} piece${missing.length > 1 ? 's' : ''} added — set complete.`);
             setTransactionResult('success');
         } catch (err) {
             console.error('❌ [Market] Complete-set failed:', err);
             setIsProcessing(false);
+            getSoundEngine().play('ui_error');
             setErrorNote(err instanceof Error ? err.message : 'Complete-set failed — try again.');
             setTransactionResult('error');
         }

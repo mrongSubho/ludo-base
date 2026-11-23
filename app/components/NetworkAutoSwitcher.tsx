@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useAccount, useSwitchChain } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { useWalletMode } from "@/hooks/useWalletMode";
+import { getSoundEngine } from "@/lib/audio/SoundEngine";
 
 /**
  * NetworkAutoSwitcher
@@ -38,6 +39,7 @@ export default function NetworkAutoSwitcher() {
                     {
                         onSuccess: () => {
                             console.log("[NetworkAutoSwitcher] Successfully switched to Base Sepolia (84532).");
+                            getSoundEngine().play("net_chain_switch");
                             lastAttemptedChainRef.current = null;
                         },
                         onError: (err) => {

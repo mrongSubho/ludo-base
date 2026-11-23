@@ -1,53 +1,55 @@
-"use client";
+'use client';
 
 import { useCallback, useEffect } from 'react';
 import { usePreferences } from '@/hooks/usePreferences';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
+import type { SoundId, SoundPlayOptions } from '@/lib/audio/types';
 
 export const useSoundEffects = () => {
     const { preferences } = usePreferences();
 
-    // Preload sounds
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const sounds = [
-                '/sounds/ui-hover.mp3',
-                '/sounds/ui-click.mp3',
-                '/sounds/ui-select.mp3',
-                '/sounds/coin-chink.mp3',
-                '/sounds/dice-roll.mp3',
-                '/sounds/dice-land.mp3',
-            ];
-            sounds.forEach(src => {
-                const audio = new Audio();
-                audio.src = src;
-                audio.preload = 'auto';
-            });
-        }
+        getSoundEngine().updatePrefs({
+            theme: preferences.theme,
+            sfx: preferences.sfx,
+            music: preferences.music,
+            sfxVolume: preferences.sfxVolume,
+            musicVolume: preferences.musicVolume,
+            haptics: preferences.haptics,
+        });
+    }, [
+        preferences.theme,
+        preferences.sfx,
+        preferences.music,
+        preferences.sfxVolume,
+        preferences.musicVolume,
+        preferences.haptics,
+    ]);
+
+    const playSfx = useCallback((id: SoundId, opts?: SoundPlayOptions) => {
+        getSoundEngine().play(id, opts);
     }, []);
 
-    const playSound = useCallback((path: string, volume: number = 0.5) => {
-        if (typeof window !== 'undefined' && preferences.sfx) {
-            // REA-09: `volume` does not survive `cloneNode`, and it was set on
-            // the node that is DISCARDED — so every clip played at 1.0
-            // regardless of the argument. A fresh Audio per call keeps the
-            // shared-element problem fixed AND honours the volume.
-            const audio = new Audio(path);
-            audio.volume = volume;
-            const playPromise = audio.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(() => {
-                    // Fail silently for autoplay restrictions
-                });
-            }
-        }
-    }, [preferences.sfx]);
+    const playHover = useCallback(() => getSoundEngine().play('ui_hover'), []);
+    const playClick = useCallback(() => getSoundEngine().play('ui_click'), []);
+    const playSelect = useCallback(() => getSoundEngine().play('ui_select'), []);
+    const playCoin = useCallback(() => getSoundEngine().play('coin_chink'), []);
+    const playDiceRoll = useCallback(
+        () => getSoundEngine().play('dice_roll', { diceStyle: preferences.diceStyle }),
+        [preferences.diceStyle],
+    );
+    const playDiceLand = useCallback(
+        () => getSoundEngine().play('dice_land', { diceStyle: preferences.diceStyle }),
+        [preferences.diceStyle],
+    );
 
-    const playHover = useCallback(() => playSound('/sounds/ui-hover.mp3', 0.2), [playSound]);
-    const playClick = useCallback(() => playSound('/sounds/ui-click.mp3', 0.5), [playSound]);
-    const playSelect = useCallback(() => playSound('/sounds/ui-select.mp3', 0.6), [playSound]);
-    const playCoin = useCallback(() => playSound('/sounds/coin-chink.mp3', 0.5), [playSound]);
-    const playDiceRoll = useCallback(() => playSound('/sounds/dice-roll.mp3', 0.8), [playSound]);
-    const playDiceLand = useCallback(() => playSound('/sounds/dice-land.mp3', 1.0), [playSound]);
-
-    return { playHover, playClick, playSelect, playCoin, playDiceRoll, playDiceLand };
+    return {
+        playHover,
+        playClick,
+        playSelect,
+        playCoin,
+        playDiceRoll,
+        playDiceLand,
+        playSfx,
+    };
 };

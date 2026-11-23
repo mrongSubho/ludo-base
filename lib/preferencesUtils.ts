@@ -5,7 +5,15 @@
  * Survives page refreshes and is accessible by the server layout
  */
 
-export type PreferenceKey = 'ludo-theme' | 'ludo-sfx' | 'ludo-music' | 'ludo-haptic' | 'token-style' | 'dice-style';
+export type PreferenceKey =
+    | 'ludo-theme'
+    | 'ludo-sfx'
+    | 'ludo-music'
+    | 'ludo-sfx-vol'
+    | 'ludo-music-vol'
+    | 'ludo-haptic'
+    | 'token-style'
+    | 'dice-style';
 
 export function setPreferenceCookie(key: PreferenceKey, value: string) {
     // Set cookie for 1 year

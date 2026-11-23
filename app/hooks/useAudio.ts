@@ -1,355 +1,103 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 'use client';
 
-import { useCallback, useRef, useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { usePreferences } from '@/hooks/usePreferences';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
+import type { SoundId, SoundPlayOptions } from '@/lib/audio/types';
 
 export const useAudio = () => {
     const { preferences } = usePreferences();
-    const audioCtx = useRef<AudioContext | null>(null);
-    const ambientNodes = useRef<{
-        osc1: OscillatorNode;
-        osc2: OscillatorNode;
-        gain: GainNode;
-        filter: BiquadFilterNode;
-        lfo?: OscillatorNode;
-    } | null>(null);
 
     useEffect(() => {
-        return () => {
-            if (ambientNodes.current) {
-                stopAmbient();
-            }
-            if (audioCtx.current) {
-                if (audioCtx.current.state !== 'closed') {
-                    try {
-                        audioCtx.current.close();
-                    } catch (e) {
-                        console.error('Failed to close AudioContext:', e);
-                    }
-                }
-                audioCtx.current = null;
-            }
-        };
+        getSoundEngine().updatePrefs({
+            theme: preferences.theme,
+            sfx: preferences.sfx,
+            music: preferences.music,
+            sfxVolume: preferences.sfxVolume,
+            musicVolume: preferences.musicVolume,
+            haptics: preferences.haptics,
+        });
+    }, [
+        preferences.theme,
+        preferences.sfx,
+        preferences.music,
+        preferences.sfxVolume,
+        preferences.musicVolume,
+        preferences.haptics,
+    ]);
+
+    const playSfx = useCallback((id: SoundId, opts?: SoundPlayOptions) => {
+        getSoundEngine().play(id, opts);
     }, []);
-
-    const initAudio = () => {
-        if (!audioCtx.current) {
-            audioCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-        }
-        if (audioCtx.current.state === 'suspended') {
-            audioCtx.current.resume().catch(e => console.error('Failed to resume AudioContext:', e));
-        }
-        return audioCtx.current;
-    };
-
-    /**
-     * REA-12: every oscillator used to start()/stop() without ever
-     * disconnecting. A stopped oscillator with a live connection stays in the
-     * AudioContext's graph, so a long match accumulated nodes until the
-     * context was unusable. `bind` connects, plays, and tears the whole chain
-     * down when the sound ends.
-     */
-    const bind = useCallback((
-        osc: OscillatorNode,
-        gain: GainNode,
-        dest: AudioNode,
-        startAt: number,
-        stopAt: number,
-        extra: AudioNode[] = [],
-    ) => {
-        osc.connect(gain);
-        gain.connect(dest);
-        for (const n of extra) {
-            try { gain.connect(n); } catch { /* not every graph has a sidechain */ }
-        }
-        osc.onended = () => {
-            try { osc.disconnect(); } catch { /* already torn down */ }
-            try { gain.disconnect(); } catch { /* already torn down */ }
-            for (const n of extra) {
-                try { n.disconnect(); } catch { /* already torn down */ }
-            }
-        };
-        osc.start(startAt);
-        osc.stop(stopAt);
-    }, []);;
 
     const triggerHaptic = useCallback((pattern: number | number[] = 10) => {
-        if (typeof window !== 'undefined' && preferences.haptics && navigator.vibrate) {
-            navigator.vibrate(pattern);
-        }
-    }, [preferences.haptics]);
-
-    const playMove = useCallback(() => {
-        if (!preferences.sfx) return;
-        const ctx = initAudio();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(600, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.05);
-
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
-
-        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.05);
-        
-        triggerHaptic(5); // Ultra-short subtle click
-    }, [preferences.sfx, triggerHaptic]);
-
-    const playCapture = useCallback(() => {
-        if (!preferences.sfx) return;
-        const ctx = initAudio();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(400, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.1);
-
-        gain.gain.setValueAtTime(0.1, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-
-        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.1);
-        
-        triggerHaptic([30, 50, 30]); // Shaky capture feel
-    }, [preferences.sfx, triggerHaptic]);
-
-    const playWin = useCallback(() => {
-        if (!preferences.sfx) return;
-        const ctx = initAudio();
-        const playChime = (freq: number, startTime: number) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(freq, startTime);
-            gain.gain.setValueAtTime(0.1, startTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.4);
-            bind(osc, gain, ctx.destination, startTime, startTime + 0.4);
-        };
-
-        const now = ctx.currentTime;
-        playChime(523.25, now); // C5
-        playChime(659.25, now + 0.1); // E5
-        playChime(783.99, now + 0.2); // G5
-        playChime(1046.50, now + 0.3); // C6
-        
-        triggerHaptic([100, 50, 100, 50, 200]); // Victory fanfare vibration
-    }, [preferences.sfx, triggerHaptic]);
-
-    const stopAmbient = useCallback(() => {
-        if (ambientNodes.current) {
-            try {
-                ambientNodes.current.osc1.stop();
-                ambientNodes.current.osc2.stop();
-                ambientNodes.current.lfo?.stop();
-            } catch (_e) { }
-            ambientNodes.current.gain.disconnect();
-            ambientNodes.current = null;
-        }
+        getSoundEngine().triggerHaptic(pattern);
     }, []);
 
-    const playAmbient = useCallback((theme: string, volume: number = 0.05) => {
-        stopAmbient();
-        if (!preferences.music) return;
+    const playMove = useCallback(() => {
+        getSoundEngine().play('token_land');
+    }, []);
 
-        const ctx = initAudio();
-        if (volume <= 0) return;
+    const playCapture = useCallback(() => {
+        getSoundEngine().play('capture_kick');
+    }, []);
 
-        const gain = ctx.createGain();
-        const filter = ctx.createBiquadFilter();
-        const osc1 = ctx.createOscillator();
-        const osc2 = ctx.createOscillator();
+    const playWin = useCallback(() => {
+        getSoundEngine().play('match_victory');
+    }, []);
 
-        gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 4); // Smoother fade in
+    const stopAmbient = useCallback(() => {
+        getSoundEngine().setMatchMood('silent', 0);
+    }, []);
 
-        let lfo: OscillatorNode | undefined;
-
-        // Theme mapping: 3077 cyber-tactical drone, Retro-Futurism neon pulse, Daybreak soft ethereal
-        const is3077 = theme.includes('3077');
-        const isRetro = theme.includes('retro');
-
-        if (is3077) {
-            // Cyber-Tactical 3077: Deep Resonant Sub-Bass Drone & Precision Sweep
-            osc1.type = 'sawtooth';
-            osc1.frequency.setValueAtTime(55.00, ctx.currentTime); // A1
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(110.00, ctx.currentTime); // A2
-
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(450, ctx.currentTime);
-            filter.Q.setValueAtTime(6, ctx.currentTime);
-
-            lfo = ctx.createOscillator();
-            const lfoGain = ctx.createGain();
-            lfo.frequency.setValueAtTime(0.2, ctx.currentTime);
-            lfoGain.gain.setValueAtTime(250, ctx.currentTime);
-            lfo.connect(lfoGain);
-            lfoGain.connect(filter.frequency);
-            lfo.start();
-        } else if (isRetro) {
-            // Retro-Futurism: Neon Pulse
-            osc1.type = 'sawtooth';
-            osc1.frequency.setValueAtTime(73.42, ctx.currentTime); // D2
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(146.83, ctx.currentTime); // D3
-            
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(600, ctx.currentTime);
-            filter.Q.setValueAtTime(5, ctx.currentTime);
-
-            lfo = ctx.createOscillator();
-            const lfoGain = ctx.createGain();
-            lfo.frequency.setValueAtTime(0.5, ctx.currentTime);
-            lfoGain.gain.setValueAtTime(400, ctx.currentTime);
-            lfo.connect(lfoGain);
-            lfoGain.connect(filter.frequency);
-            lfo.start();
-        } else {
-            // Daybreak: Soft Ethereal
-            osc1.type = 'triangle';
-            osc1.frequency.setValueAtTime(261.63, ctx.currentTime); // C4
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(329.63, ctx.currentTime); // E4
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(1000, ctx.currentTime);
-        }
-
-        osc1.connect(filter);
-        osc2.connect(filter);
-        filter.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc1.start();
-        osc2.start();
-
-        ambientNodes.current = { osc1, osc2, gain, filter, lfo };
-    }, [stopAmbient, preferences.music]);
+    const playAmbient = useCallback((theme: string) => {
+        const engine = getSoundEngine();
+        engine.updatePrefs({ theme });
+        engine.unlock();
+    }, []);
 
     const playTurn = useCallback(() => {
-        if (!preferences.sfx) return;
-        const ctx = initAudio();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.1);
-
-        gain.gain.setValueAtTime(0.05, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-
-        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.2);
-        
-        triggerHaptic(10); // Subtle notification
-    }, [preferences.sfx, triggerHaptic]);
+        getSoundEngine().play('turn_mine');
+    }, []);
 
     const playStrike = useCallback(() => {
-        if (!preferences.sfx) return;
-        const ctx = initAudio();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
+        getSoundEngine().play('afk_strike');
+    }, []);
 
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(150, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.3);
-
-        gain.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-
-        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.3);
-        
-        triggerHaptic(50); // Warning strike
-    }, [preferences.sfx, triggerHaptic]);
-
-    // ─── Power sounds (synthesized, same rig as the core kit) ───
     const playNuke = useCallback(() => {
-        if (!preferences.sfx) return;
-        const ctx = initAudio();
-        // Siren: three alternating wails, then the boom.
-        [0, 0.35, 0.7].forEach((start, i) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'square';
-            const base = i % 2 === 0 ? 600 : 800;
-            osc.frequency.setValueAtTime(base, ctx.currentTime + start);
-            osc.frequency.linearRampToValueAtTime(i % 2 === 0 ? 800 : 600, ctx.currentTime + start + 0.32);
-            gain.gain.setValueAtTime(0.06, ctx.currentTime + start);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + 0.33);
-            bind(osc, gain, ctx.destination, ctx.currentTime + start, ctx.currentTime + start + 0.34);
-        });
-        const boom = ctx.createOscillator();
-        const boomGain = ctx.createGain();
-        boom.type = 'sawtooth';
-        boom.frequency.setValueAtTime(150, ctx.currentTime + 1.05);
-        boom.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + 1.5);
-        boomGain.gain.setValueAtTime(0.18, ctx.currentTime + 1.05);
-        boomGain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 1.5);
-        boom.connect(boomGain);
-        boomGain.connect(ctx.destination);
-        boom.start(ctx.currentTime + 1.05);
-        boom.stop(ctx.currentTime + 1.5);
-        triggerHaptic([80, 60, 120]);
-    }, [preferences.sfx, triggerHaptic]);
+        getSoundEngine().play('power_nuke');
+    }, []);
 
     const playShield = useCallback(() => {
-        if (!preferences.sfx) return;
-        const ctx = initAudio();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        osc.frequency.linearRampToValueAtTime(1320, ctx.currentTime + 0.25);
-        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.3);
-        triggerHaptic(15);
-    }, [preferences.sfx, triggerHaptic]);
+        getSoundEngine().play('power_shield');
+    }, []);
 
     const playBoost = useCallback(() => {
-        if (!preferences.sfx) return;
-        const ctx = initAudio();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(300, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.2);
-        gain.gain.setValueAtTime(0.07, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.22);
-        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.22);
-        triggerHaptic(20);
-    }, [preferences.sfx, triggerHaptic]);
+        getSoundEngine().play('power_boost');
+    }, []);
 
     const playTeleport = useCallback(() => {
-        if (!preferences.sfx) return;
-        const ctx = initAudio();
-        [[880, 0], [440, 0.09], [990, 0.18]].forEach(([freq, start]) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'square';
-            osc.frequency.setValueAtTime(freq, ctx.currentTime + (start as number));
-            gain.gain.setValueAtTime(0.06, ctx.currentTime + (start as number));
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (start as number) + 0.08);
-            bind(osc, gain, ctx.destination, ctx.currentTime + (start as number), ctx.currentTime + (start as number) + 0.09);
-        });
-        triggerHaptic([10, 40, 10]);
-    }, [preferences.sfx, triggerHaptic]);
+        getSoundEngine().play('power_teleport');
+    }, []);
 
     const playPickup = useCallback(() => {
-        if (!preferences.sfx) return;
-        const ctx = initAudio();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(880, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.12);
-        gain.gain.setValueAtTime(0.09, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-        bind(osc, gain, ctx.destination, ctx.currentTime, ctx.currentTime + 0.15);
-        triggerHaptic(10);
-    }, [preferences.sfx, triggerHaptic]);
+        getSoundEngine().play('power_pickup');
+    }, []);
 
-    return { playMove, playCapture, playWin, playAmbient, stopAmbient, playTurn, playStrike, triggerHaptic, playNuke, playShield, playBoost, playTeleport, playPickup };
+    return {
+        playMove,
+        playCapture,
+        playWin,
+        playAmbient,
+        stopAmbient,
+        playTurn,
+        playStrike,
+        triggerHaptic,
+        playNuke,
+        playShield,
+        playBoost,
+        playTeleport,
+        playPickup,
+        playSfx,
+    };
 };

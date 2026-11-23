@@ -18,6 +18,7 @@ import {
 } from '@/lib/entryFeeDial';
 import { onReducedMotionChange, prefersReducedMotion } from '@/lib/motion';
 import { useDeployTheme } from '@/lib/deployTheme';
+import { getSoundEngine } from '@/lib/audio/SoundEngine';
 
 interface EntryFeeKnobProps {
     wager: number;
@@ -36,49 +37,13 @@ const R_TICK_OUT_MAJOR = 90.5;
 const R_LABEL = 104;
 const MAX_CUSTOM_WAGER = ENTRY_FEE_TIERS[ENTRY_FEE_TIERS.length - 1];
 
-let sharedAudioCtx: AudioContext | null = null;
-
 function playDetentClick(tierIndex: number, sfxEnabled: boolean): void {
-    if (!sfxEnabled || typeof window === 'undefined') return;
-    try {
-        const Ctor =
-            window.AudioContext ||
-            (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-        if (!Ctor) return;
-        if (!sharedAudioCtx) sharedAudioCtx = new Ctor();
-        const ctx = sharedAudioCtx;
-        if (ctx.state === 'suspended') {
-            void ctx.resume().catch(() => undefined);
-        }
-
-        const now = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const freq = 420 + tierIndex * 60;
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now);
-        osc.frequency.exponentialRampToValueAtTime(freq * 0.65, now + 0.018);
-
-        gain.gain.setValueAtTime(0.065, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.022);
-    } catch {
-        /* ignore audio failures under browser autoplay policy */
-    }
+    if (!sfxEnabled) return;
+    getSoundEngine().play('ui_knob_tick', { tierIndex });
 }
 
 function triggerDetentHaptic(): void {
-    try {
-        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-            navigator.vibrate(5);
-        }
-    } catch {
-        /* vibration unsupported */
-    }
+    getSoundEngine().triggerHaptic(5);
 }
 
 function polarPoint(radius: number, angleDeg: number): { x: number; y: number } {
