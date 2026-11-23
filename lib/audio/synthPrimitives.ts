@@ -111,6 +111,19 @@ export interface ElectricPianoOpts {
     duration: number;
     gain: number;
     panSpread?: number;
+    panCenter?: number;
+}
+
+export interface BinauralPulseOpts {
+    /** Center musical frequency (Hz) in key with current chord */
+    freq: number;
+    /** Exact frequency delta between Left and Right ears (default 14.0 Hz) */
+    beatHz?: number;
+    /** Which ear leads this rhythmic bilateral pulse (-1 = Left ear, +1 = Right ear) */
+    leadSide: -1 | 1;
+    startOffset?: number;
+    duration: number;
+    gain: number;
 }
 
 const MIN_GAIN = 0.0005;
@@ -620,11 +633,13 @@ export function playElectricPiano(
     const baseOffset = opts.startOffset ?? 0;
     const stagger = opts.stagger ?? 0.008;
     const spread = opts.panSpread ?? 0.32;
+    const panCenter = opts.panCenter ?? 0;
     const perVoiceGain = opts.gain / Math.max(1, Math.sqrt(freqs.length));
 
     freqs.forEach((freq, idx) => {
         const offset = baseOffset + idx * stagger;
-        const pan = freqs.length > 1 ? ((idx / (freqs.length - 1)) * 2 - 1) * spread : 0;
+        const relPan = freqs.length > 1 ? ((idx / (freqs.length - 1)) * 2 - 1) * spread : 0;
+        const pan = Math.max(-1, Math.min(1, panCenter + relPan));
         // Warm Rhodes body
         playWarmVoice(ctx, dest, {
             type: 'sine',
@@ -653,6 +668,89 @@ export function playElectricPiano(
             });
         }
     });
+}
+
+/**
+ * Rhythmic Bilateral 14 Hz Dichotic Binaural Pulse:
+ * Plays `freq - 7 Hz` hard-panned to the Left ear (-1.0) and `freq + 7 Hz` hard-panned
+ * to the Right ear (+1.0) simultaneously with a clean musical pluck envelope (zero continuous hum)
+ * while alternating the leading ear (-1 Left <-> +1 Right) so the player feels a vivid
+ * ear-to-ear stereo bounce + 14 Hz binaural shimmer on every beat.
+ */
+export function playBinauralPulse(ctx: AudioContext, dest: AudioNode, opts: BinauralPulseOpts): void {
+    const now = ctx.currentTime;
+    const t0 = now + Math.max(0, opts.startOffset ?? 0);
+    const dur = Math.max(0.06, opts.duration);
+    const tEnd = t0 + dur;
+    const peakGain = Math.max(MIN_GAIN * 2, opts.gain);
+    const halfDelta = (opts.beatHz ?? 14.0) * 0.5;
+    const leftHz = Math.max(MIN_HZ, opts.freq - halfDelta);
+    const rightHz = Math.max(MIN_HZ, opts.freq + halfDelta);
+
+    const oscL = ctx.createOscillator();
+    const oscR = ctx.createOscillator();
+    const gainL = ctx.createGain();
+    const gainR = ctx.createGain();
+    const sharedTeardown: AudioNode[] = [gainL, gainR];
+
+    oscL.type = 'sine';
+    oscR.type = 'sine';
+    oscL.frequency.setValueAtTime(leftHz, t0);
+    oscR.frequency.setValueAtTime(rightHz, t0);
+
+    // Bilateral alternation: the leading ear strikes first at 100% while the opposite ear
+    // swells in 28ms later at 72% soboth ears lock onto the 14 Hz delta AND feel L <-> R motion.
+    const leadLeft = opts.leadSide < 0;
+    const peakL = leadLeft ? peakGain : peakGain * 0.72;
+    const peakR = leadLeft ? peakGain * 0.72 : peakGain;
+    const atkL = leadLeft ? 0.006 : Math.min(dur * 0.35, 0.032);
+    const atkR = leadLeft ? Math.min(dur * 0.35, 0.032) : 0.006;
+
+    gainL.gain.setValueAtTime(MIN_GAIN, t0);
+    gainL.gain.linearRampToValueAtTime(peakL, t0 + atkL);
+    gainL.gain.exponentialRampToValueAtTime(MIN_GAIN, tEnd);
+
+    gainR.gain.setValueAtTime(MIN_GAIN, t0);
+    gainR.gain.linearRampToValueAtTime(peakR, t0 + atkR);
+    gainR.gain.exponentialRampToValueAtTime(MIN_GAIN, tEnd);
+
+    oscL.connect(gainL);
+    oscR.connect(gainR);
+
+    if (typeof ctx.createStereoPanner === 'function') {
+        const panL = ctx.createStereoPanner();
+        const panR = ctx.createStereoPanner();
+        panL.pan.setValueAtTime(-1.0, t0);
+        panR.pan.setValueAtTime(1.0, t0);
+        gainL.connect(panL);
+        gainR.connect(panR);
+        panL.connect(dest);
+        panR.connect(dest);
+        sharedTeardown.push(panL, panR);
+    } else {
+        gainL.connect(dest);
+        gainR.connect(dest);
+    }
+
+    let ended = 0;
+    const finishShared = () => {
+        if (++ended >= 2) {
+            for (const n of sharedTeardown) safeDisconnect(n);
+        }
+    };
+    oscL.onended = () => {
+        safeDisconnect(oscL);
+        finishShared();
+    };
+    oscR.onended = () => {
+        safeDisconnect(oscR);
+        finishShared();
+    };
+
+    oscL.start(t0);
+    oscR.start(t0);
+    oscL.stop(tEnd + 0.012);
+    oscR.stop(tEnd + 0.012);
 }
 
 /**

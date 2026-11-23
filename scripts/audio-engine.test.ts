@@ -326,11 +326,15 @@ test('MusicDirector: 3 theme tracks schedule procedural patterns across lobby, q
         );
         observedLobbyBpms.add(lobbyState.bpm);
 
-        // Verify 14 Hz Binaural Beats hypnosis layer is active and locked to exact 14.0 Hz delta
+        // Verify 14 Hz Binaural Beats + Bilateral L<->R alternation is active and locked to exact 14.0 Hz delta
         const binaural = engine.getBinauralState();
         assert.equal(binaural.active, true, `${theme} 14 Hz binaural engine must be active when music is ON`);
         assert.equal(binaural.beatHz, 14, `${theme} binaural beat frequency must be 14 Hz`);
         assert.equal(binaural.carrierHz, expected.carrierHz, `${theme} carrier root must match theme key`);
+        assert.ok(
+            binaural.leadSide === -1 || binaural.leadSide === 1,
+            `${theme} bilateral leadSide must alternate between -1 (Left) and +1 (Right)`,
+        );
         assert.ok(
             Math.abs((binaural.rightHz - binaural.leftHz) - 14) < 1e-6,
             `${theme} stereo carriers (${binaural.leftHz} Hz / ${binaural.rightHz} Hz) must differ by 14.0 Hz`,
