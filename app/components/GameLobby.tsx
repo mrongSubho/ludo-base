@@ -741,7 +741,7 @@ export default function GameLobby({
                                         </div>
                                     </div>
                                     <div className="flex justify-center gap-3">
-                                        {(['classic', 'power'] as const).map(mode => {
+                                        {(['power', 'classic'] as const).map(mode => {
                                             const active = gameMode === mode;
                                             return (
                                                 <button

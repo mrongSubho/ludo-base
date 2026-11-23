@@ -249,7 +249,7 @@ export function EntryFeeKnob({
                     aria-label="Decrease entry fee"
                     className={`${
                         circular
-                            ? 'rounded-full left-1 w-9 h-9'
+                            ? 'rounded-full left-1 w-8 h-8'
                             : 'fee-preset-3077 left-0 w-11 h-11'
                     } absolute top-1/2 -translate-y-1/2 z-20 bg-surface-recessed border flex items-center justify-center hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer`}
                     style={{
@@ -258,7 +258,7 @@ export function EntryFeeKnob({
                         boxShadow: canStepDown ? `0 0 12px rgba(${deployTheme.rgb}, 0.16)` : undefined,
                     }}
                 >
-                    <LuMinus className="w-4 h-4 stroke-[2.75px]" />
+                    <LuMinus className={`${circular ? 'w-3.5 h-3.5' : 'w-4 h-4'} stroke-[2.75px]`} />
                 </button>
 
                 {/* Rotary Dial SVG + Stationary Center OLED Readout */}
@@ -275,7 +275,7 @@ export function EntryFeeKnob({
                             : `${tierName}, ${formatBalance(wager)} CHIPS`
                     }
                     onKeyDown={handleKeyDown}
-                    className={`relative w-full ${circular ? 'max-w-[206px] rounded-full' : 'max-w-[224px] rounded-2xl'} select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+                    className={`relative w-full ${circular ? 'max-w-[188px] rounded-full' : 'max-w-[224px] rounded-2xl'} select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
                 >
                     <svg
                         ref={svgRef}
@@ -575,7 +575,7 @@ export function EntryFeeKnob({
                     aria-label="Increase entry fee"
                     className={`${
                         circular
-                            ? 'rounded-full right-1 w-9 h-9'
+                            ? 'rounded-full right-1 w-8 h-8'
                             : 'fee-preset-3077 right-0 w-11 h-11'
                     } absolute top-1/2 -translate-y-1/2 z-20 bg-surface-recessed border flex items-center justify-center hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer`}
                     style={{
@@ -584,7 +584,7 @@ export function EntryFeeKnob({
                         boxShadow: canStepUp ? `0 0 12px rgba(${deployTheme.rgb}, 0.16)` : undefined,
                     }}
                 >
-                    <LuPlus className="w-4 h-4 stroke-[2.75px]" />
+                    <LuPlus className={`${circular ? 'w-3.5 h-3.5' : 'w-4 h-4'} stroke-[2.75px]`} />
                 </button>
             </div>
         </div>

@@ -52,7 +52,7 @@ export default function Board({
     showLeaderboard = false,
     onToggleLeaderboard,
     playerCount = '4P',
-    gameMode = 'classic',
+    gameMode = 'power',
     isBotMatch = false,
     onOpenProfile,
     initialPlayers,

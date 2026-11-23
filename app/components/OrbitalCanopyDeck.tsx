@@ -62,8 +62,8 @@ const RETRO_PALETTES: Record<DeployModeId, CanopyPalette> = {
 };
 
 const CANOPY_MODES: readonly { id: LobbyGameMode; label: string; startDeg: number; endDeg: number }[] = [
-    { id: 'classic', label: 'CLASSIC', startDeg: -31.5, endDeg: -0.75 },
-    { id: 'power', label: 'POWER', startDeg: 0.75, endDeg: 31.5 },
+    { id: 'power', label: 'POWER', startDeg: -31.5, endDeg: -0.75 },
+    { id: 'classic', label: 'CLASSIC', startDeg: 0.75, endDeg: 31.5 },
 ];
 
 const CANOPY_FORMATIONS: readonly { id: LobbyMatchType; label: string; startDeg: number; endDeg: number }[] = [
@@ -281,7 +281,7 @@ export function OrbitalCanopyDeck({
                     strokeWidth="1"
                 />
 
-                {/* Outer Arc: CLASSIC vs POWER */}
+                {/* Outer Arc: POWER vs CLASSIC */}
                 <g role="radiogroup" aria-label="Select Game Mode">
                     {CANOPY_MODES.map((m, idx) => {
                         const active = gameMode === m.id;

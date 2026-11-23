@@ -39,8 +39,9 @@ describe('Retro Theme Redesign & Swapped Lobby Setup Decks', () => {
         assert.match(canopy, /role="radiogroup"/);
         assert.match(canopy, /aria-label="Select Game Mode"/);
         assert.match(canopy, /aria-label="Match Type"/);
-        assert.match(canopy, /CLASSIC/);
         assert.match(canopy, /POWER/);
+        assert.match(canopy, /CLASSIC/);
+        assert.match(canopy, /CANOPY_MODES[\s\S]*id:\s*'power'[\s\S]*startDeg:\s*-31\.5[\s\S]*id:\s*'classic'[\s\S]*startDeg:\s*0\.75/);
         assert.match(canopy, /prefersReducedMotion/);
         assert.doesNotMatch(canopy, /rgba\(0,\s*229,\s*255/);
         assert.doesNotMatch(canopy, /rgba\(34,\s*211,\s*238/);
@@ -71,7 +72,11 @@ describe('Retro Theme Redesign & Swapped Lobby Setup Decks', () => {
 
         const dock = read('app/components/OrbitalFeeDock.tsx');
         assert.match(dock, /fee-tier-orbital-pod/);
+        assert.match(dock, /-top-10/);
+        assert.match(dock, /w-\[292px\]/);
         assert.match(dock, /aspect-square rounded-full/);
+        assert.match(dock, /prefersReducedMotion/);
+        assert.match(dock, /rotate:/);
 
         const knob = read('app/components/EntryFeeKnob.tsx');
         assert.match(knob, /circular\s*=\s*false/);

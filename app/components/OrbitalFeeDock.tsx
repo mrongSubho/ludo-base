@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { type DeployModeId, useDeployTheme } from '@/lib/deployTheme';
+import { onReducedMotionChange, prefersReducedMotion } from '@/lib/motion';
 import { Button } from './Button';
 import { HudCornerTicks } from './HudPrimitives';
 import { ChevronGlyphIcon, WarningHexIcon } from './icons';
@@ -61,6 +62,17 @@ export function OrbitalFeeDock({
     circular = false,
 }: OrbitalFeeDockProps) {
     const { mode, theme: deployTheme } = useDeployTheme();
+    const [reducedMotion, setReducedMotion] = useState(false);
+
+    useEffect(() => {
+        const raf = window.requestAnimationFrame(() => setReducedMotion(prefersReducedMotion()));
+        const unsubscribe = onReducedMotionChange(setReducedMotion);
+        return () => {
+            window.cancelAnimationFrame(raf);
+            unsubscribe();
+        };
+    }, []);
+
     const palette =
         themeVariant === '3077'
             ? { hex: deployTheme.hex, rgb: deployTheme.rgb, bright: deployTheme.bright }
@@ -87,7 +99,11 @@ export function OrbitalFeeDock({
                 type="button"
                 onClick={onToggleOpen}
                 aria-expanded={showFee}
-                className="w-full flex items-center justify-between px-4 py-2 rounded-full hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
+                className={`w-full flex items-center justify-between px-4 py-2 rounded-full transition-[background-color,transform,opacity] duration-150 ${
+                    showFee && circular
+                        ? 'opacity-0 pointer-events-none scale-95'
+                        : 'hover:bg-surface-hover active:scale-[0.99] cursor-pointer'
+                }`}
             >
                 <span
                     className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em]"
@@ -117,23 +133,44 @@ export function OrbitalFeeDock({
                     circular ? (
                         <motion.div
                             key="orbital-fee-dropdown"
-                            initial={{ opacity: 0, scale: 0.86 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.86 }}
-                            transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
+                            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.72, y: 18 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={
+                                reducedMotion
+                                    ? { opacity: 0, transition: { duration: 0.1 } }
+                                    : {
+                                          opacity: 0,
+                                          scale: 0.76,
+                                          y: 14,
+                                          transition: { duration: 0.16, ease: [0.4, 0, 1, 1] },
+                                      }
+                            }
+                            transition={
+                                reducedMotion
+                                    ? { duration: 0.12 }
+                                    : { type: 'spring', stiffness: 360, damping: 28, mass: 0.85 }
+                            }
                             style={{
-                                transformOrigin: 'top center',
+                                transformOrigin: '50% 24%',
                                 background: 'radial-gradient(circle at 50% 38%, rgba(15, 22, 36, 0.98) 0%, rgba(5, 8, 15, 0.98) 100%)',
                                 borderColor: isDialOverBalance ? dangerBorder : `rgba(${palette.rgb}, 0.82)`,
                                 boxShadow: isDialOverBalance
                                     ? '0 0 26px rgba(244, 63, 94, 0.28), var(--panel-shadow)'
                                     : `0 0 28px rgba(${palette.rgb}, 0.26), var(--panel-shadow)`,
                             }}
-                            className={`fee-tier fee-tier-orbital-pod ${expandedClassName} absolute top-0 left-0 right-0 mx-auto z-40 w-[316px] max-w-[92vw] aspect-square rounded-full border backdrop-blur-2xl flex flex-col items-center justify-between pt-4 pb-4 px-5 overflow-hidden`}
+                            className={`fee-tier fee-tier-orbital-pod ${expandedClassName} absolute -top-10 left-0 right-0 mx-auto z-40 w-[292px] max-w-[88vw] aspect-square rounded-full border backdrop-blur-2xl flex flex-col items-center justify-between pt-4 pb-5 px-4 overflow-hidden`}
                         >
-                            {/* Concentric dashed orbital ring */}
-                            <svg
+                            {/* Concentric dashed orbital ring (counter-twists on orbital iris open/close) */}
+                            <motion.svg
                                 viewBox="0 0 300 300"
+                                initial={reducedMotion ? false : { rotate: -38, opacity: 0.25, scale: 0.88 }}
+                                animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                                exit={reducedMotion ? { opacity: 0 } : { rotate: 28, opacity: 0, scale: 0.9 }}
+                                transition={
+                                    reducedMotion
+                                        ? { duration: 0.1 }
+                                        : { type: 'spring', stiffness: 260, damping: 24, mass: 0.9 }
+                                }
                                 className="pointer-events-none absolute inset-1.5 w-[calc(100%-12px)] h-[calc(100%-12px)]"
                                 aria-hidden="true"
                             >
@@ -147,14 +184,14 @@ export function OrbitalFeeDock({
                                     strokeWidth="1.2"
                                     strokeDasharray="3 6"
                                 />
-                            </svg>
+                            </motion.svg>
 
                             {/* Compact top close pill nested inside upper chord */}
                             <button
                                 type="button"
                                 onClick={onClose}
                                 aria-expanded={true}
-                                className="relative z-10 inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-surface-recessed/75 border border-line-soft hover:bg-surface-hover active:scale-95 transition-[background-color,transform] cursor-pointer shrink-0"
+                                className="relative z-10 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-surface-recessed/75 border border-line-soft hover:bg-surface-hover active:scale-95 transition-[background-color,transform] cursor-pointer shrink-0"
                             >
                                 <OrbitalSparkGlyph color={dialWager > 0 ? palette.bright : 'var(--ink-muted)'} />
                                 <span
@@ -163,43 +200,45 @@ export function OrbitalFeeDock({
                                 >
                                     Entry Fee
                                 </span>
-                                <span
-                                    className={`text-ludo-xs font-mono font-bold tabular-nums ${
-                                        isDialOverBalance ? 'text-negative animate-knob-alert-blink' : ''
-                                    }`}
-                                    style={isDialOverBalance ? undefined : { color: palette.bright }}
-                                >
-                                    {formatFee(dialWager)}
-                                </span>
                                 <ChevronGlyphIcon
                                     direction="down"
                                     className="w-3 h-3 rotate-180 text-ink-muted"
                                 />
                             </button>
 
-                            {/* Center Rotary Dial */}
-                            <div className="relative z-10 w-full flex-1 flex items-center justify-center min-h-0">
+                            {/* Center Rotary Dial (staggered inner iris bloom) */}
+                            <motion.div
+                                initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.92 }}
+                                transition={
+                                    reducedMotion
+                                        ? { duration: 0.1 }
+                                        : { duration: 0.22, delay: 0.04, ease: [0.22, 1, 0.36, 1] }
+                                }
+                                className="relative z-10 w-full flex-1 flex items-center justify-center min-h-0"
+                            >
                                 {expandedBody}
-                            </div>
+                            </motion.div>
 
                             {/* Bottom warning + nested pill CTA */}
                             <div className="relative z-10 flex flex-col items-center gap-1.5 shrink-0">
                                 {dialWarning && (
                                     <div
                                         role="alert"
-                                        className="max-w-[228px] px-2.5 py-0.5 rounded-full bg-negative/15 border border-negative/40 text-negative flex items-center justify-center gap-1 text-ludo-xs font-mono font-bold"
+                                        className="max-w-[204px] px-2.5 py-0.5 rounded-full bg-negative/15 border border-negative/40 text-negative flex items-center justify-center gap-1 text-ludo-xs font-mono font-bold"
                                     >
                                         <WarningHexIcon className="w-3 h-3 shrink-0" />
                                         <span className="truncate">{dialWarning}</span>
                                     </div>
                                 )}
-                                <div className="w-[180px]">
+                                <div className="w-[156px]">
                                     <Button
                                         variant={isDialOverBalance ? 'danger' : 'primary'}
                                         size="sm"
                                         fullWidth
                                         onClick={onConfirm}
-                                        className="uppercase tracking-[0.16em] font-extrabold rounded-full"
+                                        className="uppercase tracking-[0.14em] font-extrabold rounded-full"
                                     >
                                         Confirm · {formatFee(dialWager)}
                                     </Button>

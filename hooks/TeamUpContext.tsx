@@ -1522,7 +1522,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     // Seats self in slot 0 and publishes immediately so the guest sees a
     // forming lobby even before P2P connects. Bypasses broadcastLobbyAction's
     // isHost gate (setIsHost may not have flushed yet) by sending directly.
-    const initQuickLobby = useCallback((roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power' = 'classic', entryFee: number = 0) => {
+    const initQuickLobby = useCallback((roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power' = 'power', entryFee: number = 0) => {
         const slots = createLobbySlots(matchType);
         slots[0] = {
             ...slots[0],
@@ -1553,7 +1553,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     // One-call room hosting for manual lobbies (Team Up panel, invites):
     // generates a code, spins up PeerJS hosting, AND creates lobby state.
     // Returns the room code synchronously so invite links work immediately.
-    const hostQuickLobby = useCallback((matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power' = 'classic', entryFee: number = 0) => {
+    const hostQuickLobby = useCallback((matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power' = 'power', entryFee: number = 0) => {
         const code = generateRoomCode();
         // SEC-17: the key includes the wallet, so two wallets that happen to
         // collide on a room code get separate provisional grants rather than
@@ -1660,7 +1660,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             console.warn('startQuickMatch requires a wallet');
             return;
         }
-        const gameMode = opts?.gameMode ?? 'classic';
+        const gameMode = opts?.gameMode ?? 'power';
         const matchType = opts?.matchType ?? '1v1';
         const wager = opts?.wager ?? 0;
         try {

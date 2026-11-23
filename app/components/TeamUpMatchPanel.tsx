@@ -360,7 +360,7 @@ export const TeamUpMatchPanel = ({
     huntTimeoutS = 40,
     onCancelHunt,
     matchType = '4P',
-    gameMode = 'classic',
+    gameMode = 'power',
     entryFee = 0,
 }: TeamUpMatchPanelProps) => {
     const toast = useToast();
