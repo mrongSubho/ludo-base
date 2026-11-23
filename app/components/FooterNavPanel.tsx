@@ -47,14 +47,23 @@ export const FooterNavPanel = ({
         const el = document.querySelector('.footer-nav');
         if (!el) return;
         const set = () => {
-            document.documentElement.style.setProperty('--footer-h', `${Math.ceil(el.getBoundingClientRect().height)}px`);
+            const rect = el.getBoundingClientRect();
+            const cs = window.getComputedStyle(el);
+            const bottomPx = parseFloat(cs.bottom) || 0;
+            const deadBottomPx =
+                parseFloat(window.getComputedStyle(document.documentElement).getPropertyValue('--vv-dead-bottom')) || 0;
+            const floatGap = Math.max(0, bottomPx - deadBottomPx);
+            document.documentElement.style.setProperty('--footer-h', `${Math.ceil(rect.height + floatGap)}px`);
         };
         set();
         const ro = new ResizeObserver(set);
         ro.observe(el);
+        const mo = new MutationObserver(set);
+        mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
         window.addEventListener('resize', set);
         return () => {
             ro.disconnect();
+            mo.disconnect();
             window.removeEventListener('resize', set);
         };
     }, []);

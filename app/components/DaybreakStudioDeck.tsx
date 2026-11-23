@@ -8,6 +8,7 @@ import { type DeployModeId, useDeployTheme } from '@/lib/deployTheme';
 import { onReducedMotionChange, prefersReducedMotion } from '@/lib/motion';
 import { ClassicGridIcon, OverdriveBoltIcon } from './icons';
 import type { LobbyGameMode, LobbyMatchType } from './LobbyCommandDeck';
+import { TerminalTypeText } from './TerminalTypeText';
 
 export const DAYBREAK_MODE_ORDER: readonly LobbyGameMode[] = ['power', 'classic'] as const;
 export const DAYBREAK_FORMATION_ORDER: readonly LobbyMatchType[] = ['1v1', '2v2', '4P'] as const;
@@ -196,12 +197,12 @@ export function DaybreakStudioDeck({
                     <span className="text-ludo-xs font-bold uppercase tracking-[0.18em] text-ink-faint">
                         Ruleset
                     </span>
-                    <span
-                        className="text-ludo-xs font-bold tracking-wide"
+                    <TerminalTypeText
+                        text={gameMode === 'power' ? '6 Power Tiles · Boosts' : 'Pure Classic Rules'}
+                        charMs={20}
+                        className="text-ludo-xs font-bold tracking-wide whitespace-nowrap shrink-0"
                         style={{ color: palette.deep }}
-                    >
-                        {gameMode === 'power' ? '6 Power Tiles · Boosts' : 'Pure Classic Rules'}
-                    </span>
+                    />
                 </div>
 
                 <div
@@ -271,12 +272,12 @@ export function DaybreakStudioDeck({
                     <span className="text-ludo-xs font-bold uppercase tracking-[0.18em] text-ink-faint">
                         Formation
                     </span>
-                    <span
-                        className="text-ludo-xs font-bold tracking-wide"
+                    <TerminalTypeText
+                        text={FORMATION_META[matchType]}
+                        charMs={22}
+                        className="text-ludo-xs font-bold tracking-wide whitespace-nowrap shrink-0"
                         style={{ color: palette.deep }}
-                    >
-                        {FORMATION_META[matchType]}
-                    </span>
+                    />
                 </div>
 
                 <div

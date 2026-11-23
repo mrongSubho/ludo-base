@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence, useAnimation, PanInfo } from 'framer-motion';
+import { motion, useAnimation, PanInfo } from 'framer-motion';
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { useAudio } from '../hooks/useAudio';
 import { usePreferences } from '@/hooks/usePreferences';
@@ -577,48 +577,18 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 />
             )}
 
-            {/* Active mode blurb (live terminal print in 3077, crisp orbital readout in Retro) */}
+            {/* Active mode blurb (live terminal print across all themes) */}
             <div className="mt-2 h-4 flex items-center justify-center pointer-events-none px-2">
-                {is3077 ? (
-                    !isRolling && (
-                        <TerminalTypeText
-                            text={MODE_BLURB_3077[activeId]}
-                            charMs={22}
-                            className="text-ludo-xs font-mono font-bold uppercase tracking-[0.2em] text-center"
-                            style={{ color: 'var(--accent-bright)' }}
-                        />
-                    )
-                ) : isRetro ? (
-                    <AnimatePresence mode="wait">
-                        {!isRolling && (
-                            <motion.span
-                                key={`${activeId}-retro`}
-                                initial={{ opacity: 0, y: 3 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -3 }}
-                                transition={{ duration: 0.16 }}
-                                className="text-ludo-xs font-mono uppercase font-bold text-center tracking-[0.2em]"
-                                style={{ color: 'var(--accent-bright)' }}
-                            >
-                                {MODE_BLURB_3077[activeId]}
-                            </motion.span>
-                        )}
-                    </AnimatePresence>
-                ) : (
-                    <AnimatePresence mode="wait">
-                        {!isRolling && (
-                            <motion.span
-                                key={`${activeId}-std`}
-                                initial={{ opacity: 0, y: 3 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -3 }}
-                                transition={{ duration: 0.16 }}
-                                className="text-ludo-xs uppercase font-bold text-center text-ink-muted tracking-[0.18em]"
-                            >
-                                {MODE_BLURB[activeId]}
-                            </motion.span>
-                        )}
-                    </AnimatePresence>
+                {!isRolling && (
+                    <TerminalTypeText
+                        key={`${activeId}-${is3077 ? '3077' : isRetro ? 'retro' : 'std'}`}
+                        text={is3077 || isRetro ? MODE_BLURB_3077[activeId] : MODE_BLURB[activeId]}
+                        charMs={22}
+                        className={`text-ludo-xs font-mono uppercase font-bold text-center ${
+                            is3077 || isRetro ? 'tracking-[0.2em]' : 'tracking-[0.18em]'
+                        }`}
+                        style={{ color: is3077 || isRetro ? 'var(--accent-bright)' : modeColorHex }}
+                    />
                 )}
             </div>
         </div>

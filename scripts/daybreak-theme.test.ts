@@ -90,4 +90,28 @@ describe('Daybreak Theme Redesign — Warm Studio Porcelain', () => {
         assert.match(ludoDice, /COLOR_MAP_DAYBREAK/);
         assert.match(ludoDice, /isPorcelainClassic/);
     });
+
+    it('reactively updates Daybreak header/footer chrome & uses TerminalTypeText in DaybreakStudioDeck', () => {
+        const daybreakCss = read('app/styles/themes/daybreak.css');
+        assert.match(daybreakCss, /body\.theme-daybreak \.dash-header \.hud-header-action-3077/);
+        assert.match(daybreakCss, /body\.theme-daybreak \.board-compact-header \.hud-header-action-3077/);
+        assert.match(daybreakCss, /body\.theme-daybreak \.nav-item \.nav-icon\s*\{\s*color:\s*color-mix\(in srgb, var\(--accent\)/);
+        assert.match(daybreakCss, /body\.theme-daybreak \.ludo-lobby-scope :is\(\.text-cyan-300, \.text-cyan-400\)\s*\{\s*color:\s*var\(--accent\);/);
+        assert.match(daybreakCss, /body\.theme-daybreak \.ludo-header-scope :is\(\.text-cyan-300\)\s*\{\s*color:\s*var\(--accent\);/);
+
+        const panelsCss = read('app/styles/panels.css');
+        assert.match(panelsCss, /body\.theme-daybreak \.dash-header \.hud-header-cluster\s*\{[\s\S]*border-color:\s*rgba\(var\(--accent-rgb\)/);
+        assert.match(panelsCss, /body\.theme-daybreak \.ludo-lobby-scope :is\(\.text-cyan-300, \.text-cyan-400\)\s*\{\s*color:\s*var\(--accent\);/);
+
+        const deck = read('app/components/DaybreakStudioDeck.tsx');
+        const typeMatches = deck.match(/<TerminalTypeText/g) ?? [];
+        assert.ok(typeMatches.length >= 2, 'DaybreakStudioDeck should use TerminalTypeText for Ruleset and Formation readouts');
+
+        const compactHeader = read('app/components/BoardHeaderCompact.tsx');
+        assert.match(compactHeader, /hud-header-action-3077/);
+
+        assert.match(daybreakCss, /body\.theme-daybreak \.footer-nav\s*\{[\s\S]*border-radius:\s*9999px !important/);
+        assert.match(daybreakCss, /body\.theme-daybreak \.footer-active-plate\s*\{[\s\S]*border-radius:\s*9999px !important[\s\S]*#FFFFFF/);
+        assert.match(daybreakCss, /body\.theme-daybreak \.footer-active-laser\s*\{\s*display:\s*none !important/);
+    });
 });

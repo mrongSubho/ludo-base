@@ -154,5 +154,8 @@ describe('3077 Tactical Command Console & Deployment-Mode Theme', () => {
             assert.doesNotMatch(src, /rgba\(0,\s*229,\s*255/, `${file} must not hardcode cyan rgba(0, 229, 255, ...)`);
             assert.doesNotMatch(src, /rgba\(34,\s*211,\s*238/, `${file} must not hardcode cyan rgba(34, 211, 238, ...)`);
         }
+
+        const dice = read('app/components/ActionDice.tsx');
+        assert.match(dice, /<TerminalTypeText[\s\S]*is3077 \|\| isRetro \? MODE_BLURB_3077\[activeId\] : MODE_BLURB\[activeId\]/);
     });
 });

@@ -119,7 +119,7 @@ export const BoardHeaderCompact = ({
                     <div className="w-[86px] flex-none h-[34px] flex items-center justify-end">
                         <div className="flex items-center gap-0.5 z-10 w-full justify-end px-1.5">
                             <button
-                                className={`w-7 h-7 flex items-center justify-center rounded-full text-ink-muted hover:text-ink-strong hover:bg-surface-hover transition-all relative ${unreadCount > 0 ? 'ping-glow' : ''}`}
+                                className={`hud-header-action-3077 w-7 h-7 flex items-center justify-center rounded-full text-ink-muted hover:text-ink-strong hover:bg-surface-hover transition-all relative ${unreadCount > 0 ? 'ping-glow' : ''}`}
                                 onClick={onMessagesClick}
                                 title="Messages"
                                 aria-label="Messages"
@@ -138,7 +138,7 @@ export const BoardHeaderCompact = ({
                             <div className="w-px h-4 bg-line-strong mx-0.5"></div>
 
                             <button
-                                className="w-7 h-7 flex items-center justify-center rounded-full text-ink-muted hover:text-ink-strong hover:bg-surface-hover transition-all"
+                                className="hud-header-action-3077 w-7 h-7 flex items-center justify-center rounded-full text-ink-muted hover:text-ink-strong hover:bg-surface-hover transition-all"
                                 onClick={onSettingsClick}
                                 title="Settings"
                                 aria-label="Settings"
