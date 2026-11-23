@@ -1,4 +1,4 @@
-import { MusicDirector } from './MusicDirector';
+import { BinauralState, MusicDirector } from './MusicDirector';
 import { SFX_CATALOG } from './sfxCatalog';
 import {
     AudioPrefsSnapshot,
@@ -23,6 +23,7 @@ const DEFAULT_PREFS: AudioPrefsSnapshot = {
 };
 
 const MUSIC_BASE_GAIN = 0.5;
+const BINAURAL_BASE_GAIN = 0.42;
 const HEARTBEAT_BASE_GAIN = 0.52;
 const SFX_BASE_GAIN = 0.88;
 const UI_BASE_GAIN = 0.74;
@@ -35,6 +36,7 @@ export class SoundEngine {
     private ctx: AudioContext | null = null;
     private masterBus: GainNode | null = null;
     private musicBus: GainNode | null = null;
+    private binauralBus: GainNode | null = null;
     private musicFilter: BiquadFilterNode | null = null;
     private melodyBus: GainNode | null = null;
     private delaySendGain: GainNode | null = null;
@@ -73,6 +75,7 @@ export class SoundEngine {
             getDrumDest: () => this.musicFilter ?? this.musicBus,
             getMelodyDest: () => this.melodyBus ?? this.musicFilter ?? this.musicBus,
             getHeartbeatDest: () => this.heartbeatBus,
+            getBinauralDest: () => this.binauralBus ?? this.musicBus,
             onFilterTarget: (cutoffHz, q) => this.applyMusicFilter(cutoffHz, q),
         });
     }
@@ -112,12 +115,14 @@ export class SoundEngine {
             this.matchUrgency = 0;
         }
         this.syncMusicDirector();
+        this.syncBuses();
     }
 
     public setMatchMood(scene: MusicScene, urgency = 0): void {
         this.matchMood = scene;
         this.matchUrgency = Math.max(0, Math.min(1, urgency));
         this.syncMusicDirector();
+        this.syncBuses();
     }
 
     public setTheme(theme: string): void {
@@ -139,11 +144,13 @@ export class SoundEngine {
     public pushQueueing(): void {
         this.queueingCount += 1;
         this.syncMusicDirector();
+        this.syncBuses();
     }
 
     public popQueueing(): void {
         this.queueingCount = Math.max(0, this.queueingCount - 1);
         this.syncMusicDirector();
+        this.syncBuses();
     }
 
     public duckMusic(factor = 0.45, holdMs = 500, releaseMs = 450): void {
@@ -267,6 +274,10 @@ export class SoundEngine {
         return this.director.getState();
     }
 
+    public getBinauralState(): BinauralState {
+        return this.director.getBinauralState();
+    }
+
     public getModalDuckCount(): number {
         return this.modalDuckCount;
     }
@@ -296,6 +307,7 @@ export class SoundEngine {
             this.delayPanR,
             this.musicFilter,
             this.musicBus,
+            this.binauralBus,
             this.heartbeatBus,
             this.sfxBus,
             this.uiBus,
@@ -318,6 +330,7 @@ export class SoundEngine {
         }
         this.masterBus = null;
         this.musicBus = null;
+        this.binauralBus = null;
         this.musicFilter = null;
         this.melodyBus = null;
         this.delaySendGain = null;
@@ -358,6 +371,7 @@ export class SoundEngine {
         this.ctx = created;
         this.masterBus = created.createGain();
         this.musicBus = created.createGain();
+        this.binauralBus = created.createGain();
         this.heartbeatBus = created.createGain();
         this.sfxBus = created.createGain();
         this.uiBus = created.createGain();
@@ -428,12 +442,23 @@ export class SoundEngine {
         }
 
         this.musicBus.connect(this.masterBus);
+        this.binauralBus.connect(this.masterBus);
         this.heartbeatBus.connect(this.masterBus);
         this.sfxBus.connect(this.masterBus);
         this.uiBus.connect(this.masterBus);
 
         this.syncBuses(0.01);
         return created;
+    }
+
+    private computeBinauralSceneScalar(): number {
+        if (this.appState === 'dashboard') {
+            return this.queueingCount > 0 ? 1.2 : 1.0;
+        }
+        if (this.matchMood === 'match_crunch') return 1.35;
+        if (this.matchMood === 'match_heat') return 1.2;
+        if (this.matchMood === 'result') return 0.85;
+        return 1.0;
     }
 
     private syncBuses(rampSec = 0.08): void {
@@ -443,10 +468,17 @@ export class SoundEngine {
         const sfxScalar = this.prefs.sfx ? (this.prefs.sfxVolume / 100) : 0;
         const modalFactor = this.modalDuckCount > 0 ? 0.68 : 1;
         const musicGain = MUSIC_BASE_GAIN * musicScalar * modalFactor * this.stingerDuckFactor;
+        const binauralGain =
+            BINAURAL_BASE_GAIN *
+            musicScalar *
+            modalFactor *
+            this.stingerDuckFactor *
+            this.computeBinauralSceneScalar();
         const hbGain = HEARTBEAT_BASE_GAIN * Math.max(musicScalar, sfxScalar * 0.5);
 
         this.setGainSmooth(this.masterBus, 1, now, rampSec);
         this.setGainSmooth(this.musicBus, musicGain, now, rampSec);
+        this.setGainSmooth(this.binauralBus, binauralGain, now, rampSec);
         this.setGainSmooth(this.heartbeatBus, hbGain, now, rampSec);
         this.setGainSmooth(this.sfxBus, SFX_BASE_GAIN * sfxScalar, now, 0.03);
         this.setGainSmooth(this.uiBus, UI_BASE_GAIN * sfxScalar, now, 0.03);

@@ -65,6 +65,54 @@ export interface ChordOpts {
     detune?: number;
 }
 
+export interface ReeseBassOpts {
+    freq: number;
+    freqEnd?: number;
+    startOffset?: number;
+    attack?: number;
+    duration: number;
+    gain: number;
+    filterFreq?: number;
+    filterFreqEnd?: number;
+    filterQ?: number;
+}
+
+export interface FmBellOpts {
+    freq: number;
+    modRatio?: number;
+    modIndex?: number;
+    startOffset?: number;
+    attack?: number;
+    duration: number;
+    gain: number;
+    pan?: number;
+}
+
+export interface SynthPadOpts {
+    startOffset?: number;
+    attack?: number;
+    duration: number;
+    gain: number;
+    filterFreq?: number;
+    filterFreqEnd?: number;
+}
+
+export interface MalletNoteOpts {
+    freq: number;
+    startOffset?: number;
+    duration: number;
+    gain: number;
+    pan?: number;
+}
+
+export interface ElectricPianoOpts {
+    startOffset?: number;
+    stagger?: number;
+    duration: number;
+    gain: number;
+    panSpread?: number;
+}
+
 const MIN_GAIN = 0.0005;
 const MIN_HZ = 18;
 
@@ -272,6 +320,365 @@ export function playWarmVoice(ctx: AudioContext, dest: AudioNode, opts: WarmVoic
     oscB.stop(tEnd + 0.012);
 }
 
+/**
+ * 3077 Cyberpunk Dark-Synth / Phonk Reese Bass:
+ * Wide-detuned dual sawtooth + sub-octave square/sine through a high-Q resonant lowpass sweep.
+ */
+export function playReeseBass(ctx: AudioContext, dest: AudioNode, opts: ReeseBassOpts): void {
+    const now = ctx.currentTime;
+    const t0 = now + Math.max(0, opts.startOffset ?? 0);
+    const dur = Math.max(0.04, opts.duration);
+    const atk = Math.min(dur * 0.35, Math.max(0.004, opts.attack ?? 0.008));
+    const tEnd = t0 + dur;
+    const peakGain = Math.max(MIN_GAIN * 2, opts.gain);
+    const f0 = Math.max(MIN_HZ, opts.freq);
+    const f1 = opts.freqEnd !== undefined ? Math.max(MIN_HZ, opts.freqEnd) : undefined;
+
+    const sawL = ctx.createOscillator();
+    const sawR = ctx.createOscillator();
+    const subOsc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const sharedTeardown: AudioNode[] = [gain];
+
+    sawL.type = 'sawtooth';
+    sawR.type = 'sawtooth';
+    subOsc.type = 'square';
+
+    sawL.frequency.setValueAtTime(f0, t0);
+    sawR.frequency.setValueAtTime(f0, t0);
+    subOsc.frequency.setValueAtTime(Math.max(MIN_HZ, f0 * 0.5), t0);
+
+    if (sawL.detune) sawL.detune.setValueAtTime(16, t0);
+    if (sawR.detune) sawR.detune.setValueAtTime(-16, t0);
+
+    if (f1 !== undefined && Math.abs(f1 - f0) > 0.5) {
+        sawL.frequency.exponentialRampToValueAtTime(f1, tEnd);
+        sawR.frequency.exponentialRampToValueAtTime(f1, tEnd);
+        subOsc.frequency.exponentialRampToValueAtTime(Math.max(MIN_HZ, f1 * 0.5), tEnd);
+    }
+
+    gain.gain.setValueAtTime(MIN_GAIN, t0);
+    gain.gain.linearRampToValueAtTime(peakGain, t0 + atk);
+    gain.gain.exponentialRampToValueAtTime(MIN_GAIN, tEnd);
+
+    let destForOscs: AudioNode = gain;
+    if (typeof ctx.createBiquadFilter === 'function') {
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        const cf0 = Math.max(90, opts.filterFreq ?? 1350);
+        const cf1 = Math.max(70, opts.filterFreqEnd ?? 210);
+        filter.frequency.setValueAtTime(cf0, t0);
+        filter.frequency.exponentialRampToValueAtTime(cf1, tEnd);
+        filter.Q.setValueAtTime(opts.filterQ ?? 3.1, t0);
+        filter.connect(gain);
+        destForOscs = filter;
+        sharedTeardown.push(filter);
+    }
+
+    sawL.connect(destForOscs);
+    sawR.connect(destForOscs);
+    subOsc.connect(destForOscs);
+    gain.connect(dest);
+
+    let ended = 0;
+    const finishShared = () => {
+        if (++ended >= 3) {
+            for (const n of sharedTeardown) safeDisconnect(n);
+        }
+    };
+    sawL.onended = () => {
+        safeDisconnect(sawL);
+        finishShared();
+    };
+    sawR.onended = () => {
+        safeDisconnect(sawR);
+        finishShared();
+    };
+    subOsc.onended = () => {
+        safeDisconnect(subOsc);
+        finishShared();
+    };
+
+    sawL.start(t0);
+    sawR.start(t0);
+    subOsc.start(t0);
+    sawL.stop(tEnd + 0.012);
+    sawR.stop(tEnd + 0.012);
+    subOsc.stop(tEnd + 0.012);
+}
+
+/**
+ * Retro 80s DX-style 2-Operator FM Synthesizer Bell / Pluck Lead.
+ */
+export function playFmBell(ctx: AudioContext, dest: AudioNode, opts: FmBellOpts): void {
+    const now = ctx.currentTime;
+    const t0 = now + Math.max(0, opts.startOffset ?? 0);
+    const dur = Math.max(0.04, opts.duration);
+    const atk = Math.min(dur * 0.25, Math.max(0.003, opts.attack ?? 0.004));
+    const tEnd = t0 + dur;
+    const peakGain = Math.max(MIN_GAIN * 2, opts.gain);
+    const f0 = Math.max(MIN_HZ, opts.freq);
+    const ratio = opts.modRatio ?? 2.0;
+    const modIndex = opts.modIndex ?? 2.6;
+
+    const carrier = ctx.createOscillator();
+    const modulator = ctx.createOscillator();
+    const modGain = ctx.createGain();
+    const carrierGain = ctx.createGain();
+    const sharedTeardown: AudioNode[] = [modGain, carrierGain];
+
+    carrier.type = 'sine';
+    modulator.type = 'sine';
+    carrier.frequency.setValueAtTime(f0, t0);
+    modulator.frequency.setValueAtTime(f0 * ratio, t0);
+
+    const peakModHz = Math.max(10, f0 * modIndex);
+    modGain.gain.setValueAtTime(peakModHz, t0);
+    modGain.gain.exponentialRampToValueAtTime(1, t0 + dur * 0.65);
+
+    carrierGain.gain.setValueAtTime(MIN_GAIN, t0);
+    carrierGain.gain.linearRampToValueAtTime(peakGain, t0 + atk);
+    carrierGain.gain.exponentialRampToValueAtTime(MIN_GAIN, tEnd);
+
+    modulator.connect(modGain);
+    try {
+        modGain.connect(carrier.frequency as unknown as AudioNode);
+    } catch {
+        /* fallback if environment mock does not accept AudioParam targets */
+    }
+    carrier.connect(carrierGain);
+
+    if (opts.pan !== undefined && Math.abs(opts.pan) > 0.01 && typeof ctx.createStereoPanner === 'function') {
+        const panner = ctx.createStereoPanner();
+        panner.pan.setValueAtTime(Math.max(-1, Math.min(1, opts.pan)), t0);
+        carrierGain.connect(panner);
+        panner.connect(dest);
+        sharedTeardown.push(panner);
+    } else {
+        carrierGain.connect(dest);
+    }
+
+    let ended = 0;
+    const finishShared = () => {
+        if (++ended >= 2) {
+            for (const n of sharedTeardown) safeDisconnect(n);
+        }
+    };
+    carrier.onended = () => {
+        safeDisconnect(carrier);
+        finishShared();
+    };
+    modulator.onended = () => {
+        safeDisconnect(modulator);
+        finishShared();
+    };
+
+    carrier.start(t0);
+    modulator.start(t0);
+    carrier.stop(tEnd + 0.012);
+    modulator.stop(tEnd + 0.012);
+}
+
+/**
+ * Retro 80s Outrun Lush Polysynth Chord Pad (slow attack, wide stereo chorus spread).
+ */
+export function playSynthPad(ctx: AudioContext, dest: AudioNode, freqs: readonly number[], opts: SynthPadOpts): void {
+    const baseOffset = opts.startOffset ?? 0;
+    const perVoiceGain = opts.gain / Math.max(1, Math.sqrt(freqs.length));
+    const attack = opts.attack ?? Math.min(0.14, opts.duration * 0.28);
+
+    freqs.forEach((freq, idx) => {
+        const pan = freqs.length > 1 ? ((idx / (freqs.length - 1)) * 2 - 1) * 0.42 : 0;
+        playWarmVoice(ctx, dest, {
+            type: 'sawtooth',
+            type2: 'triangle',
+            freq,
+            detuneCents: 11 + (idx % 2) * 3,
+            startOffset: baseOffset + idx * 0.012,
+            attack,
+            duration: opts.duration,
+            gain: perVoiceGain,
+            filterFreq: opts.filterFreq ?? 2200,
+            filterFreqEnd: opts.filterFreqEnd ?? 950,
+            filterQ: 1.1,
+            pan,
+        });
+    });
+}
+
+/**
+ * Retro 80s Simmons / Linndrum Pitch-Drop Electronic Tom.
+ */
+export function playSynthTom(
+    ctx: AudioContext,
+    dest: AudioNode,
+    startOffset = 0,
+    gain = 0.16,
+    startHz = 240,
+    endHz = 78,
+    pan = 0,
+): void {
+    playTone(ctx, dest, {
+        type: 'triangle',
+        freq: startHz,
+        freqEnd: endHz,
+        startOffset,
+        attack: 0.002,
+        duration: 0.18,
+        gain,
+        pan,
+    });
+    playNoiseBurst(ctx, dest, {
+        startOffset,
+        attack: 0.002,
+        duration: 0.045,
+        gain: gain * 0.35,
+        filterType: 'bandpass',
+        filterFreq: startHz * 4.5,
+        filterQ: 1.6,
+        pan,
+    });
+}
+
+/**
+ * Daybreak (Light) Tropical Wooden Marimba / Vibraphone Mallet Voice.
+ * Combines a resonant warm fundamental with a fast-decaying 4th harmonic wood-bar overtone.
+ */
+export function playMalletNote(ctx: AudioContext, dest: AudioNode, opts: MalletNoteOpts): void {
+    const now = ctx.currentTime;
+    const t0 = now + Math.max(0, opts.startOffset ?? 0);
+    const dur = Math.max(0.05, opts.duration);
+    const tEnd = t0 + dur;
+    const peakGain = Math.max(MIN_GAIN * 2, opts.gain);
+    const f0 = Math.max(MIN_HZ, opts.freq);
+
+    const fundOsc = ctx.createOscillator();
+    const harmonicOsc = ctx.createOscillator();
+    const fundGain = ctx.createGain();
+    const harmGain = ctx.createGain();
+    const sharedTeardown: AudioNode[] = [fundGain, harmGain];
+
+    fundOsc.type = 'sine';
+    harmonicOsc.type = 'triangle';
+    fundOsc.frequency.setValueAtTime(f0, t0);
+    harmonicOsc.frequency.setValueAtTime(f0 * 4, t0); // Marimba 2-octave wood overtone
+
+    fundGain.gain.setValueAtTime(MIN_GAIN, t0);
+    fundGain.gain.linearRampToValueAtTime(peakGain, t0 + 0.003);
+    fundGain.gain.exponentialRampToValueAtTime(MIN_GAIN, tEnd);
+
+    const harmDur = Math.min(dur * 0.35, 0.045);
+    harmGain.gain.setValueAtTime(MIN_GAIN, t0);
+    harmGain.gain.linearRampToValueAtTime(peakGain * 0.38, t0 + 0.002);
+    harmGain.gain.exponentialRampToValueAtTime(MIN_GAIN, t0 + harmDur);
+
+    fundOsc.connect(fundGain);
+    harmonicOsc.connect(harmGain);
+
+    if (opts.pan !== undefined && Math.abs(opts.pan) > 0.01 && typeof ctx.createStereoPanner === 'function') {
+        const panner = ctx.createStereoPanner();
+        panner.pan.setValueAtTime(Math.max(-1, Math.min(1, opts.pan)), t0);
+        fundGain.connect(panner);
+        harmGain.connect(panner);
+        panner.connect(dest);
+        sharedTeardown.push(panner);
+    } else {
+        fundGain.connect(dest);
+        harmGain.connect(dest);
+    }
+
+    let ended = 0;
+    const finishShared = () => {
+        if (++ended >= 2) {
+            for (const n of sharedTeardown) safeDisconnect(n);
+        }
+    };
+    fundOsc.onended = () => {
+        safeDisconnect(fundOsc);
+        finishShared();
+    };
+    harmonicOsc.onended = () => {
+        safeDisconnect(harmonicOsc);
+        finishShared();
+    };
+
+    fundOsc.start(t0);
+    harmonicOsc.start(t0);
+    fundOsc.stop(tEnd + 0.012);
+    harmonicOsc.stop(tEnd + 0.012);
+}
+
+/**
+ * Daybreak (Light) Monte Carlo Rhodes Electric Piano Jazz Chord Comping.
+ */
+export function playElectricPiano(
+    ctx: AudioContext,
+    dest: AudioNode,
+    freqs: readonly number[],
+    opts: ElectricPianoOpts,
+): void {
+    const baseOffset = opts.startOffset ?? 0;
+    const stagger = opts.stagger ?? 0.008;
+    const spread = opts.panSpread ?? 0.32;
+    const perVoiceGain = opts.gain / Math.max(1, Math.sqrt(freqs.length));
+
+    freqs.forEach((freq, idx) => {
+        const offset = baseOffset + idx * stagger;
+        const pan = freqs.length > 1 ? ((idx / (freqs.length - 1)) * 2 - 1) * spread : 0;
+        // Warm Rhodes body
+        playWarmVoice(ctx, dest, {
+            type: 'sine',
+            type2: 'triangle',
+            freq,
+            detuneCents: 4,
+            startOffset: offset,
+            attack: 0.005,
+            duration: opts.duration,
+            gain: perVoiceGain,
+            filterFreq: 2400,
+            filterFreqEnd: 780,
+            filterQ: 0.9,
+            pan,
+        });
+        // Subtle metallic Rhodes tine chime on top notes
+        if (idx >= freqs.length - 2) {
+            playTone(ctx, dest, {
+                type: 'sine',
+                freq: freq * 4,
+                startOffset: offset,
+                attack: 0.002,
+                duration: Math.min(0.065, opts.duration * 0.3),
+                gain: perVoiceGain * 0.16,
+                pan,
+            });
+        }
+    });
+}
+
+/**
+ * Daybreak (Light) Brushed Pink-Noise Bossa Nova Shaker.
+ */
+export function playShaker(
+    ctx: AudioContext,
+    dest: AudioNode,
+    startOffset = 0,
+    gain = 0.036,
+    accent = false,
+    pan = 0,
+): void {
+    playNoiseBurst(ctx, dest, {
+        pink: true,
+        startOffset,
+        attack: 0.009,
+        duration: accent ? 0.065 : 0.042,
+        gain: accent ? gain * 1.35 : gain,
+        filterType: 'bandpass',
+        filterFreq: accent ? 5800 : 5100,
+        filterQ: 1.9,
+        pan,
+    });
+}
+
 export function playNoiseBurst(ctx: AudioContext, dest: AudioNode, opts: NoiseOpts): void {
     const bank = getNoiseBank(ctx);
     if (!bank || typeof ctx.createBufferSource !== 'function') {
@@ -441,11 +848,11 @@ export function playDrumSnareClap(
         playNoiseBurst(ctx, dest, {
             startOffset,
             attack: 0.002,
-            duration: 0.13,
-            gain: gain * 0.9,
+            duration: 0.15,
+            gain: gain * 0.92,
             filterType: 'bandpass',
             filterFreq: 1850,
-            filterQ: 1.1,
+            filterQ: 1.0,
         });
         return;
     }

@@ -304,14 +304,37 @@ test('MusicDirector: 3 theme tracks schedule procedural patterns across lobby, q
     const engine = new SoundEngine({ createContext: () => mock.ctx });
     engine.unlock();
 
+    const expectedTempoRanges: Record<AudioTheme, { min: number; max: number; carrierHz: number }> = {
+        '3077': { min: 136, max: 148, carrierHz: 174.61 },
+        retro: { min: 102, max: 114, carrierHz: 130.81 },
+        light: { min: 94, max: 106, carrierHz: 146.83 },
+    };
+
     const themes: AudioTheme[] = ['3077', 'retro', 'light'];
+    const observedLobbyBpms = new Set<number>();
+
     for (const theme of themes) {
+        const expected = expectedTempoRanges[theme];
         engine.updatePrefs({ theme, music: true, musicVolume: 75, sfx: true });
         engine.setAppScene('dashboard');
         const lobbyState = engine.getMusicDirectorState();
         assert.equal(lobbyState.scene, 'lobby');
         assert.equal(lobbyState.theme, theme);
-        assert.ok(lobbyState.bpm >= 116, `${theme} lobby BPM should be upbeat (>=116), got ${lobbyState.bpm}`);
+        assert.ok(
+            lobbyState.bpm >= expected.min && lobbyState.bpm <= expected.max,
+            `${theme} lobby BPM should be in [${expected.min}, ${expected.max}], got ${lobbyState.bpm}`,
+        );
+        observedLobbyBpms.add(lobbyState.bpm);
+
+        // Verify 14 Hz Binaural Beats hypnosis layer is active and locked to exact 14.0 Hz delta
+        const binaural = engine.getBinauralState();
+        assert.equal(binaural.active, true, `${theme} 14 Hz binaural engine must be active when music is ON`);
+        assert.equal(binaural.beatHz, 14, `${theme} binaural beat frequency must be 14 Hz`);
+        assert.equal(binaural.carrierHz, expected.carrierHz, `${theme} carrier root must match theme key`);
+        assert.ok(
+            Math.abs((binaural.rightHz - binaural.leftHz) - 14) < 1e-6,
+            `${theme} stereo carriers (${binaural.leftHz} Hz / ${binaural.rightHz} Hz) must differ by 14.0 Hz`,
+        );
         mock.advanceTime(0.35);
 
         engine.pushQueueing();
@@ -333,9 +356,18 @@ test('MusicDirector: 3 theme tracks schedule procedural patterns across lobby, q
         const crunchState = engine.getMusicDirectorState();
         assert.equal(crunchState.scene, 'match_crunch');
         assert.equal(crunchState.urgency, 0.9);
-        assert.ok(crunchState.bpm >= 116, `${theme} crunch BPM should stay upbeat (>=116), got ${crunchState.bpm}`);
+        assert.ok(
+            crunchState.bpm >= expected.min && crunchState.bpm <= expected.max,
+            `${theme} crunch BPM should be in [${expected.min}, ${expected.max}], got ${crunchState.bpm}`,
+        );
         mock.advanceTime(0.35);
     }
+
+    assert.equal(observedLobbyBpms.size, 3, 'all 3 themes must have distinct tempo signatures');
+
+    // Toggling music OFF must cleanly stop the 14 Hz binaural hypnosis layer
+    engine.updatePrefs({ music: false });
+    assert.equal(engine.getBinauralState().active, false, 'binaural engine must stop when music is turned OFF');
 
     assert.ok(mock.nodes.filter((n) => n.kind === 'osc').length > 0, 'MusicDirector must schedule oscillators');
     assert.ok(mock.nodes.filter((n) => n.kind === 'src').length > 0, 'MusicDirector must schedule drum/noise buffers');
