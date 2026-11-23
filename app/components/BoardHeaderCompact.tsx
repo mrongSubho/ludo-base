@@ -73,7 +73,7 @@ export const BoardHeaderCompact = ({
                         }
                     >
                         <div className="flex items-center gap-1.5 z-10 px-2.5 w-full justify-start">
-                            <ChipsHexIcon className={`w-4 h-4 flex-shrink-0 ${showChips ? 'text-accent' : 'text-warn'}`} active />
+                            <ChipsHexIcon className="w-4 h-4 flex-shrink-0 text-accent" active />
                             <span className="text-xs font-extrabold font-mono text-ink-strong tracking-tight tabular-nums truncate max-w-[56px]">
                                 {balanceDisplay}
                             </span>

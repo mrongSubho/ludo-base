@@ -26,7 +26,7 @@ interface MessagesPanelProps {
 }
 
 const BellTile = () => (
-    <div className="w-9 h-9 rounded-xl bg-warn/15 border border-warn/40 flex items-center justify-center text-warn">
+    <div className="w-9 h-9 rounded-xl bg-accent-soft border border-accent/35 flex items-center justify-center text-accent">
         <svg
             viewBox="0 0 24 24"
             fill="none"

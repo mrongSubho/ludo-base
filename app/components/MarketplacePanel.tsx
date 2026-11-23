@@ -926,7 +926,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-recessed border border-line-soft"
                         title={`Available ${currency} balance on Base Sepolia`}
                     >
-                        <ChipsHexIcon className="w-3 h-3 text-warn shrink-0" active />
+                        <ChipsHexIcon className="w-3 h-3 text-accent shrink-0" active />
                         <span className="font-extrabold text-ink-strong tabular-nums">
                             {formatBalanceShort(activeBalanceWei, currency)} {currency}
                         </span>
@@ -1207,7 +1207,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                                         {item.name}
                                                     </h3>
                                                     <div className="flex items-center gap-1 mt-1">
-                                                        <ChipsHexIcon className="w-3.5 h-3.5 text-warn shrink-0" active />
+                                                        <ChipsHexIcon className="w-3.5 h-3.5 text-accent shrink-0" active />
                                                         <span className={`font-extrabold text-ink-strong font-mono tabular-nums truncate ${density === 'comfort' ? 'text-ludo-md' : 'text-ludo-sm'}`}>
                                                             {formatCurrencyCompact(item.price, currency)}
                                                         </span>
@@ -1428,7 +1428,7 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                                         </div>
                                         <div className="flex items-baseline justify-between gap-2 mt-2">
                                             <div className="flex items-center gap-2">
-                                                <ChipsHexIcon className="w-4 h-4 text-warn shrink-0" active />
+                                                <ChipsHexIcon className="w-4 h-4 text-accent shrink-0" active />
                                                 <span className="porcelain-hero text-3xl font-extrabold text-ink-strong font-mono tabular-nums">
                                                     {formatMarketAmount(selectedItem.price, currency).split(' ')[0]}
                                                 </span>

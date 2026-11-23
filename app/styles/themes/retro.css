@@ -494,9 +494,32 @@ body.theme-retro-futurism .cb-wallet-root {
   border: 1px solid rgba(var(--accent-rgb), 0.30);
 }
 
+body.theme-retro-futurism .cb-action-circle {
+  background: rgba(var(--accent-rgb), 0.12);
+  border: 1px solid rgba(var(--accent-rgb), 0.30);
+  color: var(--accent);
+}
+
+body.theme-retro-futurism .cb-action-circle.primary {
+  background: linear-gradient(180deg, var(--accent-edge) 0%, var(--accent) 100%);
+  border-color: var(--accent-edge);
+  color: var(--accent-ink);
+  box-shadow: 0 6px 20px rgba(var(--accent-rgb), 0.30);
+}
+
+body.theme-retro-futurism .cb-more-icon,
+body.theme-retro-futurism .cb-activity-icon.out {
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--accent);
+}
+
 body.theme-retro-futurism .cb-copy,
 body.theme-retro-futurism .cb-link,
 body.theme-retro-futurism .cb-activity-link,
 body.theme-retro-futurism .cb-tab.active {
   color: var(--accent);
+}
+
+body.theme-retro-futurism .cb-tab.active {
+  background: rgba(var(--accent-rgb), 0.14);
 }

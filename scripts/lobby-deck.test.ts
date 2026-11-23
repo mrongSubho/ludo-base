@@ -96,10 +96,41 @@ describe('3077 Tactical Command Console & Deployment-Mode Theme', () => {
         assert.match(typeText, /left-0 right-0 flex items-center justify-start text-left whitespace-pre/);
     });
 
-    it('drives Settings preference icons, ThinkingOrb, and shared HUD components via reactive accent tokens', () => {
+    it('drives Settings preference icons, Wallet More/Hub, Marketplace CHIPS, ThinkingOrb, and shared HUD components via reactive accent tokens', () => {
         const settings = read('app/components/SettingsPanel.tsx');
         assert.match(settings, /icon=\{<MusicIcon \/>\}[ \t]*tint="bg-accent-soft text-accent"/);
         assert.match(settings, /icon=\{<HapticIcon \/>\}[ \t]*tint="bg-accent-soft text-accent"/);
+        assert.match(settings, /icon=\{<LockIcon \/>\}[ \t]*tint="bg-accent-soft text-accent"[\s\S]*Transaction approval/);
+        assert.doesNotMatch(settings, /tint="bg-warn\/15 text-warn"/);
+
+        const wallet = read('app/components/WalletPanel.tsx');
+        const walletMoreSlice = wallet.slice(
+            wallet.indexOf('{screen === "more" && ('),
+            wallet.indexOf('{screen === "allowance" && ('),
+        );
+        assert.match(walletMoreSlice, /className="w-5 h-5 text-accent"[\s\S]*?title="Vault & Claim Hub"/);
+        assert.doesNotMatch(walletMoreSlice, /text-warn/);
+
+        const claimHub = read('app/components/ClaimHubSheet.tsx');
+        assert.match(claimHub, /bg-accent-soft border border-accent\/30 flex items-center justify-center text-accent shrink-0/);
+
+        const panels = read('app/styles/panels.css');
+        assert.match(panels, /\.cb-more-icon\s*\{[\s\S]*color:\s*var\(--accent\)/);
+        assert.match(panels, /body\.theme-daybreak \.cb-more-icon\s*\{[\s\S]*color:\s*var\(--accent\)/);
+        const retroCss = read('app/styles/themes/retro.css');
+        assert.match(retroCss, /body\.theme-retro-futurism \.cb-more-icon/);
+
+        for (const chipsFile of [
+            'app/components/MarketplacePanel.tsx',
+            'app/components/HeaderNavPanel.tsx',
+            'app/components/BoardHeaderCompact.tsx',
+            'app/components/QuickMatchPanel.tsx',
+            'app/components/MatchStatsOverlay.tsx',
+        ]) {
+            const src = read(chipsFile);
+            assert.doesNotMatch(src, /<ChipsHexIcon[^>]*text-warn/, `${chipsFile} must drive ChipsHexIcon with reactive accent`);
+        }
+        assert.doesNotMatch(read('app/components/HeaderNavPanel.tsx'), /showChips\s*\?\s*'text-accent'\s*:\s*'text-warn'/);
 
         const orb = read('app/components/ThinkingOrb.tsx');
         assert.match(orb, /useDeployTheme/);

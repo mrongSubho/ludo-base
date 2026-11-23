@@ -730,7 +730,7 @@ export function SettingsPanel({
                                                 onToggle={() => void guardSecurityToggle(() => security.setAutoSign(!security.autoSign))}
                                             />
                                             <PrefRow
-                                                icon={<LockIcon />} tint="bg-warn/15 text-warn"
+                                                icon={<LockIcon />} tint="bg-accent-soft text-accent"
                                                 label="Transaction approval"
                                                 hint={security.txStepUp === "strict"
                                                     ? "Face ID / fingerprint required for send & swap"

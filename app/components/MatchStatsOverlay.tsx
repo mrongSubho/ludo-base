@@ -548,7 +548,7 @@ export function MatchStatsOverlay({
                             <div className={`match-stats-claim ${iWon ? 'ready' : 'dim'}`}>
                                 <div className="match-stats-claim-head">
                                     <span className="match-stats-claim-tag inline-flex items-center gap-1">
-                                        <ChipsHexIcon className="w-3.5 h-3.5 text-warn" active />
+                                        <ChipsHexIcon className="w-3.5 h-3.5 text-accent" active />
                                         CHIPS
                                     </span>
                                     <span className="match-stats-claim-amount">

@@ -2500,8 +2500,8 @@ body.theme-daybreak .match-stats-outcome-val.muted {
   gap: 6px;
 }
 .match-stats-claim.ready {
-  border-color: rgba(34, 211, 238, 0.4);
-  background: rgba(34, 211, 238, 0.07);
+  border-color: rgba(var(--accent-rgb), 0.4);
+  background: rgba(var(--accent-rgb), 0.08);
 }
 .match-stats-claim.dim {
   opacity: 0.85;
@@ -2511,8 +2511,8 @@ body.theme-daybreak .match-stats-claim {
   border-color: rgba(23, 23, 23, 0.1);
 }
 body.theme-daybreak .match-stats-claim.ready {
-  border-color: rgba(13, 109, 135, 0.35);
-  background: rgba(13, 109, 135, 0.06);
+  border-color: rgba(var(--accent-rgb), 0.35);
+  background: rgba(var(--accent-rgb), 0.07);
 }
 
 .match-stats-claim-head {
@@ -2525,17 +2525,17 @@ body.theme-daybreak .match-stats-claim.ready {
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.22em;
-  color: #fbbf24;
+  color: var(--accent);
 }
 .match-stats-claim-amount {
   font-size: 20px;
   font-weight: 900;
   letter-spacing: 0.04em;
-  color: #22d3ee;
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 body.theme-daybreak .match-stats-claim-amount {
-  color: #0d6d87;
+  color: var(--accent);
 }
 .match-stats-claim-note {
   margin: 0;

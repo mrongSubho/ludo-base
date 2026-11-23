@@ -768,7 +768,7 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                 />
                                 <MoreRow
                                     icon={
-                                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-warn" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-accent" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
                                             <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
                                             <path d="M4 22h16" />
@@ -783,7 +783,7 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                 />
                                 <MoreRow
                                     icon={
-                                        <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-accent" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <rect x="4" y="5" width="16" height="14" rx="3" />
                                             <path d="M8 10h3M8 14h8" />
                                         </svg>
@@ -794,7 +794,7 @@ export default function WalletPanel({ onClose }: { onClose: () => void }) {
                                 />
                                 <MoreRow
                                     icon={
-                                        <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <svg viewBox="0 0 24 24" className="w-5 h-5 text-accent" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <path d="M12 3l8 4v5c0 5-3.5 8.2-8 9-4.5-.8-8-4-8-9V7l8-4z" />
                                             <path d="M9.5 12l1.8 1.8L15 10" />
                                         </svg>

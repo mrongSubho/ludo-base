@@ -3334,10 +3334,10 @@ body.theme-daybreak .cb-address {
 .cb-copy {
   font-size: 12px;
   font-weight: 700;
-  color: #5B9CFF;
+  color: var(--accent);
 }
 body.theme-daybreak .cb-copy {
-  color: #0052FF;
+  color: var(--accent);
 }
 
 .cb-balance {
@@ -3398,14 +3398,14 @@ body.theme-daybreak .cb-copy {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.08);
-  color: #8EB6FF;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
   transition: transform 0.12s ease, background 0.15s ease;
 }
 .cb-action-circle.primary {
-  background: #0052FF;
-  color: #fff;
-  box-shadow: 0 8px 18px rgba(0, 82, 255, 0.35);
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 8px 18px rgba(var(--accent-rgb), 0.28);
 }
 .cb-action:active .cb-action-circle {
   transform: scale(0.96);
@@ -3416,12 +3416,12 @@ body.theme-daybreak .cb-copy {
   color: #8A919E;
 }
 body.theme-daybreak .cb-action-circle {
-  background: #EEF2FF;
-  color: #0052FF;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
 }
 body.theme-daybreak .cb-action-circle.primary {
-  background: #0052FF;
-  color: #fff;
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 body.theme-daybreak .cb-action-label {
   color: #5B6472;
@@ -3444,14 +3444,14 @@ body.theme-daybreak .cb-action-label {
 .cb-link {
   background: none;
   border: none;
-  color: #5B9CFF;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   padding: 0;
 }
 body.theme-daybreak .cb-link {
-  color: #0052FF;
+  color: var(--accent);
 }
 
 .cb-card {
@@ -3610,12 +3610,12 @@ body.theme-daybreak .cb-more-row + .cb-more-row { border-top-color: rgba(10, 11,
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: rgba(0, 82, 255, 0.16);
-  color: #5B9CFF;
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--accent);
 }
 body.theme-daybreak .cb-more-icon {
-  background: rgba(0, 82, 255, 0.1);
-  color: #0052FF;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
 }
 .cb-more-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .cb-more-title { font-size: 14px; font-weight: 650; letter-spacing: -0.01em; }
@@ -3704,8 +3704,8 @@ body.theme-daybreak .cb-activity-row + .cb-activity-row {
   color: #34d399;
 }
 .cb-activity-icon.out {
-  background: rgba(0, 82, 255, 0.16);
-  color: #5B9CFF;
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--accent);
 }
 .cb-activity-icon.game {
   background: rgba(251, 191, 36, 0.14);
@@ -3716,8 +3716,8 @@ body.theme-daybreak .cb-activity-icon.in {
   color: #059669;
 }
 body.theme-daybreak .cb-activity-icon.out {
-  background: rgba(0, 82, 255, 0.1);
-  color: #0052FF;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
 }
 body.theme-daybreak .cb-activity-icon.game {
   background: rgba(217, 119, 6, 0.12);
@@ -3756,12 +3756,12 @@ body.theme-daybreak .cb-activity-icon.game {
 }
 body.theme-daybreak .cb-activity-party { color: rgba(10, 11, 13, 0.45); }
 .cb-activity-link {
-  color: #5B9CFF;
+  color: var(--accent);
   text-decoration: none;
   font-weight: 600;
   flex-shrink: 0;
 }
-body.theme-daybreak .cb-activity-link { color: #0052FF; }
+body.theme-daybreak .cb-activity-link { color: var(--accent); }
 
 .cb-status-pill {
   flex-shrink: 0;
@@ -4192,8 +4192,8 @@ body.theme-daybreak .cb-actions.duo .cb-action {
   background: rgba(10, 11, 13, 0.03);
 }
 .cb-actions.duo .cb-action.primary {
-  background: rgba(0, 82, 255, 0.18);
-  border-color: rgba(0, 82, 255, 0.4);
+  background: rgba(var(--accent-rgb), 0.14);
+  border-color: rgba(var(--accent-rgb), 0.36);
 }
 .cb-actions.duo .cb-action-circle {
   width: 44px;
@@ -4680,16 +4680,16 @@ body.theme-daybreak .sec-list .sec-row {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: rgba(0, 82, 255, 0.16);
-  color: #8EB6FF;
+  background: rgba(var(--accent-rgb), 0.14);
+  color: var(--accent);
 }
 .sec-icon.danger {
   background: rgba(248, 113, 113, 0.14);
   color: #f87171;
 }
 body.theme-daybreak .sec-icon {
-  background: rgba(0, 82, 255, 0.1);
-  color: #0052FF;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
 }
 body.theme-daybreak .sec-icon.danger {
   background: rgba(220, 38, 38, 0.1);
@@ -5125,9 +5125,9 @@ body.theme-daybreak .ingame-ready-badge {
   background: rgba(52, 211, 153, 0.12);
 }
 .ingame-ladder-step.now {
-  color: #8EB6FF;
-  border-color: rgba(0, 82, 255, 0.45);
-  background: rgba(0, 82, 255, 0.16);
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.45);
+  background: rgba(var(--accent-rgb), 0.14);
 }
 body.theme-daybreak .ingame-ladder-step.done {
   color: #059669;
@@ -5135,15 +5135,15 @@ body.theme-daybreak .ingame-ladder-step.done {
   background: rgba(5, 150, 105, 0.1);
 }
 body.theme-daybreak .ingame-ladder-step.now {
-  color: #0052FF;
-  border-color: rgba(0, 82, 255, 0.35);
-  background: rgba(0, 82, 255, 0.1);
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.38);
+  background: rgba(var(--accent-rgb), 0.1);
 }
 .ingame-nudge {
   padding: 14px;
   border-radius: 16px;
-  border: 1px solid rgba(0, 82, 255, 0.28);
-  background: rgba(0, 82, 255, 0.1);
+  border: 1px solid rgba(var(--accent-rgb), 0.28);
+  background: rgba(var(--accent-rgb), 0.1);
 }
 .ingame-nudge-title {
   font-size: 14px;
@@ -5180,7 +5180,7 @@ body.theme-daybreak .ingame-ladder-step.now {
   color: #34d399;
 }
 .security-ladder .now {
-  color: #8EB6FF;
+  color: var(--accent);
 }
 .security-ladder .todo {
   color: rgba(255, 255, 255, 0.4);
@@ -5190,7 +5190,7 @@ body.theme-daybreak .security-ladder {
   border-color: rgba(23, 23, 23, 0.1);
 }
 body.theme-daybreak .security-ladder .done { color: #059669; }
-body.theme-daybreak .security-ladder .now { color: #0052FF; }
+body.theme-daybreak .security-ladder .now { color: var(--accent); }
 body.theme-daybreak .security-ladder .todo { color: rgba(23, 23, 23, 0.4); }
 
 
@@ -5278,15 +5278,15 @@ body.theme-daybreak .boot-lock-card {
   width: 52px;
   height: 52px;
   border-radius: 16px;
-  background: rgba(0, 82, 255, 0.18);
-  color: #8eb6ff;
+  background: rgba(var(--accent-rgb), 0.16);
+  color: var(--accent);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 body.theme-daybreak .boot-lock-badge {
-  background: rgba(0, 82, 255, 0.12);
-  color: #0052ff;
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent);
 }
 .boot-lock-title {
   margin: 4px 0 0;
@@ -5465,12 +5465,12 @@ body.theme-daybreak .cb-tabs {
   border-radius: 12px;
 }
 .cb-tab.active {
-  color: #5B9CFF;
-  background: rgba(0, 82, 255, 0.16);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.14);
 }
 body.theme-daybreak .cb-tab.active {
-  color: #0052FF;
-  background: rgba(0, 82, 255, 0.08);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.1);
 }
 
 /* ── Sub-screens: ink follows the card (dark Retro / light Daybreak) ── */
@@ -5515,19 +5515,19 @@ body.theme-daybreak .cb-tab.active {
 .cb-wallet-root .text-cyan-200,
 .cb-wallet-root .text-cyan-300,
 .cb-wallet-root .text-cyan-400 {
-  color: #5B9CFF !important;
+  color: var(--accent) !important;
 }
 .cb-wallet-root .bg-cyan-500\/10,
 .cb-wallet-root .bg-cyan-500\/15,
 .cb-wallet-root .bg-cyan-500\/20,
 .cb-wallet-root .bg-cyan-500\/25 {
-  background: rgba(0, 82, 255, 0.18) !important;
+  background: rgba(var(--accent-rgb), 0.14) !important;
 }
 .cb-wallet-root .border-cyan-400\/30,
 .cb-wallet-root .border-cyan-400\/40,
 .cb-wallet-root .border-cyan-400\/50,
 .cb-wallet-root .border-cyan-500\/40 {
-  border-color: rgba(0, 82, 255, 0.4) !important;
+  border-color: rgba(var(--accent-rgb), 0.36) !important;
 }
 .cb-wallet-root .text-amber-200,
 .cb-wallet-root .text-amber-300,
@@ -5599,7 +5599,7 @@ body.theme-daybreak .cb-wallet-root .text-cyan-100,
 body.theme-daybreak .cb-wallet-root .text-cyan-200,
 body.theme-daybreak .cb-wallet-root .text-cyan-300,
 body.theme-daybreak .cb-wallet-root .text-cyan-400 {
-  color: #0052FF !important;
+  color: var(--accent) !important;
 }
 body.theme-daybreak .cb-wallet-root .text-amber-200,
 body.theme-daybreak .cb-wallet-root .text-amber-300 {

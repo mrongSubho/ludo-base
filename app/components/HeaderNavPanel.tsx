@@ -86,7 +86,7 @@ export const HeaderNavPanel = ({
                 aria-label={`${balanceTooltip} — Open wallet`}
                 className="hud-header-cluster min-w-[68px] max-w-[116px] flex-none h-[40px] sm:h-[44px] px-2.5 flex items-center gap-1.5 rounded-xl bg-surface-recessed border border-line-soft text-ink-strong hover:border-line-strong active:scale-[0.98] transition-[border-color,background-color,transform] cursor-pointer text-left"
             >
-                <span className={`w-5 h-5 flex-shrink-0 ${showChips ? 'text-accent' : 'text-warn'}`}>
+                <span className="w-5 h-5 flex-shrink-0 text-accent">
                     <ChipsHexIcon className="w-full h-full" active />
                 </span>
                 <span className="hud-header-coins-3077 text-ludo-sm font-bold text-ink-strong font-mono tabular-nums truncate leading-none">

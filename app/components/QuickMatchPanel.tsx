@@ -396,8 +396,8 @@ export const QuickMatchPanel = ({
                     <span className="w-1 h-1 rounded-full bg-line-strong" />
                     <span className="font-bold text-ink-muted uppercase">{matchType}</span>
                     <span className="w-1 h-1 rounded-full bg-line-strong" />
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warn/15 border border-warn/35 text-warn font-extrabold font-mono tabular-nums">
-                        <ChipsHexIcon className="w-3 h-3 text-warn" active />
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent-soft border border-accent/35 text-accent font-extrabold font-mono tabular-nums">
+                        <ChipsHexIcon className="w-3 h-3 text-accent" active />
                         <span>
                             {wagerRange?.max === undefined && wagerRange?.min === 0
                                 ? 'Any'
@@ -787,8 +787,8 @@ export const QuickMatchPanel = ({
                                     <span className="text-ludo-xs font-extrabold text-ink-muted uppercase tracking-[0.2em]">{gameMode}</span>
                                     <div className="w-1 h-3 bg-line-strong rounded-full" />
                                     <div className="flex items-center gap-1">
-                                        <ChipsHexIcon className="w-3.5 h-3.5 text-warn" active />
-                                        <span className="text-ludo-xs font-extrabold font-mono text-warn tracking-[0.1em] tabular-nums">
+                                        <ChipsHexIcon className="w-3.5 h-3.5 text-accent" active />
+                                        <span className="text-ludo-xs font-extrabold font-mono text-accent tracking-[0.1em] tabular-nums">
                                             {wagerRange?.max === undefined && wagerRange?.min === 0
                                                 ? 'Any'
                                                 : feeLabel(activeWager)}
