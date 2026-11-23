@@ -1,0 +1,500 @@
+/* ─── Ludo Orbital Retro (`theme-retro-futurism`): Space-Navy Glass + Minimal Arcade CRT ───
+   Deep midnight orbital substrates (#060B14 / #0A101E), smooth concentric curves,
+   reactive deployment-mode neon phosphors (Ice Cyan / Solar Amber / Phosphor Emerald),
+   restrained CRT scanlines + vignette, and subtle perspective horizon grid. */
+
+body.theme-retro-futurism {
+  /* Core Palette Tokens */
+  --ludo-bg: #060b14;
+  --ludo-card: #0a101e;
+  --ludo-text: #f0f6fc;
+  --ludo-muted: #9bb0c9;
+  --ludo-faint: #5e738e;
+  --ludo-slate: #0b1221;
+  --ludo-bg-rgb: 6, 11, 20;
+
+  /* Quick Match Default: Orbital Ice Cyan */
+  --accent: #5ce1ff;
+  --accent-rgb: 92, 225, 255;
+  --accent-bright: #a5f3fc;
+  --accent-edge: #7dd3fc;
+  --accent-soft: rgba(var(--accent-rgb), 0.14);
+  --accent-ink: #03131a;
+  --ludo-border: rgba(var(--accent-rgb), 0.30);
+
+  /* Semantic UI Surface / Ink / Line Tokens */
+  --surface-0: #060b14;
+  --surface-1: #0a101e;
+  --surface-2: rgba(11, 18, 33, 0.84);
+  --surface-3: rgba(16, 25, 44, 0.90);
+  --surface-page: var(--surface-0);
+  --surface-panel: rgba(8, 13, 25, 0.94);
+  --surface-recessed: var(--surface-2);
+  --surface-hover: rgba(240, 246, 252, 0.06);
+  --surface-active: rgba(var(--accent-rgb), 0.12);
+
+  --ink-strong: #f0f6fc;
+  --ink-muted: #9bb0c9;
+  --ink-faint: #5e738e;
+  --line-soft: rgba(240, 246, 252, 0.09);
+  --line-strong: rgba(240, 246, 252, 0.20);
+  --line-accent: rgba(var(--accent-rgb), 0.56);
+
+  /* Status Semantics */
+  --sig-ok: #34d399;
+  --sig-warn: #fbbf24;
+  --sig-danger: #fb7185;
+  --sig-info: #38bdf8;
+  --warn: var(--sig-warn);
+  --positive: #34d399;
+  --negative: #fb7185;
+
+  /* Arcade Team Base Palette */
+  --ludo-base-green: #10b981;
+  --ludo-base-red: #f43f5e;
+  --ludo-base-blue: #38bdf8;
+  --ludo-base-yellow: #fbbf24;
+  --ludo-emerald: #34d399;
+  --ludo-red-vibrant: #fb7185;
+  --ludo-blue-vibrant: #38bdf8;
+  --ludo-amber-vibrant: #fbbf24;
+
+  /* Panel Chrome */
+  --panel-bg: rgba(8, 13, 25, 0.94);
+  --panel-bg-image: none;
+  --panel-border: rgba(var(--accent-rgb), 0.28);
+  --panel-blur: 24px;
+  --panel-shadow: 0 22px 54px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(var(--accent-rgb), 0.16);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(240, 246, 252, 0.05);
+  --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.75);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-card: 18px;
+  --radius-chip: 9999px;
+
+  /* Motion Timing Tokens */
+  --font-mono: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --dur-instant: 100ms;
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-exit: 150ms;
+
+  /* Font Overrides */
+  --font-sans: var(--font-chakra), sans-serif;
+  --font-body: var(--font-chakra), sans-serif;
+  --font-heading: var(--font-russo), sans-serif;
+
+  /* Legacy Cyber Aliases */
+  --cyber-primary: var(--accent);
+  --cyber-secondary: #38bdf8;
+  --cyber-cta: #fb7185;
+  --cyber-bg: #060b14;
+  --cyber-text: #f0f6fc;
+  --cyber-accent: var(--accent);
+
+  /* Marketplace Category Rail Tokens */
+  --market-chip-icon: var(--accent);
+  --market-chip-count-bg: rgba(var(--accent-rgb), 0.14);
+  --market-chip-count-ink: #e0f7ff;
+  --market-chip-count-bg-active: rgba(var(--accent-rgb), 0.28);
+  --market-chip-count-ink-active: #ffffff;
+
+  /* Claiming Overlay Tokens */
+  --claiming-overlay-bg: rgba(6, 11, 20, 0.96);
+  --claiming-overlay-border: rgba(var(--accent-rgb), 0.65);
+  --claiming-overlay-shadow: 0 0 40px rgba(var(--accent-rgb), 0.32);
+  --claiming-overlay-radar: rgba(var(--accent-rgb), 0.60);
+  --claiming-overlay-ring-1: rgba(var(--accent-rgb), 0.32);
+  --claiming-overlay-ring-2: rgba(var(--accent-rgb), 0.18);
+  --claiming-overlay-pulse-border: rgba(var(--accent-rgb), 0.55);
+  --claiming-overlay-pulse-bg: rgba(var(--accent-rgb), 0.14);
+  --claiming-overlay-title: var(--accent);
+  --claiming-overlay-subtitle: rgba(240, 246, 252, 0.78);
+  --claiming-overlay-laser: var(--accent);
+  --claiming-overlay-laser-shadow: 0 0 14px var(--accent);
+
+  /* Error Boundary Tokens */
+  --err-backdrop: #03060c;
+  --err-card-bg: rgba(16, 8, 16, 0.97);
+  --err-card-border: rgba(251, 113, 133, 0.45);
+  --err-card-shadow: 0 24px 50px rgba(0, 0, 0, 0.85), 0 0 24px rgba(251, 113, 133, 0.28);
+  --err-ink: #f0f6fc;
+  --err-ink-muted: rgba(240, 246, 252, 0.68);
+  --err-kicker: #fb7185;
+  --err-stack-bg: rgba(0, 0, 0, 0.78);
+  --err-stack-border: rgba(251, 113, 133, 0.28);
+  --err-stack-ink: rgba(240, 246, 252, 0.88);
+  --err-cta-bg: #fb7185;
+  --err-cta-ink: #0a0408;
+  --err-cta-border: #fb7185;
+  --err-ghost-bg: rgba(240, 246, 252, 0.08);
+  --err-ghost-ink: #f0f6fc;
+  --err-ghost-border: rgba(240, 246, 252, 0.22);
+
+  background-color: var(--ludo-bg);
+  color: var(--ludo-text);
+  background-image:
+    radial-gradient(ellipse 80% 45% at 50% 0%, rgba(var(--accent-rgb), 0.11) 0%, transparent 65%),
+    radial-gradient(ellipse 90% 42% at 50% 100%, rgba(var(--accent-rgb), 0.07) 0%, transparent 70%);
+}
+
+/* Reactive Deployment Mode Overrides (Quick = Ice Cyan · Team = Solar Amber · Offline = Phosphor Emerald) */
+body.theme-retro-futurism[data-deploy-mode="team"] {
+  --accent: #fbbf24;
+  --accent-rgb: 251, 191, 36;
+  --accent-bright: #fde68a;
+  --accent-edge: #fcd34d;
+  --accent-ink: #160b02;
+  --cyber-secondary: #f59e0b;
+  --market-chip-count-ink: #fef3c7;
+}
+
+body.theme-retro-futurism[data-deploy-mode="offline"] {
+  --accent: #34d399;
+  --accent-rgb: 52, 211, 153;
+  --accent-bright: #a7f3d0;
+  --accent-edge: #6ee7b7;
+  --accent-ink: #03150e;
+  --cyber-secondary: #10b981;
+  --market-chip-count-ink: #d1fae5;
+}
+
+/* Display Heading Font */
+body.theme-retro-futurism h1,
+body.theme-retro-futurism h2,
+body.theme-retro-futurism h3,
+body.theme-retro-futurism .header-title,
+body.theme-retro-futurism .section-label {
+  font-family: var(--font-russo), sans-serif !important;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* ─── Minimal Arcade CRT: Soft Scanlines + Vignette ─── */
+body.theme-retro-futurism::before {
+  content: "";
+  display: block;
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(18, 22, 32, 0) 50%, rgba(0, 0, 0, 0.24) 50%),
+    linear-gradient(90deg, rgba(255, 0, 64, 0.02), rgba(0, 255, 160, 0.015), rgba(64, 180, 255, 0.025));
+  background-size: 100% 2px, 3px 100%;
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 40;
+}
+
+body.theme-retro-futurism::after {
+  content: "";
+  display: block;
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 56%, rgba(2, 5, 12, 0.56) 100%);
+  pointer-events: none;
+  z-index: 39;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.theme-retro-futurism::before {
+    opacity: 0.08;
+  }
+}
+
+/* ─── Perspective Horizon Grid + Deep Orbital Canopy Backdrop ─── */
+body.theme-retro-futurism .lobby-backdrop {
+  --lobby-photo: none !important;
+  background-image:
+    radial-gradient(circle at 50% 18%, rgba(var(--accent-rgb), 0.14) 0%, transparent 58%),
+    radial-gradient(circle at 50% 46%, transparent 150px, rgba(var(--accent-rgb), 0.04) 151px, transparent 152px),
+    radial-gradient(circle at 50% 46%, transparent 280px, rgba(var(--accent-rgb), 0.03) 281px, transparent 282px),
+    linear-gradient(180deg, #050912 0%, #070d19 52%, #050811 100%) !important;
+  background-size: 100% 100% !important;
+  opacity: 1 !important;
+  overflow: hidden;
+}
+
+body.theme-retro-futurism .lobby-backdrop::after {
+  content: "";
+  position: absolute;
+  left: -30%;
+  right: -30%;
+  bottom: -6%;
+  height: 44%;
+  background-image:
+    linear-gradient(to top, rgba(var(--accent-rgb), 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--accent-rgb), 0.12) 1px, transparent 1px);
+  background-size: 100% 24px, 44px 100%;
+  transform-origin: center top;
+  transform: perspective(360px) rotateX(68deg);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.72) 45%, rgba(0, 0, 0, 0.22) 100%);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0.72) 45%, rgba(0, 0, 0, 0.22) 100%);
+  border-top: 1px solid rgba(var(--accent-rgb), 0.22);
+  pointer-events: none;
+}
+
+body.theme-retro-futurism .cosmic-orb {
+  display: none !important;
+}
+
+body.theme-retro-futurism .boot-dot {
+  display: block;
+  opacity: 0.08;
+}
+
+/* ─── Shell Layout & Scroller Hygiene ─── */
+body.theme-retro-futurism .app-shell.dashboard-shell {
+  height: var(--app-vh, 100dvh);
+  overflow: hidden;
+  background-color: var(--surface-0);
+}
+
+body.theme-retro-futurism .dash-main {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  container-type: inline-size;
+}
+
+body.theme-retro-futurism .dash-main > .ludo-lobby-scope,
+body.theme-retro-futurism .dash-main > .ludo-lobby-scope > .setup-tier {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
+body.theme-retro-futurism :is(
+  .dash-main,
+  .panel-body-3077,
+  .ludo-messages-scope .overflow-y-auto,
+  .ludo-clan-scope .chat-thread-scroll
+) {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior: contain;
+}
+
+body.theme-retro-futurism :is(
+  .dash-main,
+  .panel-body-3077,
+  .ludo-messages-scope .overflow-y-auto,
+  .ludo-clan-scope .chat-thread-scroll
+)::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* ─── Header: Smooth Orbital Capsules (Distinct from 3077 Chamfers) ─── */
+body.theme-retro-futurism .dash-header {
+  min-height: 56px;
+  height: 56px;
+  padding-top: 0;
+  padding-bottom: 0;
+  background: rgba(8, 13, 25, 0.90);
+  border-bottom: 1px solid rgba(var(--accent-rgb), 0.22);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.42);
+}
+
+body.theme-retro-futurism .dash-header > button,
+body.theme-retro-futurism .dash-header .hud-header-cluster {
+  border-radius: 9999px !important;
+  background: rgba(11, 18, 33, 0.86) !important;
+  border: 1px solid rgba(var(--accent-rgb), 0.32) !important;
+  box-shadow: inset 0 1px 0 rgba(var(--accent-rgb), 0.18), 0 4px 12px rgba(0, 0, 0, 0.35) !important;
+  transition-property: border-color, background-color, box-shadow, transform !important;
+  transition-duration: var(--dur-fast) !important;
+  transition-timing-function: var(--ease-out) !important;
+}
+
+body.theme-retro-futurism .dash-header > button:hover,
+body.theme-retro-futurism .dash-header .hud-header-cluster:hover {
+  border-color: rgba(var(--accent-rgb), 0.65) !important;
+  box-shadow: inset 0 1px 0 rgba(var(--accent-rgb), 0.28), 0 0 14px rgba(var(--accent-rgb), 0.22) !important;
+}
+
+body.theme-retro-futurism .dash-header .hud-avatar-frame {
+  border-radius: 9999px !important;
+  border-color: rgba(var(--accent-rgb), 0.65) !important;
+}
+
+body.theme-retro-futurism .dash-header .hud-header-coins-3077 {
+  color: var(--accent-bright) !important;
+}
+
+body.theme-retro-futurism .dash-header .hud-header-name-3077 {
+  color: color-mix(in srgb, var(--accent-bright) 48%, var(--ink-strong)) !important;
+}
+
+body.theme-retro-futurism .dash-header .hud-header-rank-3077 svg {
+  color: var(--accent) !important;
+  filter: drop-shadow(0 0 5px rgba(var(--accent-rgb), 0.45));
+}
+
+body.theme-retro-futurism .dash-header .hud-header-action-3077 {
+  color: rgba(var(--accent-rgb), 0.88) !important;
+}
+
+body.theme-retro-futurism .dash-header .hud-header-action-3077:hover {
+  color: var(--accent-bright) !important;
+}
+
+/* ─── Footer: Floating Orbital Console Dock ─── */
+body.theme-retro-futurism .footer-nav {
+  min-height: 64px;
+  background: rgba(7, 12, 24, 0.92) !important;
+  border-top: 1px solid rgba(var(--accent-rgb), 0.28) !important;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(var(--accent-rgb), 0.14) !important;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+body.theme-retro-futurism .footer-nav .nav-item {
+  flex: 1 1 0%;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 4px;
+}
+
+body.theme-retro-futurism .footer-nav .nav-item,
+body.theme-retro-futurism .footer-nav .nav-item .nav-label,
+body.theme-retro-futurism .footer-nav .nav-item > div {
+  transition-property: border-color, background-color, color, opacity !important;
+  transition-duration: var(--dur-fast) !important;
+  transition-timing-function: var(--ease-out) !important;
+}
+
+body.theme-retro-futurism .footer-nav .nav-item .nav-icon {
+  color: color-mix(in srgb, var(--accent) 68%, var(--ink-muted)) !important;
+  transition-property: color, opacity, transform !important;
+  transition-duration: var(--dur-fast) !important;
+  transition-timing-function: var(--ease-out) !important;
+}
+
+body.theme-retro-futurism .footer-nav .nav-item.active .nav-icon {
+  color: var(--accent-bright) !important;
+  filter: drop-shadow(0 0 8px rgba(var(--accent-rgb), 0.55)) !important;
+  transform: translateY(-1px) !important;
+}
+
+body.theme-retro-futurism .footer-nav .nav-item .nav-label {
+  color: color-mix(in srgb, var(--accent) 62%, var(--ink-muted)) !important;
+  font-family: var(--font-chakra), sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+body.theme-retro-futurism .footer-nav .nav-item.active .nav-label {
+  color: var(--accent-bright) !important;
+  font-weight: 700;
+}
+
+body.theme-retro-futurism .footer-active-plate {
+  border-radius: 16px !important;
+  background: radial-gradient(circle at 50% 25%, rgba(var(--accent-rgb), 0.22) 0%, rgba(var(--accent-rgb), 0.06) 80%) !important;
+  border-color: rgba(var(--accent-rgb), 0.45) !important;
+}
+
+body.theme-retro-futurism .footer-active-laser {
+  display: block;
+  position: absolute;
+  bottom: 2px;
+  left: 16px;
+  right: 16px;
+  height: 2px;
+  border-radius: 9999px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.85);
+}
+
+/* ─── Slide-Over Panels & Modals: Deep Orbital Glass ─── */
+body.theme-retro-futurism :is(
+  .panel-shell-3077,
+  .ludo-market-scope,
+  .ludo-settings-scope,
+  .ludo-rankings-scope,
+  .ludo-friends-scope,
+  .ludo-messages-scope,
+  .ludo-arena-scope,
+  .ludo-profile-scope,
+  .ludo-offline-scope,
+  .ludo-migrate-scope,
+  .ludo-teamup-scope,
+  .ludo-quick-scope,
+  .ludo-pubprofile-scope,
+  .ludo-livearena-scope,
+  .ludo-leaderboard-scope,
+  .ludo-invite-scope,
+  .ludo-wallet-scope,
+  .ludo-burn-scope,
+  .ludo-wall-scope,
+  .ludo-authwait-scope,
+  .ludo-quit-scope,
+  .ludo-broadcast-scope,
+  .ludo-clan-scope
+) {
+  background: rgba(8, 13, 25, 0.94) !important;
+  background-image: none !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(var(--accent-rgb), 0.26) !important;
+  border-top-color: rgba(var(--accent-rgb), 0.52) !important;
+  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.76), inset 0 1px 0 rgba(var(--accent-rgb), 0.18) !important;
+}
+
+body.theme-retro-futurism .panel-handle-bar {
+  width: 52px;
+  height: 3px;
+  border-radius: 9999px !important;
+  background: linear-gradient(90deg, transparent, rgba(var(--accent-rgb), 0.85), transparent) !important;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.45);
+}
+
+body.theme-retro-futurism .panel-close-3077 {
+  border-radius: 9999px !important;
+}
+
+body.theme-retro-futurism .panel-tabs-3077 {
+  border-radius: 9999px !important;
+  background: rgba(6, 11, 20, 0.82) !important;
+  border-color: rgba(var(--accent-rgb), 0.20) !important;
+}
+
+body.theme-retro-futurism .panel-tab-active-3077 {
+  border-radius: 9999px !important;
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.22) 0%, rgba(var(--accent-rgb), 0.08) 100%) !important;
+  border-color: rgba(var(--accent-rgb), 0.48) !important;
+  box-shadow: 0 0 14px rgba(var(--accent-rgb), 0.22), inset 0 1px 0 rgba(var(--accent-rgb), 0.35);
+}
+
+body.theme-retro-futurism .panel-child-rail-3077 {
+  border-radius: 9999px;
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.85) !important;
+}
+
+/* ─── ActionDice & Orbital Ring Pedestal ─── */
+body.theme-retro-futurism .orbital-dice-ring {
+  filter: drop-shadow(0 0 8px rgba(var(--accent-rgb), 0.35));
+}
+
+body.theme-retro-futurism .dice-tier {
+  background: none;
+}
+
+/* ─── Wallet Root (Retro Orbital Dark Glass) ─── */
+body.theme-retro-futurism .cb-wallet-root {
+  background: #060b14;
+  border: 1px solid rgba(var(--accent-rgb), 0.30);
+}
+
+body.theme-retro-futurism .cb-copy,
+body.theme-retro-futurism .cb-link,
+body.theme-retro-futurism .cb-activity-link,
+body.theme-retro-futurism .cb-tab.active {
+  color: var(--accent);
+}

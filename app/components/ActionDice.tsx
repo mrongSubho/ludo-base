@@ -14,6 +14,7 @@ import {
     SquadRoomIcon,
 } from './icons';
 import { DeploymentModeRail } from './DeploymentModeRail';
+import { OrbitalModeDock } from './OrbitalModeDock';
 import { TerminalTypeText } from './TerminalTypeText';
 
 interface ActionDiceProps {
@@ -64,6 +65,12 @@ const MODE_HEX_3077: Record<ModeId, string> = {
     offline: DEPLOY_THEMES.offline.hex,
 };
 
+const MODE_HEX_RETRO: Record<ModeId, string> = {
+    quick: '#5CE1FF',
+    team: '#FBBF24',
+    offline: '#34D399',
+};
+
 const MODE_HEX_DAYBREAK: Record<ModeId, string> = {
     quick: '#0284C7',
     team: '#D97706',
@@ -94,6 +101,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     const { triggerHaptic } = useAudio();
     const { preferences } = usePreferences();
     const is3077 = preferences.theme === '3077';
+    const isRetro = preferences.theme === 'retro';
     const isDaybreak = preferences.theme === 'light';
     const controls = useAnimation();
     const shadowControls = useAnimation();
@@ -107,7 +115,14 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             [1, 2, 3, 4, 5, 6].map((pips, i) => {
                 const id = FACE_MODE[i];
                 const action = BASE_ACTIONS.find((a) => a.id === id)!;
-                return { pips, id, label: action.label, dotColor: MODE_DOT[id], hex3077: MODE_HEX_3077[id] };
+                return {
+                    pips,
+                    id,
+                    label: action.label,
+                    dotColor: MODE_DOT[id],
+                    hex3077: MODE_HEX_3077[id],
+                    hexRetro: MODE_HEX_RETRO[id],
+                };
             }),
         [],
     );
@@ -230,7 +245,11 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
     };
 
     const activeId = FACE_MODE[activeIndex];
-    const modeColorHex = MODE_HEX_3077[activeId];
+    const modeColorHex = is3077
+        ? MODE_HEX_3077[activeId]
+        : isRetro
+          ? MODE_HEX_RETRO[activeId]
+          : MODE_HEX_DAYBREAK[activeId];
 
     useEffect(() => {
         setDeployModeTheme(activeId, false);
@@ -241,12 +260,12 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
             <div className="dice-swipe-hint w-full flex items-center justify-center gap-2 mb-5">
                 <span
                     className={`text-ludo-xs uppercase font-bold text-center ${
-                        is3077
+                        is3077 || isRetro
                             ? 'font-mono text-ink-muted tracking-[0.22em]'
                             : 'text-ink-muted tracking-[0.3em] drop-shadow-md'
                     }`}
                 >
-                    {is3077 ? '// SWIPE OR SELECT DEPLOYMENT //' : 'Swipe to choose'}
+                    {is3077 ? '// SWIPE OR SELECT DEPLOYMENT //' : isRetro ? '// SWIPE OR TAP ORBITAL DICE //' : 'Swipe to choose'}
                 </span>
             </div>
 
@@ -292,6 +311,47 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                             <ChevronGlyphIcon direction="right" className="w-5 h-5" />
                         </motion.button>
                     </>
+                ) : isRetro ? (
+                    <>
+                        <motion.button
+                            type="button"
+                            onClick={() => stepMode(-1, 'y')}
+                            aria-label="Previous game mode"
+                            animate={isRolling ? { x: 0 } : { x: [0, -4, 0] }}
+                            transition={
+                                isRolling
+                                    ? { duration: 0.15 }
+                                    : { repeat: Infinity, duration: 2.1, ease: 'easeInOut' }
+                            }
+                            className="rounded-full border bg-surface-panel/85 backdrop-blur-md absolute top-1/2 -translate-y-1/2 -left-24 sm:-left-28 min-w-[44px] min-h-[44px] flex items-center justify-center hover:brightness-110 active:scale-95 transition-[color,border-color,transform] z-20 cursor-pointer"
+                            style={{
+                                borderColor: `${modeColorHex}66`,
+                                color: modeColorHex,
+                                boxShadow: `0 0 14px ${modeColorHex}22, inset 0 1px 0 ${modeColorHex}33`,
+                            }}
+                        >
+                            <ChevronGlyphIcon direction="left" className="w-5 h-5" />
+                        </motion.button>
+                        <motion.button
+                            type="button"
+                            onClick={() => stepMode(1, 'y')}
+                            aria-label="Next game mode"
+                            animate={isRolling ? { x: 0 } : { x: [0, 4, 0] }}
+                            transition={
+                                isRolling
+                                    ? { duration: 0.15 }
+                                    : { repeat: Infinity, duration: 2.1, ease: 'easeInOut' }
+                            }
+                            className="rounded-full border bg-surface-panel/85 backdrop-blur-md absolute top-1/2 -translate-y-1/2 -right-24 sm:-right-28 min-w-[44px] min-h-[44px] flex items-center justify-center hover:brightness-110 active:scale-95 transition-[color,border-color,transform] z-20 cursor-pointer"
+                            style={{
+                                borderColor: `${modeColorHex}66`,
+                                color: modeColorHex,
+                                boxShadow: `0 0 14px ${modeColorHex}22, inset 0 1px 0 ${modeColorHex}33`,
+                            }}
+                        >
+                            <ChevronGlyphIcon direction="right" className="w-5 h-5" />
+                        </motion.button>
+                    </>
                 ) : (
                     <>
                         <motion.div
@@ -316,12 +376,12 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 {/* Victory / Mode Landing Aura */}
                 <motion.div
                     className={`absolute w-28 h-28 rounded-[100%] blur-3xl pointer-events-none transition-colors duration-300 ${
-                        is3077 ? '' : faces[activeIndex]?.dotColor || 'bg-cyan-400'
+                        is3077 || isRetro ? '' : faces[activeIndex]?.dotColor || 'bg-cyan-400'
                     }`}
-                    style={is3077 ? { backgroundColor: modeColorHex } : undefined}
+                    style={is3077 || isRetro ? { backgroundColor: modeColorHex } : undefined}
                     animate={{
-                        scale: isRolling ? 0.5 : is3077 ? 1.35 : 1.8,
-                        opacity: isRolling ? 0 : is3077 ? 0.24 : 0.6,
+                        scale: isRolling ? 0.5 : is3077 ? 1.35 : isRetro ? 1.25 : 1.8,
+                        opacity: isRolling ? 0 : is3077 ? 0.24 : isRetro ? 0.22 : 0.6,
                     }}
                     transition={{ duration: 0.8, ease: 'easeOut' }}
                 />
@@ -339,12 +399,12 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                         onDragEnd={handleDragEnd}
                         style={{ transformStyle: 'preserve-3d' }}
                     >
-                        <DiceFace face={faces[0]} is3077={is3077} transform="translateZ(var(--tz))" onClick={() => handleFaceClick(0)} isActive={activeIndex === 0} isRolling={isRolling} />
-                        <DiceFace face={faces[1]} is3077={is3077} transform="rotateY(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(1)} isActive={activeIndex === 1} isRolling={isRolling} />
-                        <DiceFace face={faces[2]} is3077={is3077} transform="rotateY(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(2)} isActive={activeIndex === 2} isRolling={isRolling} />
-                        <DiceFace face={faces[3]} is3077={is3077} transform="rotateY(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(3)} isActive={activeIndex === 3} isRolling={isRolling} />
-                        <DiceFace face={faces[4]} is3077={is3077} transform="rotateX(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(4)} isActive={activeIndex === 4} isRolling={isRolling} />
-                        <DiceFace face={faces[5]} is3077={is3077} transform="rotateX(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(5)} isActive={activeIndex === 5} isRolling={isRolling} />
+                        <DiceFace face={faces[0]} is3077={is3077} isRetro={isRetro} transform="translateZ(var(--tz))" onClick={() => handleFaceClick(0)} isActive={activeIndex === 0} isRolling={isRolling} />
+                        <DiceFace face={faces[1]} is3077={is3077} isRetro={isRetro} transform="rotateY(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(1)} isActive={activeIndex === 1} isRolling={isRolling} />
+                        <DiceFace face={faces[2]} is3077={is3077} isRetro={isRetro} transform="rotateY(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(2)} isActive={activeIndex === 2} isRolling={isRolling} />
+                        <DiceFace face={faces[3]} is3077={is3077} isRetro={isRetro} transform="rotateY(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(3)} isActive={activeIndex === 3} isRolling={isRolling} />
+                        <DiceFace face={faces[4]} is3077={is3077} isRetro={isRetro} transform="rotateX(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(4)} isActive={activeIndex === 4} isRolling={isRolling} />
+                        <DiceFace face={faces[5]} is3077={is3077} isRetro={isRetro} transform="rotateX(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(5)} isActive={activeIndex === 5} isRolling={isRolling} />
                     </motion.div>
                 </div>
             </div>
@@ -376,6 +436,46 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                         style={{ backgroundColor: modeColorHex }}
                     />
                 </div>
+            ) : isRetro ? (
+                /* Option B Dotted Elliptical Orbital Floor Ring */
+                <motion.div
+                    className="relative flex flex-col items-center justify-center pointer-events-none mt-1"
+                    aria-hidden="true"
+                    animate={{
+                        scale: isRolling ? 0.78 : 1,
+                        opacity: isRolling ? 0.45 : 1,
+                    }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
+                >
+                    <svg viewBox="0 0 132 32" className="orbital-dice-ring w-32 h-8" fill="none">
+                        <ellipse
+                            cx="66"
+                            cy="16"
+                            rx="50"
+                            ry="10"
+                            stroke={modeColorHex}
+                            strokeWidth="1.5"
+                            strokeDasharray="3 5"
+                            strokeLinecap="round"
+                            strokeOpacity="0.62"
+                        />
+                        <ellipse
+                            cx="66"
+                            cy="16"
+                            rx="31"
+                            ry="5.5"
+                            stroke={modeColorHex}
+                            strokeWidth="1"
+                            strokeDasharray="2 4"
+                            strokeLinecap="round"
+                            strokeOpacity="0.34"
+                        />
+                    </svg>
+                    <div
+                        className="w-20 h-2 -mt-4 rounded-full blur-md opacity-30"
+                        style={{ backgroundColor: modeColorHex }}
+                    />
+                </motion.div>
             ) : (
                 <motion.div
                     animate={shadowControls}
@@ -387,13 +487,19 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 />
             )}
 
-            {/* Mode Switcher: Curved Magnetic Shuttle Rail in 3077; 3-chip chamfered rail in Retro & Daybreak */}
+            {/* Mode Switcher: Curved Magnetic Shuttle Rail in 3077; Concave Orbital Dock in Retro; chips in Daybreak */}
             {is3077 ? (
                 <DeploymentModeRail
                     activeMode={activeId}
                     disabled={isRolling}
                     sfxEnabled={preferences.sfx}
                     hapticsEnabled={preferences.haptics}
+                    onSelectMode={jumpToMode}
+                />
+            ) : isRetro ? (
+                <OrbitalModeDock
+                    activeMode={activeId}
+                    disabled={isRolling}
                     onSelectMode={jumpToMode}
                 />
             ) : (
@@ -445,7 +551,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                 </div>
             )}
 
-            {/* Active mode blurb (live terminal print in 3077) */}
+            {/* Active mode blurb (live terminal print in 3077, crisp orbital readout in Retro) */}
             <div className="mt-2 h-4 flex items-center justify-center pointer-events-none px-2">
                 {is3077 ? (
                     !isRolling && (
@@ -456,6 +562,22 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                             style={{ color: 'var(--accent-bright)' }}
                         />
                     )
+                ) : isRetro ? (
+                    <AnimatePresence mode="wait">
+                        {!isRolling && (
+                            <motion.span
+                                key={`${activeId}-retro`}
+                                initial={{ opacity: 0, y: 3 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -3 }}
+                                transition={{ duration: 0.16 }}
+                                className="text-ludo-xs font-mono uppercase font-bold text-center tracking-[0.2em]"
+                                style={{ color: 'var(--accent-bright)' }}
+                            >
+                                {MODE_BLURB_3077[activeId]}
+                            </motion.span>
+                        )}
+                    </AnimatePresence>
                 ) : (
                     <AnimatePresence mode="wait">
                         {!isRolling && (
@@ -486,6 +608,7 @@ const ModeFaceGlyph = ({ id }: { id: ModeId }) => {
 const DiceFace = ({
     face,
     is3077,
+    isRetro = false,
     transform,
     onClick,
     isActive,
@@ -493,19 +616,23 @@ const DiceFace = ({
 }: {
     face: any;
     is3077: boolean;
+    isRetro?: boolean;
     transform: string;
     onClick: () => void;
     isActive: boolean;
     isRolling: boolean;
 }) => {
-    const faceHex: string = face.hex3077 || '#00E5FF';
+    const faceHex: string = isRetro ? (face.hexRetro || '#5CE1FF') : (face.hex3077 || '#00E5FF');
+    const darkStyled = is3077 || isRetro;
 
     return (
         <div
             className={`absolute w-full h-full flex flex-col items-center justify-center p-2 select-none overflow-hidden transition-colors duration-300 ${
                 is3077
                     ? 'rounded-xl border'
-                    : 'rounded-2xl bg-white border border-gray-100 shadow-[inset_0_-8px_16px_rgba(0,0,0,0.08),inset_0_4px_8px_rgba(255,255,255,1),0_4px_12px_rgba(0,0,0,0.1)]'
+                    : isRetro
+                      ? 'rounded-2xl border'
+                      : 'rounded-2xl bg-white border border-gray-100 shadow-[inset_0_-8px_16px_rgba(0,0,0,0.08),inset_0_4px_8px_rgba(255,255,255,1),0_4px_12px_rgba(0,0,0,0.1)]'
             }`}
             style={{
                 transform,
@@ -519,16 +646,29 @@ const DiceFace = ({
                               ? `inset 0 0 18px ${faceHex}22, 0 0 18px rgba(0, 0, 0, 0.75)`
                               : 'inset 0 0 12px rgba(var(--accent-rgb), 0.08)',
                       }
-                    : {}),
+                    : isRetro
+                      ? {
+                            background: 'linear-gradient(155deg, #111C30 0%, #09101E 62%, #050912 100%)',
+                            borderColor: isActive ? `${faceHex}99` : 'rgba(var(--accent-rgb), 0.24)',
+                            boxShadow: isActive
+                                ? `inset 0 0 18px ${faceHex}20, 0 0 18px rgba(0, 0, 0, 0.72)`
+                                : 'inset 0 0 10px rgba(var(--accent-rgb), 0.08)',
+                        }
+                      : {}),
             }}
         >
-            {/* 3077 Corner Chamfer Accent Ticks */}
-            {is3077 && (
-                <div className="pointer-events-none absolute inset-1 border border-line-soft rounded-lg" aria-hidden="true" />
+            {/* Inner Bevel Ring */}
+            {darkStyled && (
+                <div
+                    className={`pointer-events-none absolute inset-1 border border-line-soft ${
+                        isRetro ? 'rounded-xl' : 'rounded-lg'
+                    }`}
+                    aria-hidden="true"
+                />
             )}
 
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <DiceDots count={face.pips} dotColor={face.dotColor} is3077={is3077} hex3077={faceHex} />
+                <DiceDots count={face.pips} dotColor={face.dotColor} is3077={darkStyled} hex3077={faceHex} />
             </div>
 
             {/* Dynamic Light Sheen - Sweeps across face while tumbling */}
@@ -550,27 +690,29 @@ const DiceFace = ({
                     className={`relative mt-0.5 flex flex-col items-center justify-center gap-0.5 z-10 cursor-pointer transition-transform ${
                         is3077
                             ? 'w-[78%] min-h-[36px] px-1.5 py-1 border font-bold'
-                            : 'w-[94%] min-h-[44px] px-1.5 py-1 rounded-full border glass-panel backdrop-blur-[1px] border-accent/80 shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95'
+                            : isRetro
+                              ? 'w-[80%] min-h-[38px] px-2 py-1 rounded-full border font-bold'
+                              : 'w-[94%] min-h-[44px] px-1.5 py-1 rounded-full border glass-panel backdrop-blur-[1px] border-accent/80 shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95'
                     }`}
                     style={
-                        is3077
+                        darkStyled
                             ? {
                                   borderColor: `${faceHex}b3`,
                                   color: faceHex,
-                                  backgroundColor: `${faceHex}14`,
+                                  backgroundColor: `${faceHex}16`,
                                   boxShadow: `0 0 12px ${faceHex}26, inset 0 1px 0 ${faceHex}33`,
                               }
                             : undefined
                     }
                 >
-                    {is3077 && (
+                    {darkStyled && (
                         <span className="inline-flex items-center shrink-0">
                             <ModeFaceGlyph id={face.id as ModeId} />
                         </span>
                     )}
                     <span
                         className={`block leading-[1.05] whitespace-normal text-center ${
-                            is3077
+                            darkStyled
                                 ? 'text-ludo-xs sm:text-ludo-sm font-bold tracking-wider uppercase'
                                 : 'text-ludo-lg md:text-base lg:text-lg font-extrabold italic tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-accent'
                         }`}

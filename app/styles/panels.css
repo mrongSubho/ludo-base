@@ -52,74 +52,7 @@ body.theme-daybreak .ludo-invite-scope .invite-accept-btn:hover {
 
 /* Remove duplicated theme blocks */
 
-/* 🧬 Theme: Retro-Futurism (Synthwave) */
-body.theme-retro-futurism {
-  /* Core Variables (overrides :root) */
-  --ludo-bg: #0F0F23;
-  --ludo-card: rgba(15, 15, 35, 0.85);
-  --ludo-path-bg: #e2e8f0; /* Off-White for Synthwave */
-  --ludo-border: rgba(124, 58, 237, 0.4);
-  --ludo-text: #E2E8F0;
-  --ludo-muted: #94A3B8;
-  --ludo-faint: #475569;
-
-  /* Vibrant Tokens (Match Mockup) */
-  --ludo-base-green: #22c55e;
-  --ludo-base-red: #ef4444;
-  --ludo-base-blue: #3b82f6;
-  --ludo-base-yellow: #eab308;
-  --ludo-path-bg: #334155; /* Slate Gray for Retro */
-  --ludo-pad-bg: rgba(0, 0, 0, 0.4);
-
-  /* Panel Variables */
-  --panel-bg: rgba(15, 15, 35, 0.9);
-  --panel-border: rgba(124, 58, 237, 0.3);
-  --panel-blur: 24px;
-  --panel-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
-  
-  /* Font Overrides */
-  --font-sans: var(--font-chakra), sans-serif;
-  --font-body: var(--font-chakra), sans-serif;
-  --font-heading: var(--font-russo), sans-serif;
-  
-  background-color: var(--ludo-bg);
-  color: var(--ludo-text);
-}
-
-/* Force headings to use the display font */
-body.theme-retro-futurism h1,
-body.theme-retro-futurism h2,
-body.theme-retro-futurism h3,
-body.theme-retro-futurism .header-title,
-body.theme-retro-futurism .section-label {
-  font-family: var(--font-russo), sans-serif !important;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-body.theme-retro-futurism .cosmic-orb { display: none; }
-body.theme-retro-futurism .boot-dot { display: block; opacity: 0.1; }
-
-/* ─── Retro Night signature: violet edge-light on panel shells ───
-   Matches the terminal system (--panel-border). Dark themes keep their
-   depth; the violet rim is Retro's identity marker. */
-body.theme-retro-futurism :is(.ludo-market-scope.border-white\/10, .ludo-settings-scope.border-white\/10, .ludo-rankings-scope.border-white\/10, .ludo-friends-scope.border-white\/10, .ludo-messages-scope.border-white\/10, .ludo-arena-scope.border-white\/10, .ludo-profile-scope.border-white\/10, .ludo-offline-scope.border-white\/10, .ludo-migrate-scope.border-white\/10, .ludo-teamup-scope.border-white\/10, .ludo-quick-scope.border-white\/10, .ludo-pubprofile-scope.border-white\/10, .ludo-livearena-scope.border-white\/10, .ludo-leaderboard-scope.border-white\/10, .ludo-invite-scope.border-white\/10, .ludo-wallet-scope, .ludo-burn-scope.border-white\/10, .ludo-wall-scope.border-white\/10, .ludo-authwait-scope.border-white\/10, .ludo-quit-scope.border-white\/10, .ludo-broadcast-scope.border-white\/10, .ludo-clan-scope.border-white\/10) { border-color: rgba(124, 58, 237, 0.35); box-shadow: 0 0 24px rgba(124, 58, 237, 0.18), 0 24px 60px rgba(0, 0, 0, 0.55); }
-
-/* Retro-Futurism Scanline Overlay */
-body.theme-retro-futurism::before {
-  content: " ";
-  display: block;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
-  z-index: 40;
-  background-size: 100% 2px, 3px 100%;
-  pointer-events: none;
-  opacity: 0.4;
-}
+/* 🧬 Theme: Retro-Futurism (Orbital Midnight) rules live in app/styles/themes/retro.css */
 
 .boot-dot {
   position: absolute;

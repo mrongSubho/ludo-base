@@ -165,17 +165,17 @@ const ItemRelic = ({ px, tint }: { px: number; tint: string }) => (
 );
 
 /** Micro-board swatch: 5x5 Ludo motif (path ring + home courts) — reads as a theme, not an icon */
-const TEAM_DOTS = ['#ef4444', '#22c55e', '#eab308', '#3b82f6'];
+const TEAM_DOTS = ['#fb7185', '#34d399', '#fbbf24', '#38bdf8'];
 const TEAM_DOTS_3077 = ['#ff0055', '#00ff66', '#ffd000', '#0099ff'];
 const ThemeSwatch = ({ mode = 'retro', light: propLight, size = 52 }: { mode?: '3077' | 'retro' | 'light'; light?: boolean; size?: number }) => {
     const is3077 = mode === '3077';
     const light = propLight !== undefined ? propLight : mode === 'light';
     const dots = is3077 ? TEAM_DOTS_3077 : TEAM_DOTS;
-    const base = light ? '#dcd9ea' : is3077 ? '#0b0e14' : '#161b28';
-    const neutral = light ? '#c3c0d4' : is3077 ? 'rgba(0, 229, 255, 0.25)' : '#2a3247';
+    const base = light ? '#dcd9ea' : is3077 ? '#0b0e14' : '#0b1221';
+    const neutral = light ? '#c3c0d4' : is3077 ? 'rgba(0, 229, 255, 0.25)' : 'rgba(92, 225, 255, 0.28)';
     const corners = new Set([0, 4, 20, 24]);
     const ringOrder = [0, 1, 2, 3, 4, 9, 14, 19, 24, 23, 22, 21, 20, 15, 10, 5];
-    const home: Record<number, string> = { 7: dots[0], 11: dots[1], 13: dots[2], 17: dots[3], 12: is3077 ? '#00e5ff' : '#ffffff' };
+    const home: Record<number, string> = { 7: dots[0], 11: dots[1], 13: dots[2], 17: dots[3], 12: is3077 ? '#00e5ff' : light ? '#ffffff' : '#5ce1ff' };
     const cells: string[] = [];
     for (let i = 0; i < 25; i++) {
         if (home[i]) cells.push(home[i]);
@@ -185,8 +185,8 @@ const ThemeSwatch = ({ mode = 'retro', light: propLight, size = 52 }: { mode?: '
     }
     return (
         <div
-            className={`relative rounded-xl overflow-hidden shadow-lg border ${is3077 ? 'border-accent/50 shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_25%,transparent)]' : 'border-line-soft'}`}
-            style={{ width: size, height: size, background: light ? '#e8e6f0' : is3077 ? '#07080b' : '#0a0b14' }}
+            className={`relative rounded-xl overflow-hidden shadow-lg border ${is3077 ? 'border-accent/50 shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_25%,transparent)]' : !light ? 'border-accent/40 shadow-[0_0_14px_color-mix(in_srgb,var(--accent)_22%,transparent)]' : 'border-line-soft'}`}
+            style={{ width: size, height: size, background: light ? '#e8e6f0' : is3077 ? '#07080b' : '#060b14' }}
         >
             <div className="grid grid-cols-5 w-full h-full" style={{ gap: 1.5, padding: 5 }}>
                 {cells.map((c, i) => (

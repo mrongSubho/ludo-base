@@ -34,6 +34,8 @@ import {
 } from './icons';
 import { EntryFeeKnob } from './EntryFeeKnob';
 import { LobbyCommandDeck } from './LobbyCommandDeck';
+import { OrbitalCanopyDeck } from './OrbitalCanopyDeck';
+import { OrbitalFeeDock } from './OrbitalFeeDock';
 import { useDeployTheme } from '@/lib/deployTheme';
 
 /** Primary preset entry fees (CHIPS). 0 = Free. */
@@ -129,6 +131,7 @@ export default function GameLobby({
     // Configuration State
     const { preferences } = usePreferences();
     const is3077 = preferences.theme === '3077';
+    const isRetro = preferences.theme === 'retro';
     const { theme: deployTheme } = useDeployTheme();
     const { playSelect, playCoin } = useSoundEffects();
     const [showTeamUpOptions, setShowTeamUpOptions] = useState(false);
@@ -193,7 +196,7 @@ export default function GameLobby({
     }, [playSelect, wager]);
 
     useEffect(() => {
-        if (!is3077 || !showFee) return;
+        if ((!is3077 && !isRetro) || !showFee) return;
         const handlePointerDown = (e: PointerEvent) => {
             const el = feeTierRef.current;
             if (el && !el.contains(e.target as Node)) {
@@ -213,7 +216,7 @@ export default function GameLobby({
             document.removeEventListener('pointerdown', handlePointerDown);
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [is3077, showFee]);
+    }, [is3077, isRetro, showFee]);
 
     // Smart default fee from real CHIPS + Match Vault balance; clamp if balance can't cover current stake.
     useEffect(() => {
@@ -458,7 +461,7 @@ export default function GameLobby({
     const isMoreFeeActive = showMoreFees || (MORE_FEE_PRESETS as readonly number[]).includes(wager);
 
     return (
-        <div className={`ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-4 min-h-0 h-full flex flex-col items-center justify-start ${is3077 && showFee ? 'overflow-visible' : 'overflow-hidden'}${lobbyCompact ? ' lobby-compact' : ''}`}>
+        <div className={`ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-4 min-h-0 h-full flex flex-col items-center justify-start ${(is3077 || isRetro) && showFee ? 'overflow-visible' : 'overflow-hidden'}${lobbyCompact ? ' lobby-compact' : ''}`}>
             {/* Theme photo backdrop (fixed layer, behind everything, taps pass through) */}
             <div className="lobby-backdrop" aria-hidden />
 
@@ -467,7 +470,7 @@ export default function GameLobby({
                 <div
                     key="setup"
                     ref={setupRef}
-                    className={`w-full max-w-[420px] mx-auto flex flex-col gap-2 sm:gap-3 min-h-0 h-full setup-tier ${is3077 && showFee ? 'overflow-visible' : 'overflow-hidden'}`}
+                    className={`w-full max-w-[420px] mx-auto flex flex-col gap-2 sm:gap-3 min-h-0 h-full setup-tier ${(is3077 || isRetro) && showFee ? 'overflow-visible' : 'overflow-hidden'}`}
                 >
                     {/* 1. SELECTION GROUP + ENTRY FEE */}
                     {is3077 ? (
@@ -505,7 +508,7 @@ export default function GameLobby({
                                             type="button"
                                             onClick={openFeeSelector}
                                             aria-expanded={showFee}
-                                            className="w-full flex items-center justify-between px-3 py-2 rounded-[11px] hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
+                                            className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
                                         >
                                             <span
                                                 className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em]"
@@ -646,6 +649,58 @@ export default function GameLobby({
                                             )}
                                         </AnimatePresence>
                                     </div>
+                                }
+                            />
+                        </div>
+                    ) : isRetro ? (
+                        <div className="w-full flex flex-col items-center">
+                            <div className="flex justify-center w-full mb-1.5 mt-0.5">
+                                <SecurityLadderChip />
+                            </div>
+                            <div className="flex justify-center w-full mb-1.5">
+                                <ThemeNudge />
+                            </div>
+                            <OrbitalCanopyDeck
+                                gameMode={gameMode}
+                                onChangeGameMode={setGameMode}
+                                matchType={matchType}
+                                onChangeMatchType={setMatchType}
+                                sfxEnabled={preferences.sfx}
+                                hapticsEnabled={preferences.haptics}
+                                feeDock={
+                                    <OrbitalFeeDock
+                                        wager={wager}
+                                        dialWager={dialWager}
+                                        playableChips={playableChips}
+                                        showFee={showFee}
+                                        dialWarning={dialWarning}
+                                        feeTierRef={feeTierRef}
+                                        onToggleOpen={openFeeSelector}
+                                        onClose={() => {
+                                            playSelect();
+                                            setShowFee(false);
+                                            setDialWarning(null);
+                                        }}
+                                        onSelectPreset={(preset) => {
+                                            playSelect();
+                                            setDialWager(preset);
+                                            setDialWarning(null);
+                                        }}
+                                        onConfirm={() => {
+                                            if (dialWager > playableChips) {
+                                                playSelect();
+                                                setDialWarning(
+                                                    `Insufficient CHIPS · Balance: ${formatEntryFee(playableChips)}`,
+                                                );
+                                                return;
+                                            }
+                                            playSelect();
+                                            setWager(dialWager);
+                                            setDialWarning(null);
+                                            setShowFee(false);
+                                        }}
+                                        formatFee={formatEntryFee}
+                                    />
                                 }
                             />
                         </div>

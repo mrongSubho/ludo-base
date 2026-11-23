@@ -1144,23 +1144,102 @@
   height: 75%;
 }
 
-/* 🧬 Retro-Futurism Home Overrides */
-body.theme-retro-futurism .board-home {
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+/* 🧬 Orbital Retro Board (`theme-retro-futurism`): Dark Recessed Bays + Neon Arcade Perimeter */
+body.theme-retro-futurism {
+  --ludo-base-green: #10b981;
+  --ludo-base-red: #f43f5e;
+  --ludo-base-yellow: #fbbf24;
+  --ludo-base-blue: #38bdf8;
+  --ludo-path-bg: #0b1221;
+  --ludo-pad-bg: rgba(6, 11, 20, 0.92);
 }
 
-body.theme-retro-futurism .board-home.green { background: #16a34a; }
-body.theme-retro-futurism .board-home.red { background: #dc2626; }
-body.theme-retro-futurism .board-home.yellow { background: #ca8a04; }
-body.theme-retro-futurism .board-home.blue { background: #2563eb; }
+body.theme-retro-futurism .board-grid {
+  background: #060b14;
+  border-color: rgba(var(--accent-rgb), 0.34);
+  box-shadow:
+    0 24px 54px rgba(0, 0, 0, 0.82),
+    0 0 30px rgba(var(--accent-rgb), 0.16),
+    inset 0 0 24px rgba(var(--accent-rgb), 0.08);
+}
 
-/* Retro lanes follow the courts (were pastel from :root — same washout) */
-body.theme-retro-futurism {
-  --ludo-base-green: #16a34a;
-  --ludo-base-red: #dc2626;
-  --ludo-base-yellow: #ca8a04;
-  --ludo-base-blue: #2563eb;
+body.theme-retro-futurism .board-cell {
+  background: #0b1221;
+  border: 1px solid rgba(var(--accent-rgb), 0.12);
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.55);
+}
+
+body.theme-retro-futurism .star-cell {
+  border-color: rgba(var(--accent-rgb), 0.36) !important;
+  background: rgba(var(--accent-rgb), 0.06) !important;
+  box-shadow: inset 0 0 10px rgba(var(--accent-rgb), 0.16) !important;
+}
+
+body.theme-retro-futurism .board-home {
+  background: #080e1c;
+  border: 2px solid rgba(240, 246, 252, 0.14);
+  box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.78), 0 0 22px rgba(0, 0, 0, 0.55);
+}
+
+body.theme-retro-futurism .board-home.green {
+  border-color: rgba(52, 211, 153, 0.62);
+  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.16) 0%, #071110 74%);
+  box-shadow: inset 0 0 24px rgba(16, 185, 129, 0.22), 0 0 18px rgba(16, 185, 129, 0.16);
+}
+
+body.theme-retro-futurism .board-home.red {
+  border-color: rgba(251, 113, 133, 0.62);
+  background: radial-gradient(circle at center, rgba(244, 63, 94, 0.16) 0%, #14080e 74%);
+  box-shadow: inset 0 0 24px rgba(244, 63, 94, 0.22), 0 0 18px rgba(244, 63, 94, 0.16);
+}
+
+body.theme-retro-futurism .board-home.yellow {
+  border-color: rgba(251, 191, 36, 0.62);
+  background: radial-gradient(circle at center, rgba(251, 191, 36, 0.16) 0%, #131006 74%);
+  box-shadow: inset 0 0 24px rgba(251, 191, 36, 0.22), 0 0 18px rgba(251, 191, 36, 0.16);
+}
+
+body.theme-retro-futurism .board-home.blue {
+  border-color: rgba(56, 189, 248, 0.62);
+  background: radial-gradient(circle at center, rgba(56, 189, 248, 0.16) 0%, #06101c 74%);
+  box-shadow: inset 0 0 24px rgba(56, 189, 248, 0.22), 0 0 18px rgba(56, 189, 248, 0.16);
+}
+
+body.theme-retro-futurism .lane-green {
+  background: linear-gradient(180deg, rgba(52, 211, 153, 0.30) 0%, rgba(16, 185, 129, 0.14) 100%), #081210 !important;
+  border-color: rgba(52, 211, 153, 0.42) !important;
+}
+
+body.theme-retro-futurism .lane-red {
+  background: linear-gradient(180deg, rgba(251, 113, 133, 0.30) 0%, rgba(244, 63, 94, 0.14) 100%), #13090d !important;
+  border-color: rgba(251, 113, 133, 0.42) !important;
+}
+
+body.theme-retro-futurism .lane-yellow {
+  background: linear-gradient(180deg, rgba(251, 191, 36, 0.30) 0%, rgba(245, 158, 11, 0.14) 100%), #131008 !important;
+  border-color: rgba(251, 191, 36, 0.42) !important;
+}
+
+body.theme-retro-futurism .lane-blue {
+  background: linear-gradient(180deg, rgba(92, 225, 255, 0.30) 0%, rgba(56, 189, 248, 0.14) 100%), #07101b !important;
+  border-color: rgba(92, 225, 255, 0.42) !important;
+}
+
+body.theme-retro-futurism .finish-outer-bezel {
+  background: radial-gradient(circle, #0e182a 0%, #060b14 100%) !important;
+  border: 2px solid rgba(var(--accent-rgb), 0.56) !important;
+  box-shadow: 0 0 28px rgba(var(--accent-rgb), 0.30), inset 0 0 14px rgba(var(--accent-rgb), 0.22) !important;
+}
+
+body.theme-retro-futurism .finish-trench {
+  border: 1px dashed rgba(var(--accent-rgb), 0.48) !important;
+  box-shadow: inset 0 0 16px rgba(var(--accent-rgb), 0.18) !important;
+}
+
+body.theme-retro-futurism .finish-core {
+  background: #040812 !important;
+  border: 2px solid var(--accent) !important;
+  box-shadow: 0 0 22px rgba(var(--accent-rgb), 0.65), inset 0 0 12px rgba(var(--accent-rgb), 0.42) !important;
 }
 
 /* ─── Daybreak board: classic vivid courts, white path, dark pads ─── */
@@ -1342,9 +1421,11 @@ body.theme-3077 .board-home.home-deploy-ready {
 }
 
 body.theme-retro-futurism .home-pad {
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(6, 11, 20, 0.90) !important;
+  backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(var(--accent-rgb), 0.36) !important;
+  border-radius: 16px !important;
+  box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.78), 0 6px 18px rgba(0, 0, 0, 0.65) !important;
 }
 
 .token-dot {
@@ -1710,16 +1791,16 @@ body.theme-retro-futurism .ludo-token {
   filter: drop-shadow(0 0 6px currentColor);
 }
 
-body.theme-retro-futurism .green-token { color: #10B981; }
-body.theme-retro-futurism .red-token { color: #F43F5E; }
-body.theme-retro-futurism .yellow-token { color: #F59E0B; }
-body.theme-retro-futurism .blue-token { color: #22D3EE; }
+body.theme-retro-futurism .green-token { color: #34d399; }
+body.theme-retro-futurism .red-token { color: #fb7185; }
+body.theme-retro-futurism .yellow-token { color: #fbbf24; }
+body.theme-retro-futurism .blue-token { color: #5ce1ff; }
 
 body.theme-retro-futurism .token-count-badge {
-  background: #0F0F23;
-  border-color: var(--ludo-slate);
-  color: var(--ludo-blue);
-  box-shadow: 0 0 10px var(--ludo-blue);
+  background: #060b14;
+  border-color: var(--accent);
+  color: var(--accent-bright);
+  box-shadow: 0 0 10px rgba(var(--accent-rgb), 0.55);
 }
 
 /* 🧬 3077 Cyber-Tactical Token Enhancements */

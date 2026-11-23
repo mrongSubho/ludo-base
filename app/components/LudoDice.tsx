@@ -39,6 +39,13 @@ const COLOR_MAP_3077: Record<string, string> = {
     yellow: '#FFD000',
 };
 
+const COLOR_MAP_RETRO: Record<string, string> = {
+    green: '#34D399',
+    red: '#FB7185',
+    blue: '#5CE1FF',
+    yellow: '#FBBF24',
+};
+
 // Dice skins (equipped from the Marketplace): face + pip colors.
 const DICE_SKINS: Record<string, { face: string; pip: string; edge: string }> = {
     classic: { face: '#ffffff', pip: '#0F172A', edge: 'rgba(0,0,0,0.1)' },
@@ -50,6 +57,12 @@ const DICE_3077_SKIN = {
     face: 'linear-gradient(145deg, #161E2C 0%, #0A0E16 62%, #05070B 100%)',
     pip: 'var(--accent, #00E5FF)',
     edge: 'rgba(var(--accent-rgb, 0, 229, 255), 0.52)',
+};
+
+const DICE_RETRO_SKIN = {
+    face: 'linear-gradient(155deg, #111C30 0%, #09101E 62%, #050912 100%)',
+    pip: 'var(--accent, #5CE1FF)',
+    edge: 'rgba(var(--accent-rgb, 92, 225, 255), 0.52)',
 };
 
 const FACE_MAP = [
@@ -72,8 +85,14 @@ export default function LudoDice({
     const { triggerHaptic } = useAudio();
     const { preferences } = usePreferences();
     const is3077 = preferences.theme === '3077';
+    const isRetro = preferences.theme === 'retro';
     const isTacticalClassic = is3077 && preferences.diceStyle === 'classic';
-    const diceSkin = isTacticalClassic ? DICE_3077_SKIN : (DICE_SKINS[preferences.diceStyle] || DICE_SKINS.classic);
+    const isOrbitalClassic = isRetro && preferences.diceStyle === 'classic';
+    const diceSkin = isTacticalClassic
+        ? DICE_3077_SKIN
+        : isOrbitalClassic
+          ? DICE_RETRO_SKIN
+          : (DICE_SKINS[preferences.diceStyle] || DICE_SKINS.classic);
     const controls = useAnimation();
     const [critKey, setCritKey] = useState(0);
     
@@ -160,7 +179,7 @@ export default function LudoDice({
         onRoll(0); // Pass 0 or dummy to trigger the engine's random roll
     };
 
-    const accentColor = (is3077 ? COLOR_MAP_3077 : COLOR_MAP)[activeColor] || '#00E5FF';
+    const accentColor = (is3077 ? COLOR_MAP_3077 : isRetro ? COLOR_MAP_RETRO : COLOR_MAP)[activeColor] || '#5CE1FF';
 
     return (
         <motion.div
@@ -250,14 +269,14 @@ export default function LudoDice({
                                 faceColor={diceSkin.face}
                                 pipColor={diceSkin.pip}
                                 edgeColor={diceSkin.edge}
-                                isTacticalFace={isTacticalClassic}
+                                isTacticalFace={isTacticalClassic || isOrbitalClassic}
                             />
                         ))}
                     </button>
                 </motion.div>
             </div>
 
-            {/* Drop Shadow / 3077 Holographic Emitter Pad */}
+            {/* Drop Shadow / 3077 Emitter Pad / Retro Dotted Orbital Ring */}
             {is3077 ? (
                 <motion.div
                     className="w-11 h-1.5 rounded-full pointer-events-none mt-4"
@@ -271,6 +290,30 @@ export default function LudoDice({
                     }}
                     transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
                 />
+            ) : isRetro ? (
+                <motion.div
+                    className="mt-3 pointer-events-none flex items-center justify-center"
+                    aria-hidden="true"
+                    animate={{
+                        scale: isRolling ? [0.85, 0.65, 0.85] : 1,
+                        opacity: isRolling ? 0.45 : 0.9,
+                    }}
+                    transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
+                >
+                    <svg viewBox="0 0 64 16" className="w-12 h-3" fill="none">
+                        <ellipse
+                            cx="32"
+                            cy="8"
+                            rx="26"
+                            ry="5"
+                            stroke={accentColor}
+                            strokeWidth="1.5"
+                            strokeDasharray="3 4"
+                            strokeLinecap="round"
+                            strokeOpacity="0.72"
+                        />
+                    </svg>
+                </motion.div>
             ) : (
                 <motion.div 
                     className="w-10 h-1.5 rounded-[100%] bg-black/60 blur-sm pointer-events-none mt-4"

@@ -86,6 +86,13 @@ const FACTION_HEX_3077: Record<string, string> = {
     blue: '#0099FF',
 };
 
+const FACTION_HEX_RETRO: Record<string, string> = {
+    green: '#34D399',
+    red: '#FB7185',
+    yellow: '#FBBF24',
+    blue: '#38BDF8',
+};
+
 /**
  * Which color owns a GLOBAL shared-path cell index `g` (0..51).
  * The 52-cell perimeter is split into four 13-cell segments that start at
@@ -124,18 +131,24 @@ function globalToLocal(pos: number, tokenColor: string, colorCorner: ColorCorner
  * index 0–51, or 52–57 for home lane).  Because `pos` is already a global
  * index we pass it straight to getOwnerColorForGlobal — no startIdx offset.
  */
-function getZoneHex(pos: number, tokenColor: string, colorCorner: ColorCorner | undefined, is3077 = false): string {
-    const ringMap = is3077 ? FACTION_HEX_3077 : RING_HEX;
-    const zoneMap = is3077 ? FACTION_HEX_3077 : ZONE_HEX;
+function getZoneHex(
+    pos: number,
+    tokenColor: string,
+    colorCorner: ColorCorner | undefined,
+    is3077 = false,
+    isRetro = false,
+): string {
+    const ringMap = is3077 ? FACTION_HEX_3077 : isRetro ? FACTION_HEX_RETRO : RING_HEX;
+    const zoneMap = is3077 ? FACTION_HEX_3077 : isRetro ? FACTION_HEX_RETRO : ZONE_HEX;
     if (!colorCorner) return ringMap[tokenColor] || '#ffffff';
     if (pos >= 52) return ringMap[tokenColor] || '#ffffff';   // home lane → own color
     const owner = getOwnerColorForGlobal(pos, colorCorner);
     return (owner && zoneMap[owner]) || ringMap[tokenColor] || '#ffffff';
 }
 
-const HomeProgressRing = ({ pos, color, counterRotationDeg = 0, colorCorner, tokenColor, viewerColor, is3077 = false }: { pos: number; color: string; counterRotationDeg?: number; colorCorner?: ColorCorner; tokenColor?: string; viewerColor?: string; is3077?: boolean }) => {
-    const hex = (is3077 ? FACTION_HEX_3077 : RING_HEX)[color] || '#ffffff';
-    const zoneHex = tokenColor && colorCorner ? getZoneHex(pos, tokenColor, colorCorner, is3077) : hex;
+const HomeProgressRing = ({ pos, color, counterRotationDeg = 0, colorCorner, tokenColor, viewerColor, is3077 = false, isRetro = false }: { pos: number; color: string; counterRotationDeg?: number; colorCorner?: ColorCorner; tokenColor?: string; viewerColor?: string; is3077?: boolean; isRetro?: boolean }) => {
+    const hex = (is3077 ? FACTION_HEX_3077 : isRetro ? FACTION_HEX_RETRO : RING_HEX)[color] || '#ffffff';
+    const zoneHex = tokenColor && colorCorner ? getZoneHex(pos, tokenColor, colorCorner, is3077, isRetro) : hex;
     const r = 20;
     const C = 2 * Math.PI * r;
     const localPos = tokenColor && colorCorner ? globalToLocal(pos, tokenColor, colorCorner) : pos;
@@ -224,6 +237,7 @@ export function HomeBlock({
 }: HomeBlockProps) {
     const { preferences } = usePreferences();
     const is3077 = preferences.theme === '3077';
+    const isRetro = preferences.theme === 'retro';
     const prevFinishedRef = useRef<number>(finishedTokens.length);
     const padRef = useRef<HTMLDivElement>(null);
     const isDeployReady = currentPlayer === color && gamePhase === 'moving' && diceValue === 6 && tokensInHome.length > 0;
@@ -242,6 +256,13 @@ export function HomeBlock({
                         yellow: [255, 208, 0],
                         blue: [0, 153, 255],
                     }
+                    : isRetro
+                      ? {
+                          green: [52, 211, 153],
+                          red: [251, 113, 133],
+                          yellow: [251, 191, 36],
+                          blue: [92, 225, 255],
+                        }
                     : {
                         green: [16, 185, 129],
                         red: [239, 68, 68],
@@ -256,7 +277,7 @@ export function HomeBlock({
                     particleCount: 60,
                     spread: 70,
                     origin: { x, y },
-                    colors: [`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`, is3077 ? '#00e5ff' : '#ffffff'],
+                    colors: [`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`, is3077 ? '#00e5ff' : isRetro ? '#5CE1FF' : '#ffffff'],
                     startVelocity: 30,
                     gravity: 0.8,
                     scalar: 0.9,
@@ -266,7 +287,7 @@ export function HomeBlock({
             }
         }
         prevFinishedRef.current = finishedTokens.length;
-    }, [finishedTokens, color, is3077]);
+    }, [finishedTokens, color, is3077, isRetro]);
 
     return (
         <div
@@ -294,7 +315,7 @@ export function HomeBlock({
                             )}
                             {isFinished && (
                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                    <HomeProgressRing pos={57} color={color} counterRotationDeg={counterRotationDeg} colorCorner={colorCorner} tokenColor={color} is3077={is3077} />
+                                    <HomeProgressRing pos={57} color={color} counterRotationDeg={counterRotationDeg} colorCorner={colorCorner} tokenColor={color} is3077={is3077} isRetro={isRetro} />
                                 </div>
                             )}
                             {!isInHome && !isFinished && (
@@ -303,7 +324,7 @@ export function HomeBlock({
                                     const onTrack = typeof pos === 'number' && pos >= 0 && pos <= 56;
                                     const isDone = typeof pos === 'number' && pos === 57;
                                     if (onTrack || isDone) {
-                                        return <HomeProgressRing pos={pos} color={color} counterRotationDeg={counterRotationDeg} colorCorner={colorCorner} tokenColor={color} viewerColor={viewerColor} is3077={is3077} />;
+                                        return <HomeProgressRing pos={pos} color={color} counterRotationDeg={counterRotationDeg} colorCorner={colorCorner} tokenColor={color} viewerColor={viewerColor} is3077={is3077} isRetro={isRetro} />;
                                     }
                                     return <span className="token-dot-placeholder" />;
                                 })()
