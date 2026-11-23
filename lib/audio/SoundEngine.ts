@@ -22,10 +22,10 @@ const DEFAULT_PREFS: AudioPrefsSnapshot = {
     haptics: true,
 };
 
-const MUSIC_BASE_GAIN = 0.22;
-const HEARTBEAT_BASE_GAIN = 0.42;
-const SFX_BASE_GAIN = 0.85;
-const UI_BASE_GAIN = 0.72;
+const MUSIC_BASE_GAIN = 0.5;
+const HEARTBEAT_BASE_GAIN = 0.52;
+const SFX_BASE_GAIN = 0.88;
+const UI_BASE_GAIN = 0.74;
 
 export interface SoundEngineOptions {
     createContext?: () => AudioContext | null;
@@ -36,6 +36,14 @@ export class SoundEngine {
     private masterBus: GainNode | null = null;
     private musicBus: GainNode | null = null;
     private musicFilter: BiquadFilterNode | null = null;
+    private melodyBus: GainNode | null = null;
+    private delaySendGain: GainNode | null = null;
+    private delayL: DelayNode | null = null;
+    private delayR: DelayNode | null = null;
+    private delayFeedback: GainNode | null = null;
+    private delayFilter: BiquadFilterNode | null = null;
+    private delayPanL: StereoPannerNode | null = null;
+    private delayPanR: StereoPannerNode | null = null;
     private heartbeatBus: GainNode | null = null;
     private sfxBus: GainNode | null = null;
     private uiBus: GainNode | null = null;
@@ -62,6 +70,8 @@ export class SoundEngine {
         this.director = new MusicDirector({
             getCtx: () => this.ctx,
             getMusicDest: () => this.musicFilter ?? this.musicBus,
+            getDrumDest: () => this.musicFilter ?? this.musicBus,
+            getMelodyDest: () => this.melodyBus ?? this.musicFilter ?? this.musicBus,
             getHeartbeatDest: () => this.heartbeatBus,
             onFilterTarget: (cutoffHz, q) => this.applyMusicFilter(cutoffHz, q),
         });
@@ -275,6 +285,31 @@ export class SoundEngine {
             this.lifecycleCleanup();
             this.lifecycleCleanup = null;
         }
+        const persistentNodes: Array<AudioNode | null> = [
+            this.melodyBus,
+            this.delaySendGain,
+            this.delayL,
+            this.delayR,
+            this.delayFeedback,
+            this.delayFilter,
+            this.delayPanL,
+            this.delayPanR,
+            this.musicFilter,
+            this.musicBus,
+            this.heartbeatBus,
+            this.sfxBus,
+            this.uiBus,
+            this.masterBus,
+            this.compressor,
+        ];
+        for (const n of persistentNodes) {
+            if (!n) continue;
+            try {
+                n.disconnect();
+            } catch {
+                /* ignore */
+            }
+        }
         if (this.ctx) {
             if (this.ctx.state !== 'closed' && typeof this.ctx.close === 'function') {
                 void this.ctx.close().catch(() => undefined);
@@ -284,6 +319,14 @@ export class SoundEngine {
         this.masterBus = null;
         this.musicBus = null;
         this.musicFilter = null;
+        this.melodyBus = null;
+        this.delaySendGain = null;
+        this.delayL = null;
+        this.delayR = null;
+        this.delayFeedback = null;
+        this.delayFilter = null;
+        this.delayPanL = null;
+        this.delayPanR = null;
         this.heartbeatBus = null;
         this.sfxBus = null;
         this.uiBus = null;
@@ -319,22 +362,64 @@ export class SoundEngine {
         this.sfxBus = created.createGain();
         this.uiBus = created.createGain();
 
+        let musicEntry: AudioNode = this.musicBus;
         if (typeof created.createBiquadFilter === 'function') {
             this.musicFilter = created.createBiquadFilter();
             this.musicFilter.type = 'lowpass';
-            this.musicFilter.frequency.setValueAtTime(3400, created.currentTime);
+            this.musicFilter.frequency.setValueAtTime(11500, created.currentTime);
             this.musicFilter.connect(this.musicBus);
+            musicEntry = this.musicFilter;
         } else {
             this.musicFilter = null;
         }
 
+        // Studio stereo ping-pong delay send for warm chord stabs & lead hooks
+        this.melodyBus = created.createGain();
+        this.melodyBus.connect(musicEntry);
+
+        if (
+            typeof created.createDelay === 'function' &&
+            typeof created.createStereoPanner === 'function' &&
+            typeof created.createBiquadFilter === 'function'
+        ) {
+            this.delaySendGain = created.createGain();
+            this.delaySendGain.gain.setValueAtTime(0.22, created.currentTime);
+            this.delayL = created.createDelay(1.0);
+            this.delayR = created.createDelay(1.0);
+            this.delayL.delayTime.setValueAtTime(0.24, created.currentTime);
+            this.delayR.delayTime.setValueAtTime(0.36, created.currentTime);
+
+            this.delayFeedback = created.createGain();
+            this.delayFeedback.gain.setValueAtTime(0.26, created.currentTime);
+
+            this.delayFilter = created.createBiquadFilter();
+            this.delayFilter.type = 'lowpass';
+            this.delayFilter.frequency.setValueAtTime(3400, created.currentTime);
+
+            this.delayPanL = created.createStereoPanner();
+            this.delayPanR = created.createStereoPanner();
+            this.delayPanL.pan.setValueAtTime(-0.55, created.currentTime);
+            this.delayPanR.pan.setValueAtTime(0.55, created.currentTime);
+
+            this.melodyBus.connect(this.delaySendGain);
+            this.delaySendGain.connect(this.delayL);
+            this.delayL.connect(this.delayFilter);
+            this.delayFilter.connect(this.delayPanL);
+            this.delayPanL.connect(musicEntry);
+
+            this.delayFilter.connect(this.delayFeedback);
+            this.delayFeedback.connect(this.delayR);
+            this.delayR.connect(this.delayPanR);
+            this.delayPanR.connect(musicEntry);
+        }
+
         if (typeof created.createDynamicsCompressor === 'function') {
             this.compressor = created.createDynamicsCompressor();
-            this.compressor.threshold.setValueAtTime(-12, created.currentTime);
-            this.compressor.knee.setValueAtTime(18, created.currentTime);
+            this.compressor.threshold.setValueAtTime(-10, created.currentTime);
+            this.compressor.knee.setValueAtTime(16, created.currentTime);
             this.compressor.ratio.setValueAtTime(4, created.currentTime);
             this.compressor.attack.setValueAtTime(0.004, created.currentTime);
-            this.compressor.release.setValueAtTime(0.18, created.currentTime);
+            this.compressor.release.setValueAtTime(0.16, created.currentTime);
             this.masterBus.connect(this.compressor);
             this.compressor.connect(created.destination);
         } else {
@@ -356,7 +441,7 @@ export class SoundEngine {
         const now = this.ctx.currentTime;
         const musicScalar = this.prefs.music ? (this.prefs.musicVolume / 100) : 0;
         const sfxScalar = this.prefs.sfx ? (this.prefs.sfxVolume / 100) : 0;
-        const modalFactor = this.modalDuckCount > 0 ? 0.56 : 1;
+        const modalFactor = this.modalDuckCount > 0 ? 0.68 : 1;
         const musicGain = MUSIC_BASE_GAIN * musicScalar * modalFactor * this.stingerDuckFactor;
         const hbGain = HEARTBEAT_BASE_GAIN * Math.max(musicScalar, sfxScalar * 0.5);
 
@@ -384,16 +469,16 @@ export class SoundEngine {
     }
 
     private computeFilterCutoff(): number {
-        if (this.modalDuckCount > 0) return 1100;
-        if (this.matchMood === 'match_crunch' && this.appState !== 'dashboard') return 720;
-        if (this.matchMood === 'match_calm' && this.appState !== 'dashboard') return 1550;
-        return 3400;
+        if (this.modalDuckCount > 0) return 4500;
+        if (this.matchMood === 'match_crunch' && this.appState !== 'dashboard') return 2600;
+        if (this.matchMood === 'match_calm' && this.appState !== 'dashboard') return 7500;
+        return 11500;
     }
 
     private applyMusicFilter(cutoffHz: number, q: number): void {
         if (!this.ctx || !this.musicFilter) return;
         const now = this.ctx.currentTime;
-        const effectiveCutoff = this.modalDuckCount > 0 ? Math.min(cutoffHz, 1100) : cutoffHz;
+        const effectiveCutoff = this.modalDuckCount > 0 ? Math.min(cutoffHz, 4500) : cutoffHz;
         try {
             if (typeof this.musicFilter.frequency.setTargetAtTime === 'function') {
                 this.musicFilter.frequency.setTargetAtTime(effectiveCutoff, now, 0.12);

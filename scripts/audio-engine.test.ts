@@ -17,7 +17,7 @@ import type { GameState } from '../lib/types';
 // ── Mock Web Audio Graph tracking every created node & disconnect() call ─────
 
 interface TrackedNode {
-    kind: 'osc' | 'src' | 'gain' | 'filter' | 'compressor';
+    kind: 'osc' | 'src' | 'gain' | 'filter' | 'compressor' | 'delay' | 'panner';
     disconnected: boolean;
     onended?: (() => void) | null;
     startCount: number;
@@ -153,6 +153,26 @@ function createMockAudioContext() {
                 },
             };
         },
+        createDelay: () => {
+            const rec = track('delay');
+            return {
+                delayTime: makeParam(0),
+                connect: () => {},
+                disconnect: () => {
+                    rec.disconnected = true;
+                },
+            };
+        },
+        createStereoPanner: () => {
+            const rec = track('panner');
+            return {
+                pan: makeParam(0),
+                connect: () => {},
+                disconnect: () => {
+                    rec.disconnected = true;
+                },
+            };
+        },
     };
 
     return {
@@ -195,10 +215,14 @@ test('SoundEngine: creates strictly one AudioContext and honors REA-12 teardown'
     });
 
     engine.updatePrefs({ sfx: true, music: false, sfxVolume: 80, musicVolume: 70, theme: '3077' });
+    engine.unlock();
+    const persistentCount = mock.nodes.length;
+    assert.ok(persistentCount >= 7, 'should allocate persistent audio graph buses');
 
     assert.equal(engine.play('ui_click'), true);
     assert.equal(engine.play('power_nuke'), true);
     assert.equal(engine.play('capture_kick'), true);
+    assert.equal(engine.play('bet_placed'), true);
     assert.equal(creations, 1, 'must reuse single shared AudioContext across calls');
 
     const sourcesBeforeFlush = mock.nodes.filter((n) => n.kind === 'osc' || n.kind === 'src');
@@ -206,13 +230,17 @@ test('SoundEngine: creates strictly one AudioContext and honors REA-12 teardown'
     assert.ok(sourcesBeforeFlush.every((n) => typeof n.onended === 'function'), 'every voice must bind onended');
 
     mock.flushEnded();
-    // Every transient oscillator, buffer source, and transient gain/filter must disconnect
-    const nonBusNodes = mock.nodes.slice(7); // skip 7 persistent nodes: 5 GainNodes + musicFilter + compressor
+    // Every transient oscillator, buffer source, panner, and transient gain/filter must disconnect
+    const nonBusNodes = mock.nodes.slice(persistentCount);
     assert.ok(
         nonBusNodes.every((n) => n.disconnected),
         'REA-12: every transient Web Audio node must disconnect when its voice ends',
     );
     engine.dispose();
+    assert.ok(
+        mock.nodes.slice(0, persistentCount).every((n) => n.disconnected),
+        'REA-12: persistent bus and delay nodes must disconnect on dispose',
+    );
     assert.equal(mock.isClosed(), true);
 });
 
@@ -280,22 +308,37 @@ test('MusicDirector: 3 theme tracks schedule procedural patterns across lobby, q
     for (const theme of themes) {
         engine.updatePrefs({ theme, music: true, musicVolume: 75, sfx: true });
         engine.setAppScene('dashboard');
-        assert.equal(engine.getMusicDirectorState().scene, 'lobby');
-        assert.equal(engine.getMusicDirectorState().theme, theme);
+        const lobbyState = engine.getMusicDirectorState();
+        assert.equal(lobbyState.scene, 'lobby');
+        assert.equal(lobbyState.theme, theme);
+        assert.ok(lobbyState.bpm >= 116, `${theme} lobby BPM should be upbeat (>=116), got ${lobbyState.bpm}`);
+        mock.advanceTime(0.35);
 
         engine.pushQueueing();
         assert.equal(engine.getMusicDirectorState().scene, 'queueing');
+        mock.advanceTime(0.35);
         engine.popQueueing();
         assert.equal(engine.getMusicDirectorState().scene, 'lobby');
 
         engine.setAppScene('game');
+        engine.setMatchMood('match_calm', 0.2);
+        assert.equal(engine.getMusicDirectorState().scene, 'match_calm');
+        mock.advanceTime(0.35);
+
+        engine.setMatchMood('match_heat', 0.65);
+        assert.equal(engine.getMusicDirectorState().scene, 'match_heat');
+        mock.advanceTime(0.35);
+
         engine.setMatchMood('match_crunch', 0.9);
-        assert.equal(engine.getMusicDirectorState().scene, 'match_crunch');
-        assert.equal(engine.getMusicDirectorState().urgency, 0.9);
+        const crunchState = engine.getMusicDirectorState();
+        assert.equal(crunchState.scene, 'match_crunch');
+        assert.equal(crunchState.urgency, 0.9);
+        assert.ok(crunchState.bpm >= 116, `${theme} crunch BPM should stay upbeat (>=116), got ${crunchState.bpm}`);
         mock.advanceTime(0.35);
     }
 
     assert.ok(mock.nodes.filter((n) => n.kind === 'osc').length > 0, 'MusicDirector must schedule oscillators');
+    assert.ok(mock.nodes.filter((n) => n.kind === 'src').length > 0, 'MusicDirector must schedule drum/noise buffers');
     mock.flushEnded();
     engine.dispose();
 });

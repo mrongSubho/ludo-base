@@ -1,4 +1,4 @@
-import { playChord, playNoiseBurst, playTone } from './synthPrimitives';
+import { playChord, playNoiseBurst, playTone, playWarmVoice } from './synthPrimitives';
 import type { AudioTheme, SoundCategory, SoundId, SoundPlayOptions } from './types';
 
 export interface SfxRecipe {
@@ -393,16 +393,26 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         haptic: [40, 40, 70],
         duckMusic: { factor: 0.4, holdMs: 650, releaseMs: 600 },
         render: (ctx, dest) => {
-            // Sub drop + cyber brass triad reveal
-            playTone(ctx, dest, { type: 'sine', freq: 110, freqEnd: 46, duration: 0.32, gain: 0.22 });
-            playChord(ctx, dest, [440, 554.37, 659.25, 880], {
-                type: 'sawtooth',
-                stagger: 0.035,
-                duration: 0.42,
-                gain: 0.13,
-                filterFreq: 2600,
+            // Arena sub drop + warm detuned cyber brass reveal
+            playTone(ctx, dest, { type: 'sine', freq: 118, freqEnd: 44, duration: 0.36, gain: 0.28 });
+            [440, 554.37, 659.25, 880].forEach((freq, idx) => {
+                playWarmVoice(ctx, dest, {
+                    type: 'sawtooth',
+                    type2: 'triangle',
+                    freq,
+                    detuneCents: 11,
+                    octaveSub: idx === 0,
+                    startOffset: idx * 0.036,
+                    attack: 0.012,
+                    duration: 0.44,
+                    gain: 0.14,
+                    filterFreq: 3800,
+                    filterFreqEnd: 1400,
+                    filterQ: 1.8,
+                    pan: (idx - 1.5) * 0.2,
+                });
             });
-            playNoiseBurst(ctx, dest, { duration: 0.12, gain: 0.06, filterType: 'highpass', filterFreq: 3200 });
+            playNoiseBurst(ctx, dest, { duration: 0.14, gain: 0.075, filterType: 'highpass', filterFreq: 2800 });
         },
     },
     invite_received: {
@@ -459,11 +469,21 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         cooldownMs: 250,
         haptic: [15, 30, 25],
         render: (ctx, dest) => {
-            playChord(ctx, dest, [587.33, 880, 1174.66, 1760], {
-                type: 'sine',
-                stagger: 0.04,
-                duration: 0.28,
-                gain: 0.12,
+            playTone(ctx, dest, { type: 'sine', freq: 146.83, duration: 0.24, gain: 0.16 });
+            [587.33, 880, 1174.66, 1760].forEach((freq, idx) => {
+                playWarmVoice(ctx, dest, {
+                    type: 'triangle',
+                    type2: 'sine',
+                    freq,
+                    detuneCents: 8,
+                    startOffset: idx * 0.036,
+                    attack: 0.006,
+                    duration: 0.3,
+                    gain: 0.12,
+                    filterFreq: 4600,
+                    filterFreqEnd: 2000,
+                    pan: idx % 2 === 0 ? -0.22 : 0.22,
+                });
             });
         },
     },
@@ -567,13 +587,23 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         cooldownMs: 250,
         haptic: [20, 35, 35],
         render: (ctx, dest) => {
-            playChord(ctx, dest, [1046.5, 1318.51, 1567.98, 2093.0], {
-                type: 'sine',
-                stagger: 0.038,
-                duration: 0.28,
-                gain: 0.12,
+            playTone(ctx, dest, { type: 'sine', freq: 261.63, freqEnd: 130.81, duration: 0.28, gain: 0.18 });
+            [1046.5, 1318.51, 1567.98, 2093.0].forEach((freq, idx) => {
+                playWarmVoice(ctx, dest, {
+                    type: 'triangle',
+                    type2: 'sine',
+                    freq,
+                    detuneCents: 9,
+                    octaveSub: idx === 0,
+                    startOffset: idx * 0.035,
+                    attack: 0.005,
+                    duration: 0.32,
+                    gain: 0.13,
+                    filterFreq: 5200,
+                    filterFreqEnd: 2400,
+                    pan: (idx - 1.5) * 0.24,
+                });
             });
-            playTone(ctx, dest, { type: 'triangle', freq: 523.25, duration: 0.22, gain: 0.08 });
         },
     },
     coin_chink: {
@@ -581,9 +611,28 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         cooldownMs: 60,
         haptic: 8,
         render: (ctx, dest) => {
-            const f = 1860 * jitter(0.03);
-            playTone(ctx, dest, { type: 'sine', freq: f, duration: 0.12, attack: 0.002, gain: 0.09 });
-            playTone(ctx, dest, { type: 'sine', freq: f * 1.498, startOffset: 0.028, duration: 0.16, attack: 0.002, gain: 0.075 });
+            const f = 1760 * jitter(0.03);
+            playWarmVoice(ctx, dest, {
+                type: 'triangle',
+                type2: 'sine',
+                freq: f,
+                detuneCents: 7,
+                duration: 0.13,
+                attack: 0.002,
+                gain: 0.11,
+                filterFreq: 6000,
+            });
+            playWarmVoice(ctx, dest, {
+                type: 'sine',
+                type2: 'triangle',
+                freq: f * 1.498,
+                detuneCents: 6,
+                startOffset: 0.026,
+                duration: 0.18,
+                attack: 0.002,
+                gain: 0.095,
+                filterFreq: 6800,
+            });
         },
     },
     marketplace_purchase: {
@@ -679,13 +728,23 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         render: (ctx, dest, opts) => {
             const streak = Math.max(1, opts.streak ?? 1);
             const mult = streak >= 2 ? 1.2599 : 1; // Major third up on 2nd consecutive 6
-            playTone(ctx, dest, { type: 'sine', freq: 185, freqEnd: 62, duration: 0.1, gain: 0.16 });
-            playChord(ctx, dest, [523.25 * mult, 783.99 * mult, 1046.5 * mult, 1567.98 * mult], {
-                type: 'triangle',
-                stagger: 0.032,
-                duration: 0.3,
-                gain: 0.14,
-                filterFreq: 3600,
+            playTone(ctx, dest, { type: 'sine', freq: 195, freqEnd: 56, duration: 0.14, gain: 0.24 });
+            [523.25 * mult, 783.99 * mult, 1046.5 * mult, 1567.98 * mult].forEach((freq, idx) => {
+                playWarmVoice(ctx, dest, {
+                    type: 'sawtooth',
+                    type2: 'triangle',
+                    freq,
+                    detuneCents: 10,
+                    octaveSub: idx === 0,
+                    startOffset: idx * 0.03,
+                    attack: 0.006,
+                    duration: 0.34,
+                    gain: 0.13,
+                    filterFreq: 4800,
+                    filterFreqEnd: 2000,
+                    filterQ: 1.5,
+                    pan: (idx - 1.5) * 0.22,
+                });
             });
         },
     },
@@ -881,15 +940,23 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         haptic: [35, 40, 30],
         duckMusic: { factor: 0.6, holdMs: 220, releaseMs: 300 },
         render: (ctx, dest) => {
-            // Punchy sub hit + crystalline shatter + rising victory sting
-            playTone(ctx, dest, { type: 'sine', freq: 180, freqEnd: 48, duration: 0.16, gain: 0.24 });
-            playNoiseBurst(ctx, dest, { duration: 0.12, gain: 0.12, filterType: 'highpass', filterFreq: 1800 });
-            playChord(ctx, dest, [659.25, 987.77, 1318.51], {
-                type: 'triangle',
-                startOffset: 0.03,
-                stagger: 0.03,
-                duration: 0.22,
-                gain: 0.12,
+            // Punchy chest-thump sub hit + crisp shatter + warm rising sting
+            playTone(ctx, dest, { type: 'sine', freq: 190, freqEnd: 44, duration: 0.18, gain: 0.3 });
+            playNoiseBurst(ctx, dest, { duration: 0.13, gain: 0.14, filterType: 'bandpass', filterFreq: 2400, filterQ: 1.4 });
+            [659.25, 987.77, 1318.51].forEach((freq, idx) => {
+                playWarmVoice(ctx, dest, {
+                    type: 'sawtooth',
+                    type2: 'triangle',
+                    freq,
+                    detuneCents: 12,
+                    startOffset: 0.025 + idx * 0.028,
+                    attack: 0.006,
+                    duration: 0.24,
+                    gain: 0.13,
+                    filterFreq: 4200,
+                    filterFreqEnd: 1600,
+                    pan: (idx - 1) * 0.3,
+                });
             });
         },
     },
@@ -1138,21 +1205,39 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         haptic: [100, 50, 100, 50, 200],
         duckMusic: { factor: 0.2, holdMs: 1600, releaseMs: 900 },
         render: (ctx, dest) => {
-            // Triumphant cyber-orchestral fanfare (C5 - E5 - G5 - C6 + warm sub bass)
-            playTone(ctx, dest, { type: 'sine', freq: 130.81, duration: 0.75, gain: 0.18 });
-            playChord(ctx, dest, [523.25, 659.25, 783.99, 1046.5], {
-                type: 'triangle',
-                stagger: 0.085,
-                duration: 0.48,
-                gain: 0.18,
-                filterFreq: 3800,
+            // Triumphant arena synth-brass fanfare (C5 - E5 - G5 - C6 + warm sub bass + octave shimmer)
+            playTone(ctx, dest, { type: 'sine', freq: 130.81, duration: 0.85, gain: 0.24 });
+            [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+                playWarmVoice(ctx, dest, {
+                    type: 'sawtooth',
+                    type2: 'triangle',
+                    freq,
+                    detuneCents: 12,
+                    octaveSub: idx === 0 || idx === 3,
+                    startOffset: idx * 0.08,
+                    attack: 0.014,
+                    duration: 0.56,
+                    gain: 0.15,
+                    filterFreq: 4200,
+                    filterFreqEnd: 1800,
+                    filterQ: 1.6,
+                    pan: (idx - 1.5) * 0.22,
+                });
             });
-            playChord(ctx, dest, [1046.5, 1318.51, 1567.98], {
-                type: 'sine',
-                startOffset: 0.34,
-                stagger: 0.03,
-                duration: 0.65,
-                gain: 0.14,
+            [1046.5, 1318.51, 1567.98].forEach((freq, idx) => {
+                playWarmVoice(ctx, dest, {
+                    type: 'triangle',
+                    type2: 'sine',
+                    freq,
+                    detuneCents: 9,
+                    startOffset: 0.34 + idx * 0.032,
+                    attack: 0.01,
+                    duration: 0.7,
+                    gain: 0.13,
+                    filterFreq: 5400,
+                    filterFreqEnd: 2600,
+                    pan: (idx - 1) * 0.28,
+                });
             });
         },
     },
@@ -1318,8 +1403,31 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         cooldownMs: 150,
         haptic: 12,
         render: (ctx, dest) => {
-            playTone(ctx, dest, { type: 'sine', freq: 1480, duration: 0.08, gain: 0.08 });
-            playTone(ctx, dest, { type: 'sine', freq: 2217.46, startOffset: 0.035, duration: 0.12, gain: 0.075 });
+            // Tactile chip stack thud + warm high-roller lock-in chime
+            playTone(ctx, dest, { type: 'sine', freq: 240, freqEnd: 88, duration: 0.08, gain: 0.18 });
+            playWarmVoice(ctx, dest, {
+                type: 'triangle',
+                type2: 'sine',
+                freq: 740,
+                detuneCents: 8,
+                duration: 0.12,
+                attack: 0.003,
+                gain: 0.12,
+                filterFreq: 4200,
+                pan: -0.15,
+            });
+            playWarmVoice(ctx, dest, {
+                type: 'triangle',
+                type2: 'sine',
+                freq: 1108.73,
+                detuneCents: 8,
+                startOffset: 0.036,
+                duration: 0.18,
+                attack: 0.003,
+                gain: 0.12,
+                filterFreq: 5200,
+                pan: 0.15,
+            });
         },
     },
     bet_win: {
