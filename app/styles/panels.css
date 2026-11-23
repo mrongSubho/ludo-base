@@ -1554,6 +1554,11 @@ body.keyboard-open .app-shell {
   overflow: hidden !important;
 }
 
+.ludo-lobby-scope.fee-open,
+.ludo-lobby-scope.fee-open .setup-tier {
+  overflow: visible !important;
+}
+
 .dash-header {
   /* Removed transparent override to respect .header background */
   padding: 20px 24px 10px;
@@ -2294,6 +2299,11 @@ body.keyboard-open :is(
     height: auto !important;
     min-height: 0 !important;
     overflow: hidden !important;
+  }
+
+  .ludo-lobby-scope.fee-open,
+  .ludo-lobby-scope.fee-open .setup-tier {
+    overflow: visible !important;
   }
 
   /* Keep broadcast card above footer even when column is short */

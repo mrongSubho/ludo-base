@@ -258,6 +258,8 @@ body.theme-retro-futurism .dash-main {
   overflow-x: hidden;
   overscroll-behavior: contain;
   container-type: inline-size;
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 body.theme-retro-futurism .dash-main > .ludo-lobby-scope,

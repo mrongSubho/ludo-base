@@ -90,8 +90,19 @@ describe('Retro Theme Redesign & Swapped Lobby Setup Decks', () => {
         assert.match(lobby, /<RetroSynthFeeFader/);
 
         const deck = read('app/components/LobbyCommandDeck.tsx');
-        assert.match(deck, /grid-cols-\[minmax\(0,0\.88fr\)_minmax\(0,1\.26fr\)\]/);
+        assert.match(deck, /grid-cols-\[minmax\(0,0\.95fr\)_minmax\(0,1\.35fr\)\]/);
         assert.match(deck, /translateY\(/);
+        assert.doesNotMatch(deck, /backdrop-blur-md/);
+
+        assert.match(lobby, /fee-open/);
+        assert.match(lobby, /relative z-50/);
+        assert.match(lobby, /isolate z-10/);
+
+        const panels = read('app/styles/panels.css');
+        assert.match(panels, /\.ludo-lobby-scope\.fee-open[\s\S]*overflow:\s*visible\s*!important/);
+
+        const retroCss = read('app/styles/themes/retro.css');
+        assert.match(retroCss, /body\.theme-retro-futurism \.dash-main[\s\S]*padding-left:\s*8px/);
     });
 
     it('renders dotted orbital floor ring and OrbitalModeDock in ActionDice when retro is active', () => {

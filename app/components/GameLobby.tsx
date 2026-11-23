@@ -457,7 +457,7 @@ export default function GameLobby({
     }, [embeddedHunt, lobbyState, handleCancelQuickMatch]);
 
     return (
-        <div className={`ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto px-3 sm:px-4 py-2 sm:py-4 min-h-0 h-full flex flex-col items-center justify-start ${showFee ? 'overflow-visible' : 'overflow-hidden'}${lobbyCompact ? ' lobby-compact' : ''}`}>
+        <div className={`ludo-lobby-scope relative isolate w-full max-w-4xl mx-auto ${isRetro ? 'px-1 sm:px-2' : 'px-3 sm:px-4'} py-2 sm:py-4 min-h-0 h-full flex flex-col items-center justify-start ${showFee ? 'fee-open overflow-visible' : 'overflow-hidden'}${lobbyCompact ? ' lobby-compact' : ''}`}>
             {/* Theme photo backdrop (fixed layer, behind everything, taps pass through) */}
             <div className="lobby-backdrop" aria-hidden />
 
@@ -466,11 +466,11 @@ export default function GameLobby({
                 <div
                     key="setup"
                     ref={setupRef}
-                    className={`w-full max-w-[420px] mx-auto flex flex-col gap-2 sm:gap-3 min-h-0 h-full setup-tier ${showFee ? 'overflow-visible' : 'overflow-hidden'}`}
+                    className={`w-full ${isRetro ? 'max-w-[480px]' : 'max-w-[420px]'} mx-auto flex flex-col gap-2 sm:gap-3 min-h-0 h-full setup-tier ${showFee ? 'overflow-visible' : 'overflow-hidden'}`}
                 >
                     {/* 1. SELECTION GROUP + ENTRY FEE */}
                     {is3077 ? (
-                        <div className="w-full flex flex-col items-center">
+                        <div className="relative z-50 w-full flex flex-col items-center">
                             <div className="flex justify-center w-full mb-1.5 mt-0.5">
                                 <SecurityLadderChip />
                             </div>
@@ -536,7 +536,7 @@ export default function GameLobby({
                     ) : isRetro ? (() => {
                         const retroFee = RETRO_FEE_PALETTES[deployTheme.id] ?? RETRO_FEE_PALETTES.quick;
                         return (
-                            <div className="w-full flex flex-col items-center">
+                            <div className="relative z-50 w-full flex flex-col items-center">
                                 <div className="flex justify-center w-full mb-1.5 mt-0.5">
                                     <SecurityLadderChip />
                                 </div>
@@ -554,7 +554,7 @@ export default function GameLobby({
                                     feeDock={
                                         <div
                                             ref={feeTierRef}
-                                            className="fee-tier relative z-40 rounded-xl flex flex-col items-center border backdrop-blur-md"
+                                            className="fee-tier relative z-40 w-full rounded-xl flex flex-col items-center border"
                                             style={{
                                                 background: 'rgba(6, 11, 20, 0.78)',
                                                 borderColor:
@@ -571,7 +571,7 @@ export default function GameLobby({
                                                 type="button"
                                                 onClick={openFeeSelector}
                                                 aria-expanded={showFee}
-                                                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
+                                                className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
                                             >
                                                 <span
                                                     className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em]"
@@ -611,7 +611,7 @@ export default function GameLobby({
                                                         transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
                                                         style={{
                                                             transformOrigin: 'top center',
-                                                            background: 'var(--panel-bg)',
+                                                            background: 'rgba(6, 11, 20, 0.98)',
                                                             borderColor:
                                                                 dialWager > playableChips
                                                                     ? 'rgba(251, 113, 133, 0.85)'
@@ -621,7 +621,7 @@ export default function GameLobby({
                                                                     ? '0 0 22px rgba(251, 113, 133, 0.25), var(--panel-shadow)'
                                                                     : `0 0 24px rgba(${retroFee.rgb}, 0.24), var(--panel-shadow)`,
                                                         }}
-                                                        className="fee-tier fee-tier-expanded-retro absolute top-0 left-0 right-0 z-40 rounded-2xl border backdrop-blur-2xl flex flex-col items-center overflow-hidden"
+                                                        className="fee-tier fee-tier-expanded-retro absolute top-0 left-0 right-0 z-50 rounded-2xl border backdrop-blur-2xl flex flex-col items-center overflow-hidden"
                                                     >
                                                         <button
                                                             type="button"
@@ -719,7 +719,7 @@ export default function GameLobby({
                         const isOverBalance = wager > playableChips;
                         const isDialOverBalance = dialWager > playableChips;
                         return (
-                            <div className="w-full flex flex-col items-center">
+                            <div className="relative z-50 w-full flex flex-col items-center">
                                 <div className="flex justify-center w-full mb-1.5 mt-0.5">
                                     <SecurityLadderChip />
                                 </div>
@@ -959,7 +959,7 @@ export default function GameLobby({
                     })()}
 
                     {/* 3. ACTION DICE */}
-                    <div className="w-full flex-1 flex items-center justify-center relative z-30 min-h-0">
+                    <div className={`w-full flex-1 flex items-center justify-center relative isolate z-10 min-h-0 transition-opacity duration-150 ${showFee ? 'pointer-events-none opacity-25' : 'opacity-100'}`}>
                         <ActionDice
                             onSelectQuickMatch={() => handleStartQuickMatch()}
                             onSelectTeamUp={handleStartTeamUp}

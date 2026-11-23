@@ -38,7 +38,7 @@ const FORMATION_ORDER: readonly LobbyMatchType[] = ['1v1', '2v2', '4P'] as const
 
 const FORMATION_META: Record<LobbyMatchType, string> = {
     '1v1': '2P DUEL',
-    '2v2': '2v2 SQUAD',
+    '2v2': '2v2 TEAM',
     '4P': '4P FFA',
 };
 
@@ -131,7 +131,7 @@ function FormationRadarGlyph({
     const br = type === '2v2' ? teamHex[TEAM_PAIRINGS.red] : seated.includes('red') ? teamHex.red : dim;
 
     return (
-        <svg viewBox="0 0 22 22" className="w-5 h-5 shrink-0" aria-hidden="true">
+        <svg viewBox="0 0 22 22" className="w-6 h-6 shrink-0" aria-hidden="true">
             <rect
                 x="2"
                 y="2"
@@ -339,7 +339,7 @@ export function LobbyCommandDeck({
         <div
             className={`${
                 themeVariant === 'retro' ? 'lobby-deck-retro' : 'lobby-deck-3077'
-            } relative w-full overflow-visible rounded-2xl p-2.5 flex flex-col gap-2 backdrop-blur-md border`}
+            } relative z-40 w-full overflow-visible rounded-2xl p-3 flex flex-col gap-2.5 border`}
             style={{
                 background:
                     'linear-gradient(180deg, rgba(10, 16, 30, 0.94) 0%, rgba(6, 11, 20, 0.96) 100%)',
@@ -354,7 +354,7 @@ export function LobbyCommandDeck({
             <span aria-hidden="true" className="pointer-events-none absolute bottom-1.5 right-1.5 w-1 h-1 rounded-full bg-ink-faint/35" />
 
             {/* Dual-Bay Split Row: Left = Mode (vertical), Right = Formation (3 tall keys) */}
-            <div className="grid grid-cols-[minmax(0,0.88fr)_minmax(0,1.26fr)] gap-2 items-stretch">
+            <div className="grid grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)] gap-2.5 items-stretch">
                 {/* LEFT BAY: // MODE (POWER first on top, CLASSIC bottom) */}
                 <div className="flex flex-col gap-1 min-w-0">
                     <div className="flex items-center justify-between px-1">
@@ -381,7 +381,7 @@ export function LobbyCommandDeck({
                         onPointerMove={handleBreakerPointerMove}
                         onPointerUp={finishBreakerPointer}
                         onPointerCancel={finishBreakerPointer}
-                        className="relative h-[84px] rounded-xl p-1 grid grid-rows-2 touch-none select-none cursor-grab active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                        className="relative h-[96px] rounded-xl p-1.5 grid grid-rows-2 touch-none select-none cursor-grab active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
                         style={{
                             background: 'rgba(4, 7, 14, 0.84)',
                             border: `1px solid ${accentHex}2e`,
@@ -389,7 +389,7 @@ export function LobbyCommandDeck({
                         }}
                     >
                         {/* Vertical Sliding Knurled Cartridge (strictly transform-only) */}
-                        <div className="pointer-events-none absolute inset-1">
+                        <div className="pointer-events-none absolute inset-1.5">
                             <div
                                 className="w-full h-1/2 rounded-lg"
                                 style={{
@@ -419,20 +419,20 @@ export function LobbyCommandDeck({
                                         e.stopPropagation();
                                         commitGameMode(mode);
                                     }}
-                                    className="relative z-10 flex items-center justify-between gap-1.5 px-2.5 text-ludo-xs font-mono font-extrabold uppercase tracking-[0.14em] transition-colors cursor-pointer"
+                                    className="relative z-10 flex items-center justify-between gap-2 px-3 text-ludo-sm font-mono font-extrabold uppercase tracking-[0.12em] transition-colors cursor-pointer"
                                     style={{
                                         color: selected ? activePalette.bright : 'var(--ink-muted)',
                                     }}
                                 >
-                                    <span className="inline-flex items-center gap-1.5 min-w-0">
+                                    <span className="inline-flex items-center gap-2 min-w-0">
                                         {mode === 'power' ? (
                                             <OverdriveBoltIcon
-                                                className="w-3.5 h-3.5 shrink-0"
+                                                className="w-4 h-4 shrink-0"
                                                 active={selected}
                                             />
                                         ) : (
                                             <ClassicGridIcon
-                                                className="w-3.5 h-3.5 shrink-0"
+                                                className="w-4 h-4 shrink-0"
                                                 active={selected}
                                             />
                                         )}
@@ -457,13 +457,13 @@ export function LobbyCommandDeck({
                 {/* RIGHT BAY: // FORMATION (3 Vertical Keycaps 1v1 · 2v2 · 4P) */}
                 <div className="flex flex-col gap-1 min-w-0">
                     <div className="flex items-center justify-between px-1 gap-1">
-                        <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.16em] text-ink-faint shrink-0">
+                        <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.12em] text-ink-faint shrink-0">
                             {'// FORMATION'}
                         </span>
                         <TerminalTypeText
                             text={FORMATION_META[matchType]}
                             charMs={18}
-                            className="text-ludo-xs font-mono font-bold uppercase tracking-[0.12em]"
+                            className="text-ludo-xs font-mono font-bold uppercase tracking-[0.08em] whitespace-nowrap shrink-0"
                             style={{ color: activePalette.bright }}
                         />
                     </div>
@@ -471,7 +471,7 @@ export function LobbyCommandDeck({
                     <div
                         role="radiogroup"
                         aria-label="Match Type"
-                        className="h-[84px] rounded-xl p-1 grid grid-cols-3 gap-1.5"
+                        className="h-[96px] rounded-xl p-1.5 grid grid-cols-3 gap-2"
                         style={{
                             background: 'rgba(4, 7, 14, 0.84)',
                             border: `1px solid ${accentHex}29`,
@@ -487,7 +487,7 @@ export function LobbyCommandDeck({
                                     role="radio"
                                     aria-checked={active}
                                     onClick={() => commitMatchType(type)}
-                                    className="relative h-full rounded-lg flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-[border-color,box-shadow,transform] active:scale-[0.98]"
+                                    className="relative h-full rounded-lg flex flex-col items-center justify-center gap-2 cursor-pointer transition-[border-color,box-shadow,transform] active:scale-[0.98]"
                                     style={
                                         active
                                             ? {
