@@ -29,6 +29,8 @@ interface OrbitalFeeDockProps {
     themeVariant?: '3077' | 'retro';
     expandedClassName?: string;
     showCornerTicks?: boolean;
+    /** Render the expanded drawer as a true circular orbital pod. */
+    circular?: boolean;
 }
 
 /** 4-point orbital star glyph from Option B Entry Fee capsule. */
@@ -56,6 +58,7 @@ export function OrbitalFeeDock({
     themeVariant = '3077',
     expandedClassName = 'fee-tier-expanded-3077',
     showCornerTicks = false,
+    circular = false,
 }: OrbitalFeeDockProps) {
     const { mode, theme: deployTheme } = useDeployTheme();
     const palette =
@@ -111,40 +114,57 @@ export function OrbitalFeeDock({
 
             <AnimatePresence initial={false}>
                 {showFee && (
-                    <motion.div
-                        key="orbital-fee-dropdown"
-                        initial={{ opacity: 0, y: -4, scaleY: 0.94 }}
-                        animate={{ opacity: 1, y: 0, scaleY: 1 }}
-                        exit={{ opacity: 0, y: -4, scaleY: 0.94 }}
-                        transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
-                        style={{
-                            transformOrigin: 'top center',
-                            background: 'var(--panel-bg)',
-                            borderColor: isDialOverBalance ? dangerBorder : `rgba(${palette.rgb}, 0.82)`,
-                            boxShadow: isDialOverBalance
-                                ? '0 0 22px rgba(244, 63, 94, 0.25), var(--panel-shadow)'
-                                : `0 0 24px rgba(${palette.rgb}, 0.24), var(--panel-shadow)`,
-                        }}
-                        className={`fee-tier ${expandedClassName} absolute top-0 left-0 right-0 z-40 rounded-2xl border backdrop-blur-2xl flex flex-col items-center overflow-hidden`}
-                    >
-                        {showCornerTicks && <HudCornerTicks />}
-
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            aria-expanded={true}
-                            className="relative z-10 w-full flex items-center justify-between px-4 py-2 rounded-t-2xl hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
+                    circular ? (
+                        <motion.div
+                            key="orbital-fee-dropdown"
+                            initial={{ opacity: 0, scale: 0.86 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.86 }}
+                            transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
+                            style={{
+                                transformOrigin: 'top center',
+                                background: 'radial-gradient(circle at 50% 38%, rgba(15, 22, 36, 0.98) 0%, rgba(5, 8, 15, 0.98) 100%)',
+                                borderColor: isDialOverBalance ? dangerBorder : `rgba(${palette.rgb}, 0.82)`,
+                                boxShadow: isDialOverBalance
+                                    ? '0 0 26px rgba(244, 63, 94, 0.28), var(--panel-shadow)'
+                                    : `0 0 28px rgba(${palette.rgb}, 0.26), var(--panel-shadow)`,
+                            }}
+                            className={`fee-tier fee-tier-orbital-pod ${expandedClassName} absolute top-0 left-0 right-0 mx-auto z-40 w-[316px] max-w-[92vw] aspect-square rounded-full border backdrop-blur-2xl flex flex-col items-center justify-between pt-4 pb-4 px-5 overflow-hidden`}
                         >
-                            <span
-                                className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em]"
-                                style={{ color: themeVariant === '3077' ? palette.bright : 'var(--ink-strong)' }}
+                            {/* Concentric dashed orbital ring */}
+                            <svg
+                                viewBox="0 0 300 300"
+                                className="pointer-events-none absolute inset-1.5 w-[calc(100%-12px)] h-[calc(100%-12px)]"
+                                aria-hidden="true"
+                            >
+                                <circle
+                                    cx="150"
+                                    cy="150"
+                                    r="147"
+                                    fill="none"
+                                    stroke={isDialOverBalance ? '#f43f5e' : palette.hex}
+                                    strokeOpacity="0.28"
+                                    strokeWidth="1.2"
+                                    strokeDasharray="3 6"
+                                />
+                            </svg>
+
+                            {/* Compact top close pill nested inside upper chord */}
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                aria-expanded={true}
+                                className="relative z-10 inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-surface-recessed/75 border border-line-soft hover:bg-surface-hover active:scale-95 transition-[background-color,transform] cursor-pointer shrink-0"
                             >
                                 <OrbitalSparkGlyph color={dialWager > 0 ? palette.bright : 'var(--ink-muted)'} />
-                                <span>Entry Fee</span>
-                            </span>
-                            <span className="inline-flex items-center gap-2">
                                 <span
-                                    className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${
+                                    className="text-ludo-xs label-chrome font-bold uppercase tracking-[0.18em]"
+                                    style={{ color: palette.bright }}
+                                >
+                                    Entry Fee
+                                </span>
+                                <span
+                                    className={`text-ludo-xs font-mono font-bold tabular-nums ${
                                         isDialOverBalance ? 'text-negative animate-knob-alert-blink' : ''
                                     }`}
                                     style={isDialOverBalance ? undefined : { color: palette.bright }}
@@ -153,35 +173,112 @@ export function OrbitalFeeDock({
                                 </span>
                                 <ChevronGlyphIcon
                                     direction="down"
-                                    className="w-3.5 h-3.5 rotate-180 text-ink-muted transition-transform duration-200"
+                                    className="w-3 h-3 rotate-180 text-ink-muted"
                                 />
-                            </span>
-                        </button>
+                            </button>
 
-                        <div className="relative z-10 w-full px-2.5 pb-3 pt-1 flex flex-col items-center gap-2">
-                            {expandedBody}
+                            {/* Center Rotary Dial */}
+                            <div className="relative z-10 w-full flex-1 flex items-center justify-center min-h-0">
+                                {expandedBody}
+                            </div>
 
-                            {dialWarning && (
-                                <div
-                                    role="alert"
-                                    className="w-full px-3 py-1.5 rounded-xl bg-negative/15 border border-negative/40 text-negative flex items-center justify-center gap-1.5 text-ludo-xs font-mono font-bold"
-                                >
-                                    <WarningHexIcon className="w-3.5 h-3.5 shrink-0" />
-                                    <span className="truncate">{dialWarning}</span>
+                            {/* Bottom warning + nested pill CTA */}
+                            <div className="relative z-10 flex flex-col items-center gap-1.5 shrink-0">
+                                {dialWarning && (
+                                    <div
+                                        role="alert"
+                                        className="max-w-[228px] px-2.5 py-0.5 rounded-full bg-negative/15 border border-negative/40 text-negative flex items-center justify-center gap-1 text-ludo-xs font-mono font-bold"
+                                    >
+                                        <WarningHexIcon className="w-3 h-3 shrink-0" />
+                                        <span className="truncate">{dialWarning}</span>
+                                    </div>
+                                )}
+                                <div className="w-[180px]">
+                                    <Button
+                                        variant={isDialOverBalance ? 'danger' : 'primary'}
+                                        size="sm"
+                                        fullWidth
+                                        onClick={onConfirm}
+                                        className="uppercase tracking-[0.16em] font-extrabold rounded-full"
+                                    >
+                                        Confirm · {formatFee(dialWager)}
+                                    </Button>
                                 </div>
-                            )}
+                            </div>
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="orbital-fee-dropdown"
+                            initial={{ opacity: 0, y: -4, scaleY: 0.94 }}
+                            animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                            exit={{ opacity: 0, y: -4, scaleY: 0.94 }}
+                            transition={{ duration: 0.16, ease: [0.2, 0, 0, 1] }}
+                            style={{
+                                transformOrigin: 'top center',
+                                background: 'var(--panel-bg)',
+                                borderColor: isDialOverBalance ? dangerBorder : `rgba(${palette.rgb}, 0.82)`,
+                                boxShadow: isDialOverBalance
+                                    ? '0 0 22px rgba(244, 63, 94, 0.25), var(--panel-shadow)'
+                                    : `0 0 24px rgba(${palette.rgb}, 0.24), var(--panel-shadow)`,
+                            }}
+                            className={`fee-tier ${expandedClassName} absolute top-0 left-0 right-0 z-40 rounded-2xl border backdrop-blur-2xl flex flex-col items-center overflow-hidden`}
+                        >
+                            {showCornerTicks && <HudCornerTicks />}
 
-                            <Button
-                                variant={isDialOverBalance ? 'danger' : 'primary'}
-                                size="md"
-                                fullWidth
-                                onClick={onConfirm}
-                                className="uppercase tracking-[0.18em] font-extrabold rounded-full"
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                aria-expanded={true}
+                                className="relative z-10 w-full flex items-center justify-between px-4 py-2 rounded-t-2xl hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
                             >
-                                Confirm · {formatFee(dialWager)}
-                            </Button>
-                        </div>
-                    </motion.div>
+                                <span
+                                    className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em]"
+                                    style={{ color: themeVariant === '3077' ? palette.bright : 'var(--ink-strong)' }}
+                                >
+                                    <OrbitalSparkGlyph color={dialWager > 0 ? palette.bright : 'var(--ink-muted)'} />
+                                    <span>Entry Fee</span>
+                                </span>
+                                <span className="inline-flex items-center gap-2">
+                                    <span
+                                        className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${
+                                            isDialOverBalance ? 'text-negative animate-knob-alert-blink' : ''
+                                        }`}
+                                        style={isDialOverBalance ? undefined : { color: palette.bright }}
+                                    >
+                                        {formatFee(dialWager)}
+                                    </span>
+                                    <ChevronGlyphIcon
+                                        direction="down"
+                                        className="w-3.5 h-3.5 rotate-180 text-ink-muted transition-transform duration-200"
+                                    />
+                                </span>
+                            </button>
+
+                            <div className="relative z-10 w-full px-2.5 pb-3 pt-1 flex flex-col items-center gap-2">
+                                {expandedBody}
+
+                                {dialWarning && (
+                                    <div
+                                        role="alert"
+                                        className="w-full px-3 py-1.5 rounded-xl bg-negative/15 border border-negative/40 text-negative flex items-center justify-center gap-1.5 text-ludo-xs font-mono font-bold"
+                                    >
+                                        <WarningHexIcon className="w-3.5 h-3.5 shrink-0" />
+                                        <span className="truncate">{dialWarning}</span>
+                                    </div>
+                                )}
+
+                                <Button
+                                    variant={isDialOverBalance ? 'danger' : 'primary'}
+                                    size="md"
+                                    fullWidth
+                                    onClick={onConfirm}
+                                    className="uppercase tracking-[0.18em] font-extrabold rounded-full"
+                                >
+                                    Confirm · {formatFee(dialWager)}
+                                </Button>
+                            </div>
+                        </motion.div>
+                    )
                 )}
             </AnimatePresence>
         </div>

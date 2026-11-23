@@ -499,7 +499,7 @@ export default function GameLobby({
                                 feeDock={
                                     <OrbitalFeeDock
                                         themeVariant="3077"
-                                        showCornerTicks
+                                        circular
                                         expandedClassName="fee-tier-expanded-3077"
                                         wager={wager}
                                         dialWager={dialWager}
@@ -529,6 +529,7 @@ export default function GameLobby({
                                         formatFee={formatEntryFee}
                                         expandedBody={
                                             <EntryFeeKnob
+                                                circular
                                                 wager={dialWager}
                                                 playableChips={playableChips}
                                                 onChange={(next) => {

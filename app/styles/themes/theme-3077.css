@@ -638,11 +638,12 @@ body.theme-3077 .glass-panel {
   border-radius: var(--radius-lg);
 }
 
-body.theme-3077 .fee-tier:not(.fee-tier-orbital-capsule) {
+body.theme-3077 .fee-tier:not(.fee-tier-orbital-capsule):not(.fee-tier-orbital-pod) {
   border-radius: var(--radius-lg) !important;
 }
 
-body.theme-3077 .fee-tier.fee-tier-orbital-capsule {
+body.theme-3077 .fee-tier.fee-tier-orbital-capsule,
+body.theme-3077 .fee-tier.fee-tier-orbital-pod {
   border-radius: 9999px !important;
 }
 

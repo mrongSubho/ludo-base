@@ -26,6 +26,8 @@ interface EntryFeeKnobProps {
     onChange: (nextWager: number) => void;
     sfxEnabled: boolean;
     formatBalance: (val: number) => string;
+    /** Circular orbital pod styling: round +/- steppers and compact ring fit. */
+    circular?: boolean;
 }
 
 const CX = 140;
@@ -65,6 +67,7 @@ export function EntryFeeKnob({
     onChange,
     sfxEnabled,
     formatBalance,
+    circular = false,
 }: EntryFeeKnobProps) {
     const uid = useId().replace(/:/g, '');
     const svgRef = useRef<SVGSVGElement | null>(null);
@@ -244,7 +247,11 @@ export function EntryFeeKnob({
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => emitTierChange(stepTier(wager, -1))}
                     aria-label="Decrease entry fee"
-                    className="fee-preset-3077 absolute left-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-surface-recessed border flex items-center justify-center hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    className={`${
+                        circular
+                            ? 'rounded-full left-1 w-9 h-9'
+                            : 'fee-preset-3077 left-0 w-11 h-11'
+                    } absolute top-1/2 -translate-y-1/2 z-20 bg-surface-recessed border flex items-center justify-center hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer`}
                     style={{
                         borderColor: canStepDown ? `rgba(${deployTheme.rgb}, 0.52)` : 'var(--line-soft)',
                         color: canStepDown ? deployTheme.bright : 'var(--ink-muted)',
@@ -268,7 +275,7 @@ export function EntryFeeKnob({
                             : `${tierName}, ${formatBalance(wager)} CHIPS`
                     }
                     onKeyDown={handleKeyDown}
-                    className="relative w-full max-w-[224px] select-none rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    className={`relative w-full ${circular ? 'max-w-[206px] rounded-full' : 'max-w-[224px] rounded-2xl'} select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
                 >
                     <svg
                         ref={svgRef}
@@ -566,7 +573,11 @@ export function EntryFeeKnob({
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => emitTierChange(stepTier(wager, 1))}
                     aria-label="Increase entry fee"
-                    className="fee-preset-3077 absolute right-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-surface-recessed border flex items-center justify-center hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    className={`${
+                        circular
+                            ? 'rounded-full right-1 w-9 h-9'
+                            : 'fee-preset-3077 right-0 w-11 h-11'
+                    } absolute top-1/2 -translate-y-1/2 z-20 bg-surface-recessed border flex items-center justify-center hover:bg-surface-hover active:scale-95 transition-transform disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer`}
                     style={{
                         borderColor: canStepUp ? `rgba(${deployTheme.rgb}, 0.52)` : 'var(--line-soft)',
                         color: canStepUp ? deployTheme.bright : 'var(--ink-muted)',

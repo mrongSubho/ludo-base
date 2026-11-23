@@ -63,15 +63,24 @@ describe('Retro Theme Redesign & Swapped Lobby Setup Decks', () => {
         assert.match(fader, /setPointerCapture/);
     });
 
-    it('keeps OrbitalFeeDock capsule pill-shaped in 3077 and expands to EntryFeeKnob', () => {
+    it('keeps OrbitalFeeDock capsule and circular pod pill-shaped in 3077 and expands to EntryFeeKnob', () => {
         const css3077 = read('app/styles/themes/theme-3077.css');
         assert.match(css3077, /\.fee-tier\.fee-tier-orbital-capsule/);
+        assert.match(css3077, /\.fee-tier\.fee-tier-orbital-pod/);
         assert.match(css3077, /border-radius:\s*9999px\s*!important/);
+
+        const dock = read('app/components/OrbitalFeeDock.tsx');
+        assert.match(dock, /fee-tier-orbital-pod/);
+        assert.match(dock, /aspect-square rounded-full/);
+
+        const knob = read('app/components/EntryFeeKnob.tsx');
+        assert.match(knob, /circular\s*=\s*false/);
 
         const lobby = read('app/components/GameLobby.tsx');
         assert.match(lobby, /const isRetro = preferences\.theme === 'retro'/);
         assert.match(lobby, /<OrbitalCanopyDeck/);
-        assert.match(lobby, /<OrbitalFeeDock/);
+        assert.match(lobby, /<OrbitalFeeDock[\s\S]*circular/);
+        assert.match(lobby, /<EntryFeeKnob[\s\S]*circular/);
         assert.match(lobby, /<LobbyCommandDeck/);
         assert.match(lobby, /<RetroSynthFeeFader/);
     });
