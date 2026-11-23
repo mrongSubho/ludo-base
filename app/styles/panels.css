@@ -221,11 +221,11 @@ body.theme-daybreak .ludo-invite-scope .invite-accept-btn:hover {
   flex: 0 0 auto;
 }
 
-/* Daybreak keeps a light bar to match its porcelain panels */
+/* Daybreak keeps a warm studio porcelain bar with unified recessed clusters */
 body.theme-daybreak .header {
-  background: rgba(255, 255, 255, 0.92);
-  border-bottom: 1px solid rgba(23, 23, 23, 0.12);
-  box-shadow: 0 4px 16px rgba(23, 23, 23, 0.08);
+  background: rgba(252, 251, 248, 0.94);
+  border-bottom: 1px solid rgba(28, 25, 23, 0.11);
+  box-shadow: 0 4px 16px rgba(28, 25, 23, 0.07);
 }
 
 .header-left {
@@ -2993,17 +2993,26 @@ body.theme-daybreak .ludo-wallet-scope :is(.bg-amber-400\/10, .border-amber-400\
   border-color: rgba(180, 83, 9, 0.35);
 }
 
-/* ── Daybreak: solid header above open panels (wallet) ── */
+/* ── Daybreak: solid header above open panels + uniform shaded clusters (Coin, Profile, DM/Settings) ── */
 body.theme-daybreak .ludo-header-scope {
   position: relative;
   z-index: 300;
 }
-body.theme-daybreak .ludo-header-scope > div:not(.fixed):not([class*="fixed"]) {
+body.theme-daybreak .ludo-header-scope > div:not(.fixed):not([class*="fixed"]):not(.hud-header-cluster) {
   background: #FFFFFF !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  border-color: rgba(10, 11, 13, 0.18);
-  box-shadow: 0 4px 14px rgba(10, 11, 13, 0.10);
+  border-color: rgba(28, 25, 23, 0.14);
+  box-shadow: 0 4px 14px rgba(28, 25, 23, 0.10);
+}
+body.theme-daybreak .dash-header .hud-header-cluster {
+  background: var(--surface-recessed) !important;
+  border-color: rgba(28, 25, 23, 0.11) !important;
+  box-shadow: inset 0 1px 2px rgba(28, 25, 23, 0.06), 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+body.theme-daybreak .dash-header .hud-header-cluster:hover {
+  background: #e3ddd2 !important;
+  border-color: rgba(28, 25, 23, 0.20) !important;
 }
 
 /* ── CHIPS wallet / burn panel ink (theme-proof; daybreak cannot wash to white) ── */

@@ -88,6 +88,10 @@ describe('Retro Theme Redesign & Swapped Lobby Setup Decks', () => {
         assert.match(lobby, /<EntryFeeKnob[\s\S]*circular/);
         assert.match(lobby, /<LobbyCommandDeck/);
         assert.match(lobby, /<RetroSynthFeeFader/);
+
+        const deck = read('app/components/LobbyCommandDeck.tsx');
+        assert.match(deck, /grid-cols-\[minmax\(0,0\.88fr\)_minmax\(0,1\.26fr\)\]/);
+        assert.match(deck, /translateY\(/);
     });
 
     it('renders dotted orbital floor ring and OrbitalModeDock in ActionDice when retro is active', () => {

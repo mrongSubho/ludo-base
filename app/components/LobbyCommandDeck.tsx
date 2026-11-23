@@ -18,7 +18,7 @@ interface LobbyCommandDeckProps {
     onChangeMatchType: (type: LobbyMatchType) => void;
     sfxEnabled: boolean;
     hapticsEnabled: boolean;
-    /** Lower docked Entry Fee bar (plus in-place expanding fee drawer). */
+    /** Lower docked Entry Fee bar (plus in-place expanding RetroSynthFeeFader drawer). */
     feeDock: React.ReactNode;
     /** Color palette variant — Retro uses Ice Cyan / Solar Amber / Phosphor Emerald. */
     themeVariant?: '3077' | 'retro';
@@ -37,9 +37,9 @@ const MODE_ORDER: readonly LobbyGameMode[] = ['power', 'classic'] as const;
 const FORMATION_ORDER: readonly LobbyMatchType[] = ['1v1', '2v2', '4P'] as const;
 
 const FORMATION_META: Record<LobbyMatchType, string> = {
-    '1v1': '2P DIAGONAL DUEL',
-    '2v2': '2v2 SQUAD PAIRS',
-    '4P': '4P FREE-FOR-ALL',
+    '1v1': '2P DUEL',
+    '2v2': '2v2 SQUAD',
+    '4P': '4P FFA',
 };
 
 const TEAM_HEX: Record<'green' | 'red' | 'blue' | 'yellow', string> = {
@@ -131,15 +131,15 @@ function FormationRadarGlyph({
     const br = type === '2v2' ? teamHex[TEAM_PAIRINGS.red] : seated.includes('red') ? teamHex.red : dim;
 
     return (
-        <svg viewBox="0 0 22 22" className="w-[18px] h-[18px] shrink-0" aria-hidden="true">
+        <svg viewBox="0 0 22 22" className="w-5 h-5 shrink-0" aria-hidden="true">
             <rect
                 x="2"
                 y="2"
                 width="18"
                 height="18"
-                rx="3"
-                fill="rgba(4, 7, 13, 0.65)"
-                stroke={active ? `${accentHex}66` : 'rgba(148, 163, 184, 0.22)'}
+                rx="3.5"
+                fill="rgba(4, 7, 13, 0.68)"
+                stroke={active ? `${accentHex}75` : 'rgba(148, 163, 184, 0.24)'}
                 strokeWidth="1"
             />
             {type === '1v1' && (
@@ -161,7 +161,7 @@ function FormationRadarGlyph({
                         x2="15.5"
                         y2="6.5"
                         stroke={teamHex[TEAM_PAIRINGS.green]}
-                        strokeOpacity={active ? 0.85 : 0.45}
+                        strokeOpacity={active ? 0.88 : 0.48}
                         strokeWidth="1.15"
                     />
                     <line
@@ -170,7 +170,7 @@ function FormationRadarGlyph({
                         x2="15.5"
                         y2="15.5"
                         stroke={teamHex.red}
-                        strokeOpacity={active ? 0.85 : 0.45}
+                        strokeOpacity={active ? 0.88 : 0.48}
                         strokeWidth="1.15"
                     />
                 </>
@@ -182,19 +182,19 @@ function FormationRadarGlyph({
                     strokeWidth="0.9"
                 />
             )}
-            <circle cx="6.5" cy="6.5" r={tl === dim ? 1.5 : 2.15} fill={tl} />
-            <circle cx="15.5" cy="6.5" r={tr === dim ? 1.5 : 2.15} fill={tr} />
-            <circle cx="6.5" cy="15.5" r={bl === dim ? 1.5 : 2.15} fill={bl} />
-            <circle cx="15.5" cy="15.5" r={br === dim ? 1.5 : 2.15} fill={br} />
+            <circle cx="6.5" cy="6.5" r={tl === dim ? 1.5 : 2.2} fill={tl} />
+            <circle cx="15.5" cy="6.5" r={tr === dim ? 1.5 : 2.2} fill={tr} />
+            <circle cx="6.5" cy="15.5" r={bl === dim ? 1.5 : 2.2} fill={bl} />
+            <circle cx="15.5" cy="15.5" r={br === dim ? 1.5 : 2.2} fill={br} />
         </svg>
     );
 }
 
 /**
- * Unified 3077 Tactical Command Console housing:
- * 1. Armed Ruleset Slide-Breaker (POWER left -> Amber | CLASSIC right -> Cyan)
- * 2. 3-Bay Mechanical Radar Formation Matrix (1v1 · 2v2 · 4P)
- * 3. Docked Entry Fee Telemetry Slot (expands EntryFeeKnob in-place)
+ * Option C: Retro Compact Dual-Bay Console housing:
+ * 1. Left Bay (`// MODE`) — vertical dual slide-breaker (`POWER` top first, `CLASSIC` bottom)
+ * 2. Right Bay (`// FORMATION`) — 3 vertical keycaps (`1v1`, `2v2`, `4P`) with corner radar glyphs
+ * 3. Bottom Dock — RetroSynthFeeFader entry fee capsule & drawer
  */
 export function LobbyCommandDeck({
     gameMode,
@@ -213,16 +213,19 @@ export function LobbyCommandDeck({
     const dragModeRef = useRef<LobbyGameMode>(gameMode);
 
     useEffect(() => {
-        setReducedMotion(prefersReducedMotion());
-        return onReducedMotionChange(setReducedMotion);
+        const raf = window.requestAnimationFrame(() => setReducedMotion(prefersReducedMotion()));
+        const unsubscribe = onReducedMotionChange(setReducedMotion);
+        return () => {
+            window.cancelAnimationFrame(raf);
+            unsubscribe();
+        };
     }, []);
 
     const { mode: deployMode, theme: deployTheme } = useDeployTheme();
 
-    // Preview mode follows live drag across midpoint; 0 = POWER (left), 1 = CLASSIC (right)
+    // 0 = POWER (top), 1 = CLASSIC (bottom)
     const activeRatio = dragRatio !== null ? dragRatio : gameMode === 'power' ? 0 : 1;
     const previewMode: LobbyGameMode = activeRatio < 0.5 ? 'power' : 'classic';
-    const isPower = previewMode === 'power';
     const activePalette =
         themeVariant === 'retro'
             ? (RETRO_DECK_PALETTES[deployMode] ?? RETRO_DECK_PALETTES.quick)
@@ -251,13 +254,13 @@ export function LobbyCommandDeck({
         [hapticsEnabled, matchType, onChangeMatchType, sfxEnabled],
     );
 
-    const pointerToRatio = useCallback((clientX: number): number | null => {
+    const pointerToRatio = useCallback((clientY: number): number | null => {
         const el = trackRef.current;
         if (!el) return null;
         const rect = el.getBoundingClientRect();
-        if (rect.width <= 0) return null;
-        const raw = (clientX - rect.left) / rect.width;
-        // Center of left slot = 0.25, center of right slot = 0.75 -> map to [0, 1]
+        if (rect.height <= 0) return null;
+        const raw = (clientY - rect.top) / rect.height;
+        // Center of top slot (POWER) = 0.25, center of bottom slot (CLASSIC) = 0.75
         const mapped = (raw - 0.25) / 0.5;
         return Math.max(0, Math.min(1, mapped));
     }, []);
@@ -272,7 +275,7 @@ export function LobbyCommandDeck({
         draggingRef.current = true;
         dragModeRef.current = gameMode;
 
-        const r = pointerToRatio(e.clientX);
+        const r = pointerToRatio(e.clientY);
         if (r !== null) {
             setDragRatio(r);
             const target: LobbyGameMode = r < 0.5 ? 'power' : 'classic';
@@ -286,7 +289,7 @@ export function LobbyCommandDeck({
 
     const handleBreakerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
         if (!draggingRef.current) return;
-        const r = pointerToRatio(e.clientX);
+        const r = pointerToRatio(e.clientY);
         if (r === null) return;
         setDragRatio(r);
         const target: LobbyGameMode = r < 0.5 ? 'power' : 'classic';
@@ -307,7 +310,7 @@ export function LobbyCommandDeck({
         } catch {
             /* ignore */
         }
-        const r = pointerToRatio(e.clientX) ?? dragRatio ?? (gameMode === 'power' ? 0 : 1);
+        const r = pointerToRatio(e.clientY) ?? dragRatio ?? (gameMode === 'power' ? 0 : 1);
         const target: LobbyGameMode = r < 0.5 ? 'power' : 'classic';
         setDragRatio(null);
         if (target !== gameMode) {
@@ -320,10 +323,10 @@ export function LobbyCommandDeck({
     };
 
     const handleBreakerKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-        if (e.key === 'ArrowLeft' || e.key === 'Home') {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'Home') {
             e.preventDefault();
             commitGameMode('power');
-        } else if (e.key === 'ArrowRight' || e.key === 'End') {
+        } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'End') {
             e.preventDefault();
             commitGameMode('classic');
         } else if (e.key === ' ' || e.key === 'Enter') {
@@ -333,180 +336,204 @@ export function LobbyCommandDeck({
     };
 
     return (
-        <div className={`${themeVariant === 'retro' ? 'lobby-deck-retro' : 'lobby-deck-3077'} relative w-full overflow-visible px-0.5 flex flex-col gap-2.5`}>
-            {/* ROW 1: RULESET — Open Floating Armed Slide-Breaker (POWER left | CLASSIC right) */}
-            <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between px-1 gap-2">
-                    <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.2em] text-ink-faint shrink-0">
-                        {'// RULESET'}
-                    </span>
-                    <TerminalTypeText
-                        text={isPower ? '6 POWER TILES · BOOSTS ON' : 'ORIGINAL RULES · NO BOOSTS'}
-                        charMs={18}
-                        className="text-ludo-xs font-mono font-bold uppercase tracking-[0.14em]"
-                        style={{ color: activePalette.bright }}
-                    />
-                </div>
+        <div
+            className={`${
+                themeVariant === 'retro' ? 'lobby-deck-retro' : 'lobby-deck-3077'
+            } relative w-full overflow-visible rounded-2xl p-2.5 flex flex-col gap-2 backdrop-blur-md border`}
+            style={{
+                background:
+                    'linear-gradient(180deg, rgba(10, 16, 30, 0.94) 0%, rgba(6, 11, 20, 0.96) 100%)',
+                borderColor: `rgba(${activePalette.rgb}, 0.34)`,
+                boxShadow: `0 16px 34px rgba(0, 0, 0, 0.56), 0 0 20px rgba(${activePalette.rgb}, 0.12), inset 0 1px 0 rgba(${activePalette.rgb}, 0.16)`,
+            }}
+        >
+            {/* Subtle corner chassis pins */}
+            <span aria-hidden="true" className="pointer-events-none absolute top-1.5 left-1.5 w-1 h-1 rounded-full bg-ink-faint/35" />
+            <span aria-hidden="true" className="pointer-events-none absolute top-1.5 right-1.5 w-1 h-1 rounded-full bg-ink-faint/35" />
+            <span aria-hidden="true" className="pointer-events-none absolute bottom-1.5 left-1.5 w-1 h-1 rounded-full bg-ink-faint/35" />
+            <span aria-hidden="true" className="pointer-events-none absolute bottom-1.5 right-1.5 w-1 h-1 rounded-full bg-ink-faint/35" />
 
-                <div
-                    ref={trackRef}
-                    role="radiogroup"
-                    aria-label="Select Game Mode"
-                    tabIndex={0}
-                    onKeyDown={handleBreakerKeyDown}
-                    onPointerDown={handleBreakerPointerDown}
-                    onPointerMove={handleBreakerPointerMove}
-                    onPointerUp={finishBreakerPointer}
-                    onPointerCancel={finishBreakerPointer}
-                    className="relative h-[42px] rounded-xl p-[3px] grid grid-cols-2 touch-none select-none cursor-grab active:cursor-grabbing backdrop-blur-md focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
-                    style={{
-                        background: themeVariant === 'retro' ? 'rgba(6, 11, 20, 0.78)' : 'rgba(5, 9, 16, 0.72)',
-                        border: `1px solid ${accentHex}38`,
-                        boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.75)',
-                    }}
-                >
-                    {/* Physical Knurled Alloy Slide-Actuator */}
-                    <div
-                        aria-hidden="true"
-                        className="pointer-events-none absolute top-[3px] bottom-[3px] left-[3px] rounded-lg flex items-center justify-between px-2.5"
-                        style={{
-                            width: 'calc(50% - 3px)',
-                            transform: `translateX(${activeRatio * 100}%)`,
-                            transition:
-                                dragRatio !== null || reducedMotion
-                                    ? 'none'
-                                    : 'transform 190ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms ease, box-shadow 180ms ease',
-                            background: 'linear-gradient(180deg, #35445a 0%, #1a2332 54%, #0d131d 100%)',
-                            border: `1px solid ${accentHex}cc`,
-                            boxShadow: `0 4px 12px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 0 16px ${accentHex}30`,
-                        }}
-                    >
-                        {/* Left machined knurl ridges */}
-                        <span className="flex items-center gap-[2px] opacity-60">
-                            <span className="w-[1.5px] h-3.5 rounded-sm" style={{ background: '#05080f', boxShadow: '1px 0 0 rgba(226,232,240,0.22)' }} />
-                            <span className="w-[1.5px] h-3.5 rounded-sm" style={{ background: '#05080f', boxShadow: '1px 0 0 rgba(226,232,240,0.22)' }} />
+            {/* Dual-Bay Split Row: Left = Mode (vertical), Right = Formation (3 tall keys) */}
+            <div className="grid grid-cols-[minmax(0,0.88fr)_minmax(0,1.26fr)] gap-2 items-stretch">
+                {/* LEFT BAY: // MODE (POWER first on top, CLASSIC bottom) */}
+                <div className="flex flex-col gap-1 min-w-0">
+                    <div className="flex items-center justify-between px-1">
+                        <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.18em] text-ink-faint">
+                            {'// MODE'}
                         </span>
-                        {/* Right machined knurl ridges */}
-                        <span className="flex items-center gap-[2px] opacity-60">
-                            <span className="w-[1.5px] h-3.5 rounded-sm" style={{ background: '#05080f', boxShadow: '1px 0 0 rgba(226,232,240,0.22)' }} />
-                            <span className="w-[1.5px] h-3.5 rounded-sm" style={{ background: '#05080f', boxShadow: '1px 0 0 rgba(226,232,240,0.22)' }} />
-                        </span>
+                        <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{
+                                backgroundColor: accentHex,
+                                boxShadow: `0 0 6px ${accentHex}`,
+                            }}
+                            aria-hidden="true"
+                        />
                     </div>
 
-                    {MODE_ORDER.map((mode) => {
-                        const selected = previewMode === mode;
-                        return (
-                            <button
-                                key={mode}
-                                type="button"
-                                role="radio"
-                                aria-checked={gameMode === mode}
-                                tabIndex={-1}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    commitGameMode(mode);
+                    <div
+                        ref={trackRef}
+                        role="radiogroup"
+                        aria-label="Select Game Mode"
+                        tabIndex={0}
+                        onKeyDown={handleBreakerKeyDown}
+                        onPointerDown={handleBreakerPointerDown}
+                        onPointerMove={handleBreakerPointerMove}
+                        onPointerUp={finishBreakerPointer}
+                        onPointerCancel={finishBreakerPointer}
+                        className="relative h-[84px] rounded-xl p-1 grid grid-rows-2 touch-none select-none cursor-grab active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                        style={{
+                            background: 'rgba(4, 7, 14, 0.84)',
+                            border: `1px solid ${accentHex}2e`,
+                            boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.82)',
+                        }}
+                    >
+                        {/* Vertical Sliding Knurled Cartridge (strictly transform-only) */}
+                        <div className="pointer-events-none absolute inset-1">
+                            <div
+                                className="w-full h-1/2 rounded-lg"
+                                style={{
+                                    transform: `translateY(${activeRatio * 100}%)`,
+                                    transition:
+                                        dragRatio !== null || reducedMotion
+                                            ? 'none'
+                                            : 'transform 190ms cubic-bezier(0.22, 1, 0.36, 1), border-color 180ms ease, box-shadow 180ms ease',
+                                    background:
+                                        'linear-gradient(180deg, #27354a 0%, #151e2e 58%, #0c121e 100%)',
+                                    border: `1px solid ${accentHex}cc`,
+                                    boxShadow: `0 4px 12px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(${activePalette.rgb}, 0.28), 0 0 14px ${accentHex}2a`,
                                 }}
-                                className="relative z-10 flex items-center justify-center gap-1.5 px-2 text-ludo-sm font-mono font-extrabold uppercase tracking-[0.14em] transition-colors cursor-pointer"
-                                style={{ color: selected ? activePalette.bright : 'var(--ink-muted)' }}
-                            >
-                                {mode === 'power' ? (
-                                    <OverdriveBoltIcon className="w-3.5 h-3.5 shrink-0" active={selected} />
-                                ) : (
-                                    <ClassicGridIcon className="w-3.5 h-3.5 shrink-0" active={selected} />
-                                )}
-                                <span>{mode}</span>
-                                <span
-                                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                                    style={{
-                                        backgroundColor: selected ? accentHex : 'rgba(100, 116, 139, 0.45)',
-                                        boxShadow: selected ? `0 0 6px ${accentHex}` : undefined,
+                            />
+                        </div>
+
+                        {MODE_ORDER.map((mode) => {
+                            const selected = previewMode === mode;
+                            return (
+                                <button
+                                    key={mode}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={gameMode === mode}
+                                    tabIndex={-1}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        commitGameMode(mode);
                                     }}
-                                    aria-hidden="true"
-                                />
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* ROW 2: FORMATION — Open Floating 3-Bay Mechanical Radar Matrix (1v1 · 2v2 · 4P) */}
-            <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between px-1 gap-2">
-                    <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.2em] text-ink-faint shrink-0">
-                        {'// FORMATION'}
-                    </span>
-                    <TerminalTypeText
-                        text={FORMATION_META[matchType]}
-                        charMs={18}
-                        className="text-ludo-xs font-mono font-bold uppercase tracking-[0.14em]"
-                        style={{ color: activePalette.bright }}
-                    />
-                </div>
-
-                <div
-                    role="radiogroup"
-                    aria-label="Match Type"
-                    className="rounded-xl p-1 grid grid-cols-3 gap-1.5 backdrop-blur-md"
-                    style={{
-                        background: themeVariant === 'retro' ? 'rgba(6, 11, 20, 0.72)' : 'rgba(5, 9, 16, 0.66)',
-                        border: `1px solid ${accentHex}29`,
-                        boxShadow: 'inset 0 2px 7px rgba(0, 0, 0, 0.72)',
-                    }}
-                >
-                    {FORMATION_ORDER.map((type) => {
-                        const active = matchType === type;
-                        return (
-                            <button
-                                key={type}
-                                type="button"
-                                role="radio"
-                                aria-checked={active}
-                                onClick={() => commitMatchType(type)}
-                                className="relative h-[46px] rounded-lg flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-[border-color,box-shadow,transform] active:scale-[0.98]"
-                                style={
-                                    active
-                                        ? {
-                                              background: `linear-gradient(180deg, rgba(${activePalette.rgb}, 0.14) 0%, rgba(${activePalette.rgb}, 0.06) 100%)`,
-                                              border: `1px solid ${accentHex}bf`,
-                                              boxShadow: `inset 0 2px 8px rgba(0, 0, 0, 0.85), 0 0 12px ${accentHex}2e`,
-                                          }
-                                        : {
-                                              background: 'linear-gradient(180deg, #1b2433 0%, #101622 100%)',
-                                              border: '1px solid rgba(148, 163, 184, 0.16)',
-                                              boxShadow: '0 2px 0 #04070d, inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-                                          }
-                                }
-                            >
-                                {/* Recessed top LED indicator bar on active depressed key */}
-                                {active && (
+                                    className="relative z-10 flex items-center justify-between gap-1.5 px-2.5 text-ludo-xs font-mono font-extrabold uppercase tracking-[0.14em] transition-colors cursor-pointer"
+                                    style={{
+                                        color: selected ? activePalette.bright : 'var(--ink-muted)',
+                                    }}
+                                >
+                                    <span className="inline-flex items-center gap-1.5 min-w-0">
+                                        {mode === 'power' ? (
+                                            <OverdriveBoltIcon
+                                                className="w-3.5 h-3.5 shrink-0"
+                                                active={selected}
+                                            />
+                                        ) : (
+                                            <ClassicGridIcon
+                                                className="w-3.5 h-3.5 shrink-0"
+                                                active={selected}
+                                            />
+                                        )}
+                                        <span className="truncate">{mode}</span>
+                                    </span>
                                     <span
-                                        className="absolute top-0 left-3 right-3 h-[2px] rounded-b-full"
+                                        className="w-1.5 h-1.5 rounded-full shrink-0"
                                         style={{
-                                            backgroundColor: accentHex,
-                                            boxShadow: `0 0 6px ${accentHex}`,
+                                            backgroundColor: selected
+                                                ? accentHex
+                                                : 'rgba(100, 116, 139, 0.4)',
+                                            boxShadow: selected ? `0 0 6px ${accentHex}` : undefined,
                                         }}
                                         aria-hidden="true"
                                     />
-                                )}
-                                <FormationRadarGlyph
-                                    type={type}
-                                    accentHex={accentHex}
-                                    active={active}
-                                    teamHex={activeTeamHex}
-                                />
-                                <span
-                                    className="text-ludo-sm font-mono font-extrabold leading-none tracking-wider"
-                                    style={{ color: active ? accentHex : 'var(--ink-muted)' }}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* RIGHT BAY: // FORMATION (3 Vertical Keycaps 1v1 · 2v2 · 4P) */}
+                <div className="flex flex-col gap-1 min-w-0">
+                    <div className="flex items-center justify-between px-1 gap-1">
+                        <span className="text-ludo-xs font-mono font-bold uppercase tracking-[0.16em] text-ink-faint shrink-0">
+                            {'// FORMATION'}
+                        </span>
+                        <TerminalTypeText
+                            text={FORMATION_META[matchType]}
+                            charMs={18}
+                            className="text-ludo-xs font-mono font-bold uppercase tracking-[0.12em]"
+                            style={{ color: activePalette.bright }}
+                        />
+                    </div>
+
+                    <div
+                        role="radiogroup"
+                        aria-label="Match Type"
+                        className="h-[84px] rounded-xl p-1 grid grid-cols-3 gap-1.5"
+                        style={{
+                            background: 'rgba(4, 7, 14, 0.84)',
+                            border: `1px solid ${accentHex}29`,
+                            boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.82)',
+                        }}
+                    >
+                        {FORMATION_ORDER.map((type) => {
+                            const active = matchType === type;
+                            return (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={active}
+                                    onClick={() => commitMatchType(type)}
+                                    className="relative h-full rounded-lg flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-[border-color,box-shadow,transform] active:scale-[0.98]"
+                                    style={
+                                        active
+                                            ? {
+                                                  background: `linear-gradient(180deg, rgba(${activePalette.rgb}, 0.16) 0%, rgba(${activePalette.rgb}, 0.06) 100%)`,
+                                                  border: `1px solid ${accentHex}cc`,
+                                                  boxShadow: `inset 0 2px 8px rgba(0, 0, 0, 0.78), 0 0 12px ${accentHex}2e`,
+                                              }
+                                            : {
+                                                  background:
+                                                      'linear-gradient(180deg, #172030 0%, #0d1320 100%)',
+                                                  border: '1px solid rgba(148, 163, 184, 0.16)',
+                                                  boxShadow:
+                                                      '0 2px 0 #04070d, inset 0 1px 0 rgba(255, 255, 255, 0.08)',
+                                              }
+                                    }
                                 >
-                                    {type}
-                                </span>
-                            </button>
-                        );
-                    })}
+                                    {active && (
+                                        <span
+                                            className="absolute top-0 left-2.5 right-2.5 h-[2px] rounded-b-full"
+                                            style={{
+                                                backgroundColor: accentHex,
+                                                boxShadow: `0 0 6px ${accentHex}`,
+                                            }}
+                                            aria-hidden="true"
+                                        />
+                                    )}
+                                    <FormationRadarGlyph
+                                        type={type}
+                                        accentHex={accentHex}
+                                        active={active}
+                                        teamHex={activeTeamHex}
+                                    />
+                                    <span
+                                        className="text-ludo-sm font-mono font-extrabold leading-none tracking-wider"
+                                        style={{ color: active ? accentHex : 'var(--ink-muted)' }}
+                                    >
+                                        {type}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
 
-            {/* ROW 3: Docked Entry Fee Telemetry Slot */}
+            {/* Bottom Entry Fee Telemetry Dock (keeps RetroSynthFeeFader intact) */}
             {feeDock}
         </div>
     );
