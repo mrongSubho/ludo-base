@@ -13,29 +13,51 @@ interface OrbitalCanopyDeckProps {
     sfxEnabled: boolean;
     hapticsEnabled: boolean;
     feeDock: React.ReactNode;
+    /** Theme palette selector — 3077 uses Hyper-Cyan/Amber/Matrix Green; retro uses Ice Cyan/Solar Amber/Phosphor Emerald. */
+    themeVariant?: '3077' | 'retro';
 }
 
-const RETRO_PALETTES: Record<
-    DeployModeId,
-    { hex: string; bright: string; tint: string; softGlow: string }
-> = {
+interface CanopyPalette {
+    hex: string;
+    bright: string;
+    fillMid: string;
+    fillBot: string;
+    idleTop: string;
+    idleBot: string;
+    outerTrack: string;
+    innerTrack: string;
+}
+
+const RETRO_PALETTES: Record<DeployModeId, CanopyPalette> = {
     quick: {
         hex: '#5CE1FF',
         bright: '#A5F3FC',
-        tint: 'rgba(92, 225, 255, 0.24)',
-        softGlow: 'rgba(92, 225, 255, 0.42)',
+        fillMid: '#14223B',
+        fillBot: '#09101E',
+        idleTop: '#101A2E',
+        idleBot: '#070C17',
+        outerTrack: 'rgba(5, 9, 18, 0.72)',
+        innerTrack: 'rgba(4, 7, 14, 0.84)',
     },
     team: {
         hex: '#FBBF24',
         bright: '#FDE68A',
-        tint: 'rgba(251, 191, 36, 0.24)',
-        softGlow: 'rgba(251, 191, 36, 0.42)',
+        fillMid: '#1D1812',
+        fillBot: '#0B0907',
+        idleTop: '#16141C',
+        idleBot: '#070C17',
+        outerTrack: 'rgba(5, 9, 18, 0.72)',
+        innerTrack: 'rgba(4, 7, 14, 0.84)',
     },
     offline: {
         hex: '#34D399',
         bright: '#A7F3D0',
-        tint: 'rgba(52, 211, 153, 0.24)',
-        softGlow: 'rgba(52, 211, 153, 0.42)',
+        fillMid: '#0F221C',
+        fillBot: '#07110E',
+        idleTop: '#0E1C1A',
+        idleBot: '#070C17',
+        outerTrack: 'rgba(5, 9, 18, 0.72)',
+        innerTrack: 'rgba(4, 7, 14, 0.84)',
     },
 };
 
@@ -136,7 +158,7 @@ function triggerOrbitalHaptic(enabled: boolean): void {
     }
 }
 
-/** Option B — Orbital Canopy Lobby Selector for the Retro theme. */
+/** Option B — Orbital Canopy Lobby Selector (supports 3077 & Retro palettes). */
 export function OrbitalCanopyDeck({
     gameMode,
     onChangeGameMode,
@@ -145,9 +167,22 @@ export function OrbitalCanopyDeck({
     sfxEnabled,
     hapticsEnabled,
     feeDock,
+    themeVariant = '3077',
 }: OrbitalCanopyDeckProps) {
-    const { mode: deployMode } = useDeployTheme();
-    const palette = RETRO_PALETTES[deployMode] ?? RETRO_PALETTES.quick;
+    const { mode: deployMode, theme: deployTheme } = useDeployTheme();
+    const palette: CanopyPalette =
+        themeVariant === '3077'
+            ? {
+                  hex: deployTheme.hex,
+                  bright: deployTheme.bright,
+                  fillMid: '#0D1422',
+                  fillBot: '#05070A',
+                  idleTop: '#0E1420',
+                  idleBot: '#05080F',
+                  outerTrack: 'rgba(5, 7, 11, 0.78)',
+                  innerTrack: 'rgba(3, 5, 9, 0.88)',
+              }
+            : (RETRO_PALETTES[deployMode] ?? RETRO_PALETTES.quick);
     const uid = useId().replace(/:/g, '');
     const [reducedMotion, setReducedMotion] = useState(prefersReducedMotion);
 
@@ -220,12 +255,12 @@ export function OrbitalCanopyDeck({
                 <defs>
                     <linearGradient id={`${uid}-active-fill`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={palette.hex} stopOpacity="0.28" />
-                        <stop offset="55%" stopColor="#14223B" stopOpacity="0.92" />
-                        <stop offset="100%" stopColor="#09101E" stopOpacity="0.96" />
+                        <stop offset="55%" stopColor={palette.fillMid} stopOpacity="0.92" />
+                        <stop offset="100%" stopColor={palette.fillBot} stopOpacity="0.96" />
                     </linearGradient>
                     <linearGradient id={`${uid}-idle-fill`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#101A2E" stopOpacity="0.72" />
-                        <stop offset="100%" stopColor="#070C17" stopOpacity="0.90" />
+                        <stop offset="0%" stopColor={palette.idleTop} stopOpacity="0.76" />
+                        <stop offset="100%" stopColor={palette.idleBot} stopOpacity="0.92" />
                     </linearGradient>
                     <filter id={`${uid}-glow`} x="-15%" y="-15%" width="130%" height="130%">
                         <feDropShadow dx="0" dy="0" stdDeviation="3.2" floodColor={palette.hex} floodOpacity="0.52" />
@@ -235,13 +270,13 @@ export function OrbitalCanopyDeck({
                 {/* Backing canopy tracks */}
                 <path
                     d={outerHousingPath}
-                    fill="rgba(5, 9, 18, 0.72)"
+                    fill={palette.outerTrack}
                     stroke="rgba(148, 163, 184, 0.16)"
                     strokeWidth="1"
                 />
                 <path
                     d={innerHousingPath}
-                    fill="rgba(4, 7, 14, 0.84)"
+                    fill={palette.innerTrack}
                     stroke="rgba(148, 163, 184, 0.14)"
                     strokeWidth="1"
                 />

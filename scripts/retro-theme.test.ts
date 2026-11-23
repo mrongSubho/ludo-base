@@ -2,11 +2,16 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import {
+    RETRO_SYNTH_LABELS,
+    RETRO_SYNTH_TIERS,
+    nearestSynthTierIndex,
+} from '../app/components/RetroSynthFeeFader';
 
 const root = join(import.meta.dirname ?? __dirname, '..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
 
-describe('Retro Theme Redesign (Orbital Canopy + Minimal Arcade CRT)', () => {
+describe('Retro Theme Redesign & Swapped Lobby Setup Decks', () => {
     it('isolates body.theme-retro-futurism into app/styles/themes/retro.css and imports it in globals.css', () => {
         const globals = read('app/globals.css');
         assert.match(globals, /@import\s+"\.\/styles\/themes\/retro\.css";/);
@@ -26,35 +31,49 @@ describe('Retro Theme Redesign (Orbital Canopy + Minimal Arcade CRT)', () => {
         assert.doesNotMatch(retro, /\.overflow-y-auto[^}]*overflow-y:\s*visible\s*!important/);
     });
 
-    it('implements Option B OrbitalCanopyDeck with concentric SVG annular arcs and ARIA radiogroups', () => {
+    it('implements OrbitalCanopyDeck with themeVariant support (3077 & retro) and ARIA radiogroups', () => {
         const canopy = read('app/components/OrbitalCanopyDeck.tsx');
         assert.match(canopy, /export function OrbitalCanopyDeck/);
+        assert.match(canopy, /themeVariant\s*=\s*'3077'/);
+        assert.match(canopy, /deployTheme\.hex/);
         assert.match(canopy, /role="radiogroup"/);
         assert.match(canopy, /aria-label="Select Game Mode"/);
         assert.match(canopy, /aria-label="Match Type"/);
         assert.match(canopy, /CLASSIC/);
         assert.match(canopy, /POWER/);
-        assert.match(canopy, /useDeployTheme\(/);
         assert.match(canopy, /prefersReducedMotion/);
         assert.doesNotMatch(canopy, /rgba\(0,\s*229,\s*255/);
         assert.doesNotMatch(canopy, /rgba\(34,\s*211,\s*238/);
     });
 
-    it('implements in-place OrbitalFeeDock preset drawer with 1-tap CHIPS presets', () => {
-        const dock = read('app/components/OrbitalFeeDock.tsx');
-        assert.match(dock, /export function OrbitalFeeDock/);
-        assert.match(dock, /fee-tier-expanded-retro/);
-        assert.match(dock, /FREE/);
-        assert.match(dock, /10M/);
-        assert.match(dock, /playableChips/);
+    it('implements RetroSynthFeeFader with 7 ascending VU columns, shared SoundEngine, and knurled fader', () => {
+        assert.equal(RETRO_SYNTH_TIERS.length, 7);
+        assert.equal(RETRO_SYNTH_LABELS.length, 7);
+        assert.equal(nearestSynthTierIndex(0), 0);
+        assert.equal(nearestSynthTierIndex(450), 1);
+        assert.equal(nearestSynthTierIndex(100_000), 4);
+        assert.equal(nearestSynthTierIndex(10_000_000), 6);
+
+        const fader = read('app/components/RetroSynthFeeFader.tsx');
+        assert.match(fader, /export function RetroSynthFeeFader/);
+        assert.match(fader, /getSoundEngine\(\)/);
+        assert.doesNotMatch(fader, /new\s+(window\.)?(AudioContext|webkitAudioContext)/);
+        assert.match(fader, /role="radiogroup"/);
+        assert.match(fader, /role="slider"/);
+        assert.match(fader, /setPointerCapture/);
     });
 
-    it('mounts OrbitalCanopyDeck + OrbitalFeeDock in GameLobby for retro without breaking 3077', () => {
+    it('keeps OrbitalFeeDock capsule pill-shaped in 3077 and expands to EntryFeeKnob', () => {
+        const css3077 = read('app/styles/themes/theme-3077.css');
+        assert.match(css3077, /\.fee-tier\.fee-tier-orbital-capsule/);
+        assert.match(css3077, /border-radius:\s*9999px\s*!important/);
+
         const lobby = read('app/components/GameLobby.tsx');
         assert.match(lobby, /const isRetro = preferences\.theme === 'retro'/);
         assert.match(lobby, /<OrbitalCanopyDeck/);
         assert.match(lobby, /<OrbitalFeeDock/);
         assert.match(lobby, /<LobbyCommandDeck/);
+        assert.match(lobby, /<RetroSynthFeeFader/);
     });
 
     it('renders dotted orbital floor ring and OrbitalModeDock in ActionDice when retro is active', () => {

@@ -18,9 +18,20 @@ interface LobbyCommandDeckProps {
     onChangeMatchType: (type: LobbyMatchType) => void;
     sfxEnabled: boolean;
     hapticsEnabled: boolean;
-    /** Lower docked Entry Fee bar (plus in-place expanding EntryFeeKnob dropdown). */
+    /** Lower docked Entry Fee bar (plus in-place expanding fee drawer). */
     feeDock: React.ReactNode;
+    /** Color palette variant — Retro uses Ice Cyan / Solar Amber / Phosphor Emerald. */
+    themeVariant?: '3077' | 'retro';
 }
+
+const RETRO_DECK_PALETTES: Record<
+    'quick' | 'team' | 'offline',
+    { hex: string; rgb: string; bright: string }
+> = {
+    quick: { hex: '#5CE1FF', rgb: '92, 225, 255', bright: '#A5F3FC' },
+    team: { hex: '#FBBF24', rgb: '251, 191, 36', bright: '#FDE68A' },
+    offline: { hex: '#34D399', rgb: '52, 211, 153', bright: '#A7F3D0' },
+};
 
 const MODE_ORDER: readonly LobbyGameMode[] = ['power', 'classic'] as const;
 const FORMATION_ORDER: readonly LobbyMatchType[] = ['1v1', '2v2', '4P'] as const;
@@ -36,6 +47,13 @@ const TEAM_HEX: Record<'green' | 'red' | 'blue' | 'yellow', string> = {
     red: '#FF0055',
     blue: '#0099FF',
     yellow: '#FFD000',
+};
+
+const TEAM_HEX_RETRO: Record<'green' | 'red' | 'blue' | 'yellow', string> = {
+    green: '#34D399',
+    red: '#FB7185',
+    blue: '#5CE1FF',
+    yellow: '#FBBF24',
 };
 
 let deckAudioCtx: AudioContext | null = null;
@@ -98,17 +116,19 @@ function FormationRadarGlyph({
     type,
     accentHex,
     active,
+    teamHex = TEAM_HEX,
 }: {
     type: LobbyMatchType;
     accentHex: string;
     active: boolean;
+    teamHex?: Record<'green' | 'red' | 'blue' | 'yellow', string>;
 }) {
     const seated = seatedColorsFor(type);
     const dim = 'rgba(100, 116, 139, 0.35)';
-    const tl = type === '2v2' ? TEAM_HEX.red : seated.includes('blue') ? TEAM_HEX.blue : dim;
-    const tr = type === '2v2' ? TEAM_HEX[TEAM_PAIRINGS.green] : seated.includes('yellow') ? TEAM_HEX.yellow : dim;
-    const bl = seated.includes('green') ? TEAM_HEX.green : dim;
-    const br = type === '2v2' ? TEAM_HEX[TEAM_PAIRINGS.red] : seated.includes('red') ? TEAM_HEX.red : dim;
+    const tl = type === '2v2' ? teamHex.red : seated.includes('blue') ? teamHex.blue : dim;
+    const tr = type === '2v2' ? teamHex[TEAM_PAIRINGS.green] : seated.includes('yellow') ? teamHex.yellow : dim;
+    const bl = seated.includes('green') ? teamHex.green : dim;
+    const br = type === '2v2' ? teamHex[TEAM_PAIRINGS.red] : seated.includes('red') ? teamHex.red : dim;
 
     return (
         <svg viewBox="0 0 22 22" className="w-[18px] h-[18px] shrink-0" aria-hidden="true">
@@ -140,7 +160,7 @@ function FormationRadarGlyph({
                         y1="15.5"
                         x2="15.5"
                         y2="6.5"
-                        stroke={TEAM_HEX[TEAM_PAIRINGS.green]}
+                        stroke={teamHex[TEAM_PAIRINGS.green]}
                         strokeOpacity={active ? 0.85 : 0.45}
                         strokeWidth="1.15"
                     />
@@ -149,7 +169,7 @@ function FormationRadarGlyph({
                         y1="6.5"
                         x2="15.5"
                         y2="15.5"
-                        stroke={TEAM_HEX.red}
+                        stroke={teamHex.red}
                         strokeOpacity={active ? 0.85 : 0.45}
                         strokeWidth="1.15"
                     />
@@ -184,6 +204,7 @@ export function LobbyCommandDeck({
     sfxEnabled,
     hapticsEnabled,
     feeDock,
+    themeVariant = 'retro',
 }: LobbyCommandDeckProps) {
     const trackRef = useRef<HTMLDivElement | null>(null);
     const [reducedMotion, setReducedMotion] = useState(false);
@@ -196,14 +217,18 @@ export function LobbyCommandDeck({
         return onReducedMotionChange(setReducedMotion);
     }, []);
 
-    const { theme: deployTheme } = useDeployTheme();
+    const { mode: deployMode, theme: deployTheme } = useDeployTheme();
 
     // Preview mode follows live drag across midpoint; 0 = POWER (left), 1 = CLASSIC (right)
     const activeRatio = dragRatio !== null ? dragRatio : gameMode === 'power' ? 0 : 1;
     const previewMode: LobbyGameMode = activeRatio < 0.5 ? 'power' : 'classic';
     const isPower = previewMode === 'power';
-    // Deck accent follows active Deployment Mode (`QUICK` Cyan / `TEAM` Amber / `OFFLINE` Emerald)
-    const accentHex = deployTheme.hex;
+    const activePalette =
+        themeVariant === 'retro'
+            ? (RETRO_DECK_PALETTES[deployMode] ?? RETRO_DECK_PALETTES.quick)
+            : deployTheme;
+    const activeTeamHex = themeVariant === 'retro' ? TEAM_HEX_RETRO : TEAM_HEX;
+    const accentHex = activePalette.hex;
 
     const commitGameMode = useCallback(
         (next: LobbyGameMode) => {
@@ -308,7 +333,7 @@ export function LobbyCommandDeck({
     };
 
     return (
-        <div className="lobby-deck-3077 relative w-full overflow-visible px-0.5 flex flex-col gap-2.5">
+        <div className={`${themeVariant === 'retro' ? 'lobby-deck-retro' : 'lobby-deck-3077'} relative w-full overflow-visible px-0.5 flex flex-col gap-2.5`}>
             {/* ROW 1: RULESET — Open Floating Armed Slide-Breaker (POWER left | CLASSIC right) */}
             <div className="flex flex-col gap-1">
                 <div className="flex items-center justify-between px-1 gap-2">
@@ -319,7 +344,7 @@ export function LobbyCommandDeck({
                         text={isPower ? '6 POWER TILES · BOOSTS ON' : 'ORIGINAL RULES · NO BOOSTS'}
                         charMs={18}
                         className="text-ludo-xs font-mono font-bold uppercase tracking-[0.14em]"
-                        style={{ color: deployTheme.bright }}
+                        style={{ color: activePalette.bright }}
                     />
                 </div>
 
@@ -333,9 +358,9 @@ export function LobbyCommandDeck({
                     onPointerMove={handleBreakerPointerMove}
                     onPointerUp={finishBreakerPointer}
                     onPointerCancel={finishBreakerPointer}
-                    className="relative h-[42px] rounded-[11px] p-[3px] grid grid-cols-2 touch-none select-none cursor-grab active:cursor-grabbing backdrop-blur-md focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                    className="relative h-[42px] rounded-xl p-[3px] grid grid-cols-2 touch-none select-none cursor-grab active:cursor-grabbing backdrop-blur-md focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
                     style={{
-                        background: 'rgba(5, 9, 16, 0.72)',
+                        background: themeVariant === 'retro' ? 'rgba(6, 11, 20, 0.78)' : 'rgba(5, 9, 16, 0.72)',
                         border: `1px solid ${accentHex}38`,
                         boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.75)',
                     }}
@@ -343,7 +368,7 @@ export function LobbyCommandDeck({
                     {/* Physical Knurled Alloy Slide-Actuator */}
                     <div
                         aria-hidden="true"
-                        className="pointer-events-none absolute top-[3px] bottom-[3px] left-[3px] rounded-[8px] flex items-center justify-between px-2.5"
+                        className="pointer-events-none absolute top-[3px] bottom-[3px] left-[3px] rounded-lg flex items-center justify-between px-2.5"
                         style={{
                             width: 'calc(50% - 3px)',
                             transform: `translateX(${activeRatio * 100}%)`,
@@ -382,7 +407,7 @@ export function LobbyCommandDeck({
                                     commitGameMode(mode);
                                 }}
                                 className="relative z-10 flex items-center justify-center gap-1.5 px-2 text-ludo-sm font-mono font-extrabold uppercase tracking-[0.14em] transition-colors cursor-pointer"
-                                style={{ color: selected ? deployTheme.bright : 'var(--ink-muted)' }}
+                                style={{ color: selected ? activePalette.bright : 'var(--ink-muted)' }}
                             >
                                 {mode === 'power' ? (
                                     <OverdriveBoltIcon className="w-3.5 h-3.5 shrink-0" active={selected} />
@@ -414,16 +439,16 @@ export function LobbyCommandDeck({
                         text={FORMATION_META[matchType]}
                         charMs={18}
                         className="text-ludo-xs font-mono font-bold uppercase tracking-[0.14em]"
-                        style={{ color: deployTheme.bright }}
+                        style={{ color: activePalette.bright }}
                     />
                 </div>
 
                 <div
                     role="radiogroup"
                     aria-label="Match Type"
-                    className="rounded-[12px] p-1 grid grid-cols-3 gap-1.5 backdrop-blur-md"
+                    className="rounded-xl p-1 grid grid-cols-3 gap-1.5 backdrop-blur-md"
                     style={{
-                        background: 'rgba(5, 9, 16, 0.66)',
+                        background: themeVariant === 'retro' ? 'rgba(6, 11, 20, 0.72)' : 'rgba(5, 9, 16, 0.66)',
                         border: `1px solid ${accentHex}29`,
                         boxShadow: 'inset 0 2px 7px rgba(0, 0, 0, 0.72)',
                     }}
@@ -437,11 +462,11 @@ export function LobbyCommandDeck({
                                 role="radio"
                                 aria-checked={active}
                                 onClick={() => commitMatchType(type)}
-                                className="relative h-[46px] rounded-[9px] flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-[border-color,box-shadow,transform] active:scale-[0.98]"
+                                className="relative h-[46px] rounded-lg flex flex-col items-center justify-center gap-0.5 cursor-pointer transition-[border-color,box-shadow,transform] active:scale-[0.98]"
                                 style={
                                     active
                                         ? {
-                                              background: `linear-gradient(180deg, rgba(${deployTheme.rgb}, 0.14) 0%, rgba(${deployTheme.rgb}, 0.06) 100%)`,
+                                              background: `linear-gradient(180deg, rgba(${activePalette.rgb}, 0.14) 0%, rgba(${activePalette.rgb}, 0.06) 100%)`,
                                               border: `1px solid ${accentHex}bf`,
                                               boxShadow: `inset 0 2px 8px rgba(0, 0, 0, 0.85), 0 0 12px ${accentHex}2e`,
                                           }
@@ -463,7 +488,12 @@ export function LobbyCommandDeck({
                                         aria-hidden="true"
                                     />
                                 )}
-                                <FormationRadarGlyph type={type} accentHex={accentHex} active={active} />
+                                <FormationRadarGlyph
+                                    type={type}
+                                    accentHex={accentHex}
+                                    active={active}
+                                    teamHex={activeTeamHex}
+                                />
                                 <span
                                     className="text-ludo-sm font-mono font-extrabold leading-none tracking-wider"
                                     style={{ color: active ? accentHex : 'var(--ink-muted)' }}

@@ -18,10 +18,12 @@ describe('3077 Tactical Command Console & Deployment-Mode Theme', () => {
         assert.equal(isDeployModeId('invalid'), false);
     });
 
-    it('places POWER mode first on the armed slide-breaker and uses TerminalTypeText without an overlay box', () => {
+    it('places POWER mode first on the armed slide-breaker, supports Retro palette, and uses TerminalTypeText', () => {
         const deck = read('app/components/LobbyCommandDeck.tsx');
         assert.match(deck, /const MODE_ORDER:\s*readonly LobbyGameMode\[\]\s*=\s*\['power',\s*'classic'\]/);
         assert.match(deck, /useDeployTheme\(/);
+        assert.match(deck, /themeVariant\s*=\s*'retro'/);
+        assert.match(deck, /RETRO_DECK_PALETTES/);
         assert.match(deck, /<TerminalTypeText/);
         assert.doesNotMatch(deck, /lobby-deck-rivet/);
         assert.match(deck, /role="radiogroup"/);
@@ -40,11 +42,18 @@ describe('3077 Tactical Command Console & Deployment-Mode Theme', () => {
         assert.match(deck, /TEAM_PAIRINGS\.red/);
     });
 
-    it('wires LobbyCommandDeck into 3077 GameLobby, omits tier name in fee bar, and matches expanded knob border', () => {
+    it('wires OrbitalCanopyDeck + OrbitalFeeDock + EntryFeeKnob into 3077 and LobbyCommandDeck + RetroSynthFeeFader into Retro', () => {
         const lobby = read('app/components/GameLobby.tsx');
+        assert.match(lobby, /import \{ OrbitalCanopyDeck \} from '\.\/OrbitalCanopyDeck'/);
+        assert.match(lobby, /import \{ OrbitalFeeDock \} from '\.\/OrbitalFeeDock'/);
         assert.match(lobby, /import \{ LobbyCommandDeck \} from '\.\/LobbyCommandDeck'/);
-        assert.match(lobby, /<LobbyCommandDeck/);
-        assert.match(lobby, /fee-tier-expanded-3077/);
+        assert.match(lobby, /import \{ RetroSynthFeeFader \} from '\.\/RetroSynthFeeFader'/);
+        assert.match(lobby, /<OrbitalCanopyDeck[\s\S]*themeVariant="3077"/);
+        assert.match(lobby, /<OrbitalFeeDock[\s\S]*expandedClassName="fee-tier-expanded-3077"/);
+        assert.match(lobby, /<EntryFeeKnob/);
+        assert.match(lobby, /<LobbyCommandDeck[\s\S]*themeVariant="retro"/);
+        assert.match(lobby, /fee-tier-expanded-retro/);
+        assert.match(lobby, /<RetroSynthFeeFader/);
         assert.match(lobby, /\{formatEntryFee\(wager\)\}/);
         assert.match(lobby, /\{formatEntryFee\(dialWager\)\}/);
         assert.doesNotMatch(lobby, /getEntryFeeTierName/);

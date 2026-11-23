@@ -4,19 +4,10 @@ import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { type DeployModeId, useDeployTheme } from '@/lib/deployTheme';
 import { Button } from './Button';
+import { HudCornerTicks } from './HudPrimitives';
 import { ChevronGlyphIcon, WarningHexIcon } from './icons';
 
-const ORBITAL_FEE_PRESETS = [
-    { value: 0, label: 'FREE' },
-    { value: 100, label: '100' },
-    { value: 1_000, label: '1K' },
-    { value: 10_000, label: '10K' },
-    { value: 100_000, label: '100K' },
-    { value: 1_000_000, label: '1M' },
-    { value: 10_000_000, label: '10M' },
-] as const;
-
-const ORBITAL_ACCENTS: Record<DeployModeId, { hex: string; rgb: string; bright: string }> = {
+const RETRO_CAPSULE_ACCENTS: Record<DeployModeId, { hex: string; rgb: string; bright: string }> = {
     quick: { hex: '#5CE1FF', rgb: '92, 225, 255', bright: '#A5F3FC' },
     team: { hex: '#FBBF24', rgb: '251, 191, 36', bright: '#FDE68A' },
     offline: { hex: '#34D399', rgb: '52, 211, 153', bright: '#A7F3D0' },
@@ -31,9 +22,13 @@ interface OrbitalFeeDockProps {
     feeTierRef: React.RefObject<HTMLDivElement | null>;
     onToggleOpen: () => void;
     onClose: () => void;
-    onSelectPreset: (amount: number) => void;
     onConfirm: () => void;
     formatFee: (val: number) => string;
+    /** Controls rendered inside the overlapping expanded drawer (e.g., EntryFeeKnob in 3077). */
+    expandedBody: React.ReactNode;
+    themeVariant?: '3077' | 'retro';
+    expandedClassName?: string;
+    showCornerTicks?: boolean;
 }
 
 /** 4-point orbital star glyph from Option B Entry Fee capsule. */
@@ -55,25 +50,34 @@ export function OrbitalFeeDock({
     feeTierRef,
     onToggleOpen,
     onClose,
-    onSelectPreset,
     onConfirm,
     formatFee,
+    expandedBody,
+    themeVariant = '3077',
+    expandedClassName = 'fee-tier-expanded-3077',
+    showCornerTicks = false,
 }: OrbitalFeeDockProps) {
-    const { mode } = useDeployTheme();
-    const palette = ORBITAL_ACCENTS[mode] ?? ORBITAL_ACCENTS.quick;
+    const { mode, theme: deployTheme } = useDeployTheme();
+    const palette =
+        themeVariant === '3077'
+            ? { hex: deployTheme.hex, rgb: deployTheme.rgb, bright: deployTheme.bright }
+            : (RETRO_CAPSULE_ACCENTS[mode] ?? RETRO_CAPSULE_ACCENTS.quick);
+
     const isOverBalance = wager > playableChips;
     const isDialOverBalance = dialWager > playableChips;
+    const dangerBorder = themeVariant === '3077' ? 'rgba(244, 63, 94, 0.85)' : 'rgba(251, 113, 133, 0.85)';
+    const dangerSoft = themeVariant === '3077' ? 'rgba(244, 63, 94, 0.55)' : 'rgba(251, 113, 133, 0.58)';
 
     return (
         <div
             ref={feeTierRef}
-            className="fee-tier relative z-40 rounded-full flex flex-col items-center border backdrop-blur-md"
+            className="fee-tier fee-tier-orbital-capsule relative z-40 rounded-full flex flex-col items-center border backdrop-blur-md"
             style={{
-                background: 'rgba(7, 13, 24, 0.86)',
-                borderColor: isOverBalance ? 'rgba(251, 113, 133, 0.58)' : `rgba(${palette.rgb}, 0.44)`,
+                background: themeVariant === '3077' ? 'rgba(6, 10, 18, 0.78)' : 'rgba(7, 13, 24, 0.86)',
+                borderColor: isOverBalance ? dangerSoft : `rgba(${palette.rgb}, 0.44)`,
                 boxShadow: isOverBalance
-                    ? '0 0 16px rgba(251, 113, 133, 0.2)'
-                    : `0 0 18px rgba(${palette.rgb}, 0.14), inset 0 1px 0 rgba(${palette.rgb}, 0.18)`,
+                    ? '0 0 16px rgba(244, 63, 94, 0.2)'
+                    : `0 0 16px rgba(${palette.rgb}, 0.13), inset 0 1px 0 rgba(${palette.rgb}, 0.16)`,
             }}
         >
             <button
@@ -82,14 +86,17 @@ export function OrbitalFeeDock({
                 aria-expanded={showFee}
                 className="w-full flex items-center justify-between px-4 py-2 rounded-full hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
             >
-                <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
+                <span
+                    className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em]"
+                    style={{ color: themeVariant === '3077' ? palette.bright : 'var(--ink-strong)' }}
+                >
                     <OrbitalSparkGlyph color={wager > 0 ? palette.bright : 'var(--ink-muted)'} />
                     <span>Entry Fee</span>
                 </span>
                 <span className="inline-flex items-center gap-2">
                     <span
                         className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${
-                            isOverBalance ? 'text-negative' : ''
+                            isOverBalance ? 'text-negative animate-knob-alert-blink' : ''
                         }`}
                         style={isOverBalance ? undefined : { color: palette.bright }}
                     >
@@ -113,29 +120,32 @@ export function OrbitalFeeDock({
                         style={{
                             transformOrigin: 'top center',
                             background: 'var(--panel-bg)',
-                            borderColor: isDialOverBalance
-                                ? 'rgba(251, 113, 133, 0.85)'
-                                : `rgba(${palette.rgb}, 0.78)`,
+                            borderColor: isDialOverBalance ? dangerBorder : `rgba(${palette.rgb}, 0.82)`,
                             boxShadow: isDialOverBalance
-                                ? '0 0 24px rgba(251, 113, 133, 0.25), var(--panel-shadow)'
-                                : `0 0 26px rgba(${palette.rgb}, 0.24), var(--panel-shadow)`,
+                                ? '0 0 22px rgba(244, 63, 94, 0.25), var(--panel-shadow)'
+                                : `0 0 24px rgba(${palette.rgb}, 0.24), var(--panel-shadow)`,
                         }}
-                        className="fee-tier fee-tier-expanded-retro absolute top-0 left-0 right-0 z-40 rounded-2xl border backdrop-blur-2xl flex flex-col items-center overflow-hidden"
+                        className={`fee-tier ${expandedClassName} absolute top-0 left-0 right-0 z-40 rounded-2xl border backdrop-blur-2xl flex flex-col items-center overflow-hidden`}
                     >
+                        {showCornerTicks && <HudCornerTicks />}
+
                         <button
                             type="button"
                             onClick={onClose}
                             aria-expanded={true}
                             className="relative z-10 w-full flex items-center justify-between px-4 py-2 rounded-t-2xl hover:bg-surface-hover active:scale-[0.99] transition-[background-color,transform] cursor-pointer"
                         >
-                            <span className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em] text-ink-strong">
+                            <span
+                                className="inline-flex items-center gap-2 text-ludo-xs label-chrome font-bold uppercase tracking-[0.2em]"
+                                style={{ color: themeVariant === '3077' ? palette.bright : 'var(--ink-strong)' }}
+                            >
                                 <OrbitalSparkGlyph color={dialWager > 0 ? palette.bright : 'var(--ink-muted)'} />
                                 <span>Entry Fee</span>
                             </span>
                             <span className="inline-flex items-center gap-2">
                                 <span
                                     className={`text-ludo-sm font-mono font-bold tracking-wide tabular-nums ${
-                                        isDialOverBalance ? 'text-negative' : ''
+                                        isDialOverBalance ? 'text-negative animate-knob-alert-blink' : ''
                                     }`}
                                     style={isDialOverBalance ? undefined : { color: palette.bright }}
                                 >
@@ -148,47 +158,8 @@ export function OrbitalFeeDock({
                             </span>
                         </button>
 
-                        <div className="relative z-10 w-full px-3 pb-3 pt-1 flex flex-col gap-2.5">
-                            <div className="flex items-center justify-between px-2.5 py-1 rounded-full bg-surface-recessed border border-line-soft text-ludo-xs font-mono">
-                                <span className="uppercase tracking-widest text-ink-muted">Playable</span>
-                                <span className="font-bold text-ink-strong tabular-nums">
-                                    {playableChips.toLocaleString()} CHIPS
-                                </span>
-                            </div>
-
-                            <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="Entry Fee Presets">
-                                {ORBITAL_FEE_PRESETS.map((preset) => {
-                                    const active = dialWager === preset.value;
-                                    const unaffordable = preset.value > playableChips;
-                                    return (
-                                        <button
-                                            key={preset.value}
-                                            type="button"
-                                            role="radio"
-                                            aria-checked={active}
-                                            onClick={() => onSelectPreset(preset.value)}
-                                            className={`h-9 px-2 rounded-full border font-mono text-ludo-xs font-bold uppercase tracking-wider transition-[background-color,border-color,color,transform] active:scale-95 cursor-pointer ${
-                                                active
-                                                    ? 'text-accent-ink'
-                                                    : unaffordable
-                                                      ? 'bg-surface-recessed/60 border-line-soft text-ink-faint hover:text-ink-muted'
-                                                      : 'bg-surface-recessed border-line-soft text-ink-strong hover:border-line-strong'
-                                            }`}
-                                            style={
-                                                active
-                                                    ? {
-                                                          background: palette.hex,
-                                                          borderColor: palette.bright,
-                                                          boxShadow: `0 0 12px rgba(${palette.rgb}, 0.45)`,
-                                                      }
-                                                    : undefined
-                                            }
-                                        >
-                                            {preset.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                        <div className="relative z-10 w-full px-2.5 pb-3 pt-1 flex flex-col items-center gap-2">
+                            {expandedBody}
 
                             {dialWarning && (
                                 <div
