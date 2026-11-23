@@ -7,6 +7,11 @@ import {
     RETRO_SYNTH_TIERS,
     nearestSynthTierIndex,
 } from '../app/components/RetroSynthFeeFader';
+import {
+    buildArcStadiumPath,
+    computeArcStrokeWidth,
+    stepArcSprings,
+} from '../app/components/RetroArcLight';
 
 const root = join(import.meta.dirname ?? __dirname, '..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
@@ -127,5 +132,46 @@ describe('Retro Theme Redesign & Swapped Lobby Setup Decks', () => {
         assert.match(ludoDice, /const isRetro = preferences\.theme === 'retro'/);
         assert.match(ludoDice, /DICE_RETRO_SKIN/);
         assert.match(ludoDice, /COLOR_MAP_RETRO/);
+    });
+
+    it('implements Retro ARC floating pill footer with dual-spring ring-to-rod physics and our icons (no mirror shadow)', () => {
+        const restPath = buildArcStadiumPath(100, 100, 30, 24);
+        assert.match(restPath, /^M 97\.50 6\.00 L 102\.50 6\.00 A 24\.00 24\.00 0 0 1 102\.50 54\.00 L 97\.50 54\.00 A 24\.00 24\.00 0 0 1 97\.50 6\.00 Z$/);
+
+        const flightPath = buildArcStadiumPath(80, 220, 30, 24);
+        assert.match(flightPath, /^M 77\.50 6\.00 L 222\.50 6\.00 A 24\.00 24\.00 0 0 1 222\.50 54\.00 L 77\.50 54\.00 A 24\.00 24\.00 0 0 1 77\.50 6\.00 Z$/);
+
+        const restWidth = computeArcStrokeWidth(100, 100).strokeWidth;
+        const flightWidth = computeArcStrokeWidth(80, 220).strokeWidth;
+        assert.ok(flightWidth > restWidth, 'strokeWidth should increase while stretched in flight');
+
+        let sim = { hx: 60, hv: 0, bx: 60, bv: 0, tx: 260, trip: 200 };
+        const step1 = stepArcSprings(sim, 0.016);
+        assert.ok(step1.hx > step1.bx && step1.bx > 60, 'head spring must lead tail spring immediately after takeoff');
+
+        let settled = false;
+        for (let i = 0; i < 120; i++) {
+            const next = stepArcSprings(sim, 0.016);
+            sim = { ...sim, hx: next.hx, hv: next.hv, bx: next.bx, bv: next.bv };
+            settled = next.settled;
+            if (settled) break;
+        }
+        assert.equal(settled, true);
+        assert.equal(sim.hx, 260);
+        assert.equal(sim.bx, 260);
+
+        const retroCss = read('app/styles/themes/retro.css');
+        assert.match(retroCss, /body\.theme-retro-futurism \.footer-nav\s*\{[\s\S]*border-radius:\s*9999px !important/);
+        assert.doesNotMatch(retroCss, /\.footer-nav::after/);
+
+        const footerPanel = read('app/components/FooterNavPanel.tsx');
+        for (const iconName of ['SquadLinkIcon', 'ApexRankIcon', 'SyndicateShieldIcon', 'DirectiveTargetIcon', 'ArmoryCrateIcon']) {
+            assert.match(footerPanel, new RegExp(iconName));
+        }
+        assert.match(footerPanel, /<RetroArcLight/);
+
+        const arcSrc = read('app/components/RetroArcLight.tsx');
+        assert.match(arcSrc, /prefersReducedMotion/);
+        assert.match(arcSrc, /onReducedMotionChange/);
     });
 });

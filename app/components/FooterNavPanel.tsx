@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useIsMobileView } from '@/hooks/useIsMobileView';
+import { usePreferences } from '@/hooks/usePreferences';
+import { RetroArcLight } from './RetroArcLight';
 import {
     ApexRankIcon,
     ArmoryCrateIcon,
@@ -40,11 +42,26 @@ export const FooterNavPanel = ({
     // Mobile: no layout spring / backdrop-blur on the active pill — those
     // stall the compositor while sandwich panels are mounting beside it.
     const isMobile = useIsMobileView();
+    const { preferences } = usePreferences();
+    const isRetro = preferences.theme === 'retro';
+
+    const navRef = useRef<HTMLElement | null>(null);
+    const dragStateRef = useRef<{
+        pointerId: number;
+        startX: number;
+        startY: number;
+        dragging: boolean;
+    } | null>(null);
+    const suppressClickRef = useRef(false);
+    const [dragX, setDragX] = useState<number | null>(null);
+    const [dragHoverIdx, setDragHoverIdx] = useState<number | null>(null);
+
+    const activeIdx = NAV_TABS.findIndex((tab) => tab.id === activeTab);
 
     // Single source of truth for footer clearance: measure the real rendered
     // box (compact vs full breakpoint, font loading — safe-area padding included).
     useEffect(() => {
-        const el = document.querySelector('.footer-nav');
+        const el = navRef.current ?? document.querySelector('.footer-nav');
         if (!el) return;
         const set = () => {
             const rect = el.getBoundingClientRect();
@@ -68,21 +85,117 @@ export const FooterNavPanel = ({
         };
     }, []);
 
+    const idxFromClientX = (clientX: number): { relX: number; idx: number } | null => {
+        const el = navRef.current;
+        if (!el) return null;
+        const rect = el.getBoundingClientRect();
+        if (rect.width <= 0) return null;
+        const relX = clientX - rect.left;
+        const idx = Math.min(
+            NAV_TABS.length - 1,
+            Math.max(0, Math.round((relX / rect.width) * NAV_TABS.length - 0.5)),
+        );
+        return { relX, idx };
+    };
+
+    const handlePointerDown = (e: React.PointerEvent<HTMLElement>) => {
+        if (!isRetro) return;
+        dragStateRef.current = {
+            pointerId: e.pointerId,
+            startX: e.clientX,
+            startY: e.clientY,
+            dragging: false,
+        };
+    };
+
+    const handlePointerMove = (e: React.PointerEvent<HTMLElement>) => {
+        if (!isRetro) return;
+        const st = dragStateRef.current;
+        if (!st || st.pointerId !== e.pointerId) return;
+        const dx = e.clientX - st.startX;
+        const dy = e.clientY - st.startY;
+        if (!st.dragging && Math.abs(dx) > 7 && Math.abs(dx) > Math.abs(dy)) {
+            st.dragging = true;
+            try {
+                e.currentTarget.setPointerCapture?.(e.pointerId);
+            } catch {
+                /* ignore if synthetic event */
+            }
+        }
+        if (st.dragging) {
+            const pos = idxFromClientX(e.clientX);
+            if (pos) {
+                setDragX(pos.relX);
+                setDragHoverIdx(pos.idx);
+            }
+        }
+    };
+
+    const handlePointerFinish = (e: React.PointerEvent<HTMLElement>, commitTab: boolean) => {
+        const st = dragStateRef.current;
+        if (!st || st.pointerId !== e.pointerId) return;
+        const wasDragging = st.dragging;
+        dragStateRef.current = null;
+        if (!wasDragging) return;
+
+        try {
+            if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+                e.currentTarget.releasePointerCapture(e.pointerId);
+            }
+        } catch {
+            /* ignore if capture lost */
+        }
+
+        const pos = idxFromClientX(e.clientX);
+        const fallbackIdx = dragHoverIdx ?? (activeIdx >= 0 ? activeIdx : 0);
+        const targetIdx = pos ? pos.idx : fallbackIdx;
+
+        setDragX(null);
+        setDragHoverIdx(null);
+        suppressClickRef.current = true;
+        window.requestAnimationFrame(() => {
+            suppressClickRef.current = false;
+        });
+
+        if (commitTab) {
+            const targetTab = NAV_TABS[targetIdx]?.id;
+            if (targetTab && targetTab !== activeTab) {
+                onToggleTab(targetTab as Tab);
+            }
+        }
+    };
+
     return (
-        <nav className="footer-nav ludo-footer-scope overflow-hidden">
-            {NAV_TABS.map((tab) => {
+        <nav
+            ref={navRef}
+            className="footer-nav ludo-footer-scope overflow-hidden"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={(e) => handlePointerFinish(e, true)}
+            onPointerCancel={(e) => handlePointerFinish(e, false)}
+        >
+            {isRetro && <RetroArcLight navRef={navRef} activeIdx={activeIdx} dragX={dragX} />}
+            {NAV_TABS.map((tab, idx) => {
                 const isActive = activeTab === tab.id;
+                const isArcLit = isRetro && (dragHoverIdx === idx || (dragHoverIdx === null && isActive));
                 const Icon = tab.icon;
                 return (
                     <button
                         key={tab.id}
                         type="button"
-                        className={`nav-item relative z-10 group ${isActive ? 'active' : ''}`}
-                        onClick={() => onToggleTab(tab.id as Tab)}
+                        className={`nav-item relative z-10 group ${isActive ? 'active' : ''} ${isArcLit ? 'arc-target' : ''}`}
+                        onClick={() => {
+                            if (suppressClickRef.current) {
+                                suppressClickRef.current = false;
+                                return;
+                            }
+                            onToggleTab(tab.id as Tab);
+                        }}
                         aria-pressed={isActive}
                     >
-                        {/* Active indicator: static on mobile, spring slide on desktop */}
-                        {isActive &&
+                        {/* Active indicator: static on mobile, spring slide on desktop (non-Retro themes) */}
+                        {!isRetro &&
+                            isActive &&
                             (isMobile ? (
                                 <div
                                     className="footer-active-plate absolute inset-0 border border-line-soft rounded-2xl -z-10"
@@ -102,12 +215,12 @@ export const FooterNavPanel = ({
                             ))}
 
                         {/* Hover Background */}
-                        {!isActive && (
+                        {!isRetro && !isActive && (
                             <div className="absolute inset-0 bg-surface-hover border border-line-soft rounded-2xl -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                         )}
 
                         <div className="relative inline-flex items-center justify-center">
-                            <Icon className="nav-icon" active={isActive} />
+                            <Icon className="nav-icon" active={isActive || isArcLit} />
                         </div>
 
                         <span className="nav-label">{tab.label}</span>
