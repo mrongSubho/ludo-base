@@ -68,7 +68,10 @@ describe('3077 Tactical Command Console & Deployment-Mode Theme', () => {
         assert.match(canopy, /CANOPY_MODES[\s\S]*id:\s*'power'[\s\S]*id:\s*'classic'/);
 
         const lobby = read('app/components/GameLobby.tsx');
-        assert.match(lobby, /\['power',\s*'classic'\]\s*as\s*const/);
+        assert.match(lobby, /<DaybreakStudioDeck/);
+
+        const studioDeck = read('app/components/DaybreakStudioDeck.tsx');
+        assert.match(studioDeck, /DAYBREAK_MODE_ORDER:\s*readonly LobbyGameMode\[\]\s*=\s*\['power',\s*'classic'\]/);
 
         const dice = read('app/components/ActionDice.tsx');
         assert.match(dice, /setDeployModeTheme\(/);

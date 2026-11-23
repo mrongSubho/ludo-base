@@ -1242,19 +1242,108 @@ body.theme-retro-futurism .finish-core {
   box-shadow: 0 0 22px rgba(var(--accent-rgb), 0.65), inset 0 0 12px rgba(var(--accent-rgb), 0.42) !important;
 }
 
-/* ─── Daybreak board: classic vivid courts, white path, dark pads ─── */
+/* ─── Daybreak board: Warm Studio Porcelain tabletop with sunlit mineral courts ─── */
 body.theme-daybreak {
-  --ludo-base-green: #22c55e;
-  --ludo-base-red: #ef4444;
-  --ludo-base-yellow: #eab308;
-  --ludo-base-blue: #3b82f6;
+  --ludo-base-green: #16a34a;
+  --ludo-base-red: #dc2626;
+  --ludo-base-yellow: #d97706;
+  --ludo-base-blue: #2563eb;
   --ludo-path-bg: #ffffff;
-  --ludo-pad-bg: rgba(0, 0, 0, 0.35);
+  --ludo-pad-bg: #f6f3ec;
 }
-body.theme-daybreak .board-grid { border-color: rgba(23, 23, 23, 0.12); box-shadow: 0 24px 50px -12px rgba(23, 23, 23, 0.25); }
-body.theme-daybreak .board-grid::before { box-shadow: inset 0 0 40px rgba(23, 23, 23, 0.08); }
-body.theme-daybreak .star-cell { border-color: rgba(23, 23, 23, 0.10); }
-body.theme-daybreak .junction-timer-track-css { border-color: rgba(23, 23, 23, 0.10); }
+body.theme-daybreak .board-grid {
+  background: #f3efe6;
+  border: 1.5px solid rgba(28, 25, 23, 0.14);
+  box-shadow:
+    0 24px 54px -14px rgba(28, 25, 23, 0.22),
+    0 4px 14px -4px rgba(28, 25, 23, 0.10);
+}
+body.theme-daybreak .board-grid::before {
+  box-shadow: inset 0 0 28px rgba(28, 25, 23, 0.06);
+}
+body.theme-daybreak .board-cell {
+  background: #ffffff;
+  border: 1px solid #e7e2d8;
+}
+body.theme-daybreak .star-cell {
+  background: #fcf8ee !important;
+  border-color: rgba(180, 83, 9, 0.28) !important;
+}
+body.theme-daybreak .junction-timer-track-css {
+  border-color: rgba(28, 25, 23, 0.12);
+}
+body.theme-daybreak .board-home {
+  box-shadow: inset 0 2px 10px rgba(28, 25, 23, 0.06);
+  border: 1.5px solid rgba(28, 25, 23, 0.10);
+}
+body.theme-daybreak .board-home.green {
+  background: #edf9f1 !important;
+  border-color: rgba(22, 163, 74, 0.36);
+}
+body.theme-daybreak .board-home.red {
+  background: #fef1f1 !important;
+  border-color: rgba(220, 38, 38, 0.36);
+}
+body.theme-daybreak .board-home.yellow {
+  background: #fef8e7 !important;
+  border-color: rgba(217, 119, 6, 0.36);
+}
+body.theme-daybreak .board-home.blue {
+  background: #eef4ff !important;
+  border-color: rgba(37, 99, 235, 0.36);
+}
+body.theme-daybreak .home-pad {
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1.5px solid rgba(28, 25, 23, 0.12) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    inset 0 2px 6px rgba(28, 25, 23, 0.08),
+    0 4px 10px rgba(28, 25, 23, 0.08) !important;
+}
+body.theme-daybreak .lane-green {
+  background: linear-gradient(180deg, rgba(22, 163, 74, 0.18) 0%, rgba(22, 163, 74, 0.10) 100%), #ffffff !important;
+  border-color: rgba(22, 163, 74, 0.34) !important;
+}
+body.theme-daybreak .lane-red {
+  background: linear-gradient(180deg, rgba(220, 38, 38, 0.16) 0%, rgba(220, 38, 38, 0.09) 100%), #ffffff !important;
+  border-color: rgba(220, 38, 38, 0.34) !important;
+}
+body.theme-daybreak .lane-yellow {
+  background: linear-gradient(180deg, rgba(217, 119, 6, 0.18) 0%, rgba(217, 119, 6, 0.10) 100%), #ffffff !important;
+  border-color: rgba(217, 119, 6, 0.36) !important;
+}
+body.theme-daybreak .lane-blue {
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.17) 0%, rgba(37, 99, 235, 0.09) 100%), #ffffff !important;
+  border-color: rgba(37, 99, 235, 0.34) !important;
+}
+body.theme-daybreak .finish-outer-bezel {
+  background: linear-gradient(135deg, #faf7f0 0%, #eee9df 100%) !important;
+  border: 1.5px solid rgba(28, 25, 23, 0.14) !important;
+  box-shadow:
+    0 6px 18px rgba(28, 25, 23, 0.12),
+    inset 0 1px 0 #ffffff !important;
+}
+body.theme-daybreak .finish-trench {
+  background: rgba(244, 241, 234, 0.72) !important;
+  border: 1px dashed rgba(28, 25, 23, 0.22) !important;
+  box-shadow: inset 0 2px 6px rgba(28, 25, 23, 0.10) !important;
+}
+body.theme-daybreak .finish-core {
+  background: #fcfbf8 !important;
+  border: 2px solid var(--accent) !important;
+  box-shadow:
+    0 4px 14px rgba(28, 25, 23, 0.14),
+    inset 0 1px 0 #ffffff !important;
+}
+body.theme-daybreak .ludo-token {
+  filter: drop-shadow(0 3px 4px rgba(28, 25, 23, 0.24));
+}
+body.theme-daybreak .token-count-badge {
+  background: #ffffff;
+  border-color: rgba(28, 25, 23, 0.22);
+  color: #18181b;
+  box-shadow: 0 2px 6px rgba(28, 25, 23, 0.16);
+}
 
 /* ─── 3077 Cyber-Tactical Board: Matte Carbon Titanium bays, laser boundary perimeters, levitation pads ─── */
 body.theme-3077 {

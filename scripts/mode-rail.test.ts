@@ -73,12 +73,16 @@ describe('Curved Magnetic Deployment Mode Rail', () => {
         assert.match(describeRailBand(-26.8, 26.8, 304.5, 335.5), /^M .+ Z$/);
     });
 
-    it('wires DeploymentModeRail in 3077 and 3-chip mode rail in Retro & Daybreak', () => {
+    it('wires DeploymentModeRail in 3077, OrbitalModeDock in Retro, and DaybreakModeDock in Daybreak', () => {
         const diceSrc = read('app/components/ActionDice.tsx');
         assert.match(diceSrc, /import \{ DeploymentModeRail \} from '\.\/DeploymentModeRail'/);
         assert.match(diceSrc, /<DeploymentModeRail/);
+        assert.match(diceSrc, /<OrbitalModeDock/);
+        assert.match(diceSrc, /<DaybreakModeDock/);
         assert.match(diceSrc, /MODE_HEX_DAYBREAK/);
-        assert.match(diceSrc, /aria-label="Deployment Mode Switcher"/);
+
+        const daybreakDockSrc = read('app/components/DaybreakModeDock.tsx');
+        assert.match(daybreakDockSrc, /aria-label="Deployment Mode Switcher"/);
 
         const railSrc = read('app/components/DeploymentModeRail.tsx');
         assert.match(railSrc, /role="radiogroup"/);

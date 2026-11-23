@@ -13,6 +13,7 @@ import {
     SimBotIcon,
     SquadRoomIcon,
 } from './icons';
+import { DaybreakModeDock } from './DaybreakModeDock';
 import { DeploymentModeRail } from './DeploymentModeRail';
 import { OrbitalModeDock } from './OrbitalModeDock';
 import { TerminalTypeText } from './TerminalTypeText';
@@ -72,9 +73,9 @@ const MODE_HEX_RETRO: Record<ModeId, string> = {
 };
 
 const MODE_HEX_DAYBREAK: Record<ModeId, string> = {
-    quick: '#0284C7',
-    team: '#D97706',
-    offline: '#059669',
+    quick: '#0D6D87',
+    team: '#B45309',
+    offline: '#166534',
 };
 
 // Canonical orientation bringing each face index to the front.
@@ -122,6 +123,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     dotColor: MODE_DOT[id],
                     hex3077: MODE_HEX_3077[id],
                     hexRetro: MODE_HEX_RETRO[id],
+                    hexDaybreak: MODE_HEX_DAYBREAK[id],
                 };
             }),
         [],
@@ -262,7 +264,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     className={`text-ludo-xs uppercase font-bold text-center ${
                         is3077 || isRetro
                             ? 'font-mono text-ink-muted tracking-[0.22em]'
-                            : 'text-ink-muted tracking-[0.3em] drop-shadow-md'
+                            : 'text-ink-muted tracking-[0.22em]'
                     }`}
                 >
                     {is3077 ? '// SWIPE OR SELECT DEPLOYMENT //' : isRetro ? '// SWIPE OR TAP ORBITAL DICE //' : 'Swipe to choose'}
@@ -354,34 +356,56 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     </>
                 ) : (
                     <>
-                        <motion.div
-                            animate={{ x: [-5, 5, -5] }}
-                            transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
-                            className="absolute top-1/2 -translate-y-1/2 -left-20 p-3 text-ink-muted z-20 cursor-pointer hover:text-ink-strong hover:scale-110 active:scale-90 transition-all"
+                        <motion.button
+                            type="button"
                             onClick={() => stepMode(-1, 'y')}
+                            aria-label="Previous game mode"
+                            animate={isRolling ? { x: 0 } : { x: [0, -3, 0] }}
+                            transition={
+                                isRolling
+                                    ? { duration: 0.15 }
+                                    : { repeat: Infinity, duration: 2.2, ease: 'easeInOut' }
+                            }
+                            className="rounded-full border absolute top-1/2 -translate-y-1/2 -left-20 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 transition-[color,border-color,transform] z-20 cursor-pointer"
+                            style={{
+                                background: '#FFFFFF',
+                                borderColor: 'rgba(28, 25, 23, 0.14)',
+                                color: modeColorHex,
+                                boxShadow: '0 4px 12px rgba(28, 25, 23, 0.10), inset 0 1px 0 #FFFFFF',
+                            }}
                         >
-                            <ChevronLeft />
-                        </motion.div>
-                        <motion.div
-                            animate={{ x: [5, -5, 5] }}
-                            transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
-                            className="absolute top-1/2 -translate-y-1/2 -right-20 p-3 text-ink-muted z-20 cursor-pointer hover:text-ink-strong hover:scale-110 active:scale-90 transition-all"
+                            <ChevronGlyphIcon direction="left" className="w-5 h-5" />
+                        </motion.button>
+                        <motion.button
+                            type="button"
                             onClick={() => stepMode(1, 'y')}
+                            aria-label="Next game mode"
+                            animate={isRolling ? { x: 0 } : { x: [0, 3, 0] }}
+                            transition={
+                                isRolling
+                                    ? { duration: 0.15 }
+                                    : { repeat: Infinity, duration: 2.2, ease: 'easeInOut' }
+                            }
+                            className="rounded-full border absolute top-1/2 -translate-y-1/2 -right-20 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 transition-[color,border-color,transform] z-20 cursor-pointer"
+                            style={{
+                                background: '#FFFFFF',
+                                borderColor: 'rgba(28, 25, 23, 0.14)',
+                                color: modeColorHex,
+                                boxShadow: '0 4px 12px rgba(28, 25, 23, 0.10), inset 0 1px 0 #FFFFFF',
+                            }}
                         >
-                            <ChevronRight />
-                        </motion.div>
+                            <ChevronGlyphIcon direction="right" className="w-5 h-5" />
+                        </motion.button>
                     </>
                 )}
 
                 {/* Victory / Mode Landing Aura */}
                 <motion.div
-                    className={`absolute w-28 h-28 rounded-[100%] blur-3xl pointer-events-none transition-colors duration-300 ${
-                        is3077 || isRetro ? '' : faces[activeIndex]?.dotColor || 'bg-cyan-400'
-                    }`}
-                    style={is3077 || isRetro ? { backgroundColor: modeColorHex } : undefined}
+                    className="absolute w-28 h-28 rounded-[100%] blur-3xl pointer-events-none transition-colors duration-300"
+                    style={{ backgroundColor: modeColorHex }}
                     animate={{
-                        scale: isRolling ? 0.5 : is3077 ? 1.35 : isRetro ? 1.25 : 1.8,
-                        opacity: isRolling ? 0 : is3077 ? 0.24 : isRetro ? 0.22 : 0.6,
+                        scale: isRolling ? 0.5 : is3077 ? 1.35 : isRetro ? 1.25 : 1.05,
+                        opacity: isRolling ? 0 : is3077 ? 0.24 : isRetro ? 0.22 : 0.12,
                     }}
                     transition={{ duration: 0.8, ease: 'easeOut' }}
                 />
@@ -399,12 +423,12 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                         onDragEnd={handleDragEnd}
                         style={{ transformStyle: 'preserve-3d' }}
                     >
-                        <DiceFace face={faces[0]} is3077={is3077} isRetro={isRetro} transform="translateZ(var(--tz))" onClick={() => handleFaceClick(0)} isActive={activeIndex === 0} isRolling={isRolling} />
-                        <DiceFace face={faces[1]} is3077={is3077} isRetro={isRetro} transform="rotateY(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(1)} isActive={activeIndex === 1} isRolling={isRolling} />
-                        <DiceFace face={faces[2]} is3077={is3077} isRetro={isRetro} transform="rotateY(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(2)} isActive={activeIndex === 2} isRolling={isRolling} />
-                        <DiceFace face={faces[3]} is3077={is3077} isRetro={isRetro} transform="rotateY(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(3)} isActive={activeIndex === 3} isRolling={isRolling} />
-                        <DiceFace face={faces[4]} is3077={is3077} isRetro={isRetro} transform="rotateX(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(4)} isActive={activeIndex === 4} isRolling={isRolling} />
-                        <DiceFace face={faces[5]} is3077={is3077} isRetro={isRetro} transform="rotateX(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(5)} isActive={activeIndex === 5} isRolling={isRolling} />
+                        <DiceFace face={faces[0]} is3077={is3077} isRetro={isRetro} isDaybreak={isDaybreak} transform="translateZ(var(--tz))" onClick={() => handleFaceClick(0)} isActive={activeIndex === 0} isRolling={isRolling} />
+                        <DiceFace face={faces[1]} is3077={is3077} isRetro={isRetro} isDaybreak={isDaybreak} transform="rotateY(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(1)} isActive={activeIndex === 1} isRolling={isRolling} />
+                        <DiceFace face={faces[2]} is3077={is3077} isRetro={isRetro} isDaybreak={isDaybreak} transform="rotateY(180deg) translateZ(var(--tz))" onClick={() => handleFaceClick(2)} isActive={activeIndex === 2} isRolling={isRolling} />
+                        <DiceFace face={faces[3]} is3077={is3077} isRetro={isRetro} isDaybreak={isDaybreak} transform="rotateY(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(3)} isActive={activeIndex === 3} isRolling={isRolling} />
+                        <DiceFace face={faces[4]} is3077={is3077} isRetro={isRetro} isDaybreak={isDaybreak} transform="rotateX(90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(4)} isActive={activeIndex === 4} isRolling={isRolling} />
+                        <DiceFace face={faces[5]} is3077={is3077} isRetro={isRetro} isDaybreak={isDaybreak} transform="rotateX(-90deg) translateZ(var(--tz))" onClick={() => handleFaceClick(5)} isActive={activeIndex === 5} isRolling={isRolling} />
                     </motion.div>
                 </div>
             </div>
@@ -477,17 +501,60 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     />
                 </motion.div>
             ) : (
-                <motion.div
-                    animate={shadowControls}
-                    className="w-24 h-3.5 rounded-[100%] blur-md pointer-events-none mt-1.5 transition-all"
-                    style={{
-                        backgroundColor: isDaybreak ? 'rgba(15, 23, 42, 0.28)' : 'rgba(0, 0, 0, 0.8)',
-                        opacity: isDaybreak ? 0.55 : 0.6,
-                    }}
-                />
+                <div
+                    className="relative flex flex-col items-center justify-center pointer-events-none mt-1"
+                    aria-hidden="true"
+                >
+                    <svg viewBox="0 0 132 28" className="daybreak-dice-plinth w-32 h-7" fill="none">
+                        <ellipse
+                            cx="66"
+                            cy="14"
+                            rx="48"
+                            ry="9"
+                            stroke="rgba(28, 25, 23, 0.16)"
+                            strokeWidth="1.2"
+                        />
+                        <ellipse
+                            cx="66"
+                            cy="14"
+                            rx="32"
+                            ry="5.5"
+                            stroke={modeColorHex}
+                            strokeOpacity="0.24"
+                            strokeWidth="1"
+                            strokeDasharray="2 3"
+                        />
+                        <line
+                            x1="12"
+                            y1="14"
+                            x2="18"
+                            y2="14"
+                            stroke="rgba(28, 25, 23, 0.22)"
+                            strokeWidth="1"
+                            strokeLinecap="round"
+                        />
+                        <line
+                            x1="114"
+                            y1="14"
+                            x2="120"
+                            y2="14"
+                            stroke="rgba(28, 25, 23, 0.22)"
+                            strokeWidth="1"
+                            strokeLinecap="round"
+                        />
+                    </svg>
+                    <motion.div
+                        animate={shadowControls}
+                        className="w-20 h-2.5 -mt-4 rounded-[100%] blur-sm pointer-events-none"
+                        style={{
+                            backgroundColor: isDaybreak ? 'rgba(28, 25, 23, 0.24)' : 'rgba(0, 0, 0, 0.8)',
+                            opacity: isDaybreak ? 0.55 : 0.6,
+                        }}
+                    />
+                </div>
             )}
 
-            {/* Mode Switcher: Curved Magnetic Shuttle Rail in 3077; Concave Orbital Dock in Retro; chips in Daybreak */}
+            {/* Mode Switcher: Curved Magnetic Shuttle Rail in 3077; Concave Orbital Dock in Retro; Segmented Ceramic Dock in Daybreak */}
             {is3077 ? (
                 <DeploymentModeRail
                     activeMode={activeId}
@@ -503,52 +570,11 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                     onSelectMode={jumpToMode}
                 />
             ) : (
-                <div
-                    className="mt-2.5 flex items-center justify-center gap-1.5"
-                    role="group"
-                    aria-label="Deployment Mode Switcher"
-                >
-                    {BASE_ACTIONS.map((m) => {
-                        const modeId = m.id as ModeId;
-                        const selected = activeId === modeId;
-                        const hex = isDaybreak ? MODE_HEX_DAYBREAK[modeId] : MODE_HEX_3077[modeId];
-                        return (
-                            <button
-                                key={m.id}
-                                type="button"
-                                onClick={() => jumpToMode(modeId)}
-                                aria-pressed={selected}
-                                className={`px-3 py-1.5 rounded-lg text-ludo-xs font-mono font-bold uppercase tracking-wider border transition-[border-color,background-color,color,transform] active:scale-95 cursor-pointer flex items-center gap-1.5 ${
-                                    selected
-                                        ? 'bg-surface-active text-ink-strong border-line-strong'
-                                        : 'bg-surface-recessed text-ink-muted border-line-soft hover:text-ink-strong hover:border-line-strong'
-                                }`}
-                                style={
-                                    selected
-                                        ? {
-                                              borderColor: isDaybreak ? `${hex}80` : `${hex}99`,
-                                              backgroundColor: isDaybreak ? `${hex}14` : `${hex}18`,
-                                              color: hex,
-                                              boxShadow: isDaybreak
-                                                  ? `0 2px 8px ${hex}22`
-                                                  : `0 0 12px ${hex}26, inset 0 1px 0 ${hex}33`,
-                                          }
-                                        : undefined
-                                }
-                            >
-                                <span
-                                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                                    style={{
-                                        backgroundColor: selected ? hex : 'var(--ink-faint)',
-                                        boxShadow: selected && !isDaybreak ? `0 0 6px ${hex}` : undefined,
-                                    }}
-                                    aria-hidden="true"
-                                />
-                                {m.shortLabel}
-                            </button>
-                        );
-                    })}
-                </div>
+                <DaybreakModeDock
+                    activeMode={activeId}
+                    disabled={isRolling}
+                    onSelectMode={jumpToMode}
+                />
             )}
 
             {/* Active mode blurb (live terminal print in 3077, crisp orbital readout in Retro) */}
@@ -587,7 +613,7 @@ export const ActionDice: React.FC<ActionDiceProps> = ({
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -3 }}
                                 transition={{ duration: 0.16 }}
-                                className="text-ludo-xs uppercase font-bold text-center text-ink-faint tracking-[0.25em]"
+                                className="text-ludo-xs uppercase font-bold text-center text-ink-muted tracking-[0.18em]"
                             >
                                 {MODE_BLURB[activeId]}
                             </motion.span>
@@ -609,6 +635,7 @@ const DiceFace = ({
     face,
     is3077,
     isRetro = false,
+    isDaybreak = false,
     transform,
     onClick,
     isActive,
@@ -617,22 +644,28 @@ const DiceFace = ({
     face: any;
     is3077: boolean;
     isRetro?: boolean;
+    isDaybreak?: boolean;
     transform: string;
     onClick: () => void;
     isActive: boolean;
     isRolling: boolean;
 }) => {
-    const faceHex: string = isRetro ? (face.hexRetro || '#5CE1FF') : (face.hex3077 || '#00E5FF');
+    const faceHex: string = isRetro
+        ? (face.hexRetro || '#5CE1FF')
+        : is3077
+          ? (face.hex3077 || '#00E5FF')
+          : (face.hexDaybreak || '#0D6D87');
     const darkStyled = is3077 || isRetro;
+    const porcelainStyled = !darkStyled && isDaybreak;
 
     return (
         <div
             className={`absolute w-full h-full flex flex-col items-center justify-center p-2 select-none overflow-hidden transition-colors duration-300 ${
                 is3077
                     ? 'rounded-xl border'
-                    : isRetro
+                    : isRetro || porcelainStyled
                       ? 'rounded-2xl border'
-                      : 'rounded-2xl bg-white border border-gray-100 shadow-[inset_0_-8px_16px_rgba(0,0,0,0.08),inset_0_4px_8px_rgba(255,255,255,1),0_4px_12px_rgba(0,0,0,0.1)]'
+                      : 'rounded-2xl bg-surface-panel border border-line-soft shadow-md'
             }`}
             style={{
                 transform,
@@ -654,21 +687,39 @@ const DiceFace = ({
                                 ? `inset 0 0 18px ${faceHex}20, 0 0 18px rgba(0, 0, 0, 0.72)`
                                 : 'inset 0 0 10px rgba(var(--accent-rgb), 0.08)',
                         }
-                      : {}),
+                      : porcelainStyled
+                        ? {
+                              background: 'linear-gradient(145deg, #FFFFFF 0%, #FAF8F3 62%, #EFECE4 100%)',
+                              borderColor: isActive ? `${faceHex}73` : 'rgba(28, 25, 23, 0.14)',
+                              boxShadow:
+                                  'inset 0 -6px 12px rgba(28, 25, 23, 0.06), inset 0 2px 4px rgba(255, 255, 255, 0.95), 0 6px 16px rgba(28, 25, 23, 0.10)',
+                          }
+                        : {}),
             }}
         >
             {/* Inner Bevel Ring */}
-            {darkStyled && (
+            {(darkStyled || porcelainStyled) && (
                 <div
-                    className={`pointer-events-none absolute inset-1 border border-line-soft ${
-                        isRetro ? 'rounded-xl' : 'rounded-lg'
-                    }`}
+                    className={`pointer-events-none absolute inset-1 border ${
+                        isRetro || porcelainStyled ? 'rounded-xl' : 'rounded-lg'
+                    } ${darkStyled ? 'border-line-soft' : ''}`}
+                    style={
+                        porcelainStyled
+                            ? { borderColor: 'rgba(28, 25, 23, 0.06)' }
+                            : undefined
+                    }
                     aria-hidden="true"
                 />
             )}
 
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <DiceDots count={face.pips} dotColor={face.dotColor} is3077={darkStyled} hex3077={faceHex} />
+                <DiceDots
+                    count={face.pips}
+                    dotColor={face.dotColor}
+                    is3077={darkStyled}
+                    isPorcelain={porcelainStyled}
+                    hex3077={faceHex}
+                />
             </div>
 
             {/* Dynamic Light Sheen - Sweeps across face while tumbling */}
@@ -692,7 +743,9 @@ const DiceFace = ({
                             ? 'w-[78%] min-h-[36px] px-1.5 py-1 border font-bold'
                             : isRetro
                               ? 'w-[80%] min-h-[38px] px-2 py-1 rounded-full border font-bold'
-                              : 'w-[94%] min-h-[44px] px-1.5 py-1 rounded-full border glass-panel backdrop-blur-[1px] border-accent/80 shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95'
+                              : porcelainStyled
+                                ? 'w-[82%] min-h-[38px] px-2 py-1 rounded-full border font-bold hover:scale-[1.06] active:scale-95'
+                                : 'w-[94%] min-h-[44px] px-1.5 py-1 rounded-full border glass-panel backdrop-blur-[1px] border-accent/80 shadow-[0_0_15px_color-mix(in_srgb,var(--accent)_30%,transparent)] bg-black/40 hover:bg-black/50 hover:scale-[1.10] active:scale-95'
                     }`}
                     style={
                         darkStyled
@@ -702,10 +755,18 @@ const DiceFace = ({
                                   backgroundColor: `${faceHex}16`,
                                   boxShadow: `0 0 12px ${faceHex}26, inset 0 1px 0 ${faceHex}33`,
                               }
-                            : undefined
+                            : porcelainStyled
+                              ? {
+                                    borderColor: `${faceHex}80`,
+                                    color: faceHex,
+                                    background: 'rgba(255, 255, 255, 0.96)',
+                                    boxShadow:
+                                        '0 4px 12px rgba(28, 25, 23, 0.12), inset 0 1px 0 #FFFFFF',
+                                }
+                              : undefined
                     }
                 >
-                    {darkStyled && (
+                    {(darkStyled || porcelainStyled) && (
                         <span className="inline-flex items-center shrink-0">
                             <ModeFaceGlyph id={face.id as ModeId} />
                         </span>
@@ -714,7 +775,9 @@ const DiceFace = ({
                         className={`block leading-[1.05] whitespace-normal text-center ${
                             darkStyled
                                 ? 'text-ludo-xs sm:text-ludo-sm font-bold tracking-wider uppercase'
-                                : 'text-ludo-lg md:text-base lg:text-lg font-extrabold italic tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-accent'
+                                : porcelainStyled
+                                  ? 'text-ludo-xs font-extrabold tracking-[0.12em] uppercase'
+                                  : 'text-ludo-lg md:text-base lg:text-lg font-extrabold italic tracking-tighter drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] text-accent'
                         }`}
                     >
                         {face.label}
@@ -730,11 +793,13 @@ const DiceDots = ({
     count,
     dotColor,
     is3077,
+    isPorcelain = false,
     hex3077,
 }: {
     count: number;
     dotColor: string;
     is3077: boolean;
+    isPorcelain?: boolean;
     hex3077: string;
 }) => {
     const Dot = ({ t, l }: { t: string; l: string }) =>
@@ -748,6 +813,19 @@ const DiceDots = ({
                     backgroundColor: hex3077,
                     opacity: 0.85,
                     boxShadow: `0 0 8px ${hex3077}, inset 0 1px 2px rgba(255,255,255,0.6)`,
+                }}
+            />
+        ) : isPorcelain ? (
+            <div
+                className="absolute w-[14px] h-[14px] rounded-full"
+                style={{
+                    top: t,
+                    left: l,
+                    transform: 'translate(-50%, -50%)',
+                    backgroundColor: hex3077,
+                    opacity: 0.78,
+                    boxShadow:
+                        'inset 0 1.5px 2px rgba(24, 24, 27, 0.28), 0 1px 0 rgba(255, 255, 255, 0.85)',
                 }}
             />
         ) : (
@@ -810,17 +888,3 @@ const DiceDots = ({
         </div>
     );
 };
-
-const ChevronLeft = () => (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="15 18 9 12 15 6" />
-        <polyline points="21 18 15 12 21 6" className="opacity-40" />
-    </svg>
-);
-
-const ChevronRight = () => (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="9 18 15 12 9 6" />
-        <polyline points="3 18 9 12 3 6" className="opacity-40" />
-    </svg>
-);

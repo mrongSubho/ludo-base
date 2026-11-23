@@ -1,100 +1,109 @@
 /* ─── Daybreak: the true light theme ───
-   Porcelain terminal — frosted white glass, slate ink, cyan-700 accents,
-   hairline borders, soft shadows instead of neon glows. */
+   Warm Studio Porcelain — sunlit alabaster stone (#F4F1EA), tactile sculpted
+   white ceramics, crisp sumi-charcoal ink, and restrained mineral pigments. */
 body.theme-daybreak {
-  --ludo-bg: #e6e8ec;
+  --ludo-bg: #f4f1ea;
   --ludo-card: #ffffff;
-  --ludo-text: #0f172a;
-  --ludo-muted: #475569;
-  --ludo-faint: #94a3b8;
-  --ludo-slate: #0f172a;
-  --ludo-border: #e2e8f0;
-  --ludo-bg-image:
-    radial-gradient(circle at 12% 8%, rgba(14, 165, 183, 0.08) 0%, transparent 45%),
-    radial-gradient(circle at 88% 90%, rgba(251, 146, 60, 0.08) 0%, transparent 45%);
-  --ludo-bg-rgb: 230, 232, 236;
-  --panel-bg: rgba(255, 255, 255, 0.88);
-  --panel-bg-image:
-    radial-gradient(circle at 12% 6%, rgba(14, 165, 183, 0.08) 0%, transparent 45%),
-    radial-gradient(circle at 88% 94%, rgba(251, 146, 60, 0.07) 0%, transparent 45%);
-  --shadow-card: 0 20px 45px -12px rgba(15, 23, 42, 0.18);
+  --ludo-text: #18181b;
+  --ludo-muted: #52525b;
+  --ludo-faint: #71717a;
+  --ludo-slate: #18181b;
+  --ludo-border: #e4dfd5;
+  --ludo-bg-image: none;
+  --ludo-bg-rgb: 244, 241, 234;
+  --panel-bg: rgba(252, 251, 248, 0.96);
+  --panel-bg-image: none;
+  --shadow-card: 0 14px 32px -12px rgba(28, 25, 23, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.95);
   color: var(--ludo-text);
   background-color: var(--ludo-bg);
+  background-image:
+    radial-gradient(ellipse 85% 55% at 15% 0%, rgba(255, 253, 248, 0.92) 0%, transparent 62%),
+    radial-gradient(circle, rgba(28, 25, 23, 0.055) 1px, transparent 1px),
+    linear-gradient(180deg, #faf7f0 0%, #f4f1ea 55%, #eae5dc 100%);
+  background-size: 100% 100%, 20px 20px, 100% 100%;
 
-  /* ─── Semantic UI tokens — Daybreak (§5.1) ───
-     Real light values, not patches: the point of the token layer is that a
-     panel can name `--surface-recessed` and be correct in both themes. The
-     three status values are the AA-safe set recorded in the audit's §4
-     (its originally proposed #b45309/#15803d/#dc2626 measured 4.09/4.09/3.94
-     on the #e6e8ec page — below AA). */
-  --surface-page: #e6e8ec;
-  --surface-panel: rgba(255, 255, 255, 0.88);
-  --surface-recessed: rgba(23, 23, 23, 0.05);
-  --surface-hover: #f1f5f9;
-  --surface-active: rgba(23, 23, 23, 0.12);
-  --ink-strong: #0f172a;
-  --ink-muted: rgba(15, 23, 42, 0.62);
-  --ink-faint: rgba(15, 23, 42, 0.42);
-  --line-soft: rgba(15, 23, 42, 0.12);
-  --line-strong: rgba(15, 23, 42, 0.24);
-  --accent: #0d6d87;                          /* AA-safe on #e6e8ec */
-  --accent-soft: rgba(13, 109, 135, 0.12);
-  /* Marketplace category-rail chips — dark-on-light inversion (see Retro note). */
-  --market-chip-icon: #0d6d87;
-  --market-chip-count-bg: rgba(0, 0, 0, 0.05);
-  --market-chip-count-ink: rgba(15, 23, 42, 0.45);
-  --market-chip-count-bg-active: rgba(13, 109, 135, 0.12);
-  --market-chip-count-ink-active: #0d6d87;
+  /* ─── Semantic UI tokens — Daybreak (§5.1) ─── */
+  --surface-page: #f4f1ea;
+  --surface-panel: rgba(255, 255, 255, 0.94);
+  --surface-recessed: #eae5dc;
+  --surface-hover: #efeae0;
+  --surface-active: rgba(24, 24, 27, 0.08);
+  --ink-strong: #18181b;
+  --ink-muted: rgba(24, 24, 27, 0.64);
+  --ink-faint: rgba(24, 24, 27, 0.44);
+  --line-soft: rgba(28, 25, 23, 0.11);
+  --line-strong: rgba(28, 25, 23, 0.24);
+  --accent: #0d6d87;                          /* Prussian Teal — AA-safe on #f4f1ea */
+  --accent-rgb: 13, 109, 135;
+  --accent-bright: #0a586d;
+  --accent-edge: #0f766e;
+  --accent-soft: rgba(13, 109, 135, 0.11);
+  /* Marketplace category-rail chips — dark-on-light inversion synced to active mineral pigment. */
+  --market-chip-icon: var(--accent);
+  --market-chip-count-bg: rgba(28, 25, 23, 0.06);
+  --market-chip-count-ink: rgba(24, 24, 27, 0.56);
+  --market-chip-count-bg-active: var(--accent-soft);
+  --market-chip-count-ink-active: var(--accent);
   --accent-ink: #ffffff;
-  --shadow-panel: 0 24px 60px -12px rgba(15, 23, 42, 0.22);
+  --shadow-panel: 0 22px 54px -14px rgba(28, 25, 23, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.95);
   --radius-card: 18px;
   --radius-chip: 12px;
   --warn: #92400e;
   --positive: #166534;
   --negative: #b91c1c;
-  /* Error-surface tokens — light counterparts (see the Retro `:root` group).
-     The primary CTA inverts to dark ink so it stays unmistakable on the
-     white card; the ghost CTA takes a dark hairline border for the same
-     reason. */
-  --err-backdrop: #e6e8ec;
-  --err-card-bg: rgba(255, 255, 255, 0.94);
-  --err-card-border: rgba(220, 38, 38, 0.35);
-  --err-card-shadow: 0 18px 38px -14px rgba(23, 23, 23, 0.25);
-  --err-ink: #171717;
-  --err-ink-muted: rgba(23, 23, 23, 0.60);
+  /* Error-surface tokens — warm studio porcelain counterparts. */
+  --err-backdrop: #f4f1ea;
+  --err-card-bg: rgba(255, 255, 255, 0.96);
+  --err-card-border: rgba(185, 28, 28, 0.32);
+  --err-card-shadow: 0 18px 38px -14px rgba(28, 25, 23, 0.22);
+  --err-ink: #18181b;
+  --err-ink-muted: rgba(24, 24, 27, 0.62);
   --err-kicker: var(--negative);
-  --err-stack-bg: rgba(23, 23, 23, 0.06);
-  --err-stack-border: rgba(23, 23, 23, 0.12);
-  --err-stack-ink: rgba(23, 23, 23, 0.75);
-  --err-cta-bg: #171717;
+  --err-stack-bg: rgba(28, 25, 23, 0.06);
+  --err-stack-border: rgba(28, 25, 23, 0.12);
+  --err-stack-ink: rgba(24, 24, 27, 0.78);
+  --err-cta-bg: #18181b;
   --err-cta-ink: #ffffff;
-  --err-cta-border: #171717;
+  --err-cta-border: #18181b;
   --err-ghost-bg: #ffffff;
-  --err-ghost-ink: #171717;
-  --err-ghost-border: rgba(23, 23, 23, 0.35);
-  /* Panel chrome tokens (UI_DESIGN_AUDIT Phase 3.1). Retro defines these in
-     `body.theme-retro-futurism` (violet glow); without a Daybreak counterpart,
-     GamePanelShell had to branch in JS. Values match its patch-layer shell
-     rule so the shell paints identically once it reads the tokens. */
-  --panel-border: rgba(15, 23, 42, 0.12);
-  --panel-shadow: 0 24px 60px -12px rgba(15, 23, 42, 0.22);
+  --err-ghost-ink: #18181b;
+  --err-ghost-border: rgba(28, 25, 23, 0.28);
+  /* Panel chrome tokens */
+  --panel-border: rgba(28, 25, 23, 0.11);
+  --panel-shadow: 0 22px 54px -14px rgba(28, 25, 23, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.95);
 
-  /* ─── Tactical Claiming Overlay tokens — Daybreak ───
-     Porcelain terminal aesthetic: frosted white glass backdrop, hairline teal
-     border, soft slate/teal shadow, subdued high-contrast radar sweep,
-     and deep cyan typography (#0d6d87) complying with AA contrast on white. */
-  --claiming-overlay-bg: rgba(255, 255, 255, 0.94);
-  --claiming-overlay-border: rgba(13, 109, 135, 0.35);
-  --claiming-overlay-shadow: 0 16px 36px -8px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(13, 109, 135, 0.12), 0 2px 10px rgba(13, 109, 135, 0.08);
-  --claiming-overlay-radar: rgba(13, 109, 135, 0.25);
-  --claiming-overlay-ring-1: rgba(13, 109, 135, 0.20);
-  --claiming-overlay-ring-2: rgba(13, 109, 135, 0.12);
-  --claiming-overlay-pulse-border: rgba(13, 109, 135, 0.35);
-  --claiming-overlay-pulse-bg: rgba(13, 109, 135, 0.08);
+  /* ─── Tactical Claiming Overlay tokens — Daybreak ─── */
+  --claiming-overlay-bg: rgba(252, 251, 248, 0.96);
+  --claiming-overlay-border: rgba(var(--accent-rgb), 0.34);
+  --claiming-overlay-shadow: 0 16px 36px -8px rgba(28, 25, 23, 0.16), 0 0 0 1px rgba(var(--accent-rgb), 0.12), 0 2px 10px rgba(var(--accent-rgb), 0.08);
+  --claiming-overlay-radar: rgba(var(--accent-rgb), 0.24);
+  --claiming-overlay-ring-1: rgba(var(--accent-rgb), 0.20);
+  --claiming-overlay-ring-2: rgba(var(--accent-rgb), 0.12);
+  --claiming-overlay-pulse-border: rgba(var(--accent-rgb), 0.35);
+  --claiming-overlay-pulse-bg: rgba(var(--accent-rgb), 0.08);
   --claiming-overlay-title: #0d6d87;
-  --claiming-overlay-subtitle: rgba(15, 23, 42, 0.60);
+  --claiming-overlay-subtitle: rgba(24, 24, 27, 0.62);
   --claiming-overlay-laser: #0d6d87;
-  --claiming-overlay-laser-shadow: 0 0 8px rgba(13, 109, 135, 0.40);
+  --claiming-overlay-laser-shadow: 0 2px 8px rgba(var(--accent-rgb), 0.28);
+}
+
+/* Reactive Deployment Mode Mineral Pigments (Quick = Prussian Teal · Team = Burnt Terracotta · Offline = Botanical Pine) */
+body.theme-daybreak[data-deploy-mode="team"] {
+  --accent: #b45309;
+  --accent-rgb: 180, 83, 9;
+  --accent-bright: #92400e;
+  --accent-edge: #c2410c;
+  --accent-soft: rgba(180, 83, 9, 0.11);
+  --accent-ink: #ffffff;
+}
+
+body.theme-daybreak[data-deploy-mode="offline"] {
+  --accent: #166534;
+  --accent-rgb: 22, 101, 52;
+  --accent-bright: #14532d;
+  --accent-edge: #15803d;
+  --accent-soft: rgba(22, 101, 52, 0.11);
+  --accent-ink: #ffffff;
 }
 
 body.theme-daybreak .cosmic-orb { display: block; }
@@ -159,7 +168,8 @@ body.theme-daybreak .cosmic-orb-2 { background: rgba(253, 186, 116, 0.45); }
   --lobby-photo: url('/backgrounds/cyberpunk_bg.png');
   --ludo-photo-opacity: 0.55;
 }
-body.theme-daybreak { --lobby-photo: url('/backgrounds/pastel_bg.png'); --ludo-photo-opacity: 0.3; }
+body.theme-daybreak { --lobby-photo: none; --ludo-photo-opacity: 0; }
+body.theme-daybreak .lobby-backdrop { display: none; }
 .lobby-backdrop {
   position: fixed;
   inset: 0;
@@ -240,15 +250,15 @@ body.theme-daybreak .ludo-broadcast-scope div.chat-own.text-white { color: #ffff
 body.theme-daybreak .ludo-broadcast-scope .chat-send { background-color: #0d6d87; color: #ffffff; box-shadow: 0 6px 16px rgba(13, 109, 135, 0.35); }
 body.theme-daybreak .ludo-broadcast-scope .chat-send:disabled { background-color: rgba(23, 23, 23, 0.08); color: rgba(23, 23, 23, 0.35); box-shadow: none; }
 body.theme-daybreak {
-  --modal-ink: #0f172a;
-  --modal-ink-soft: rgba(15, 23, 42, 0.6);
-  --modal-muted: #64748b;
-  --nav-active-bg: rgba(14, 165, 183, 0.12);
+  --modal-ink: #18181b;
+  --modal-ink-soft: rgba(24, 24, 27, 0.62);
+  --modal-muted: #71717a;
+  --nav-active-bg: rgba(var(--accent-rgb), 0.11);
 }
-body.theme-daybreak .ludo-walletsheet-scope :is(.bg-white\/\[0\.06\]) { background-color: rgba(23, 23, 23, 0.05); }
-body.theme-daybreak .ludo-walletsheet-scope :is(.hover\:bg-white\/10:hover) { background-color: #eef2f7; }
-body.theme-daybreak .ludo-walletsheet-scope :is(.bg-white\/10) { background-color: rgba(23, 23, 23, 0.06); }
-body.theme-daybreak .ludo-walletsheet-scope :is(.hover\:bg-white\/20:hover) { background-color: rgba(23, 23, 23, 0.10); }
+body.theme-daybreak .ludo-walletsheet-scope :is(.bg-white\/\[0\.06\]) { background-color: rgba(28, 25, 23, 0.05); }
+body.theme-daybreak .ludo-walletsheet-scope :is(.hover\:bg-white\/10:hover) { background-color: #efeae0; }
+body.theme-daybreak .ludo-walletsheet-scope :is(.bg-white\/10) { background-color: rgba(28, 25, 23, 0.06); }
+body.theme-daybreak .ludo-walletsheet-scope :is(.hover\:bg-white\/20:hover) { background-color: rgba(28, 25, 23, 0.10); }
 
 /* ─── Daybreak override layer ───
    Maps the shared dark-glass vocabulary (white ink, white-opacity surfaces,
@@ -331,25 +341,25 @@ body.theme-daybreak .ludo-authwait-scope :is(.hover\:bg-white\/20:hover) { backg
 body.theme-daybreak .ludo-authwait-scope.border-white\/10 { border-color: rgba(255, 255, 255, 0.9); box-shadow: 0 24px 60px -12px rgba(23, 23, 23, 0.22), inset 0 2px 0 rgba(255, 255, 255, 0.9); }
 
 /* ─── Daybreak chrome: footer nav ─── */
-body.theme-daybreak .nav-item .nav-icon { color: rgba(23, 23, 23, 0.45) !important; }
-body.theme-daybreak .nav-item.active .nav-icon { color: #0d6d87 !important; filter: drop-shadow(0 0 8px rgba(14, 165, 183, 0.35)); }
-body.theme-daybreak .nav-item:hover:not(.active) .nav-icon { color: #0d6d87 !important; }
-body.theme-daybreak .nav-item .nav-label { color: rgba(23, 23, 23, 0.55) !important; }
-body.theme-daybreak .nav-item.active .nav-label { color: #0d6d87 !important; }
-body.theme-daybreak .nav-item:hover:not(.active) .nav-label { color: #0d6d87 !important; }
-body.theme-daybreak .footer-nav :is(.border-white\/10) { border-color: rgba(14, 165, 183, 0.35); }
-body.theme-daybreak .footer-nav :is(.bg-white\/\[0\.04\]) { background-color: rgba(14, 165, 183, 0.08); }
-body.theme-daybreak .footer-nav :is(.border-white\/5) { border-color: rgba(14, 165, 183, 0.20); }
+body.theme-daybreak .nav-item .nav-icon { color: rgba(24, 24, 27, 0.45) !important; }
+body.theme-daybreak .nav-item.active .nav-icon { color: var(--accent) !important; filter: none; }
+body.theme-daybreak .nav-item:hover:not(.active) .nav-icon { color: var(--accent) !important; }
+body.theme-daybreak .nav-item .nav-label { color: rgba(24, 24, 27, 0.56) !important; }
+body.theme-daybreak .nav-item.active .nav-label { color: var(--accent) !important; }
+body.theme-daybreak .nav-item:hover:not(.active) .nav-label { color: var(--accent) !important; }
+body.theme-daybreak .footer-nav :is(.border-white\/10) { border-color: rgba(var(--accent-rgb), 0.30); }
+body.theme-daybreak .footer-nav :is(.bg-white\/\[0\.04\]) { background-color: rgba(var(--accent-rgb), 0.08); }
+body.theme-daybreak .footer-nav :is(.border-white\/5) { border-color: rgba(var(--accent-rgb), 0.18); }
 
 /* ─── Daybreak chrome: header pills ─── */
-body.theme-daybreak .ludo-header-scope > div:not(.fixed):not([class*="fixed"]) { background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 4px 16px rgba(23, 23, 23, 0.08); }
-body.theme-daybreak .ludo-header-scope :is(.text-white) { color: #171717; }
-body.theme-daybreak .ludo-header-scope :is(.text-white\/95, .text-white\/80) { color: color-mix(in srgb, #171717 80%, transparent); }
-body.theme-daybreak .ludo-header-scope :is(.text-cyan-300) { color: #0d6d87; }
-body.theme-daybreak .ludo-header-scope :is(.hover\:bg-white\/10:hover) { background-color: rgba(23, 23, 23, 0.06); }
-/* Board compact header: mode-strip inner pill + text stay legible on light glass */
-body.theme-daybreak .ludo-header-scope .mode-strip-pill { background-color: rgba(23, 23, 23, 0.05); border-color: rgba(23, 23, 23, 0.12); }
-body.theme-daybreak .ludo-header-scope .mode-strip-text { color: #0d6d87; }
+body.theme-daybreak .ludo-header-scope > div:not(.fixed):not([class*="fixed"]) { background: rgba(252, 251, 248, 0.94); border-color: rgba(28, 25, 23, 0.11); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); box-shadow: 0 6px 18px rgba(28, 25, 23, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.95); }
+body.theme-daybreak .ludo-header-scope :is(.text-white) { color: #18181b; }
+body.theme-daybreak .ludo-header-scope :is(.text-white\/95, .text-white\/80) { color: color-mix(in srgb, #18181b 80%, transparent); }
+body.theme-daybreak .ludo-header-scope :is(.text-cyan-300) { color: var(--accent); }
+body.theme-daybreak .ludo-header-scope :is(.hover\:bg-white\/10:hover) { background-color: rgba(28, 25, 23, 0.06); }
+/* Board compact header: mode-strip inner pill + text stay legible on light studio porcelain */
+body.theme-daybreak .ludo-header-scope .mode-strip-pill { background-color: #eae5dc; border-color: rgba(28, 25, 23, 0.12); }
+body.theme-daybreak .ludo-header-scope .mode-strip-text { color: var(--accent); }
 /* Invite notification accents (not covered by the shared cyan-in-cyan rule) */
 body.theme-daybreak .ludo-invite-scope :is(.text-cyan-300, .text-cyan-400) { color: #0d6d87; }
 body.theme-daybreak .ludo-invite-scope :is(.text-amber-400) { color: #b45309; }
@@ -479,7 +489,7 @@ body.theme-daybreak .ludo-header-scope :is(.shadow-\[0_0_15px_rgba\(34\,211\,238
 body.theme-daybreak .ludo-header-scope :is(.drop-shadow-\[0_0_10px_rgba\(250\,204\,21\,0\.7\)\]) { filter: none; }
 
 /* ─── Daybreak chrome: lobby (setup, dice, tournaments, feed) ─── */
-body.theme-daybreak .ludo-lobby-scope .glass-panel { background: #ffffff; border-color: rgba(23, 23, 23, 0.10); box-shadow: 0 8px 24px rgba(23, 23, 23, 0.08); }
+body.theme-daybreak .ludo-lobby-scope .glass-panel { background: #fcfbf8; border-color: rgba(28, 25, 23, 0.11); box-shadow: 0 12px 28px -10px rgba(28, 25, 23, 0.14), inset 0 1px 0 #ffffff; }
 body.theme-daybreak .ludo-lobby-scope :is(.text-white) { color: #171717; }
 body.theme-daybreak .ludo-lobby-scope :is(.text-white\/90, .text-white\/80, .text-white\/70) { color: color-mix(in srgb, #171717 80%, transparent); }
 body.theme-daybreak .ludo-lobby-scope :is(.text-white\/60, .text-white\/50, .text-white\/40) { color: color-mix(in srgb, #171717 58%, transparent); }
@@ -508,24 +518,23 @@ body.theme-daybreak .ludo-lobby-scope :is(.border-white\/5, .border-white\/10, .
 body.theme-daybreak .ludo-lobby-scope :is(.hover\:border-white\/30:hover, .hover\:border-white\/40:hover) { border-color: rgba(14, 165, 183, 0.45); }
 
 /* ─── Daybreak chrome: game top bars (rest is var-driven) ─── */
-body.theme-daybreak .game-top-bar { background: rgba(255, 255, 255, 0.78); border-color: rgba(23, 23, 23, 0.10); box-shadow: 0 4px 16px rgba(23, 23, 23, 0.08); }
+body.theme-daybreak .game-top-bar { background: rgba(252, 251, 248, 0.92); border-color: rgba(28, 25, 23, 0.11); box-shadow: 0 6px 18px rgba(28, 25, 23, 0.08), inset 0 1px 0 #ffffff; }
 
-/* ─── Daybreak ticker: cyber widget goes porcelain ───
-   Frosted white bar, ink text, one cyan pulse kept as the live signal. */
+/* ─── Daybreak ticker: cyber widget goes warm studio porcelain ─── */
 .ludo-ticker-scope.mx-auto { margin-inline: auto; }
 .ludo-ticker-scope.mt-6 { margin-top: 1.5rem; }
-body.theme-daybreak .ludo-ticker-scope > div { background: rgba(255, 255, 255, 0.88); border-color: rgba(23, 23, 23, 0.10); box-shadow: 0 10px 28px rgba(23, 23, 23, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9); }
-body.theme-daybreak .ludo-ticker-scope > div:hover { border-color: rgba(14, 165, 183, 0.45); box-shadow: 0 10px 32px rgba(14, 165, 183, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9); }
-body.theme-daybreak .ludo-ticker-scope :is(.text-white\/80) { color: color-mix(in srgb, #171717 78%, transparent); }
-body.theme-daybreak .ludo-ticker-scope :is(.text-white\/30) { color: color-mix(in srgb, #171717 45%, transparent); }
-body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-300) { color: #171717; }
-body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-500\/70, .text-cyan-500\/50) { color: color-mix(in srgb, #171717 60%, transparent); }
-body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-400) { color: #0d6d87; }
-body.theme-daybreak .ludo-ticker-scope :is(.bg-cyan-950\/50) { background-color: rgba(14, 165, 183, 0.12); }
-body.theme-daybreak .ludo-ticker-scope :is(.border-cyan-500\/30) { border-color: rgba(23, 23, 23, 0.16); }
-body.theme-daybreak .ludo-ticker-scope :is(.from-black\/60) { --tw-gradient-from: rgba(255, 255, 255, 0.9); }
+body.theme-daybreak .ludo-ticker-scope > div { background: rgba(252, 251, 248, 0.94); border-color: rgba(28, 25, 23, 0.11); box-shadow: 0 10px 26px rgba(28, 25, 23, 0.10), inset 0 1px 0 #ffffff; }
+body.theme-daybreak .ludo-ticker-scope > div:hover { border-color: rgba(var(--accent-rgb), 0.42); box-shadow: 0 10px 28px rgba(var(--accent-rgb), 0.14), inset 0 1px 0 #ffffff; }
+body.theme-daybreak .ludo-ticker-scope :is(.text-white\/80) { color: color-mix(in srgb, #18181b 78%, transparent); }
+body.theme-daybreak .ludo-ticker-scope :is(.text-white\/30) { color: color-mix(in srgb, #18181b 45%, transparent); }
+body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-300) { color: #18181b; }
+body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-500\/70, .text-cyan-500\/50) { color: color-mix(in srgb, #18181b 60%, transparent); }
+body.theme-daybreak .ludo-ticker-scope :is(.text-cyan-400) { color: var(--accent); }
+body.theme-daybreak .ludo-ticker-scope :is(.bg-cyan-950\/50) { background-color: rgba(var(--accent-rgb), 0.11); }
+body.theme-daybreak .ludo-ticker-scope :is(.border-cyan-500\/30) { border-color: rgba(28, 25, 23, 0.14); }
+body.theme-daybreak .ludo-ticker-scope :is(.from-black\/60) { --tw-gradient-from: rgba(252, 251, 248, 0.94); }
 body.theme-daybreak .ludo-ticker-scope .ticker-deco { display: none; }
 
 /* ─── Daybreak chrome: footer nav ─── */
-body.theme-daybreak .footer-nav { background: rgba(255, 255, 255, 0.94) !important; border-top: 1px solid rgba(23, 23, 23, 0.12); box-shadow: 0 -8px 30px rgba(23, 23, 23, 0.10); }
+body.theme-daybreak .footer-nav { background: rgba(252, 251, 248, 0.96) !important; border-top: 1px solid rgba(28, 25, 23, 0.11); box-shadow: 0 -8px 28px rgba(28, 25, 23, 0.08), inset 0 1px 0 #ffffff; }
 body.theme-daybreak .game-top-bar :is(.text-pink-300, .text-pink-400) { color: #be185d; }

@@ -46,6 +46,13 @@ const COLOR_MAP_RETRO: Record<string, string> = {
     yellow: '#FBBF24',
 };
 
+const COLOR_MAP_DAYBREAK: Record<string, string> = {
+    green: '#16A34A',
+    red: '#DC2626',
+    blue: '#2563EB',
+    yellow: '#D97706',
+};
+
 // Dice skins (equipped from the Marketplace): face + pip colors.
 const DICE_SKINS: Record<string, { face: string; pip: string; edge: string }> = {
     classic: { face: '#ffffff', pip: '#0F172A', edge: 'rgba(0,0,0,0.1)' },
@@ -63,6 +70,12 @@ const DICE_RETRO_SKIN = {
     face: 'linear-gradient(155deg, #111C30 0%, #09101E 62%, #050912 100%)',
     pip: 'var(--accent, #5CE1FF)',
     edge: 'rgba(var(--accent-rgb, 92, 225, 255), 0.52)',
+};
+
+const DICE_DAYBREAK_SKIN = {
+    face: 'linear-gradient(145deg, #FFFFFF 0%, #F7F4EC 64%, #EAE4D7 100%)',
+    pip: '#18181B',
+    edge: 'rgba(28, 25, 23, 0.16)',
 };
 
 const FACE_MAP = [
@@ -86,13 +99,17 @@ export default function LudoDice({
     const { preferences } = usePreferences();
     const is3077 = preferences.theme === '3077';
     const isRetro = preferences.theme === 'retro';
+    const isDaybreak = preferences.theme === 'light';
     const isTacticalClassic = is3077 && preferences.diceStyle === 'classic';
     const isOrbitalClassic = isRetro && preferences.diceStyle === 'classic';
+    const isPorcelainClassic = isDaybreak && preferences.diceStyle === 'classic';
     const diceSkin = isTacticalClassic
         ? DICE_3077_SKIN
         : isOrbitalClassic
           ? DICE_RETRO_SKIN
-          : (DICE_SKINS[preferences.diceStyle] || DICE_SKINS.classic);
+          : isPorcelainClassic
+            ? DICE_DAYBREAK_SKIN
+            : (DICE_SKINS[preferences.diceStyle] || DICE_SKINS.classic);
     const controls = useAnimation();
     const [critKey, setCritKey] = useState(0);
     
@@ -179,7 +196,14 @@ export default function LudoDice({
         onRoll(0); // Pass 0 or dummy to trigger the engine's random roll
     };
 
-    const accentColor = (is3077 ? COLOR_MAP_3077 : isRetro ? COLOR_MAP_RETRO : COLOR_MAP)[activeColor] || '#5CE1FF';
+    const accentColor =
+        (is3077
+            ? COLOR_MAP_3077
+            : isRetro
+              ? COLOR_MAP_RETRO
+              : isDaybreak
+                ? COLOR_MAP_DAYBREAK
+                : COLOR_MAP)[activeColor] || '#5CE1FF';
 
     return (
         <motion.div
@@ -270,6 +294,7 @@ export default function LudoDice({
                                 pipColor={diceSkin.pip}
                                 edgeColor={diceSkin.edge}
                                 isTacticalFace={isTacticalClassic || isOrbitalClassic}
+                                isPorcelainFace={isPorcelainClassic}
                             />
                         ))}
                     </button>
@@ -314,6 +339,34 @@ export default function LudoDice({
                         />
                     </svg>
                 </motion.div>
+            ) : isDaybreak ? (
+                <motion.div
+                    className="mt-3 pointer-events-none flex flex-col items-center justify-center"
+                    aria-hidden="true"
+                    animate={{
+                        scale: isRolling ? [1, 0.72, 1] : 1,
+                        opacity: isRolling ? 0.32 : 0.75,
+                    }}
+                    transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
+                >
+                    <svg viewBox="0 0 64 16" className="w-12 h-3" fill="none">
+                        <ellipse
+                            cx="32"
+                            cy="8"
+                            rx="24"
+                            ry="4.5"
+                            stroke="rgba(28, 25, 23, 0.22)"
+                            strokeWidth="1"
+                        />
+                    </svg>
+                    <div
+                        className="w-9 h-1.5 -mt-2 rounded-[100%] blur-sm"
+                        style={{
+                            backgroundColor: 'rgba(28, 25, 23, 0.26)',
+                            boxShadow: '0 2px 6px rgba(28, 25, 23, 0.22)',
+                        }}
+                    />
+                </motion.div>
             ) : (
                 <motion.div 
                     className="w-10 h-1.5 rounded-[100%] bg-black/60 blur-sm pointer-events-none mt-4"
@@ -354,6 +407,7 @@ function DiceFace({
     pipColor,
     edgeColor = 'rgba(0,0,0,0.08)',
     isTacticalFace = false,
+    isPorcelainFace = false,
 }: {
     num: number;
     transform: string;
@@ -361,20 +415,23 @@ function DiceFace({
     pipColor: string;
     edgeColor?: string;
     isTacticalFace?: boolean;
+    isPorcelainFace?: boolean;
 }) {
     return (
         <div
             className={`absolute inset-0 w-12 h-12 flex items-center justify-center p-1 border ${
                 isTacticalFace
                     ? 'rounded-md shadow-[inset_0_0_8px_color-mix(in_srgb,var(--accent)_18%,transparent),inset_0_1px_1px_rgba(255,255,255,0.16),0_1px_4px_rgba(0,0,0,0.6)]'
-                    : 'rounded-lg shadow-[inset_0_-2px_4px_rgba(0,0,0,0.1),inset_0_1px_2px_rgba(255,255,255,1),0_1px_4px_rgba(0,0,0,0.1)]'
+                    : isPorcelainFace
+                      ? 'rounded-lg shadow-[inset_0_-2px_5px_rgba(28,25,23,0.09),inset_0_1px_2px_rgba(255,255,255,0.95),0_2px_6px_rgba(28,25,23,0.12)]'
+                      : 'rounded-lg shadow-[inset_0_-2px_4px_rgba(0,0,0,0.1),inset_0_1px_2px_rgba(255,255,255,1),0_1px_4px_rgba(0,0,0,0.1)]'
             }`}
             style={{
                 transform,
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
                 background: faceColor,
-                borderColor: isTacticalFace ? edgeColor : 'rgba(0,0,0,0.08)',
+                borderColor: isTacticalFace || isPorcelainFace ? edgeColor : 'rgba(0,0,0,0.08)',
             }}
         >
             <svg
