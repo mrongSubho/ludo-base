@@ -30,6 +30,7 @@ interface TokenPieceProps {
     shielded?: boolean;
     targetable?: boolean;
     boosted?: boolean;
+    boostArmed?: boolean;
     onClick: () => void;
 }
 
@@ -49,6 +50,7 @@ export function TokenPiece({
     shielded = false,
     targetable = false,
     boosted = false,
+    boostArmed = false,
     onClick
 }: TokenPieceProps) {
     const [visualPt, setVisualPt] = React.useState<Point | null>(targetPt);
@@ -359,6 +361,7 @@ export function TokenPiece({
                         shielded={shielded}
                         targetable={targetable}
                         boosted={boosted}
+                        boostArmed={boostArmed}
                     />
                 </div>
             </motion.div>

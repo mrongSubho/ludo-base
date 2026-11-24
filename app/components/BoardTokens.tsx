@@ -174,6 +174,7 @@ export function BoardTokens({
                 const shielded = (localGameState.activeShields || []).some((s: any) => s.color === color && s.tokenIdx === index);
                 const targetable = !!targetingColor && color === targetingColor && pos >= 0 && pos < 52;
                 const boosted = localGameState.boostTrail === color;
+                const boostArmed = localGameState.activeBoost === color;
 
                 return (
                     <TokenPiece
@@ -193,6 +194,7 @@ export function BoardTokens({
                         shielded={shielded}
                         targetable={targetable}
                         boosted={boosted}
+                        boostArmed={boostArmed}
                         onClick={() => targetable && onTargetToken ? onTargetToken(color, index) : handleTokenClick(color, index)}
                     />
                 );

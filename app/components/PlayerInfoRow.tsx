@@ -8,8 +8,7 @@ import { getTierInfo } from '@/lib/progression';
 import { usePreferences } from '@/hooks/usePreferences';
 import { isDirectImage, resolveAvatarDef } from '@/lib/avatars';
 import { PilotAvatar } from './PilotAvatar';
-import { TerminalTypeText } from './TerminalTypeText';
-import { DirectiveTargetIcon, OverdriveBoltIcon, PilotAvatarFallbackIcon } from './icons';
+import { PilotAvatarFallbackIcon } from './icons';
 
 export const getDisplayNameHelper = (player: Player) => {
     let baseName = player.name;
@@ -117,11 +116,6 @@ export function PlayerCard({
     );
 }
 
-export interface BoardSelfPrompt {
-    label: string;
-    kind: 'roll' | 'move' | 'deploy' | 'target';
-}
-
 interface PlayerRowProps {
     corners: ('TL' | 'TR')[] | ('BL' | 'BR')[];
     uiSlots: Record<string, PlayerColor | null>;
@@ -131,7 +125,7 @@ interface PlayerRowProps {
     handleRoll: () => void;
     spectatorMode: boolean;
     myPlayerColor: PlayerColor | undefined;
-    centerPrompt?: BoardSelfPrompt | null;
+    bustState?: { color: PlayerColor; key: number } | null;
 }
 
 export function PlayerRow({
@@ -142,7 +136,7 @@ export function PlayerRow({
     handleRoll,
     spectatorMode,
     myPlayerColor,
-    centerPrompt = null,
+    bustState = null,
 }: PlayerRowProps) {
     const isTop = (corners as any).includes('TL');
     const items = (corners as any as Corner[]).map((corner) => {
@@ -180,6 +174,8 @@ export function PlayerRow({
                         currentValue={localGameState.diceValue}
                         isRolling={localGameState.isRolling}
                         activeColor={p.color}
+                        boostActive={localGameState.activeBoost === p.color}
+                        bustKey={bustState?.color === p.color ? bustState.key : 0}
                     />
                 )}
                 {isMyTurn && spectatorMode && localGameState.diceValue != null && (
@@ -194,26 +190,6 @@ export function PlayerRow({
     return (
         <div className={`player-row player-row-${isTop ? 'top' : 'bottom'}`}>
             {items[0]}
-            {!isTop && (
-                <div className="board-self-prompt-slot" aria-live="polite">
-                    {centerPrompt && (
-                        <div className="board-turn-status is-yours board-self-prompt">
-                            <span className="board-turn-status-dot shrink-0" />
-                            {centerPrompt.kind === 'target' || centerPrompt.kind === 'move' ? (
-                                <DirectiveTargetIcon className="w-3 h-3 shrink-0" active />
-                            ) : (
-                                <OverdriveBoltIcon className="w-3 h-3 shrink-0" active />
-                            )}
-                            <TerminalTypeText
-                                key={centerPrompt.label}
-                                text={centerPrompt.label}
-                                charMs={18}
-                                showCursor
-                            />
-                        </div>
-                    )}
-                </div>
-            )}
             {items[1]}
         </div>
     );

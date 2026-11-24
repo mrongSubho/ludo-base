@@ -10,11 +10,14 @@ interface TerminalTypeTextProps {
     className?: string;
     style?: React.CSSProperties;
     showCursor?: boolean;
+    /** Append `...` once full text finishes typing so lines end cleanly as `...|`. */
+    trailingEllipsis?: boolean;
 }
 
 /**
  * Smooth terminal telemetry typewriter readout with a slim compositor-animated
- * cursor. Renders immediately when `prefers-reduced-motion: reduce` is active.
+ * cursor. Reserves full natural text + cursor width so words are never clipped
+ * when container space allows, and honors `prefers-reduced-motion: reduce`.
  */
 export function TerminalTypeText({
     text,
@@ -22,6 +25,7 @@ export function TerminalTypeText({
     className = '',
     style,
     showCursor = true,
+    trailingEllipsis = false,
 }: TerminalTypeTextProps) {
     const [reducedMotion, setReducedMotion] = useState(false);
     const [visibleCount, setVisibleCount] = useState(() => text.length);
@@ -49,34 +53,36 @@ export function TerminalTypeText({
         return () => window.clearInterval(id);
     }, [text, charMs, reducedMotion]);
 
-    const typed = reducedMotion ? text : text.slice(0, visibleCount);
+    const fullText = trailingEllipsis && text ? `${text}...` : text;
+    const isComplete = reducedMotion || visibleCount >= text.length;
+    const visibleText = isComplete ? fullText : text.slice(0, visibleCount);
     const isTyping = !reducedMotion && visibleCount < text.length;
 
     return (
         <span
             className={`relative inline-flex items-center max-w-full align-baseline overflow-hidden ${className}`}
             style={style}
-            aria-label={text}
+            aria-label={fullText}
         >
-            {/* Full-string invisible footprint locks the start edge on the left from char 0 */}
-            <span aria-hidden="true" className="invisible select-none whitespace-pre pr-[0.75ch] truncate">
-                {text}
+            {/* Full-string invisible footprint locks the start edge and reserves space for suffix + cursor */}
+            <span aria-hidden="true" className="invisible select-none whitespace-pre pr-[1.15ch]">
+                {fullText}
             </span>
             {/* Visible left-anchored typing track prints strictly left-to-right */}
             <span className="absolute inset-y-0 left-0 right-0 flex items-center justify-start text-left whitespace-pre overflow-hidden">
-                <span className="truncate">{typed}</span>
+                <span>{visibleText}</span>
                 {showCursor && !reducedMotion && (
                     <motion.span
                         aria-hidden="true"
-                        className="inline-block w-[0.5ch] h-[0.95em] ml-0.5 shrink-0 rounded-[1px]"
+                        className="inline-block w-[2px] h-[0.95em] ml-[2px] shrink-0 rounded-sm"
                         style={{ backgroundColor: 'currentColor' }}
                         animate={
                             isTyping
                                 ? { opacity: [1, 0.25, 1] }
-                                : { opacity: [0.85, 0.15, 0.85] }
+                                : { opacity: [0.9, 0.12, 0.9] }
                         }
                         transition={{
-                            duration: isTyping ? 0.42 : 1.05,
+                            duration: isTyping ? 0.42 : 1.0,
                             repeat: Infinity,
                             ease: 'easeInOut',
                         }}

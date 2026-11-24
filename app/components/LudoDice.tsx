@@ -14,6 +14,8 @@ interface LudoDiceProps {
     isRolling?: boolean;
     disabled?: boolean;
     activeColor?: string; // e.g. 'green', 'red'
+    boostActive?: boolean;
+    bustKey?: number;
 }
 
 const DOT_POSITIONS = {
@@ -92,7 +94,9 @@ export default function LudoDice({
     currentValue, 
     isRolling = false, 
     disabled,
-    activeColor = 'blue'
+    activeColor = 'blue',
+    boostActive = false,
+    bustKey = 0,
 }: LudoDiceProps) {
     const { playDiceRoll, playDiceLand } = useSoundEffects();
     const { triggerHaptic } = useAudio();
@@ -111,7 +115,10 @@ export default function LudoDice({
             ? DICE_DAYBREAK_SKIN
             : (DICE_SKINS[preferences.diceStyle] || DICE_SKINS.classic);
     const controls = useAnimation();
+    const arcControls = useAnimation();
     const [critKey, setCritKey] = useState(0);
+    const [landKey, setLandKey] = useState(0);
+    const [bustFlashKey, setBustFlashKey] = useState(0);
     
     // Track rotation persistently to enable smooth continuous tumbling
     const rotationRef = useRef({ x: 0, y: 0 });
@@ -130,15 +137,13 @@ export default function LudoDice({
         return current + diff;
     };
 
-    // Effect to handle programmatic roll start (Bots/Remote)
+    // Effect to handle programmatic roll start (Airborne launch arc + fast 3D tumble)
     useEffect(() => {
         if (isRolling && !wasExternalRolling.current) {
-            // Roll just started
             pendingCritRef.current = true;
             playDiceRoll();
             triggerHaptic(40);
 
-            // Start a fast tumble (Ludo World benchmark: 300ms roll spin)
             const spinsX = Math.floor(Math.random() * 2) + 2;
             const spinsY = Math.floor(Math.random() * 2) + 2;
             const targetX = rotationRef.current.x + (360 * spinsX);
@@ -147,20 +152,28 @@ export default function LudoDice({
             controls.start({
                 rotateX: targetX,
                 rotateY: targetY,
-                rotateZ: 0,
-                transition: { duration: 0.30, ease: "linear" }
+                rotateZ: prefersReducedMotion() ? 0 : 12,
+                transition: { duration: prefersReducedMotion() ? 0.01 : 0.3, ease: "linear" }
             });
+
+            if (!prefersReducedMotion()) {
+                arcControls.start({
+                    y: [0, 3, -18, -12],
+                    scale: [1, 0.9, 1.15, 1.09],
+                    rotateZ: [0, -7, 8, -3],
+                    transition: { duration: 0.3, times: [0, 0.18, 0.65, 1], ease: 'easeOut' },
+                });
+            }
 
             rotationRef.current = { x: targetX, y: targetY };
         } 
         else if (!isRolling && wasExternalRolling.current) {
-            // Roll just finished — landing sound is dispatched once currentValue settles below
             triggerHaptic([30, 50, 30]);
         }
         wasExternalRolling.current = isRolling;
-    }, [isRolling, controls, playDiceRoll, triggerHaptic]);
+    }, [isRolling, controls, arcControls, playDiceRoll, triggerHaptic]);
 
-    // Handle landing on specific value (snappy spring snap)
+    // Handle landing on specific value (weighted touchdown squash & rebound)
     useEffect(() => {
         if (!isRolling && currentValue) {
             const head = getRotationForValue(currentValue);
@@ -172,8 +185,21 @@ export default function LudoDice({
                 rotateX: targetX,
                 rotateY: targetY,
                 rotateZ: 0,
-                transition: { type: 'spring', stiffness: 320, damping: 24 }
+                transition: prefersReducedMotion()
+                    ? { duration: 0.01 }
+                    : { type: 'spring', stiffness: 360, damping: 22 }
             });
+
+            if (!prefersReducedMotion()) {
+                arcControls.start({
+                    y: [0, 2, -2, 0],
+                    scale: [1.08, 0.91, 1.04, 1],
+                    rotateZ: 0,
+                    transition: { duration: 0.24, times: [0, 0.35, 0.72, 1], ease: 'easeOut' },
+                });
+            } else {
+                arcControls.set({ y: 0, scale: 1, rotateZ: 0 });
+            }
             
             rotationRef.current = { x: targetX, y: targetY };
 
@@ -182,12 +208,26 @@ export default function LudoDice({
                 if (currentValue !== 6) {
                     playDiceLand();
                 }
-                if (currentValue === 6 && !prefersReducedMotion()) {
-                    setCritKey((k) => k + 1);
+                if (!prefersReducedMotion()) {
+                    setLandKey((k) => k + 1);
+                    if (currentValue === 6) {
+                        setCritKey((k) => k + 1);
+                    }
                 }
             }
         }
-    }, [currentValue, isRolling, controls, playDiceLand]);
+    }, [currentValue, isRolling, controls, arcControls, playDiceLand]);
+
+    // Triple-6 bust micro-shake & crimson warning halo
+    useEffect(() => {
+        if (bustKey <= 0 || prefersReducedMotion()) return;
+        setBustFlashKey((k) => k + 1);
+        arcControls.start({
+            x: [0, -5, 5, -4, 4, 0],
+            scale: [1, 0.96, 1.03, 1],
+            transition: { duration: 0.36, ease: 'easeOut' },
+        });
+    }, [bustKey, arcControls]);
 
     const performRoll = () => {
         if (isRolling || disabled) return;
@@ -217,27 +257,79 @@ export default function LudoDice({
             }}
             transition={{ duration: 0.85, times: [0, 0.45, 0.68, 0.85, 1], ease: 'easeOut' }}
         >
-            {/* Critical-Roll 6 dual shockwave burst (one-shot, compositor-only) */}
+            {/* Touchdown shock-ring on any roll settle */}
+            {landKey > 0 && (
+                <motion.span
+                    key={`land-${landKey}`}
+                    aria-hidden="true"
+                    className="dice-land-ring"
+                    style={{ borderColor: boostActive ? '#f59e0b' : accentColor }}
+                    initial={{ scale: 0.65, opacity: 0.85 }}
+                    animate={{ scale: 2.05, opacity: 0 }}
+                    transition={{ duration: 0.42, ease: 'easeOut' }}
+                />
+            )}
+
+            {/* Critical-Roll 6 dual shockwave burst + 6 radial sparks */}
             {critKey > 0 && (
                 <React.Fragment key={critKey}>
                     <motion.span
                         aria-hidden="true"
-                        className="absolute w-14 h-14 rounded-full pointer-events-none"
-                        style={{ border: `2.5px solid ${accentColor}`, top: '50%', left: '50%', marginTop: -28, marginLeft: -28 }}
+                        className="dice-crit-ring"
+                        style={{ borderColor: accentColor }}
                         initial={{ scale: 0.4, opacity: 0.95 }}
-                        animate={{ scale: 2.5, opacity: 0 }}
+                        animate={{ scale: 2.55, opacity: 0 }}
                         transition={{ duration: 0.65, ease: 'easeOut' }}
                     />
                     <motion.span
                         aria-hidden="true"
-                        className="absolute w-12 h-12 rounded-full pointer-events-none"
-                        style={{ border: '2px solid #F59E0B', top: '50%', left: '50%', marginTop: -24, marginLeft: -24 }}
+                        className="dice-crit-ring is-gold"
                         initial={{ scale: 0.35, opacity: 0.9 }}
-                        animate={{ scale: 2.05, opacity: 0 }}
+                        animate={{ scale: 2.1, opacity: 0 }}
                         transition={{ duration: 0.52, ease: 'easeOut', delay: 0.06 }}
                     />
+                    {[0, 60, 120, 180, 240, 300].map((deg) => {
+                        const rad = (deg * Math.PI) / 180;
+                        return (
+                            <motion.span
+                                key={deg}
+                                aria-hidden="true"
+                                className="dice-crit-spark"
+                                style={{ backgroundColor: deg % 120 === 0 ? accentColor : '#f59e0b' }}
+                                initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                                animate={{
+                                    x: Math.cos(rad) * 34,
+                                    y: Math.sin(rad) * 34,
+                                    opacity: 0,
+                                    scale: 0.3,
+                                }}
+                                transition={{ duration: 0.48, ease: 'easeOut' }}
+                            />
+                        );
+                    })}
                 </React.Fragment>
             )}
+
+            {/* Triple-6 bust crimson warning halo */}
+            {bustFlashKey > 0 && (
+                <motion.span
+                    key={`bust-${bustFlashKey}`}
+                    aria-hidden="true"
+                    className="dice-bust-halo"
+                    initial={{ scale: 0.6, opacity: 0.95 }}
+                    animate={{ scale: 2.15, opacity: 0 }}
+                    transition={{ duration: 0.45, ease: 'easeOut' }}
+                />
+            )}
+
+            {/* +6 Boost Overdrive Halo & Badge */}
+            {boostActive && (
+                <>
+                    <span className="dice-boost-ring" aria-hidden="true" />
+                    <span className="dice-boost-chip" aria-hidden="true">+6</span>
+                </>
+            )}
+
             {/* Turn-pass flash ring: one-shot expanding halo on arrival */}
             <motion.span
                 className="absolute w-16 h-16 rounded-full pointer-events-none"
@@ -251,9 +343,9 @@ export default function LudoDice({
                 className="absolute w-24 h-24 rounded-full blur-2xl pointer-events-none"
                 initial={false}
                 animate={{
-                    scale: isRolling ? 0.8 : 1.5,
-                    opacity: isRolling ? 0.2 : 0.5,
-                    backgroundColor: accentColor,
+                    scale: isRolling ? 0.85 : 1.5,
+                    opacity: isRolling ? 0.25 : 0.5,
+                    backgroundColor: boostActive ? '#f59e0b' : accentColor,
                 }}
                 transition={{ duration: 0.3 }}
             />
@@ -261,45 +353,47 @@ export default function LudoDice({
             {!disabled && !isRolling && (
                 <motion.span
                     className="absolute w-14 h-14 rounded-full pointer-events-none"
-                    style={{ border: `3px solid ${accentColor}`, top: '50%', left: '50%', marginTop: -28, marginLeft: -28 }}
+                    style={{ border: `3px solid ${boostActive ? '#f59e0b' : accentColor}`, top: '50%', left: '50%', marginTop: -28, marginLeft: -28 }}
                     animate={{ scale: [0.5, 1.9], opacity: [0.95, 0] }}
                     transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
                 />
             )}
 
-            {/* 3D Scene Wrapper */}
-            <div 
-                className="relative w-12 h-12" 
-                style={{ perspective: '800px' }}
-            >
-                {/* The Cube (Motor) */}
-                <motion.div
-                    className="w-full h-full relative"
-                    animate={controls}
-                    initial={{ rotateX: 0, rotateY: 0 }}
-                    style={{ transformStyle: 'preserve-3d' }}
+            {/* Airborne Launch Arc Wrapper + 3D Scene Wrapper */}
+            <motion.div animate={arcControls} className="relative w-12 h-12">
+                <div 
+                    className="relative w-12 h-12" 
+                    style={{ perspective: '800px' }}
                 >
-                    <button
-                        onClick={performRoll}
-                        disabled={disabled || isRolling}
-                        className="w-full h-full relative border-none bg-transparent cursor-pointer"
+                    {/* The Cube (Motor) */}
+                    <motion.div
+                        className="w-full h-full relative"
+                        animate={controls}
+                        initial={{ rotateX: 0, rotateY: 0 }}
                         style={{ transformStyle: 'preserve-3d' }}
                     >
-                        {FACE_MAP.map((face, i) => (
-                            <DiceFace
-                                key={i}
-                                num={face.num}
-                                transform={getFaceTransform(i)}
-                                faceColor={diceSkin.face}
-                                pipColor={diceSkin.pip}
-                                edgeColor={diceSkin.edge}
-                                isTacticalFace={isTacticalClassic || isOrbitalClassic}
-                                isPorcelainFace={isPorcelainClassic}
-                            />
-                        ))}
-                    </button>
-                </motion.div>
-            </div>
+                        <button
+                            onClick={performRoll}
+                            disabled={disabled || isRolling}
+                            className="w-full h-full relative border-none bg-transparent cursor-pointer"
+                            style={{ transformStyle: 'preserve-3d' }}
+                        >
+                            {FACE_MAP.map((face, i) => (
+                                <DiceFace
+                                    key={i}
+                                    num={face.num}
+                                    transform={getFaceTransform(i)}
+                                    faceColor={diceSkin.face}
+                                    pipColor={diceSkin.pip}
+                                    edgeColor={diceSkin.edge}
+                                    isTacticalFace={isTacticalClassic || isOrbitalClassic}
+                                    isPorcelainFace={isPorcelainClassic}
+                                />
+                            ))}
+                        </button>
+                    </motion.div>
+                </div>
+            </motion.div>
 
             {/* Drop Shadow / 3077 Emitter Pad / Retro Dotted Orbital Ring */}
             {is3077 ? (

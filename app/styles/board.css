@@ -484,23 +484,111 @@ body.theme-daybreak .avatar-circle.blue {
   box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.08), 0 5px 18px rgba(0, 229, 255, 0.18);
 }
 
-.board-self-prompt-slot {
-  flex: 1 1 0%;
-  min-width: 0;
+/* ─── Two-line above-board Terminal HUD (Line 1: Turn · Line 2: Combat/Power feed) ─── */
+.board-terminal-hud {
+  flex: 0 0 46px;
+  height: 46px;
+  width: min(520px, calc(100vw - 16px));
+  margin: -4px auto -4px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 0 4px;
+  justify-content: flex-start;
+  gap: 5px;
+  z-index: 35;
   pointer-events: none;
 }
 
-.board-self-prompt {
-  position: relative;
-  top: auto;
-  left: auto;
-  transform: none;
+.board-terminal-line1 {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  transform: none !important;
   max-width: 100%;
+  height: 22px;
+  min-height: 22px;
+  font-family: var(--font-mono, monospace);
+}
+
+.board-terminal-line1.tone-target {
+  border-color: rgba(245, 158, 11, 0.72) !important;
+  color: #fde68a !important;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.24) !important;
+}
+
+.board-terminal-line1.tone-winner {
+  border-color: rgba(16, 185, 129, 0.72) !important;
+  color: #a7f3d0 !important;
+}
+
+.board-terminal-line2-slot {
+  height: 19px;
+  min-height: 19px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+}
+
+.board-terminal-line2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  height: 19px;
+  padding: 0 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 13, 24, 0.74);
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(241, 245, 249, 0.86);
+  white-space: nowrap;
+}
+
+.board-terminal-line2-prefix {
+  opacity: 0.75;
+  font-weight: 800;
+}
+
+.board-terminal-line2.tone-nuke {
+  border-color: rgba(239, 68, 68, 0.58);
+  background: rgba(127, 29, 29, 0.42);
+  color: #fecaca;
+}
+.board-terminal-line2.tone-capture {
+  border-color: rgba(245, 158, 11, 0.58);
+  background: rgba(120, 53, 15, 0.42);
+  color: #fde68a;
+}
+.board-terminal-line2.tone-shield {
+  border-color: rgba(6, 182, 212, 0.58);
+  background: rgba(8, 51, 68, 0.48);
+  color: #a5f3fc;
+}
+.board-terminal-line2.tone-boost {
+  border-color: rgba(245, 158, 11, 0.52);
+  background: rgba(113, 63, 18, 0.4);
+  color: #fcd34d;
+}
+.board-terminal-line2.tone-teleport {
+  border-color: rgba(16, 185, 129, 0.58);
+  background: rgba(6, 78, 59, 0.45);
+  color: #a7f3d0;
+}
+.board-terminal-line2.tone-finish {
+  border-color: rgba(34, 197, 94, 0.58);
+  background: rgba(20, 83, 45, 0.44);
+  color: #bbf7d0;
+}
+.board-terminal-line2.tone-bust {
+  border-color: rgba(244, 63, 94, 0.56);
+  background: rgba(136, 19, 55, 0.42);
+  color: #fecdd3;
 }
 
 .match-status-strip {
@@ -3182,9 +3270,47 @@ body.theme-3077 .token-valid-arrow {
   border: 1.5px solid;
 }
 
-/* ─── Power system: shield/target rings + nuke blast flash ─────────────── */
+/* ─── Power system: shield/boost token FX, nuke blood-bath & dice effects ─── */
+@keyframes tokenShieldSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes tokenBoostPulse {
+  0%, 100% { transform: scale(0.98) rotate(0deg); opacity: 0.72; }
+  50% { transform: scale(1.1) rotate(180deg); opacity: 1; }
+}
+@keyframes diceBoostOrbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 .ludo-token.token-shielded {
-  box-shadow: 0 0 0 2px rgba(103, 232, 249, 0.9), 0 0 14px rgba(103, 232, 249, 0.7);
+  box-shadow: 0 0 0 1.5px rgba(34, 211, 238, 0.85), 0 0 14px rgba(6, 182, 212, 0.55);
+}
+.token-shield-field {
+  position: absolute;
+  inset: -16%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(34, 211, 238, 0.16) 35%, rgba(6, 182, 212, 0.04) 72%, transparent);
+  pointer-events: none;
+  z-index: 6;
+}
+.token-shield-ring {
+  width: 100%;
+  height: 100%;
+  animation: tokenShieldSpin 4.8s linear infinite;
+}
+.token-boost-aura {
+  position: absolute;
+  inset: -14%;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 5;
+}
+.token-boost-arc {
+  width: 100%;
+  height: 100%;
+  animation: tokenBoostPulse 1.3s linear infinite;
 }
 .ludo-token.token-targetable {
   animation: token-target-pulse 0.8s ease-in-out infinite;
@@ -3201,6 +3327,201 @@ body.theme-3077 .token-valid-arrow {
 
 .ludo-token.token-boosted {
   animation: token-boost-trail 0.5s ease-in-out infinite;
+}
+
+/* Board-wide 15x15 Power VFX Overlay */
+.power-vfx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 48;
+  overflow: hidden;
+}
+.power-vfx-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  grid-template-rows: repeat(15, 1fr);
+  gap: 1px;
+  padding: 1px;
+  pointer-events: none;
+}
+.power-vfx-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.power-nuke-board-tint {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(220, 38, 38, 0.32), rgba(153, 27, 27, 0.72) 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+.power-nuke-blood-cell {
+  width: 100%;
+  height: 100%;
+  border-radius: 3px;
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.96) 15%, rgba(185, 28, 28, 0.86) 65%, rgba(127, 29, 29, 0.92) 100%);
+  border: 1.5px solid #fecaca;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.9), inset 0 0 8px rgba(254, 202, 202, 0.5);
+  z-index: 3;
+}
+.power-nuke-reticle {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  border: 2px dashed #ef4444;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.75);
+  z-index: 4;
+}
+.power-nuke-shockwave {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  border: 3px solid #fecaca;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.7), rgba(239, 68, 68, 0.35) 55%, transparent 72%);
+  z-index: 5;
+}
+.power-vfx-cell-host {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 6;
+}
+.power-nuke-victim-ring {
+  position: absolute;
+  width: 90%;
+  height: 90%;
+  border-radius: 9999px;
+  border: 2px solid #fca5a5;
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.55), transparent 70%);
+}
+.power-nuke-victim-shard {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #fecaca;
+  clip-path: polygon(50% 0, 100% 70%, 20% 100%);
+  box-shadow: 0 0 6px #ef4444;
+}
+.power-shield-burst {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  border: 2.5px solid #22d3ee;
+  background: radial-gradient(circle, rgba(165, 243, 252, 0.45), rgba(6, 182, 212, 0.12) 60%, transparent);
+  box-shadow: 0 0 14px rgba(34, 211, 238, 0.65);
+}
+.power-boost-arm-burst {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  border: 2.5px solid #f59e0b;
+  background: radial-gradient(circle, rgba(254, 240, 138, 0.55), rgba(245, 158, 11, 0.14) 60%, transparent);
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.65);
+}
+.power-boost-cell {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.72), rgba(245, 158, 11, 0.18) 72%, transparent);
+  border: 1px solid rgba(251, 191, 36, 0.8);
+}
+.power-boost-cell.is-endpoint {
+  background: radial-gradient(circle, rgba(254, 240, 138, 0.92), rgba(245, 158, 11, 0.4) 72%);
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.85);
+}
+.power-tp-vortex {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  border: 2.5px dashed #34d399;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.5), transparent 72%);
+}
+.power-tp-ring {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  border: 2.5px solid #6ee7b7;
+  background: radial-gradient(circle, rgba(167, 243, 208, 0.65), rgba(16, 185, 129, 0.18) 65%, transparent);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.75);
+}
+
+/* Redesigned Dice Effects */
+.dice-land-ring,
+.dice-crit-ring,
+.dice-bust-halo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 52px;
+  height: 52px;
+  margin-top: -26px;
+  margin-left: -26px;
+  border-radius: 9999px;
+  border: 2.5px solid currentColor;
+  pointer-events: none;
+}
+.dice-crit-ring.is-gold {
+  width: 46px;
+  height: 46px;
+  margin-top: -23px;
+  margin-left: -23px;
+  border-color: #f59e0b;
+}
+.dice-bust-halo {
+  border-width: 3px;
+  border-color: #ef4444;
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.35), transparent 70%);
+}
+.dice-crit-spark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  margin-left: -3px;
+  border-radius: 9999px;
+  pointer-events: none;
+  box-shadow: 0 0 8px currentColor;
+}
+.dice-boost-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 62px;
+  height: 62px;
+  margin-top: -31px;
+  margin-left: -31px;
+  border-radius: 9999px;
+  border: 2px dashed rgba(245, 158, 11, 0.85);
+  pointer-events: none;
+  animation: diceBoostOrbit 2.6s linear infinite;
+}
+.dice-boost-chip {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  padding: 1px 5px;
+  border-radius: 9999px;
+  background: #f59e0b;
+  color: #18181b;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.25;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.55);
+  pointer-events: none;
+  z-index: 12;
 }
 
 /* ─── Mystery power marker: sealed cache, identical for every hidden tile ── */
@@ -4382,16 +4703,24 @@ body.theme-3077 .match-status-connection-pill {
 }
 
 @media (max-width: 560px) {
-  .board-turn-status {
-    top: 28px;
-    min-height: 22px;
+  .board-terminal-hud {
+    height: 44px;
+    flex-basis: 44px;
+    gap: 4px;
+  }
+
+  .board-turn-status,
+  .board-terminal-line1 {
+    min-height: 21px;
+    height: 21px;
     padding-inline: 8px;
     font-size: 10px;
   }
 
-  .board-self-prompt {
-    top: auto;
-    letter-spacing: 0.08em;
+  .board-terminal-line2-slot,
+  .board-terminal-line2 {
+    height: 18px;
+    min-height: 18px;
   }
 
   .match-status-strip {
@@ -5216,7 +5545,10 @@ body.theme-daybreak .emote-float:has(.emote-float-media) {
   cursor: pointer;
 }
 @media (prefers-reduced-motion: reduce) {
-  .landscape-guard-icon {
-    animation: none;
+  .landscape-guard-icon,
+  .token-shield-ring,
+  .token-boost-arc,
+  .dice-boost-ring {
+    animation: none !important;
   }
 }

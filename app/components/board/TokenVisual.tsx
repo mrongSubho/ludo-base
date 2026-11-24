@@ -79,6 +79,7 @@ interface TokenProps {
     shielded?: boolean;
     targetable?: boolean;
     boosted?: boolean;
+    boostArmed?: boolean;
 }
 
 export function Token({
@@ -95,6 +96,7 @@ export function Token({
     shielded = false,
     targetable = false,
     boosted = false,
+    boostArmed = false,
 }: TokenProps) {
     const prevRef = useRef<{ rank: ChessRank; pos: number } | null>(null);
     const [showPromoFX, setShowPromoFX] = React.useState(false);
@@ -156,6 +158,40 @@ export function Token({
                     className="w-full h-full flex items-center justify-center p-0.5 relative"
                 >
                     <ChessPiece color={color} rank={rank} size="board" />
+                    {shielded && (
+                        <span className="token-shield-field" aria-hidden="true">
+                            <svg viewBox="0 0 36 36" fill="none" className="token-shield-ring">
+                                <circle
+                                    cx="18"
+                                    cy="18"
+                                    r="15.5"
+                                    stroke="#22d3ee"
+                                    strokeWidth="1.6"
+                                    strokeDasharray="4.5 2.5"
+                                />
+                                <polygon
+                                    points="18,3.2 30.8,10.6 30.8,25.4 18,32.8 5.2,25.4 5.2,10.6"
+                                    stroke="#a5f3fc"
+                                    strokeWidth="1.15"
+                                    opacity="0.78"
+                                />
+                            </svg>
+                        </span>
+                    )}
+                    {(boostArmed || boosted) && !shielded && (
+                        <span className="token-boost-aura" aria-hidden="true">
+                            <svg viewBox="0 0 36 36" fill="none" className="token-boost-arc">
+                                <circle
+                                    cx="18"
+                                    cy="18"
+                                    r="15"
+                                    stroke="#f59e0b"
+                                    strokeWidth="1.8"
+                                    strokeDasharray="7 5"
+                                />
+                            </svg>
+                        </span>
+                    )}
                     {showPromoFX && <PromoFX color={color} />}
                     {showValid && (
                         <div className="token-valid-arrow" style={{ color: colorMapSafe(color) }}>

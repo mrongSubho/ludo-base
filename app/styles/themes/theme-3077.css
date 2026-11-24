@@ -1076,3 +1076,9 @@ body.theme-3077 .power-dossier-lock,
 body.theme-3077 .power-dossier-cta {
   border-radius: 6px;
 }
+body.theme-3077 .board-terminal-line2 {
+  background: rgba(6, 10, 18, 0.92);
+  border-radius: 4px;
+  border-color: rgba(var(--accent-rgb), 0.24);
+  letter-spacing: 0.1em;
+}

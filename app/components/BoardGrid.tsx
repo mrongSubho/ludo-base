@@ -8,6 +8,8 @@ import { Player } from '@/hooks/useGameEngine';
 import { usePreferences } from '@/hooks/usePreferences';
 import { ProximityMineIcon } from './icons';
 import { HudCornerTicks } from './HudPrimitives';
+import { PowerVfxOverlay } from './PowerVfxOverlay';
+import type { PowerVfxEvent } from '@/lib/powerVfx';
 
 interface BoardGridProps {
     pathCells: PathCell[];
@@ -22,6 +24,7 @@ interface BoardGridProps {
     // Measured square size (px) from the board-area box. When absent (first
     // paint), falls back to viewport-relative sizing.
     squarePx?: number;
+    powerVfxEvents?: PowerVfxEvent[];
 }
 
 const ZONE_HEX: Record<string, string> = {
@@ -96,11 +99,13 @@ export function BoardGrid({
     sweepProgress,
     pointRotation,
     counterRotationDeg,
-    squarePx
+    squarePx,
+    powerVfxEvents = [],
 }: BoardGridProps) {
     const { preferences } = usePreferences();
     const is3077 = preferences.theme === '3077';
     const activeColor = localGameState?.currentPlayer || propActiveColor;
+    const hasActiveNukeVfx = powerVfxEvents.some((ev) => ev.kind === 'nuke');
     
     // Fallback Hex Colors (aligned to theme faction matrix)
     const COLOR_MAP: Record<string, string> = is3077
@@ -182,7 +187,7 @@ export function BoardGrid({
                             position: 'relative'
                         }}
                     >
-                        {nukeHit && <span className="nuke-flash" aria-hidden />}
+                        {nukeHit && !hasActiveNukeVfx && <span className="nuke-flash" aria-hidden />}
                         {isSafe && !occupiedCells.has(`${row}-${col}`) && <StarMarker color={safeZoneColor || '#eab308'} counterRotationDeg={counterRotationDeg} />}
                         {mysteryPower && (
                             <span className="mystery-upright" style={{ transform: `rotate(${counterRotationDeg || 0}deg)` }} aria-hidden>
@@ -217,6 +222,9 @@ export function BoardGrid({
 
             {/* ── Home Bases & Tokens (Children) ── */}
             {children}
+
+            {/* ── Power VFX Overlay (Nuke warhead + 6-block blood-bath, Shield, Boost, Teleport) ── */}
+            <PowerVfxOverlay events={powerVfxEvents} />
 
             {/* ── Multi-Layered Finish Junction ── */}
             <div 

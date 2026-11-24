@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, useMotionValue, animate, useTransform } from 'framer-motion';
+import { AnimatePresence, motion, useMotionValue, animate, useTransform } from 'framer-motion';
 import { LuSend } from 'react-icons/lu';
 import Leaderboard from './Leaderboard';
 import PlayerProfileSheet from './PlayerProfileSheet';
-import { PlayerColor, PowerType, PowerItem } from '@/lib/types';
+import { PlayerColor, PowerType, PowerItem, type GameState } from '@/lib/types';
 import { getTeammateColor } from '@/lib/gameLogic';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import {
@@ -24,11 +24,18 @@ import { BoardGrid } from './BoardGrid';
 import {
     IdleWarningOverlay,
     NameOverlay,
-    StatusNotification,
 } from './BoardOverlays';
 import { ChatIcon, SimBotIcon } from './icons';
 import { MatchStatsOverlay, type RematchOverlayState } from './MatchStatsOverlay';
 import { TerminalTypeText } from './TerminalTypeText';
+import {
+    deriveMatchFeedEvent,
+    formatPrimaryTurnLine,
+    type CombatFeedLine,
+    type PrimaryTurnLine,
+} from '@/lib/matchFeed';
+import { derivePowerVfxEvents, type PowerVfxEvent } from '@/lib/powerVfx';
+import { prefersReducedMotion } from '@/lib/motion';
 import {
     REMATCH_TIMEOUT_MS,
     evaluateRematchOutcome,
@@ -48,7 +55,7 @@ import { EMOTE_TTL_MS } from '@/lib/emotes';
 import type { GameActionPayload } from '@/lib/types';
 import { getHopSamples } from '@/lib/perf/budget';
 import { installPerfDebugHook } from '@/lib/perf/report';
-import { PlayerRow, getDisplayNameHelper, type BoardSelfPrompt } from './PlayerInfoRow';
+import { PlayerRow, getDisplayNameHelper } from './PlayerInfoRow';
 
 // Modular Hooks
 import { useBoardLayout } from '@/hooks/useBoardLayout';
@@ -206,6 +213,15 @@ export default function Board({
     const { players, colorCorner } = boardConfig;
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
     const [isShaking, setIsShaking] = useState(false);
+    const [nukeShaking, setNukeShaking] = useState(false);
+    const [feedEvent, setFeedEvent] = useState<CombatFeedLine | null>(null);
+    const [powerVfxEvents, setPowerVfxEvents] = useState<PowerVfxEvent[]>([]);
+    const [bustState, setBustState] = useState<{ color: PlayerColor; key: number } | null>(null);
+    const prevStateRef = useRef<GameState | null>(null);
+    const feedSeqRef = useRef(0);
+    const vfxSeqRef = useRef(0);
+    const feedTimerRef = useRef<number | null>(null);
+    const pendingTimeoutsRef = useRef<number[]>([]);
 
     const pathCells = React.useMemo(() => buildPathCellsDynamic(colorCorner), [colorCorner]);
 
@@ -241,14 +257,72 @@ export default function Board({
         setBoardConfig
     });
 
-    // Capture Shake
+    // Unified state-transition feed, power VFX, nuke detonation shake & triple-6 bust tracker.
+    // Timers live in refs so routine 1s clock ticks never abort an active detonation or banner.
     useEffect(() => {
-        if (localGameState.captureMessage?.includes('Captured') || localGameState.captureMessage?.includes('BOMB')) {
-            setIsShaking(true);
-            const timer = setTimeout(() => setIsShaking(false), 500);
-            return () => clearTimeout(timer);
+        return () => {
+            if (feedTimerRef.current !== null) window.clearTimeout(feedTimerRef.current);
+            pendingTimeoutsRef.current.forEach((id) => window.clearTimeout(id));
+            pendingTimeoutsRef.current = [];
+        };
+    }, []);
+
+    useEffect(() => {
+        const prev = prevStateRef.current;
+        prevStateRef.current = localGameState;
+        if (!prev) return;
+
+        const ownPlayerColor =
+            (players.find((p) => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) ||
+                players.find((p) => !p.isAi))?.color;
+
+        const nextFeed = deriveMatchFeedEvent(prev, localGameState, {
+            myColor: ownPlayerColor,
+            playerCount,
+            colorCorner,
+            spectatorMode,
+        });
+        if (nextFeed) {
+            const nextId = ++feedSeqRef.current;
+            setFeedEvent({ ...nextFeed, id: nextId });
+            if (feedTimerRef.current !== null) window.clearTimeout(feedTimerRef.current);
+            feedTimerRef.current = window.setTimeout(() => {
+                setFeedEvent((cur) => (cur?.id === nextId ? null : cur));
+            }, 4600);
+
+            if (nextFeed.tone === 'capture') {
+                setIsShaking(true);
+                const t = window.setTimeout(() => setIsShaking(false), 480);
+                pendingTimeoutsRef.current.push(t);
+            }
+            if (nextFeed.tone === 'bust') {
+                setBustState((cur) => ({ color: prev.currentPlayer, key: (cur?.key ?? 0) + 1 }));
+            }
         }
-    }, [localGameState.captureMessage]);
+
+        const vfxItems = derivePowerVfxEvents(prev, localGameState, colorCorner, playerCount);
+        if (vfxItems.length > 0) {
+            const stamped = vfxItems.map((item) => ({ ...item, id: ++vfxSeqRef.current }) as PowerVfxEvent);
+            setPowerVfxEvents((cur) => [...cur, ...stamped]);
+            stamped.forEach((ev) => {
+                const ttl = ev.kind === 'nuke' ? 2500 : 1200;
+                const clearTimer = window.setTimeout(() => {
+                    setPowerVfxEvents((cur) => cur.filter((x) => x.id !== ev.id));
+                }, ttl);
+                pendingTimeoutsRef.current.push(clearTimer);
+
+                if (ev.kind === 'nuke') {
+                    const impactDelay = prefersReducedMotion() ? 0 : 880;
+                    const startShake = window.setTimeout(() => {
+                        setNukeShaking(true);
+                        const endShake = window.setTimeout(() => setNukeShaking(false), 540);
+                        pendingTimeoutsRef.current.push(endShake);
+                    }, impactDelay);
+                    pendingTimeoutsRef.current.push(startShake);
+                }
+            });
+        }
+    }, [localGameState, players, address, playerCount, colorCorner, spectatorMode]);
 
     // Timer Animation Logic
     const smoothProgress = useMotionValue(localGameState.timeLeft / 15);
@@ -586,7 +660,7 @@ export default function Board({
         handleRespondRematch,
     ]);
 
-    // ─── Bottom Self Prompt (middle of bottom two player zones) ──────────
+    // ─── Line 1 Primary Turn Directive (2-line terminal stack above board) ─
     const effectiveMyDice =
         ownColor && localGameState.diceValue !== null && localGameState.diceValue !== undefined
             ? Number(localGameState.diceValue) +
@@ -597,20 +671,33 @@ export default function Board({
     const myTokensInHome = ownColor
         ? (localGameState.positions?.[ownColor] || []).filter((pos: number) => Number(pos) === -1).length
         : 0;
-    const selfPrompt: BoardSelfPrompt | null = React.useMemo(() => {
-        if (spectatorMode || !isMyTurn || Boolean(localGameState.winner)) return null;
-        if (targeting) return { label: 'Tap target token', kind: 'target' };
-        if (localGameState.gamePhase === 'moving') {
-            if (effectiveMyDice === 6 && myTokensInHome > 0) {
-                return { label: 'Deploy [6] or move', kind: 'deploy' };
-            }
-            return { label: 'Select a token', kind: 'move' };
-        }
-        if (localGameState.gamePhase === 'rolling' && localGameState.diceValue === null) {
-            return { label: 'Roll to start', kind: 'roll' };
-        }
-        return { label: 'Move in progress', kind: 'move' };
-    }, [spectatorMode, isMyTurn, localGameState.winner, targeting, localGameState.gamePhase, localGameState.diceValue, effectiveMyDice, myTokensInHome]);
+    const primaryTurnLine = React.useMemo(
+        () =>
+            formatPrimaryTurnLine({
+                currentPlayer: localGameState.currentPlayer,
+                gamePhase: localGameState.gamePhase,
+                diceValue: localGameState.diceValue ?? null,
+                myColor: ownColor,
+                spectatorMode,
+                targeting: targeting?.type ?? null,
+                activeBoost: localGameState.activeBoost,
+                winner: localGameState.winner ?? null,
+                myTokensInHome,
+                effectiveMyDice,
+            }),
+        [
+            localGameState.currentPlayer,
+            localGameState.gamePhase,
+            localGameState.diceValue,
+            ownColor,
+            spectatorMode,
+            targeting,
+            localGameState.activeBoost,
+            localGameState.winner,
+            myTokensInHome,
+            effectiveMyDice,
+        ],
+    );
     const spendPower = (type: PowerType) => {
         if (!canSpend || !ownColor) return;
         if (type === 'nuke' || type === 'teleport') {
@@ -641,19 +728,22 @@ export default function Board({
                 handleRoll={handleRoll}
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
+                bustState={bustState}
             />
 
-            <BoardTurnStatus
-                currentPlayer={localGameState.currentPlayer}
-                myColor={myPlayer?.color}
-                spectatorMode={spectatorMode}
-            />
+            <BoardTerminalHud line1={primaryTurnLine} line2={feedEvent} />
 
             <motion.div
                 className={`board-area${stableBox ? ' is-locked' : ''}`}
                 ref={areaRef}
-                animate={isShaking ? { x: [-2, 2, -2, 2, 0] } : {}}
-                transition={{ duration: 0.4 }}
+                animate={
+                    nukeShaking
+                        ? { x: [-5, 5, -4, 4, -2, 2, 0], y: [3, -3, 2, -2, 0] }
+                        : isShaking
+                          ? { x: [-2, 2, -2, 2, 0] }
+                          : {}
+                }
+                transition={{ duration: nukeShaking ? 0.5 : 0.4 }}
                 style={{
                     position: 'relative', width: '100%', cursor: 'pointer',
                     ...(stableBox ? { '--board-area-h': `${stableBox.height}px` } as React.CSSProperties : {}),
@@ -682,6 +772,7 @@ export default function Board({
                         sweepProgress={smoothProgress}
                         pointRotation={pointRotation}
                         counterRotationDeg={counterRotationDeg}
+                        powerVfxEvents={powerVfxEvents}
                     >
                         {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
                             const isActivePlayer = players.some(p => p.color === color);
@@ -766,7 +857,6 @@ export default function Board({
 
               </div>
 
-             <StatusNotification message={localGameState.captureMessage ?? null} />
              <IdleWarningOverlay idleWarning={localGameState.idleWarning} myPlayer={myPlayer} onCancelAfk={cancelAfk} />
          </motion.div>
 
@@ -813,7 +903,7 @@ export default function Board({
                 handleRoll={handleRoll}
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
-                centerPrompt={selfPrompt}
+                bustState={bustState}
             />
 
             {/* Match footer: social controls, shared by classic and power (hidden while spectating). */}
@@ -938,27 +1028,52 @@ export default function Board({
     );
 }
 
-function BoardTurnStatus({
-    currentPlayer,
-    myColor,
-    spectatorMode,
+function BoardTerminalHud({
+    line1,
+    line2,
 }: {
-    currentPlayer: PlayerColor;
-    myColor?: PlayerColor;
-    spectatorMode: boolean;
+    line1: PrimaryTurnLine;
+    line2: CombatFeedLine | null;
 }) {
-    const isMyTurn = !spectatorMode && !!myColor && currentPlayer === myColor;
-    if (isMyTurn) return null;
-
-    const label = spectatorMode
-        ? `Watching ${currentPlayer}`
-        : `Waiting for ${currentPlayer}`;
-
+    const isYours = line1.tone === 'yours' || line1.tone === 'target';
     return (
-        <div className="board-turn-status" aria-live="polite">
-            <span className="board-turn-status-dot" />
-            <SimBotIcon className="w-3 h-3 shrink-0 opacity-70" />
-            <TerminalTypeText key={label} text={label} charMs={18} />
+        <div className="board-terminal-hud" aria-live="polite">
+            <div
+                className={`board-turn-status board-terminal-line1 ${isYours ? 'is-yours' : ''} tone-${line1.tone}`}
+                data-seat-color={line1.color}
+            >
+                <span className="board-turn-status-dot shrink-0" />
+                {!isYours && <SimBotIcon className="w-3 h-3 shrink-0 opacity-75" />}
+                <TerminalTypeText
+                    key={line1.text}
+                    text={line1.text}
+                    charMs={16}
+                    trailingEllipsis
+                />
+            </div>
+
+            <div className="board-terminal-line2-slot">
+                <AnimatePresence mode="wait">
+                    {line2 && (
+                        <motion.div
+                            key={line2.id}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            transition={{ duration: 0.16, ease: 'easeOut' }}
+                            className={`board-terminal-line2 tone-${line2.tone}`}
+                        >
+                            <span className="board-terminal-line2-prefix" aria-hidden="true">&gt;</span>
+                            <TerminalTypeText
+                                key={`${line2.id}-${line2.text}`}
+                                text={line2.text}
+                                charMs={14}
+                                trailingEllipsis
+                            />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
         </div>
     );
 }

@@ -673,27 +673,28 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         cooldownMs: 120,
         haptic: 35,
         render: (ctx, dest, opts) => {
-            // 5 rapid wood/glass/metallic cup-rattle impacts
+            // Weighted cup-toss lift + crisp 5-step multi-facet tumble clicks
             const style = opts.diceStyle ?? 'classic';
             const basePitch = style === 'midnight' ? 1280 : style === 'gold' ? 1560 : 960;
-            const delays = [0, 0.055, 0.115, 0.175, 0.24];
+            playTone(ctx, dest, { type: 'sine', freq: 180, freqEnd: 340, duration: 0.08, gain: 0.05 });
+            const delays = [0, 0.05, 0.11, 0.18, 0.255];
             delays.forEach((d, idx) => {
-                const f = basePitch * (0.88 + (idx % 3) * 0.11) * jitter(0.05);
+                const f = basePitch * (0.86 + (idx % 3) * 0.12) * jitter(0.05);
                 playNoiseBurst(ctx, dest, {
                     startOffset: d,
                     duration: 0.036,
-                    gain: 0.09 - idx * 0.008,
+                    gain: 0.095 - idx * 0.008,
                     filterType: 'bandpass',
                     filterFreq: f,
-                    filterQ: 3.2,
+                    filterQ: 3.4,
                 });
                 playTone(ctx, dest, {
                     type: style === 'classic' ? 'triangle' : 'sine',
-                    freq: f * 0.55,
-                    freqEnd: f * 0.35,
+                    freq: f * 0.56,
+                    freqEnd: f * 0.34,
                     startOffset: d,
-                    duration: 0.032,
-                    gain: 0.055,
+                    duration: 0.034,
+                    gain: 0.06,
                 });
             });
         },
@@ -708,16 +709,25 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
             playTone(ctx, dest, {
                 type: 'sine',
                 freq: thumpFreq * jitter(0.04),
-                freqEnd: 58,
-                duration: 0.085,
-                gain: 0.14,
+                freqEnd: 54,
+                duration: 0.09,
+                gain: 0.15,
             });
             playNoiseBurst(ctx, dest, {
-                duration: 0.03,
-                gain: 0.075,
+                duration: 0.032,
+                gain: 0.08,
                 filterType: 'bandpass',
                 filterFreq: style === 'gold' ? 2600 : 1900,
-                filterQ: 2.4,
+                filterQ: 2.5,
+            });
+            // Secondary micro-bounce settle tap
+            playTone(ctx, dest, {
+                type: 'triangle',
+                freq: thumpFreq * 1.18,
+                freqEnd: 78,
+                startOffset: 0.065,
+                duration: 0.045,
+                gain: 0.07,
             });
         },
     },
@@ -1043,12 +1053,14 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         cooldownMs: 180,
         haptic: 18,
         render: (ctx, dest) => {
+            // Crisp magnetic lock click -> shimmering hexagonal Aegis harmonic dome
+            playNoiseBurst(ctx, dest, { duration: 0.025, gain: 0.075, filterType: 'bandpass', filterFreq: 3200, filterQ: 4 });
             playTone(ctx, dest, { type: 'sine', freq: 520, freqEnd: 1320, duration: 0.26, gain: 0.1 });
             playChord(ctx, dest, [880, 1318.51, 1760], {
                 type: 'sine',
-                startOffset: 0.05,
+                startOffset: 0.04,
                 stagger: 0.03,
-                duration: 0.28,
+                duration: 0.3,
                 gain: 0.085,
             });
         },
@@ -1058,17 +1070,26 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         cooldownMs: 180,
         haptic: 22,
         render: (ctx, dest) => {
+            // Rising turbine ignition + plasma afterburner hiss
             playTone(ctx, dest, {
                 type: 'sawtooth',
                 freq: 220,
-                freqEnd: 1320,
-                duration: 0.24,
+                freqEnd: 1380,
+                duration: 0.26,
                 gain: 0.095,
                 filterType: 'bandpass',
                 filterFreq: 600,
-                filterFreqEnd: 2800,
+                filterFreqEnd: 2900,
             });
-            playNoiseBurst(ctx, dest, { duration: 0.18, gain: 0.055, filterType: 'highpass', filterFreq: 1800 });
+            playTone(ctx, dest, {
+                type: 'triangle',
+                freq: 440,
+                freqEnd: 1760,
+                startOffset: 0.04,
+                duration: 0.22,
+                gain: 0.07,
+            });
+            playNoiseBurst(ctx, dest, { duration: 0.2, gain: 0.06, filterType: 'highpass', filterFreq: 1800 });
         },
     },
     power_teleport: {
@@ -1076,9 +1097,17 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         cooldownMs: 180,
         haptic: [12, 35, 15],
         render: (ctx, dest) => {
+            // Quantum suction implosion -> crystalline star-chime arrival
             playTone(ctx, dest, { type: 'sine', freq: 1180, freqEnd: 380, duration: 0.09, gain: 0.09 });
-            playTone(ctx, dest, { type: 'sine', freq: 420, freqEnd: 1560, startOffset: 0.09, duration: 0.14, gain: 0.1 });
-            playNoiseBurst(ctx, dest, { startOffset: 0.07, duration: 0.09, gain: 0.05, filterType: 'bandpass', filterFreq: 2400 });
+            playTone(ctx, dest, { type: 'sine', freq: 420, freqEnd: 1560, startOffset: 0.08, duration: 0.14, gain: 0.1 });
+            playNoiseBurst(ctx, dest, { startOffset: 0.06, duration: 0.09, gain: 0.05, filterType: 'bandpass', filterFreq: 2400 });
+            playChord(ctx, dest, [1567.98, 2093.0], {
+                type: 'sine',
+                startOffset: 0.16,
+                stagger: 0.035,
+                duration: 0.2,
+                gain: 0.065,
+            });
         },
     },
     power_nuke: {
@@ -1087,7 +1116,7 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
         haptic: [80, 60, 130],
         duckMusic: { factor: 0.25, holdMs: 1200, releaseMs: 700 },
         render: (ctx, dest) => {
-            // 3 tactical siren wails -> brief anticipation gap -> sub detonation + debris tail
+            // 3 tactical siren wails + falling warhead whistle -> +0.90s sub detonation + debris crunch
             [0, 0.28, 0.56].forEach((start, i) => {
                 const f0 = i % 2 === 0 ? 640 : 880;
                 const f1 = i % 2 === 0 ? 920 : 620;
@@ -1103,37 +1132,55 @@ export const SFX_CATALOG: Record<SoundId, SfxRecipe> = {
                     filterFreq: 1800,
                 });
             });
+            // Falling warhead whistle leading directly to detonation at +0.90s
+            playTone(ctx, dest, {
+                type: 'sine',
+                freq: 1480,
+                freqEnd: 240,
+                startOffset: 0.22,
+                duration: 0.66,
+                gain: 0.075,
+            });
             // Sub boom & rumble tail at +0.90s (all nodes auto-disconnect via REA-12 helpers)
             playTone(ctx, dest, {
                 type: 'sine',
-                freq: 145,
-                freqEnd: 28,
+                freq: 155,
+                freqEnd: 26,
                 startOffset: 0.9,
-                attack: 0.006,
-                duration: 0.55,
-                gain: 0.28,
+                attack: 0.005,
+                duration: 0.58,
+                gain: 0.3,
             });
             playTone(ctx, dest, {
                 type: 'sawtooth',
-                freq: 110,
-                freqEnd: 34,
+                freq: 118,
+                freqEnd: 32,
                 startOffset: 0.9,
                 attack: 0.008,
-                duration: 0.48,
-                gain: 0.16,
+                duration: 0.52,
+                gain: 0.17,
                 filterType: 'lowpass',
-                filterFreq: 750,
-                filterFreqEnd: 140,
+                filterFreq: 820,
+                filterFreqEnd: 130,
             });
             playNoiseBurst(ctx, dest, {
                 pink: true,
                 startOffset: 0.9,
                 attack: 0.005,
-                duration: 0.6,
-                gain: 0.18,
+                duration: 0.62,
+                gain: 0.19,
                 filterType: 'lowpass',
-                filterFreq: 2600,
+                filterFreq: 2800,
                 filterFreqEnd: 240,
+            });
+            // Hot scorch sizzle / metallic crackle tail
+            playNoiseBurst(ctx, dest, {
+                startOffset: 0.98,
+                duration: 0.42,
+                gain: 0.07,
+                filterType: 'bandpass',
+                filterFreq: 3400,
+                filterFreqEnd: 950,
             });
         },
     },
