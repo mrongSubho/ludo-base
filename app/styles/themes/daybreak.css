@@ -791,3 +791,25 @@ body.theme-daybreak .dice-streak-strip.is-danger {
   background: rgba(254, 243, 199, 0.98);
   border-color: rgba(217, 119, 6, 0.65);
 }
+body.theme-daybreak .token-valid-ring {
+  border-width: 2.5px;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.85),
+    0 0 12px rgba(245, 158, 11, 0.65);
+}
+body.theme-daybreak .token-step-crown-face {
+  background: linear-gradient(155deg, #ffffff 0%, #f5f0e4 74%, #e2dac6 100%);
+  border: 1px solid rgba(28, 25, 23, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    2px 2px 0 #cfc5ae,
+    0 4px 10px rgba(28, 25, 23, 0.25);
+}
+body.theme-daybreak .token-crown-overdrive {
+  color: #b45309;
+}
+body.theme-daybreak .finish-fx-crest {
+  background: #ffffff;
+  color: #18181b !important;
+  box-shadow: 0 4px 12px rgba(28, 25, 23, 0.22);
+}

@@ -19,7 +19,7 @@ import { useStableBoardBox } from '@/hooks/useStableBoardBox';
 
 // Modular Components
 import { HomeBlock } from './BoardHome';
-import { BoardTokens } from './BoardTokens';
+import { BoardTokens, type BoardTransitStatus } from './BoardTokens';
 import { BoardGrid } from './BoardGrid';
 import {
     IdleWarningOverlay,
@@ -736,6 +736,7 @@ export default function Board({
     };
 
     const [hoveredMoveToken, setHoveredMoveToken] = useState<{ color: PlayerColor; index: number } | null>(null);
+    const [transitStatus, setTransitStatus] = useState<BoardTransitStatus>({ finishingKeys: [], returningYardKeys: [] });
     useEffect(() => {
         setHoveredMoveToken(null);
     }, [localGameState.gamePhase, localGameState.currentPlayer, localGameState.diceValue, targeting]);
@@ -824,14 +825,30 @@ export default function Board({
                     >
                         {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
                             const isActivePlayer = players.some(p => p.color === color);
-                            // Inactive corners have no player — show empty base (placeholder dots only)
-                            const tokensInHome = isActivePlayer
-                                ? localGameState.positions[color].map((pos: number, idx: number) => Number(pos) === -1 ? idx : -1).filter((idx: number) => idx !== -1)
+                            const finishingSet = new Set(transitStatus.finishingKeys);
+                            const returningSet = new Set(transitStatus.returningYardKeys);
+                            const rawPositions = localGameState.positions?.[color] as number[] | undefined;
+                            // Keep in-flight finishing tokens at step 56 and in-flight captured
+                            // victims out of Home Pad until their board animations complete.
+                            const tokensInHome = isActivePlayer && rawPositions
+                                ? rawPositions
+                                      .map((pos: number, idx: number) =>
+                                          Number(pos) === -1 && !returningSet.has(`${color}-${idx}`) ? idx : -1,
+                                      )
+                                      .filter((idx: number) => idx !== -1)
                                 : [];
-                            const finishedTokens = isActivePlayer
-                                ? localGameState.positions[color].map((pos: number, idx: number) => Number(pos) === 57 ? idx : -1).filter((idx: number) => idx !== -1)
+                            const finishedTokens = isActivePlayer && rawPositions
+                                ? rawPositions
+                                      .map((pos: number, idx: number) =>
+                                          Number(pos) === 57 && !finishingSet.has(`${color}-${idx}`) ? idx : -1,
+                                      )
+                                      .filter((idx: number) => idx !== -1)
                                 : [];
-                            const positions = localGameState.positions?.[color] as number[] | undefined;
+                            const positions = rawPositions
+                                ? rawPositions.map((pos: number, idx: number) =>
+                                      Number(pos) === 57 && finishingSet.has(`${color}-${idx}`) ? 56 : pos,
+                                  )
+                                : undefined;
                             const actingColor = localGameState.currentPlayer as PlayerColor;
                             const isAssistTarget =
                                 playerCount === '2v2' &&
@@ -876,6 +893,7 @@ export default function Board({
                     targetingColor={targeting ? ownColor ?? null : null}
                     onTargetToken={spendTargeted}
                     onTokenHover={setHoveredMoveToken}
+                    onTransitStatusChange={setTransitStatus}
                 />
             </BoardGrid>
 

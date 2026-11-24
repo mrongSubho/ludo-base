@@ -1134,3 +1134,18 @@ body.theme-3077 .dice-streak-pip {
   border: 1px solid rgba(var(--accent-rgb), 0.45);
   color: var(--accent, #00e5ff);
 }
+body.theme-3077 .token-valid-halo {
+  border-radius: 8px;
+}
+body.theme-3077 .token-step-crown-face {
+  border-radius: 4px;
+  background: linear-gradient(155deg, rgba(16, 25, 42, 0.98) 0%, rgba(5, 8, 15, 0.98) 100%);
+  border-color: rgba(var(--accent-rgb), 0.72);
+  box-shadow:
+    0 0 10px rgba(var(--accent-rgb), 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    2px 2px 0 rgba(2, 6, 14, 0.95);
+}
+body.theme-3077 .token-step-ripple {
+  border-radius: 4px;
+}

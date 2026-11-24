@@ -651,3 +651,15 @@ body.theme-retro-futurism .dice-streak-pip {
   background: rgba(255, 255, 255, 0.92);
   color: #09101e;
 }
+body.theme-retro-futurism .token-valid-ring {
+  border-style: dashed;
+  animation: rotate-valid-3077 3.4s linear infinite;
+}
+body.theme-retro-futurism .token-step-crown-face {
+  background: radial-gradient(circle at 28% 26%, rgba(56, 189, 248, 0.24), #091122 80%);
+  border-color: rgba(255, 255, 255, 0.42);
+  box-shadow:
+    0 0 10px rgba(92, 225, 255, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    2px 2px 0 rgba(5, 10, 22, 0.95);
+}

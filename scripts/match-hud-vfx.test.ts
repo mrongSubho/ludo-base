@@ -3,11 +3,19 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { assignCornersForShape } from '../lib/boardLayout';
-import { INITIAL_GAME_STATE } from '../lib/gameLogic';
+import { getIntermediatePathCoords, INITIAL_GAME_STATE } from '../lib/gameLogic';
 import type { GameState } from '../lib/types';
 import { deriveMatchFeedEvent, formatColorList, formatPrimaryTurnLine } from '../lib/matchFeed';
 import { computeNukeBlastCorridor, derivePowerVfxEvents } from '../lib/powerVfx';
 import { computeMovePreview, computeSingleLegalMovePreview } from '../lib/movePreview';
+import {
+    classifyTokenTransition,
+    computeHopCadence,
+    computeMoveSettleBufferMs,
+    computeReverseTrackCoords,
+    computeScreenSpaceLeanDeg,
+    computeYardSlotCoord,
+} from '../lib/tokenMovement';
 import {
     computeBreakoutTrajectory,
     resolveDisplayedTurnRolls,
@@ -230,8 +238,25 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
         assert.doesNotMatch(actions, /setTimeout\(r, 1200\)/);
 
         const piece = read('app/components/board/TokenPiece.tsx');
-        assert.match(piece, /isBoosted \? 0\.085 : 0\.115/);
+        assert.match(piece, /classifyTokenTransition/);
+        assert.match(piece, /computeHopCadence/);
+        assert.match(piece, /TokenStepCrown/);
         assert.match(piece, /onHoverChange/);
+
+        const visual = read('app/components/board/TokenVisual.tsx');
+        assert.match(visual, /showValid \? 'ludo-token-pulse ' : ''/);
+        assert.match(visual, /token-valid-halo/);
+        assert.match(visual, /token-valid-ring/);
+        assert.match(visual, /computeReverseTrackCoords/);
+
+        const tokens = read('app/components/BoardTokens.tsx');
+        assert.match(tokens, /stepRipples/);
+        assert.match(tokens, /finishingKeys/);
+        assert.match(tokens, /victimHolds/);
+        assert.match(tokens, /justDeployed/);
+
+        const boardSrc = read('app/components/Board.tsx');
+        assert.match(boardSrc, /onTransitStatusChange=\{setTransitStatus\}/);
 
         const home = read('app/components/BoardHome.tsx');
         assert.match(home, /w-\[74%\] h-\[74%\]/);
@@ -241,6 +266,9 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
         assert.match(boardCss, /\.board-terminal-hud\s*\{[^}]*position:\s*absolute;/);
         assert.match(boardCss, /\.move-dest-reticle/);
         assert.match(boardCss, /\.player-wrapper\.active-turn/);
+        assert.match(boardCss, /\.token-step-crown/);
+        assert.match(boardCss, /\.token-step-ripple/);
+        assert.match(boardCss, /\.token-valid-halo/);
     });
 
     it('computes board-inward 3D breakout trajectories for all 3 themes and accumulates turn roll chains', () => {
@@ -397,5 +425,78 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
             computeSingleLegalMovePreview({ state: multiChoiceState, myColor: 'green', colorCorner: cc, playerCount: '4P' }),
             null,
         );
+    });
+
+    it('handles 51->0 perimeter wraps, +6 boost 12-step paths, finish entries, yard deploys, and modular capture rewinds', () => {
+        const cc = { green: 'BL', red: 'TL', yellow: 'TR', blue: 'BR' } as const;
+
+        // 1. 51 -> 0 wrap (green BL startIdx=34): 49 -> 2 must classify as a 5-step hop across [50, 51, 0, 1, 2]
+        const wrapTransition = classifyTokenTransition({
+            oldPos: 49,
+            newPos: 2,
+            color: 'green',
+            colorCorner: cc,
+        });
+        assert.equal(wrapTransition.kind, 'hop');
+        if (wrapTransition.kind === 'hop') {
+            assert.equal(wrapTransition.steps, 5);
+            assert.equal(wrapTransition.waypoints.length, 5);
+            assert.equal(wrapTransition.isFinishEntry, false);
+        }
+
+        // 2. +6 Boost 12-step path (34 + 12 -> 46): returns all 12 intermediate cells and fits 1300ms walk budget
+        const boostCoords = getIntermediatePathCoords(34, 46, 'green', cc);
+        assert.equal(boostCoords.length, 12);
+        const boostCadence = computeHopCadence(12, true, '3077');
+        assert.ok(boostCadence.totalWalkMs <= 1300, `Expected <= 1300ms, got ${boostCadence.totalWalkMs}`);
+        assert.ok(computeMoveSettleBufferMs(12, true) >= boostCadence.totalWalkMs);
+        assert.ok(computeMoveSettleBufferMs(1, false) <= 450);
+
+        // 3. Finish entry (54 -> 57): hops 55 -> 56 -> 57 (finishCell)
+        const finishTransition = classifyTokenTransition({
+            oldPos: 54,
+            newPos: 57,
+            color: 'green',
+            colorCorner: cc,
+        });
+        assert.equal(finishTransition.kind, 'hop');
+        if (finishTransition.kind === 'hop') {
+            assert.equal(finishTransition.steps, 3);
+            assert.equal(finishTransition.isFinishEntry, true);
+            assert.deepEqual(finishTransition.waypoints[2], { r: 9, c: 8 });
+        }
+
+        // 4. Yard deploy (-1 -> 34): exact 2x2 Yard slot coordinates
+        const deployTransition = classifyTokenTransition({
+            oldPos: -1,
+            newPos: 34,
+            color: 'green',
+            colorCorner: cc,
+            tokenIndex: 3,
+        });
+        assert.equal(deployTransition.kind, 'deploy');
+        if (deployTransition.kind === 'deploy') {
+            assert.deepEqual(deployTransition.targetPt, { r: 14, c: 7 });
+            assert.deepEqual(deployTransition.yardPt, computeYardSlotCoord('BL', 3));
+        }
+
+        // 5. Modular reverse capture path when victim wrapped past 0 (fromPos 4 < startIdx 34)
+        const reverseCells = computeReverseTrackCoords(4, 'green', 2, cc);
+        assert.ok(reverseCells.length > 20, 'Wrapped capture path must unwind 4..0..51..34 plus yard dive');
+        assert.deepEqual(reverseCells[reverseCells.length - 1], computeYardSlotCoord('BL', 2));
+
+        // 6. Teleport transition skips step-by-step walk
+        const tpTransition = classifyTokenTransition({
+            oldPos: 35,
+            newPos: 42,
+            color: 'green',
+            colorCorner: cc,
+            isTeleport: true,
+        });
+        assert.equal(tpTransition.kind, 'teleport');
+
+        // 7. Screen-space lean accounts for board rotation
+        assert.equal(computeScreenSpaceLeanDeg({ r: 7, c: 2 }, { r: 7, c: 3 }, 0), 8.5);
+        assert.equal(computeScreenSpaceLeanDeg({ r: 7, c: 2 }, { r: 7, c: 3 }, 180), -8.5);
     });
 });

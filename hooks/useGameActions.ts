@@ -13,6 +13,7 @@ import {
     DICE_ROLL_SIX,
     HOME_LANE_START_INDEX,
 } from '@/lib/constants';
+import { computeMoveSettleBufferMs } from '@/lib/tokenMovement';
 import type { MatchActionErrorCode } from '@/lib/matchProtocol';
 
 /**
@@ -320,6 +321,16 @@ export function useGameActions({
         // 🚀 Executing side effects OUTSIDE the setLocalGameState!
         if (pTurnSwitchPending) {
             if (autoMoveTimeoutRef.current) clearTimeout(autoMoveTimeoutRef.current);
+            const movedDelta = Math.abs(
+                Number(newState.positions[color][tokenIndex]) - Number(currentState.positions[color][tokenIndex]),
+            );
+            const isYardDeploy = Number(currentState.positions[color][tokenIndex]) === BASE_INDEX;
+            const settleSteps = isYardDeploy
+                ? DICE_ROLL_SIX
+                : movedDelta > 0 && movedDelta <= 12
+                  ? movedDelta
+                  : effSteps;
+            const settleBufferMs = computeMoveSettleBufferMs(settleSteps, boosted);
             autoMoveTimeoutRef.current = setTimeout(() => {
                 // Release the roll guard — this path skips the normal-flow
                 // reset, and a stuck guard deadlocks every future roll
@@ -337,7 +348,7 @@ export function useGameActions({
                     if (broadcastAction && isLobbyConnected) broadcastAction('ENGINE_STATE', {}, switchState);
                     return switchState;
                 });
-            }, 800);
+            }, settleBufferMs);
         }
         return 'applied';
     }, [isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers, applyServerState]);
@@ -455,7 +466,7 @@ export function useGameActions({
         }));
         
         // Brief pause for visual impact of the landing face
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 140));
 
         // Break the asynchronous updater cycle using stateRef
         const currentState = stateRef.current;
@@ -612,7 +623,7 @@ export function useGameActions({
                 moveToken(pTargetColor, pLastValidTokenIndex, rollValue);
                 rollingRef.current = false;
                 autoMoveTimeoutRef.current = null;
-            }, 1500);
+            }, 360);
         }
         return 'applied';
     }, [isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address, moveAuth, serverSeqRef, lastRollIdRef, applyServerState, resyncFromServer]);

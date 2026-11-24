@@ -1,25 +1,29 @@
-/* eslint-disable @typescript-eslint/no-unused-vars -- lint burn-down quarantine 2026-09-23 */
 "use client";
 import React from 'react';
 import { motion } from 'framer-motion';
 import { gsap } from 'gsap';
-import { measureHop, recordHopSample, PERF_BUDGET } from '@/lib/perf/budget';
-import { PlayerColor, GameState } from '@/lib/types';
+import { measureHop, recordHopSample } from '@/lib/perf/budget';
+import { PlayerColor } from '@/lib/types';
 import { Point, getBoardCoordinate, ColorCorner } from '@/lib/boardLayout';
-import { getIntermediatePathCoords, calculateNextPosition } from '@/lib/gameLogic';
-import { BASE_INDEX, BOARD_FINISH_INDEX } from '@/lib/constants';
 import { prefersReducedMotion } from '@/lib/motion';
 import { getSoundEngine } from '@/lib/audio/SoundEngine';
-import { ChessRank, ChessPiece, COLOR_PIECE, RANK_ORDER, shade } from '../ChessTokens';
-import { Token, ShatterFX, RunHomeGhost, colorMapSafe, alphaHex } from './TokenVisual';
-
+import { usePreferences } from '@/hooks/usePreferences';
+import { DOT_POSITIONS, resolveDiceThemeId, type DiceFaceNumber, type DiceThemeId } from '@/lib/diceVisuals';
+import {
+    classifyTokenTransition,
+    computeHopCadence,
+    computeScreenSpaceLeanDeg,
+    computeYardSlotCoord,
+} from '@/lib/tokenMovement';
+import { shade } from '../ChessTokens';
+import { Token, colorMapSafe, alphaHex } from './TokenVisual';
 
 interface TokenPieceProps {
     color: PlayerColor;
     index: number;
     pos: number;
     targetPt: Point | null;
-    offset: { x: number, y: number };
+    offset: { x: number; y: number };
     stackScale?: number;
     stackZ?: number;
     isDraggable: boolean;
@@ -31,8 +35,93 @@ interface TokenPieceProps {
     targetable?: boolean;
     boosted?: boolean;
     boostArmed?: boolean;
+    themeId?: DiceThemeId;
+    justDeployed?: boolean;
+    isTeleport?: boolean;
+    isFinishing?: boolean;
+    occupiedKeys?: ReadonlySet<string>;
     onClick: () => void;
     onHoverChange?: (hovering: boolean) => void;
+}
+
+const FACTION_HEX_BY_THEME: Record<DiceThemeId, Record<PlayerColor, string>> = {
+    '3077': {
+        green: '#00FF66',
+        red: '#FF0055',
+        yellow: '#FFD000',
+        blue: '#0099FF',
+    },
+    retro: {
+        green: '#34d399',
+        red: '#fb7185',
+        yellow: '#fbbf24',
+        blue: '#5ce1ff',
+    },
+    daybreak: {
+        green: '#16a34a',
+        red: '#dc2626',
+        yellow: '#ca8a04',
+        blue: '#2563eb',
+    },
+};
+
+/**
+ * Floating 3D isometric miniature step-die hovering above a moving piece.
+ * Displays remaining step pips (6..1) or overdrive counter (+7..+12) per theme.
+ */
+function TokenStepCrown({
+    remaining,
+    boosted,
+    themeId,
+    color,
+}: {
+    remaining: number;
+    boosted: boolean;
+    themeId: DiceThemeId;
+    color: PlayerColor;
+}) {
+    const faceNum = Math.max(1, Math.min(6, remaining)) as DiceFaceNumber;
+    const isOverdrive = remaining > 6;
+    const factionHex = FACTION_HEX_BY_THEME[themeId]?.[color] ?? '#22d3ee';
+    const pipAccent = themeId === 'daybreak'
+        ? (faceNum === 1 ? '#dc2626' : '#18181b')
+        : boosted
+          ? '#fbbf24'
+          : themeId === '3077'
+            ? factionHex
+            : '#f8fafc';
+
+    return (
+        <div
+            className={`token-step-crown theme-${themeId} ${boosted || isOverdrive ? 'is-overdrive' : ''}`}
+            data-dice-theme={themeId}
+            aria-hidden="true"
+        >
+            <div className="token-step-crown-top" />
+            <div className="token-step-crown-side" />
+            <div className="token-step-crown-face">
+                {isOverdrive ? (
+                    <span className="token-crown-overdrive">+{remaining}</span>
+                ) : (
+                    DOT_POSITIONS[faceNum].map(([x, y], pipIdx) => (
+                        <span
+                            key={pipIdx}
+                            className={`token-crown-pip ${faceNum === 1 ? 'is-ace' : ''}`}
+                            style={{
+                                left: `${x}%`,
+                                top: `${y}%`,
+                                backgroundColor: pipAccent,
+                                boxShadow:
+                                    themeId === 'daybreak'
+                                        ? 'inset 0 1px 0 rgba(0,0,0,0.28)'
+                                        : `0 0 5px ${pipAccent}`,
+                            }}
+                        />
+                    ))
+                )}
+            </div>
+        </div>
+    );
 }
 
 export function TokenPiece({
@@ -52,9 +141,17 @@ export function TokenPiece({
     targetable = false,
     boosted = false,
     boostArmed = false,
+    themeId: explicitThemeId,
+    justDeployed = false,
+    isTeleport = false,
+    isFinishing = false,
+    occupiedKeys,
     onClick,
     onHoverChange,
 }: TokenPieceProps) {
+    const { preferences } = usePreferences();
+    const activeThemeId = explicitThemeId ?? resolveDiceThemeId(preferences?.theme);
+
     const [visualPt, setVisualPt] = React.useState<Point | null>(targetPt);
     const prevPosRef = React.useRef(pos);
     const isAnimatingRef = React.useRef(false);
@@ -62,223 +159,429 @@ export function TokenPiece({
     const glideRef = React.useRef<HTMLDivElement | null>(null);
     const hopRef = React.useRef<HTMLDivElement | null>(null);
     const shadowRef = React.useRef<HTMLDivElement | null>(null);
+    const crownRef = React.useRef<HTMLDivElement | null>(null);
+
     const tlRef = React.useRef<gsap.core.Timeline | null>(null);
+    const settleTlRef = React.useRef<gsap.core.Timeline | null>(null);
+    const crownFadeRef = React.useRef<gsap.core.Tween | null>(null);
+    const shockTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
     const mountedRef = React.useRef(false);
+
     const [showShockwave, setShowShockwave] = React.useState(false);
     const [isMoving, setIsMoving] = React.useState(false);
+    const [isFinishedHidden, setIsFinishedHidden] = React.useState(false);
+    const [crownState, setCrownState] = React.useState<{ remaining: number; boosted: boolean } | null>(null);
 
-    // REA-19: every effectful call below returns a cleanup, and the
-    // unmount effect runs all of them. Previously the shockwave timeout fired
-    // setState on a torn-down piece and the GSAP tweens kept animating
-    // detached DOM — invisible in dev, a slow leak in a 200-move match.
-    const cleanupsRef = React.useRef<Array<() => void>>([]);
-    const trackCleanup = (fn: () => void) => {
-        cleanupsRef.current.push(fn);
-        return fn;
-    };
-
-    // Entrance for tokens coming OUT of the base: drop in + squash landing
-    const playSpawn = React.useCallback(() => {
-        console.log('[move-debug] spawn', color, 'at pos', pos);
-        getSoundEngine().play('token_spawn');
+    const triggerShockwave = React.useCallback((durationMs = 440) => {
+        if (shockTimerRef.current) clearTimeout(shockTimerRef.current);
         setShowShockwave(true);
-        const shock = setTimeout(() => setShowShockwave(false), 450);
-        trackCleanup(() => clearTimeout(shock));
-        // CSS_LAYOUT_ANIMATION_PLAN §5: reduced motion removes translation,
-        // never information — the token is already at its engine position.
-        if (prefersReducedMotion()) return;
-        const hop = gsap.fromTo(hopRef.current,
-            { y: -46, scaleX: 0.9, scaleY: 1.18, opacity: 0 },
-            { y: 0, scaleX: 1, scaleY: 1, opacity: 1, duration: 0.5, ease: 'back.out(1.5)' });
-        const shadow = gsap.fromTo(shadowRef.current, { opacity: 0 }, { opacity: 0.9, duration: 0.45 });
-        trackCleanup(() => { hop.kill(); shadow.kill(); });
-    }, [color, pos]);
+        shockTimerRef.current = setTimeout(() => {
+            shockTimerRef.current = null;
+            setShowShockwave(false);
+        }, durationMs);
+    }, []);
 
-    // Pixel size of one grid cell — layout units (offsetWidth/Height), NOT
-    // getBoundingClientRect: rects are post-transform, and GSAP translates
-    // in local pre-transform space. Mixing the two scales the path wrong.
+    // Pixel size of one grid cell in local un-rotated board coordinates.
     const measureCell = () => {
         const el = cellRef.current;
         return { w: el?.offsetWidth ?? 0, h: el?.offsetHeight ?? 0 };
     };
 
-    const playLanding = React.useCallback(() => {
-        setShowShockwave(true);
-        const shock = setTimeout(() => setShowShockwave(false), 450);
-        trackCleanup(() => clearTimeout(shock));
-        if (prefersReducedMotion()) return;
-        // Settle: squash -> recover -> rest
-        const settle = gsap.timeline()
-            .to(hopRef.current, { scaleY: 0.85, scaleX: 1.15, y: 2.5, duration: 0.09, ease: 'power2.out' })
-            .to(hopRef.current, { scaleY: 1.05, scaleX: 0.96, y: -1.5, duration: 0.1, ease: 'sine.inOut' })
-            .to(hopRef.current, { scaleY: 1, scaleX: 1, y: 0, duration: 0.12, ease: 'sine.out' });
-        const shade = gsap.timeline()
-            .to(shadowRef.current, { opacity: 1, duration: 0.08 })
-            .to(shadowRef.current, { opacity: 0.9, duration: 0.18 });
-        trackCleanup(() => { settle.kill(); shade.kill(); });
+    const dismissCrown = React.useCallback((immediate = false) => {
+        crownFadeRef.current?.kill();
+        crownFadeRef.current = null;
+        if (immediate || prefersReducedMotion() || !crownRef.current) {
+            setCrownState(null);
+            return;
+        }
+        crownFadeRef.current = gsap.to(crownRef.current, {
+            y: -22,
+            scale: 0.3,
+            opacity: 0,
+            duration: 0.16,
+            ease: 'power2.in',
+            onComplete: () => {
+                crownFadeRef.current = null;
+                setCrownState(null);
+            },
+        });
     }, []);
 
-    // Fast-forward any in-flight movement to its end state so a new move
-    // can start cleanly (no orphaned tweens fighting over transforms).
+    const playLanding = React.useCallback((finishingEntry = false) => {
+        triggerShockwave(finishingEntry ? 520 : 440);
+        if (prefersReducedMotion()) {
+            if (finishingEntry) setIsFinishedHidden(true);
+            return;
+        }
+
+        settleTlRef.current?.kill();
+        if (finishingEntry) {
+            const finishTl = gsap.timeline({
+                onComplete: () => {
+                    setIsFinishedHidden(true);
+                },
+            });
+            finishTl
+                .to(hopRef.current, { scaleY: 0.84, scaleX: 1.18, y: 2.5, duration: 0.08, ease: 'power2.out' })
+                .to(hopRef.current, { scaleX: 1.24, scaleY: 1.24, y: -14, opacity: 0, duration: 0.24, ease: 'power2.out' })
+                .to(shadowRef.current, { opacity: 0, scaleX: 0.2, duration: 0.18 }, '<');
+            settleTlRef.current = finishTl;
+            return;
+        }
+
+        const settle = gsap.timeline()
+            .to(hopRef.current, { scaleY: 0.84, scaleX: 1.16, y: 2.5, duration: 0.085, ease: 'power2.out' })
+            .to(hopRef.current, { scaleY: 1.06, scaleX: 0.96, y: -1.5, duration: 0.095, ease: 'sine.inOut' })
+            .to(hopRef.current, { scaleY: 1, scaleX: 1, y: 0, rotate: 0, duration: 0.11, ease: 'sine.out' });
+        const shadeTl = gsap.timeline()
+            .to(shadowRef.current, { opacity: 1, scaleX: 1.14, scaleY: 1.08, duration: 0.08 })
+            .to(shadowRef.current, { opacity: 0.9, scaleX: 1, scaleY: 1, duration: 0.18 });
+        settleTlRef.current = gsap.timeline().add(settle, 0).add(shadeTl, 0);
+    }, [triggerShockwave]);
+
+    const playDeploy = React.useCallback((destPt: Point, yardPt: Point) => {
+        getSoundEngine().play('token_spawn');
+        if (prefersReducedMotion()) {
+            gsap.set(glideRef.current, { x: 0, y: 0 });
+            gsap.set(hopRef.current, { y: 0, scaleX: 1, scaleY: 1, rotate: 0, opacity: 1 });
+            gsap.set(shadowRef.current, { opacity: 0.9, scaleX: 1, scaleY: 1 });
+            triggerShockwave(420);
+            isAnimatingRef.current = false;
+            setIsMoving(false);
+            return;
+        }
+
+        const { w: cw0, h: ch0 } = measureCell();
+        const cw = cw0 || 48;
+        const ch = ch0 || 48;
+        const startX = (yardPt.c - destPt.c) * cw;
+        const startY = (yardPt.r - destPt.r) * ch;
+        const leanDeg = computeScreenSpaceLeanDeg(yardPt, destPt, counterRotationDeg);
+
+        isAnimatingRef.current = true;
+        setIsMoving(true);
+        setCrownState({ remaining: 6, boosted: false });
+
+        gsap.set(glideRef.current, { x: startX, y: startY });
+        gsap.set(hopRef.current, { y: 0, scaleX: 0.85, scaleY: 0.85, rotate: -leanDeg * 0.5, opacity: 1 });
+        gsap.set(shadowRef.current, { opacity: 0.75, scaleX: 0.85, scaleY: 0.85 });
+
+        tlRef.current?.kill();
+        const tl = gsap.timeline({
+            onComplete: () => {
+                isAnimatingRef.current = false;
+                setIsMoving(false);
+                dismissCrown(false);
+                playLanding(false);
+            },
+        });
+        tlRef.current = tl;
+
+        const peakY = -Math.min(36, Math.max(26, ch * 0.82));
+        tl.to(glideRef.current, { x: 0, y: 0, duration: 0.42, ease: 'power2.out' }, 0);
+        tl.to(hopRef.current, { y: peakY, scaleX: 0.92, scaleY: 1.14, rotate: leanDeg, duration: 0.21, ease: 'power2.out' }, 0)
+          .to(hopRef.current, { y: 0, scaleX: 1.12, scaleY: 0.88, rotate: 0, duration: 0.21, ease: 'power2.in' }, 0.21);
+        tl.to(shadowRef.current, { opacity: 0.28, scaleX: 0.48, scaleY: 0.48, duration: 0.21, ease: 'power2.out' }, 0)
+          .to(shadowRef.current, { opacity: 0.92, scaleX: 1.12, scaleY: 1.05, duration: 0.21, ease: 'power2.in' }, 0.21);
+        if (crownRef.current) {
+            tl.fromTo(
+                crownRef.current,
+                { y: 6, scale: 0.35, opacity: 0 },
+                { y: -4, scale: 1.1, opacity: 1, duration: 0.16, ease: 'back.out(1.8)' },
+                0.02,
+            ).to(crownRef.current, { y: -10, scale: 1, duration: 0.24, ease: 'sine.inOut' }, 0.18);
+        }
+    }, [counterRotationDeg, dismissCrown, playLanding, triggerShockwave]);
+
+    const playTeleportArrival = React.useCallback(() => {
+        triggerShockwave(520);
+        if (prefersReducedMotion()) {
+            gsap.set([glideRef.current, hopRef.current], { x: 0, y: 0, scaleX: 1, scaleY: 1, opacity: 1 });
+            return;
+        }
+        isAnimatingRef.current = true;
+        setIsMoving(true);
+        gsap.set(glideRef.current, { x: 0, y: 0 });
+        tlRef.current?.kill();
+        const tl = gsap.timeline({
+            onComplete: () => {
+                isAnimatingRef.current = false;
+                setIsMoving(false);
+                playLanding(ctxRef.current.isFinishing);
+            },
+        });
+        tlRef.current = tl;
+        tl.fromTo(
+            hopRef.current,
+            { scaleX: 0.35, scaleY: 1.68, y: -16, opacity: 0 },
+            { scaleX: 1, scaleY: 1, y: 0, opacity: 1, duration: 0.32, ease: 'back.out(1.8)' },
+            0,
+        );
+    }, [playLanding, triggerShockwave]);
+
     const finishNow = React.useCallback(() => {
         tlRef.current?.kill();
         tlRef.current = null;
-        gsap.killTweensOf([glideRef.current, hopRef.current, shadowRef.current]);
-        gsap.set([glideRef.current, hopRef.current], { x: 0, y: 0, scaleX: 1, scaleY: 1 });
-        gsap.set(shadowRef.current, { opacity: 0.9 });
+        settleTlRef.current?.kill();
+        settleTlRef.current = null;
+        crownFadeRef.current?.kill();
+        crownFadeRef.current = null;
+        if (shockTimerRef.current) {
+            clearTimeout(shockTimerRef.current);
+            shockTimerRef.current = null;
+        }
+        gsap.killTweensOf([glideRef.current, hopRef.current, shadowRef.current, crownRef.current]);
+        gsap.set([glideRef.current, hopRef.current], { x: 0, y: 0, scaleX: 1, scaleY: 1, rotate: 0, opacity: 1 });
+        gsap.set(shadowRef.current, { opacity: 0.9, scaleX: 1, scaleY: 1 });
+        setCrownState(null);
         setIsMoving(false);
     }, []);
 
-    // REA-19: unmount drains every pending timeout and tween registered above.
     React.useEffect(() => () => {
-        for (const fn of cleanupsRef.current) {
-            try {
-                fn();
-            } catch {
-                /* teardown must never throw */
-            }
-        }
-        cleanupsRef.current = [];
+        tlRef.current?.kill();
+        settleTlRef.current?.kill();
+        crownFadeRef.current?.kill();
+        if (shockTimerRef.current) clearTimeout(shockTimerRef.current);
+        gsap.killTweensOf([glideRef.current, hopRef.current, shadowRef.current, crownRef.current]);
     }, []);
 
-    // Latest render context, readable from the pos-only effect below without
-    // re-triggering it (targetPt is a fresh object every parent render).
-    const ctxRef = React.useRef({ color, colorCorner, targetPt, boosted });
-    ctxRef.current = { color, colorCorner, targetPt, boosted };
+    const ctxRef = React.useRef({
+        color,
+        colorCorner,
+        targetPt,
+        boosted,
+        activeThemeId,
+        justDeployed,
+        isTeleport,
+        isFinishing,
+        occupiedKeys,
+        counterRotationDeg,
+    });
+    ctxRef.current = {
+        color,
+        colorCorner,
+        targetPt,
+        boosted,
+        activeThemeId,
+        justDeployed,
+        isTeleport,
+        isFinishing,
+        occupiedKeys,
+        counterRotationDeg,
+    };
 
-    // Layout effect: slot-commit (setVisualPt) and the GSAP offset-set must
-    // land in the same paint — useEffect would paint the mismatched frame.
     React.useLayoutEffect(() => {
-        const { color: c, colorCorner: cc, targetPt: tp, boosted: isBoosted } = ctxRef.current;
-        if (!tp || prevPosRef.current === pos) {
-            // First mount of a board token = it just left the base
-            if (!mountedRef.current && tp) {
-                mountedRef.current = true;
-                playSpawn();
+        const {
+            color: c,
+            colorCorner: cc,
+            targetPt: tp,
+            boosted: isBoosted,
+            activeThemeId: themeId,
+            justDeployed: deployedOnMount,
+            isTeleport: teleported,
+            isFinishing: finishing,
+            occupiedKeys: occKeys,
+            counterRotationDeg: counterDeg,
+        } = ctxRef.current;
+
+        if (!mountedRef.current) {
+            mountedRef.current = true;
+            prevPosRef.current = pos;
+            if (!tp) return;
+            setVisualPt(tp);
+            if (deployedOnMount && cc[c]) {
+                playDeploy(tp, computeYardSlotCoord(cc[c], index));
             }
             return;
         }
-        mountedRef.current = true;
 
-        const oldPos = prevPosRef.current;
+        if (!tp || prevPosRef.current === pos) return;
+
+        const oldPos = Number(prevPosRef.current);
         prevPosRef.current = pos;
 
-        // End any running move before deciding how to play this one.
         if (isAnimatingRef.current) {
             finishNow();
             isAnimatingRef.current = false;
         }
+        setIsFinishedHidden(false);
 
-        // Teleport cases: BASE -> Board or Board -> BASE (Capture)
-        if (Number(oldPos) === BASE_INDEX && Number(pos) >= 0) {
-            console.log('[move-debug]', c, 'base-exit', `${oldPos} -> ${pos}`);
-            setVisualPt(tp);
-            playSpawn();
+        const transition = classifyTokenTransition({
+            oldPos,
+            newPos: Number(pos),
+            color: c,
+            colorCorner: cc,
+            tokenIndex: index,
+            isTeleport: teleported,
+        });
+
+        if (transition.kind === 'none') return;
+
+        if (transition.kind === 'deploy') {
+            setVisualPt(transition.targetPt);
+            playDeploy(transition.targetPt, transition.yardPt);
             return;
         }
 
-        if (Number(pos) === BASE_INDEX) {
-            console.log('[move-debug]', c, 'captured -> base', `${oldPos} -> ${pos}`);
+        if (transition.kind === 'capture') {
             setVisualPt(tp);
-            playLanding();
+            playLanding(false);
             return;
         }
 
-        // Movement: ONE tween across all waypoints (no per-cell restarts).
-        // Grid snaps once to the destination; a keyframed offset walks the
-        // exact pixel path at constant speed while a rhythmic bob rides on top.
-        if (Number(pos) > Number(oldPos)) {
-            const pts = getIntermediatePathCoords(Number(oldPos), Number(pos), c, cc);
-            if (pts.length > 0) {
-                isAnimatingRef.current = true;
-                const { w: cw0, h: ch0 } = measureCell();
-                const cw = cw0 || 48, ch = ch0 || 48;
-                const startPt = getBoardCoordinate(Number(oldPos), c, cc);
-                const all = startPt ? [startPt, ...pts] : [...pts];
-                // Guarantee the walk terminates exactly at the real destination
-                if (all[all.length - 1].r !== tp.r || all[all.length - 1].c !== tp.c) {
-                    all.push(tp);
-                }
-                const final = all[all.length - 1];
-                const n = all.length - 1; // number of cells travelled
-                // Snappy stepped hops: 0.115s/cell normal, 0.085s/cell during +6 Boost overdrive
-                const cellDur = isBoosted ? 0.085 : 0.115;
-                const GROUND = isBoosted ? 0.01 : 0.015;
-                const LEAP = isBoosted ? 0.064 : 0.084;
-                const UP = isBoosted ? 0.027 : 0.036;
-                const DOWN = isBoosted ? 0.037 : 0.048;
-                const RECOVER = Math.max(0.012, cellDur - GROUND - UP - DOWN);
+        if (transition.kind === 'teleport') {
+            setVisualPt(transition.targetPt);
+            playTeleportArrival();
+            return;
+        }
 
-                // Waypoint offsets relative to the final cell (single snap).
-                // The element's grid slot IS the final cell, so the offset for
-                // waypoint p must be (p - final) — start lands at (start-final).
-                const xs = all.map(p => (p.c - final.c) * cw);
-                const ys = all.map(p => (p.r - final.r) * ch);
-
+        if (transition.kind === 'hop') {
+            const startPt = getBoardCoordinate(oldPos, c, cc);
+            const all = startPt ? [startPt, ...transition.waypoints] : [...transition.waypoints];
+            if (all[all.length - 1].r !== tp.r || all[all.length - 1].c !== tp.c) {
+                all.push(tp);
+            }
+            const final = all[all.length - 1];
+            const n = all.length - 1;
+            if (n <= 0) {
                 setVisualPt(final);
+                return;
+            }
 
-                // Immediate write: the offset MUST be on the element before
-                // this paint, or the token flashes at its destination cell.
-                // (tl.set would defer to the timeline's first tick — too late.)
-                gsap.set(glideRef.current, { x: xs[0], y: ys[0] });
+            isAnimatingRef.current = true;
+            const { w: cw0, h: ch0 } = measureCell();
+            const cw = cw0 || 48;
+            const ch = ch0 || 48;
+            const xs = all.map((p) => (p.c - final.c) * cw);
+            const ys = all.map((p) => (p.r - final.r) * ch);
 
-                // Reduced motion: collapse the hop to an instant repositioning.
-                // Same task as the offset write above, so no intermediate paint
-                // is possible; engine state remains the single source of truth.
-                if (prefersReducedMotion()) {
-                    gsap.set(glideRef.current, { x: 0, y: 0 });
-                    getSoundEngine().play('token_land');
-                    isAnimatingRef.current = false;
-                    setIsMoving(false);
-                    return;
+            setVisualPt(final);
+            gsap.set(glideRef.current, { x: xs[0], y: ys[0] });
+
+            if (prefersReducedMotion()) {
+                gsap.set(glideRef.current, { x: 0, y: 0 });
+                gsap.set(hopRef.current, { x: 0, y: 0, scaleX: 1, scaleY: 1, rotate: 0, opacity: 1 });
+                getSoundEngine().play('token_land');
+                isAnimatingRef.current = false;
+                setIsMoving(false);
+                if (finishing || transition.isFinishEntry) {
+                    setIsFinishedHidden(true);
                 }
+                return;
+            }
 
-                // ONE GSAP timeline: DISCRETE cell-by-cell hops.
-                // Each cell = leap (travel while airborne) -> land -> beat.
-                // Q2: compose (set + timeline build) is measured against the hop budget.
-                void measureHop(`token-hop:${n}c`, () => {
+            const cadence = computeHopCadence(n, isBoosted, themeId);
+            const willFinish = finishing || transition.isFinishEntry;
+
+            void measureHop(`token-hop:${n}c`, () => {
                 tlRef.current?.kill();
                 const tl = gsap.timeline({
                     onComplete: () => {
                         isAnimatingRef.current = false;
                         setIsMoving(false);
-                        playLanding();
+                        dismissCrown(false);
+                        playLanding(willFinish);
                     },
                 });
                 tlRef.current = tl;
 
-                const glide = glideRef.current, hop = hopRef.current, shadow = shadowRef.current;
+                const glide = glideRef.current;
+                const hop = hopRef.current;
+                const shadow = shadowRef.current;
 
                 setIsMoving(true);
-                for (let i = 0; i < n; i++) {
-                    const t0 = i * cellDur;
-                    tl.call(() => {
-                        getSoundEngine().play('token_hop', {
-                            step: i,
-                            totalSteps: n,
-                            boosted: isBoosted,
-                        });
-                    }, undefined, t0 + GROUND);
-                    // constant-velocity travel across the cell
-                    tl.to(glide, { x: xs[i + 1], y: ys[i + 1], duration: LEAP, ease: 'none' }, t0 + GROUND);
-                    // leap up (vertical takeoff stretch) -> land (squash impact) -> recover
-                    tl.to(hop, { y: isBoosted ? -17 : -15, scaleX: 0.91, scaleY: 1.12, duration: UP, ease: 'power2.out' }, t0 + GROUND)
-                      .to(hop, { y: 0, scaleX: 1.12, scaleY: 0.89, duration: DOWN, ease: 'power2.in' }, t0 + GROUND + UP)
-                      .to(hop, { scaleX: 1, scaleY: 1, duration: RECOVER, ease: 'power1.out' }, t0 + GROUND + UP + DOWN);
-                    // shadow dims while airborne, restores on touchdown
-                    tl.to(shadow, { opacity: 0.5, duration: UP, ease: 'power2.out' }, t0 + GROUND)
-                      .to(shadow, { opacity: 0.9, duration: DOWN, ease: 'power2.in' }, t0 + GROUND + UP);
+                setCrownState({ remaining: n, boosted: isBoosted });
+
+                // Brief anticipation crouch before launching into step 1
+                tl.to(
+                    hop,
+                    { scaleX: 1.14, scaleY: 0.86, y: 2, duration: cadence.anticipationSec, ease: 'power1.in' },
+                    0,
+                );
+                if (crownRef.current) {
+                    tl.fromTo(
+                        crownRef.current,
+                        { y: 6, scale: 0.35, opacity: 0 },
+                        { y: -2, scale: 1.22, opacity: 1, duration: 0.14, ease: 'back.out(2)' },
+                        0,
+                    );
                 }
-                }).then((m) => recordHopSample(m));
-            } else {
-                setVisualPt(tp);
-            }
-        } else {
-            setVisualPt(tp);
+
+                for (let i = 0; i < n; i++) {
+                    const t0 = cadence.anticipationSec + i * cadence.cellDur;
+                    const fromCell = all[i];
+                    const toCell = all[i + 1];
+                    const cellOccupied = Boolean(occKeys?.has(`${toCell.r}-${toCell.c}`) && i < n - 1);
+                    const isFinalFinishJump = willFinish && i === n - 1;
+                    const baseJump = Math.min(30, Math.max(18, ch * cadence.jumpScale));
+                    const hopHeight =
+                        baseJump *
+                        (isFinalFinishJump ? 1.45 : cellOccupied ? 1.38 : 1) *
+                        (isBoosted ? 1.1 : 1);
+                    const leanDeg = computeScreenSpaceLeanDeg(fromCell, toCell, counterDeg);
+                    const remainingOnStep = n - i;
+
+                    tl.call(
+                        () => {
+                            setCrownState({ remaining: remainingOnStep, boosted: isBoosted });
+                            getSoundEngine().play('token_hop', {
+                                step: i,
+                                totalSteps: n,
+                                boosted: isBoosted,
+                            });
+                            if (crownRef.current) {
+                                gsap.fromTo(
+                                    crownRef.current,
+                                    { scale: 1.18, y: -7, rotate: i % 2 === 0 ? -9 : 9 },
+                                    { scale: 1, y: -1, rotate: 0, duration: Math.min(0.14, cadence.cellDur * 0.8), ease: 'power2.out' },
+                                );
+                            }
+                        },
+                        undefined,
+                        t0,
+                    );
+
+                    // Horizontal glide across one grid cell in linear continuous progression
+                    tl.to(glide, { x: xs[i + 1], y: ys[i + 1], duration: cadence.upSec + cadence.downSec, ease: 'none' }, t0);
+
+                    // Vertical parabolic leap -> impact squash -> quick elastic recover
+                    tl.to(
+                        hop,
+                        { y: -hopHeight, scaleX: 0.89, scaleY: 1.15, rotate: leanDeg, duration: cadence.upSec, ease: 'power2.out' },
+                        t0,
+                    )
+                        .to(
+                            hop,
+                            { y: 0, scaleX: 1.16, scaleY: 0.85, rotate: -leanDeg * 0.35, duration: cadence.downSec, ease: 'power2.in' },
+                            t0 + cadence.upSec,
+                        )
+                        .to(
+                            hop,
+                            { scaleX: 1, scaleY: 1, rotate: 0, duration: cadence.recoverSec, ease: 'sine.out' },
+                            t0 + cadence.upSec + cadence.downSec,
+                        );
+
+                    // Dynamic shadow contraction & dim during peak flight
+                    tl.to(
+                        shadow,
+                        { opacity: 0.26, scaleX: 0.52, scaleY: 0.52, duration: cadence.upSec, ease: 'power2.out' },
+                        t0,
+                    ).to(
+                        shadow,
+                        { opacity: 0.92, scaleX: 1.14, scaleY: 1.08, duration: cadence.downSec, ease: 'power2.in' },
+                        t0 + cadence.upSec,
+                    );
+                }
+            }).then((m) => recordHopSample(m));
+            return;
         }
-    }, [pos]);
+
+        setVisualPt(transition.targetPt ?? tp);
+    }, [pos, index, dismissCrown, finishNow, playDeploy, playLanding, playTeleportArrival]);
 
     if (!visualPt) return null;
+
+    const finishExit = isFinishing || isFinishedHidden;
 
     return (
         <motion.div
@@ -287,25 +590,34 @@ export function TokenPiece({
             onMouseLeave={() => onHoverChange?.(false)}
             onFocus={() => isValidMove && onHoverChange?.(true)}
             onBlur={() => onHoverChange?.(false)}
-            initial={{ opacity: 0, scale: 0.5 }}
+            initial={{ opacity: justDeployed ? 1 : 0, scale: justDeployed ? 1 : 0.6 }}
             animate={{
-                opacity: 1,
+                opacity: isFinishedHidden ? 0 : 1,
                 scale: isMoving ? 1 : stackScale,
-                x: offset.x,
-                y: offset.y,
+                x: isMoving ? 0 : offset.x,
+                y: isMoving ? 0 : offset.y,
             }}
-            exit={{
-                y: 36,
-                scale: 0.3,
-                opacity: 0,
-                rotate: -16,
-                filter: 'blur(5px) brightness(65%)',
-                transition: { duration: 0.38, ease: 'backIn' }
-            }}
+            exit={
+                finishExit
+                    ? {
+                          scale: 0.25,
+                          y: -10,
+                          opacity: 0,
+                          transition: { duration: 0.2, ease: 'easeOut' },
+                      }
+                    : {
+                          y: 36,
+                          scale: 0.3,
+                          opacity: 0,
+                          rotate: -16,
+                          filter: 'blur(5px) brightness(65%)',
+                          transition: { duration: 0.38, ease: 'backIn' },
+                      }
+            }
             transition={{
-                x: { duration: 0 },
-                y: { duration: 0 },
-                default: { duration: 0.2 },
+                x: { duration: isMoving ? 0 : 0.16, ease: 'easeOut' },
+                y: { duration: isMoving ? 0 : 0.16, ease: 'easeOut' },
+                default: { duration: 0.18 },
             }}
             style={{
                 gridRow: visualPt.r,
@@ -315,80 +627,98 @@ export function TokenPiece({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                zIndex: isAnimatingRef.current ? 60 : 20 + stackZ * 2 + (isColorTurn ? 10 : 0),
+                zIndex: isMoving || isAnimatingRef.current ? 65 : 20 + stackZ * 2 + (isColorTurn ? 10 : 0),
                 position: 'relative',
             }}
         >
-            {/* Grounded drop shadow: dims while airborne (GSAP-driven) */}
-            <div
-                ref={shadowRef}
-                className="absolute left-1/2 bottom-[2px] pointer-events-none"
-                style={{
-                    width: '62%',
-                    height: 10,
-                    marginLeft: '-31%',
-                    borderRadius: '50%',
-                    background: 'radial-gradient(ellipse, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.18) 55%, transparent 75%)',
-                    opacity: 0.9,
-                }}
-            />
-            {/* Path glide: GSAP carries the piece across real pixel distance (board-local) */}
+            {/* Path glide: GSAP carries piece, ground shadow, shockwave, and step-crown in board grid space */}
             <div
                 ref={glideRef}
                 style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-            {/* Upright wrapper: counterRotationDeg is already negative (-boardRotation),
-                so rotating by it cancels the board's rotation — everything inside
-                lives in SCREEN space and the hop below is a true vertical hop */}
-            <div
-                style={{
-                    width: '100%', height: '100%',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transform: `rotate(${counterRotationDeg}deg)`,
-                }}
-            >
-            {/* Idle breathing for the active player */}
-            <motion.div
-                style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                animate={(isColorTurn && !isMoving) ? { scale: [1, 1.05, 1] } : { scale: 1 }}
-                transition={isColorTurn ? { repeat: Infinity, duration: 1.5, ease: "easeInOut" } : { duration: 0.2 }}
-            >
-                {/* Hop / landing: GSAP y is now SCREEN-vertical */}
+                {/* Upright screen-space wrapper: cancels board rotation so shadow stays below and hops go vertically UP */}
                 <div
-                    ref={hopRef}
-                    style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                    <Token
-                        color={color}
-                        count={1}
-                        isDraggable={isDraggable}
-                        isValidMove={isValidMove}
-                        counterRotationDeg={counterRotationDeg}
-                        onClick={onClick}
-                        pos={pos}
-                        skipRotation
-                        shielded={shielded}
-                        targetable={targetable}
-                        boosted={boosted}
-                        boostArmed={boostArmed}
-                    />
-                </div>
-            </motion.div>
-            </div>
-            </div>
-            {showShockwave && (
-                <motion.div
-                    className="absolute left-1/2 bottom-[2px] pointer-events-none rounded-full"
                     style={{
-                        width: 30, height: 12, marginLeft: -15,
-                        border: `2px solid ${shade(colorMapSafe(color), 50)}`,
-                        boxShadow: `0 0 10px ${alphaHex(colorMapSafe(color), 0.7)}`,
+                        width: '100%',
+                        height: '100%',
+                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transform: `rotate(${counterRotationDeg}deg)`,
                     }}
-                    initial={{ scale: 0.4, opacity: 0.85, y: 0 }}
-                    animate={{ scale: 1.8, opacity: 0, y: 4 }}
-                    transition={{ duration: 0.42, ease: 'easeOut' }}
-                />
-            )}
+                >
+                    {/* Grounded drop shadow: travels with glideRef and scales dynamically on hop apex/landing */}
+                    <div
+                        ref={shadowRef}
+                        className="absolute left-1/2 bottom-[2px] pointer-events-none"
+                        style={{
+                            width: '64%',
+                            height: 10,
+                            marginLeft: '-32%',
+                            borderRadius: '50%',
+                            background: 'radial-gradient(ellipse, rgba(0,0,0,0.52) 0%, rgba(0,0,0,0.18) 55%, transparent 75%)',
+                            opacity: 0.9,
+                        }}
+                    />
+
+                    {showShockwave && (
+                        <motion.div
+                            className="absolute left-1/2 bottom-[2px] pointer-events-none rounded-full"
+                            style={{
+                                width: 30,
+                                height: 12,
+                                marginLeft: -15,
+                                border: `2px solid ${shade(colorMapSafe(color), 50)}`,
+                                boxShadow: `0 0 10px ${alphaHex(colorMapSafe(color), 0.7)}`,
+                            }}
+                            initial={{ scale: 0.4, opacity: 0.9, y: 0 }}
+                            animate={{ scale: 2.0, opacity: 0, y: 3 }}
+                            transition={{ duration: 0.42, ease: 'easeOut' }}
+                        />
+                    )}
+
+                    {/* Floating 3D Step-Crown Mini-Die */}
+                    {crownState && (
+                        <div ref={crownRef} className="token-step-crown-anchor">
+                            <TokenStepCrown
+                                remaining={crownState.remaining}
+                                boosted={crownState.boosted}
+                                themeId={activeThemeId}
+                                color={color}
+                            />
+                        </div>
+                    )}
+
+                    {/* Idle breathing for the active player (suppressed mid-hop) */}
+                    <motion.div
+                        style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        animate={isColorTurn && !isMoving && !isFinishedHidden ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+                        transition={isColorTurn && !isMoving ? { repeat: Infinity, duration: 1.5, ease: 'easeInOut' } : { duration: 0.2 }}
+                    >
+                        {/* Hop / landing: GSAP y & rotate operate cleanly in screen space */}
+                        <div
+                            ref={hopRef}
+                            style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                            <Token
+                                color={color}
+                                count={1}
+                                isDraggable={isDraggable}
+                                isValidMove={isValidMove}
+                                counterRotationDeg={counterRotationDeg}
+                                onClick={onClick}
+                                pos={pos}
+                                skipRotation
+                                shielded={shielded}
+                                targetable={targetable}
+                                boosted={boosted}
+                                boostArmed={boostArmed}
+                            />
+                        </div>
+                    </motion.div>
+                </div>
+            </div>
         </motion.div>
     );
 }

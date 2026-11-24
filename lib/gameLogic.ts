@@ -275,16 +275,18 @@ export function getIntermediatePathCoords(
 
     const coords: Point[] = [];
     let current = fromPos;
-    
-    // We move 1 step at a time until we reach toPos
-    // Safety break at 6 steps (max ludo move)
-    for (let i = 0; i < 6; i++) {
-        current = calculateNextPosition(current, 1, color, cc);
+
+    // Support up to 16 steps (normal 1..6 + Boost +6 overdrive up to 12) and handle 51 -> 0 wrap cleanly.
+    for (let i = 0; i < 16; i++) {
+        const next = calculateNextPosition(current, 1, color, cc);
+        if (next === current) break;
+        current = next;
         const pt = getBoardCoordinate(current, color, cc);
         if (pt) coords.push(pt);
         if (current === toPos) break;
     }
-    
+
+    if (current !== toPos) return [];
     return coords;
 }
 
