@@ -6,6 +6,7 @@ export interface PowerMetaEntry {
     title: string;
     shortTag: string;
     summary: string;
+    simCaption: string;
     ctaLabel: string;
     armedLabel: string;
     accentVar: string;
@@ -16,6 +17,7 @@ export const POWER_META: Record<PowerType, PowerMetaEntry> = {
         title: 'Boost',
         shortTag: '+6 STEPS',
         summary: 'Add +6 bonus steps to your next dice roll',
+        simCaption: 'DIE 4 + BOOST 6 → 10-TILE SURGE',
         ctaLabel: 'USE BOOST',
         armedLabel: 'BOOST ACTIVE',
         accentVar: '#f59e0b',
@@ -24,6 +26,7 @@ export const POWER_META: Record<PowerType, PowerMetaEntry> = {
         title: 'Shield',
         shortTag: '1-TURN AEGIS',
         summary: 'Protect your track tokens until your next move',
+        simCaption: 'BLOCKS CAPTURES & NUKES UNTIL NEXT MOVE',
         ctaLabel: 'USE SHIELD',
         armedLabel: 'SHIELD UP',
         accentVar: '#06b6d4',
@@ -32,6 +35,7 @@ export const POWER_META: Record<PowerType, PowerMetaEntry> = {
         title: 'Teleport',
         shortTag: 'STAR BLINK',
         summary: 'Blink one token to the next ★ star or straight home',
+        simCaption: 'BLINKS TO NEXT ★ STAR · OR HOME FROM LANE',
         ctaLabel: 'ARM TELEPORT',
         armedLabel: 'TAP TARGET',
         accentVar: '#10b981',
@@ -40,6 +44,7 @@ export const POWER_META: Record<PowerType, PowerMetaEntry> = {
         title: 'Nuke',
         shortTag: '±3 BLAST',
         summary: 'Blast unshielded enemies within ±3 tiles to base',
+        simCaption: 'VAPORIZES UNSHIELDED ENEMIES WITHIN ±3',
         ctaLabel: 'ARM NUKE',
         armedLabel: 'TAP TARGET',
         accentVar: '#ef4444',

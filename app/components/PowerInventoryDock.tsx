@@ -4,6 +4,8 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { PlayerColor, PowerType } from '@/lib/types';
 import { prefersReducedMotion } from '@/lib/motion';
+import { HudCornerTicks } from './HudPrimitives';
+import { TerminalTypeText } from './TerminalTypeText';
 import {
     POWER_META,
     formatPowerCountdown,
@@ -157,31 +159,29 @@ export function PowerInventoryDock({
                         key="power-inspect-popover"
                         role="dialog"
                         aria-label={`${inspectedMeta.title} power details`}
-                        className={`power-popover power-popover-${inspected}`}
+                        className={`power-popover power-dossier power-popover-${inspected}`}
                         initial={reduced ? { opacity: 1 } : { opacity: 0, y: 10, scale: 0.96 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={reduced ? { opacity: 0 } : { opacity: 0, y: 8, scale: 0.96 }}
                         transition={reduced ? { duration: 0 } : { duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                     >
-                        <div className="power-popover-head">
-                            <span
-                                className={`power-popover-stock ${
-                                    inspectedSlot.count > 0 && inspectedRing.remainingMs > 0
-                                        ? `is-timed urgency-${inspectedRing.urgency}`
-                                        : 'is-empty'
-                                }`}
-                            >
-                                <span>×{inspectedSlot.count}</span>
-                                {inspectedSlot.count > 0 && inspectedRing.remainingMs > 0 && (
-                                    <span className="power-popover-timer">
-                                        {formatPowerCountdown(inspectedRing.remainingMs)}
-                                    </span>
-                                )}
-                            </span>
-                            <h3 className="power-popover-title">{inspectedMeta.title}</h3>
+                        <span className="power-dossier-beam" aria-hidden="true" />
+                        <HudCornerTicks />
+
+                        <div className="power-dossier-head">
+                            <div className="power-dossier-emblem-bay" aria-hidden="true">
+                                <PowerEmblem type={inspected} size="card" />
+                            </div>
+                            <div className="power-dossier-heading">
+                                <div className="power-dossier-title-row">
+                                    <h3 className="power-dossier-title">{inspectedMeta.title}</h3>
+                                    <span className="power-dossier-spec">{inspectedMeta.shortTag}</span>
+                                </div>
+                                <p className="power-dossier-desc">{inspectedMeta.summary}</p>
+                            </div>
                             <button
                                 type="button"
-                                className="power-popover-close"
+                                className="power-dossier-close"
                                 onClick={() => setInspected(null)}
                                 aria-label="Close power details"
                             >
@@ -191,42 +191,88 @@ export function PowerInventoryDock({
                             </button>
                         </div>
 
-                        <p className="power-popover-desc">{inspectedMeta.summary}</p>
-
-                        <div className="power-example-stage">
-                            <span className="power-example-ribbon">EXAMPLE</span>
-                            <PowerExampleDiagram type={inspected} />
+                        <div className="power-sim-stage">
+                            <PowerTrackSimulator type={inspected} reduced={reduced} />
+                            <div className="power-sim-caption">
+                                <span className="power-sim-dot" aria-hidden="true" />
+                                <TerminalTypeText
+                                    key={inspected}
+                                    text={inspectedMeta.simCaption}
+                                    charMs={14}
+                                    showCursor={false}
+                                    className="power-sim-type"
+                                />
+                            </div>
                         </div>
 
-                        <div className="power-popover-foot">
-                            <span className="power-popover-chip">
-                                <PowerEmblem type={inspected} size="card" />
-                                <span className="power-popover-chip-count">×{inspectedSlot.count}</span>
-                            </span>
-                            {canSpend && inspectedSlot.count > 0 ? (
-                                <button
-                                    type="button"
-                                    className="power-popover-cta"
-                                    onClick={() => {
-                                        const toSpend = inspected;
-                                        setInspected(null);
-                                        onSpendPower(toSpend);
-                                    }}
-                                >
-                                    {inspectedMeta.ctaLabel}
-                                </button>
-                            ) : (
-                                <div className="power-popover-status">
-                                    {inspectedLockReason ?? inspectedMeta.shortTag}
+                        <div className="power-dossier-rail">
+                            <div className="power-dossier-inventory">
+                                <div className="power-dossier-stock-row">
+                                    <div className="power-charge-pips" aria-hidden="true">
+                                        {[0, 1, 2].map((pipIdx) => (
+                                            <span
+                                                key={pipIdx}
+                                                className={`power-charge-pip ${pipIdx < Math.min(3, inspectedSlot.count) ? 'is-filled' : ''}`}
+                                            />
+                                        ))}
+                                    </div>
+                                    {inspectedSlot.count > 0 && inspectedRing.remainingMs > 0 ? (
+                                        <span className={`power-dossier-stock-text is-timed urgency-${inspectedRing.urgency}`}>
+                                            <span>×{inspectedSlot.count}</span>
+                                            <span className="power-dossier-sep" aria-hidden="true">·</span>
+                                            <span className="power-dossier-timer">
+                                                {formatPowerCountdown(inspectedRing.remainingMs)}
+                                            </span>
+                                        </span>
+                                    ) : (
+                                        <span className="power-dossier-stock-text is-empty">
+                                            {inspectedSlot.count > 0 ? `×${inspectedSlot.count} HELD` : '0 HELD'}
+                                        </span>
+                                    )}
                                 </div>
-                            )}
+                                {inspectedSlot.count > 0 && inspectedRing.remainingMs > 0 && (
+                                    <div
+                                        className={`power-decay-track urgency-${inspectedRing.urgency}`}
+                                        aria-hidden="true"
+                                    >
+                                        <div
+                                            className="power-decay-fill"
+                                            style={{ transform: `scaleX(${inspectedRing.progress})` }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="power-dossier-action">
+                                {canSpend && inspectedSlot.count > 0 ? (
+                                    <button
+                                        type="button"
+                                        className="power-dossier-cta"
+                                        onClick={() => {
+                                            const toSpend = inspected;
+                                            setInspected(null);
+                                            onSpendPower(toSpend);
+                                        }}
+                                    >
+                                        {inspectedMeta.ctaLabel}
+                                    </button>
+                                ) : (
+                                    <div className="power-dossier-lock">
+                                        <span className="power-dossier-lock-dot" aria-hidden="true" />
+                                        <span>{inspectedLockReason ?? inspectedMeta.shortTag}</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <span
-                            className="power-popover-caret"
+                            className="power-dossier-anchor"
                             style={{ '--caret-x': `${caretX}px` } as React.CSSProperties}
                             aria-hidden="true"
-                        />
+                        >
+                            <span className="power-dossier-anchor-stem" />
+                            <span className="power-dossier-anchor-pin" />
+                        </span>
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -409,121 +455,213 @@ export function PowerEmblem({
     );
 }
 
-/** Crisp minimalist Before -> After visual diagram inside the `EXAMPLE` stage card. */
-function PowerExampleDiagram({ type }: { type: PowerType }) {
+/** Original 5-cell Ludo 3077 live track simulator showing exact mechanics with compositor-only motion. */
+function PowerTrackSimulator({ type, reduced }: { type: PowerType; reduced: boolean }) {
+    const cellXs = [22, 68, 114, 160, 206];
+    const animCls = reduced ? 'is-static' : 'is-animated';
+
     if (type === 'boost') {
         return (
-            <svg viewBox="0 0 256 86" fill="none" className="power-example-svg" aria-hidden="true">
-                {/* Die 4 */}
-                <rect x="26" y="21" width="38" height="38" rx="9" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1.6" />
-                <circle cx="37" cy="32" r="2.8" fill="var(--power-stage-ink)" />
-                <circle cx="53" cy="32" r="2.8" fill="var(--power-stage-ink)" />
-                <circle cx="37" cy="48" r="2.8" fill="var(--power-stage-ink)" />
-                <circle cx="53" cy="48" r="2.8" fill="var(--power-stage-ink)" />
+            <svg viewBox="0 0 264 68" fill="none" className={`power-sim-svg ${animCls}`} aria-hidden="true">
+                {cellXs.map((x, idx) => (
+                    <g key={x}>
+                        <rect
+                            x={x}
+                            y="22"
+                            width="36"
+                            height="30"
+                            rx="6"
+                            fill={idx === 4 ? 'rgba(245, 158, 11, 0.2)' : 'var(--power-stage-tile)'}
+                            stroke={idx === 4 ? '#f59e0b' : 'var(--power-stage-stroke)'}
+                            strokeWidth="1.4"
+                        />
+                        <text x={x + 6} y="32" fill="var(--power-stage-muted)" fontSize="7" fontWeight="700">
+                            0{idx + 1}
+                        </text>
+                    </g>
+                ))}
+                {/* Die 4 + Boost 6 top badges */}
+                <rect x="24" y="4" width="32" height="14" rx="4" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1" />
+                <text x="40" y="13.5" textAnchor="middle" fill="var(--power-stage-ink)" fontSize="8.5" fontWeight="800">
+                    ROLL 4
+                </text>
+                <rect x="64" y="4" width="46" height="14" rx="4" fill="rgba(245, 158, 11, 0.16)" stroke="#f59e0b" strokeWidth="1" />
+                <text x="87" y="13.5" textAnchor="middle" fill="#f59e0b" fontSize="8.5" fontWeight="800">
+                    +6 BOOST
+                </text>
+                <path d="M118 11h78" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.7" />
+                <rect x="204" y="4" width="40" height="14" rx="4" fill="#f59e0b" />
+                <text x="224" y="13.5" textAnchor="middle" fill="#18181b" fontSize="8.5" fontWeight="900">
+                    10 TILES
+                </text>
 
-                {/* Plus */}
-                <path d="M73 40h8M77 36v8" stroke="var(--power-stage-muted)" strokeWidth="2.2" strokeLinecap="round" />
-
-                {/* +6 Boost badge */}
-                <rect x="89" y="24" width="36" height="32" rx="9" fill="rgba(245, 158, 11, 0.16)" stroke="#f59e0b" strokeWidth="1.6" />
-                <path d="M104 31l-4.5 7h3.6l-.8 5.2 4.8-7.2h-3.6L104 31z" fill="#f59e0b" />
-                <text x="115" y="44" textAnchor="middle" fill="#f59e0b" fontSize="11" fontWeight="800">6</text>
-
-                {/* Arrow */}
-                <path d="M133 40h18M146 35l5 5-5 5" stroke="var(--power-stage-arrow)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-
-                {/* Surge 3-cell track + 10 result pill */}
-                <rect x="160" y="29" width="22" height="22" rx="4" fill="rgba(245, 158, 11, 0.12)" stroke="var(--power-stage-stroke)" strokeWidth="1.4" />
-                <rect x="184" y="29" width="22" height="22" rx="4" fill="rgba(245, 158, 11, 0.22)" stroke="var(--power-stage-stroke)" strokeWidth="1.4" />
-                <rect x="208" y="29" width="26" height="22" rx="6" fill="#f59e0b" />
-                <circle cx="171" cy="40" r="4" fill="#fbbf24" opacity="0.55" />
-                <path d="M178 40h24" stroke="#f59e0b" strokeWidth="2" strokeDasharray="3 2" />
-                <text x="221" y="44" textAnchor="middle" fill="#18181b" fontSize="11" fontWeight="900">10</text>
+                {/* Slipstream markers */}
+                <path d="M62 39h136" stroke="#f59e0b" strokeWidth="1.8" strokeDasharray="3 4" opacity="0.5" />
+                {/* Gliding boosted orb */}
+                <g transform="translate(40, 39)">
+                    <g className="power-sim-boost-orb">
+                        <circle cx="0" cy="0" r="10.5" fill="rgba(245, 158, 11, 0.24)" />
+                        <circle cx="0" cy="0" r="6.5" fill="#f59e0b" stroke="#fef3c7" strokeWidth="1.4" />
+                    </g>
+                </g>
             </svg>
         );
     }
 
     if (type === 'shield') {
         return (
-            <svg viewBox="0 0 256 86" fill="none" className="power-example-svg" aria-hidden="true">
-                {/* Left: 3 tiles, enemy hops toward shielded orb */}
-                <rect x="22" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1.5" />
-                <rect x="52" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1.5" />
-                <rect x="82" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1.5" />
-                {/* Enemy pawn */}
-                <circle cx="36" cy="48" r="6.5" fill="#ef4444" stroke="#fee2e2" strokeWidth="1.2" />
-                {/* Shielded ally orb */}
-                <circle cx="96" cy="48" r="10.5" fill="rgba(6, 182, 212, 0.16)" stroke="#06b6d4" strokeWidth="1.7" />
-                <circle cx="96" cy="48" r="5.5" fill="#10b981" stroke="#d1fae5" strokeWidth="1" />
-                {/* Hop arc */}
-                <path d="M40 31c12-12 36-12 49-1" stroke="var(--power-stage-muted)" strokeWidth="1.8" strokeLinecap="round" />
-                <path d="M85 26l4 4-5.5.8" stroke="var(--power-stage-muted)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-
-                {/* Middle arrow */}
-                <path d="M120 46h16M131 41l5 5-5 5" stroke="var(--power-stage-arrow)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-
-                {/* Right: 3 tiles, both share cell safely */}
-                <rect x="146" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1.5" />
-                <rect x="176" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1.5" />
-                <rect x="206" y="34" width="32" height="28" rx="6" fill="rgba(6, 182, 212, 0.12)" stroke="#06b6d4" strokeWidth="1.5" />
-                {/* Protected ally + harmless enemy co-existing */}
-                <circle cx="217" cy="48" r="9.5" fill="rgba(6, 182, 212, 0.2)" stroke="#06b6d4" strokeWidth="1.6" />
-                <circle cx="217" cy="48" r="5" fill="#10b981" stroke="#d1fae5" strokeWidth="1" />
-                <circle cx="228" cy="51" r="4.8" fill="#ef4444" stroke="#fee2e2" strokeWidth="1" />
+            <svg viewBox="0 0 264 68" fill="none" className={`power-sim-svg ${animCls}`} aria-hidden="true">
+                {cellXs.map((x, idx) => (
+                    <g key={x}>
+                        <rect
+                            x={x}
+                            y="22"
+                            width="36"
+                            height="30"
+                            rx="6"
+                            fill={idx === 3 ? 'rgba(6, 182, 212, 0.16)' : 'var(--power-stage-tile)'}
+                            stroke={idx === 3 ? '#06b6d4' : 'var(--power-stage-stroke)'}
+                            strokeWidth="1.4"
+                        />
+                        <text x={x + 6} y="32" fill="var(--power-stage-muted)" fontSize="7" fontWeight="700">
+                            0{idx + 1}
+                        </text>
+                    </g>
+                ))}
+                {/* Enemy orb advancing from cell 1 toward cell 4 & bouncing back */}
+                <g transform="translate(40, 41)">
+                    <g className="power-sim-shield-foe">
+                        <circle cx="0" cy="0" r="6" fill="#ef4444" stroke="#fee2e2" strokeWidth="1.3" />
+                    </g>
+                </g>
+                {/* Shielded ally orb on cell 4 */}
+                <g transform="translate(178, 39)">
+                    <g className="power-sim-shield-ring">
+                        <circle cx="0" cy="0" r="12" fill="rgba(6, 182, 212, 0.18)" stroke="#06b6d4" strokeWidth="1.6" />
+                    </g>
+                    <circle cx="0" cy="0" r="6.2" fill="#10b981" stroke="#d1fae5" strokeWidth="1.2" />
+                </g>
+                {/* Safe share pill */}
+                <rect x="148" y="4" width="60" height="14" rx="4" fill="rgba(6, 182, 212, 0.16)" stroke="#06b6d4" strokeWidth="1" />
+                <text x="178" y="13.5" textAnchor="middle" fill="#06b6d4" fontSize="8" fontWeight="800">
+                    SAFE SHIELD
+                </text>
             </svg>
         );
     }
 
     if (type === 'teleport') {
         return (
-            <svg viewBox="0 0 256 86" fill="none" className="power-example-svg" aria-hidden="true">
-                {/* Left: orb blinks along arc to star cell */}
-                <rect x="22" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1.5" />
-                <rect x="52" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1.5" />
-                <rect x="82" y="34" width="28" height="28" rx="5" fill="rgba(16, 185, 129, 0.12)" stroke="#10b981" strokeWidth="1.5" />
-                <circle cx="36" cy="48" r="6" fill="#10b981" stroke="#d1fae5" strokeWidth="1.2" />
-                {/* Star on tile 3 */}
-                <path d="M96 41.5l1.6 3.5 3.8.5-2.8 2.7.7 3.8-3.3-1.8-3.3 1.8.7-3.8-2.8-2.7 3.8-.5L96 41.5z" fill="#10b981" opacity="0.85" />
-                {/* Warp arc */}
-                <path d="M39 31c14-14 40-14 54-1" stroke="#10b981" strokeWidth="2" strokeDasharray="3 2.5" strokeLinecap="round" />
-                <path d="M89 26l4 4-5.5.8" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-
-                {/* Middle arrow */}
-                <path d="M120 46h16M131 41l5 5-5 5" stroke="var(--power-stage-arrow)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-
-                {/* Right: safely landed on Star */}
-                <rect x="146" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1.5" />
-                <rect x="176" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1.5" />
-                <rect x="206" y="34" width="30" height="28" rx="6" fill="rgba(16, 185, 129, 0.2)" stroke="#10b981" strokeWidth="1.6" />
-                <circle cx="221" cy="48" r="9.5" stroke="#34d399" strokeWidth="1.4" strokeDasharray="2.5 2" />
-                <circle cx="221" cy="48" r="6" fill="#10b981" stroke="#ecfdf5" strokeWidth="1.2" />
+            <svg viewBox="0 0 264 68" fill="none" className={`power-sim-svg ${animCls}`} aria-hidden="true">
+                {cellXs.map((x, idx) => (
+                    <g key={x}>
+                        <rect
+                            x={x}
+                            y="22"
+                            width="36"
+                            height="30"
+                            rx="6"
+                            fill={idx === 4 ? 'rgba(16, 185, 129, 0.18)' : 'var(--power-stage-tile)'}
+                            stroke={idx === 4 ? '#10b981' : 'var(--power-stage-stroke)'}
+                            strokeWidth="1.4"
+                        />
+                        <text x={x + 6} y="32" fill="var(--power-stage-muted)" fontSize="7" fontWeight="700">
+                            0{idx + 1}
+                        </text>
+                    </g>
+                ))}
+                {/* Warp arc over intermediate tiles */}
+                <path
+                    d="M42 28C78 3 186 3 222 28"
+                    stroke="#10b981"
+                    strokeWidth="1.8"
+                    strokeDasharray="3.5 3"
+                    strokeLinecap="round"
+                />
+                <path d="M217 24l6 4.5-7 .9" stroke="#34d399" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                {/* Star emblem on destination cell 5 */}
+                <path
+                    d="M224 31l1.5 3.3 3.6.5-2.6 2.5.6 3.6-3.1-1.7-3.1 1.7.6-3.6-2.6-2.5 3.6-.5L224 31z"
+                    fill="#10b981"
+                    opacity="0.45"
+                />
+                {/* Origin phase-out orb */}
+                <g transform="translate(40, 39)">
+                    <g className="power-sim-warp-origin">
+                        <circle cx="0" cy="0" r="6.2" fill="#10b981" stroke="#d1fae5" strokeWidth="1.2" />
+                    </g>
+                </g>
+                {/* Destination phase-in orb */}
+                <g transform="translate(224, 39)">
+                    <g className="power-sim-warp-ring">
+                        <circle cx="0" cy="0" r="11" stroke="#34d399" strokeWidth="1.5" strokeDasharray="2.5 2.5" />
+                    </g>
+                    <g className="power-sim-warp-dest">
+                        <circle cx="0" cy="0" r="6.5" fill="#10b981" stroke="#ecfdf5" strokeWidth="1.3" />
+                    </g>
+                </g>
             </svg>
         );
     }
 
     return (
-        <svg viewBox="0 0 256 86" fill="none" className="power-example-svg" aria-hidden="true">
-            {/* Left: orb triggers +/-3 blast ring against adjacent enemy */}
-            <rect x="22" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="#ef4444" strokeWidth="1.5" />
-            <rect x="52" y="34" width="28" height="28" rx="5" fill="rgba(239, 68, 68, 0.1)" stroke="var(--power-stage-stroke)" strokeWidth="1.5" />
-            <rect x="82" y="34" width="28" height="28" rx="5" fill="rgba(239, 68, 68, 0.16)" stroke="#ef4444" strokeWidth="1.5" />
-            {/* Player orb + shockwave arcs */}
-            <circle cx="36" cy="48" r="6" fill="#06b6d4" stroke="#ecfeff" strokeWidth="1.2" />
-            <path d="M47 41c4 4 4 10 0 14M55 38c5 6 5 14 0 20" stroke="#ef4444" strokeWidth="1.8" strokeLinecap="round" />
-            {/* Enemy orb in range */}
-            <circle cx="96" cy="48" r="6" fill="#ef4444" stroke="#fee2e2" strokeWidth="1.2" />
-
-            {/* Middle arrow */}
-            <path d="M120 46h16M131 41l5 5-5 5" stroke="var(--power-stage-arrow)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-
-            {/* Right: blast flash & enemy sent to base */}
-            <rect x="146" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="#ef4444" strokeWidth="1.5" />
-            <rect x="176" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1.5" />
-            <rect x="206" y="34" width="28" height="28" rx="5" fill="var(--power-stage-tile)" stroke="var(--power-stage-stroke)" strokeWidth="1.5" />
-            <circle cx="160" cy="48" r="6" fill="#06b6d4" stroke="#ecfeff" strokeWidth="1.2" />
-            {/* Vaporized mark */}
-            <circle cx="220" cy="48" r="8.5" stroke="#ef4444" strokeWidth="1.4" strokeDasharray="2 2" opacity="0.65" />
-            <path d="M216.5 44.5l7 7M223.5 44.5l-7 7" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" />
+        <svg viewBox="0 0 264 68" fill="none" className={`power-sim-svg ${animCls}`} aria-hidden="true">
+            {cellXs.map((x, idx) => (
+                <g key={x}>
+                    <rect
+                        x={x}
+                        y="22"
+                        width="36"
+                        height="30"
+                        rx="6"
+                        fill={
+                            idx === 1 || idx === 3 || idx === 4
+                                ? 'rgba(239, 68, 68, 0.13)'
+                                : 'var(--power-stage-tile)'
+                        }
+                        stroke={idx >= 1 ? '#ef4444' : '#10b981'}
+                        strokeWidth={idx === 1 ? '1.6' : '1.3'}
+                    />
+                    <text x={x + 6} y="32" fill="var(--power-stage-muted)" fontSize="7" fontWeight="700">
+                        0{idx + 1}
+                    </text>
+                </g>
+            ))}
+            {/* Safe star tile 1 label (immune to nuke) */}
+            <path
+                d="M40 31.5l1.4 3 3.2.4-2.3 2.3.5 3.2-2.8-1.5-2.8 1.5.5-3.2-2.3-2.3 3.2-.4L40 31.5z"
+                fill="#10b981"
+                opacity="0.85"
+            />
+            <rect x="22" y="4" width="36" height="14" rx="4" fill="rgba(16, 185, 129, 0.14)" stroke="#10b981" strokeWidth="1" />
+            <text x="40" y="13.5" textAnchor="middle" fill="#10b981" fontSize="8" fontWeight="800">
+                ★ SAFE
+            </text>
+            {/* Range bar above cells 2..5 */}
+            <rect x="68" y="4" width="174" height="14" rx="4" fill="rgba(239, 68, 68, 0.14)" stroke="#ef4444" strokeWidth="1" />
+            <text x="155" y="13.5" textAnchor="middle" fill="#ef4444" fontSize="8" fontWeight="800">
+                ±3 BLAST RADIUS
+            </text>
+            {/* Nuking player orb + expanding shockwave on cell 2 */}
+            <g transform="translate(86, 39)">
+                <g className="power-sim-nuke-wave">
+                    <circle cx="0" cy="0" r="14" stroke="#ef4444" strokeWidth="1.6" />
+                </g>
+                <circle cx="0" cy="0" r="6.2" fill="#06b6d4" stroke="#ecfeff" strokeWidth="1.3" />
+            </g>
+            {/* Vaporizing enemy orbs on cells 4 & 5 */}
+            <g transform="translate(178, 39)">
+                <g className="power-sim-nuke-target">
+                    <circle cx="0" cy="0" r="6.2" fill="#ef4444" stroke="#fee2e2" strokeWidth="1.2" />
+                    <path d="M-3.2-3.2l6.4 6.4M3.2-3.2l-6.4 6.4" stroke="#ffffff" strokeWidth="1.4" strokeLinecap="round" />
+                </g>
+            </g>
+            <g transform="translate(224, 39)">
+                <g className="power-sim-nuke-target">
+                    <circle cx="0" cy="0" r="6.2" fill="#ef4444" stroke="#fee2e2" strokeWidth="1.2" />
+                    <path d="M-3.2-3.2l6.4 6.4M3.2-3.2l-6.4 6.4" stroke="#ffffff" strokeWidth="1.4" strokeLinecap="round" />
+                </g>
+            </g>
         </svg>
     );
 }

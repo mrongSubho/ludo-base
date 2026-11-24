@@ -21,6 +21,7 @@ describe('Power Inventory Dock — Tap/Inspect State Machine & Telemetry', () =>
         for (const p of POWER_ORDER) {
             assert.ok(POWER_META[p].title.length > 0);
             assert.ok(POWER_META[p].summary.length > 0);
+            assert.ok(POWER_META[p].simCaption.length > 0);
             assert.ok(POWER_META[p].ctaLabel.length > 0);
         }
     });
@@ -110,12 +111,17 @@ describe('Power Inventory Dock — Tap/Inspect State Machine & Telemetry', () =>
         assert.equal(formatPowerCountdown(-500), '0:00');
     });
 
-    it('keeps non-eligible orbs clickable in PowerInventoryDock, wires it into Board, and drops purple teleport styling', () => {
+    it('implements Ludo 3077 original Tactical Module Dossier (no copy-pasted EXAMPLE ribbon), keeps non-eligible orbs clickable, and drops purple teleport styling', () => {
         const dock = read('app/components/PowerInventoryDock.tsx');
         assert.match(dock, /export function PowerInventoryDock/);
         assert.doesNotMatch(dock, /disabled=/);
+        assert.doesNotMatch(dock, /EXAMPLE/);
         assert.match(dock, /resolvePowerOrbTapAction/);
-        assert.match(dock, /EXAMPLE/);
+        assert.match(dock, /HudCornerTicks/);
+        assert.match(dock, /TerminalTypeText/);
+        assert.match(dock, /PowerTrackSimulator/);
+        assert.match(dock, /power-dossier-anchor/);
+        assert.match(dock, /scaleX\(/);
         assert.match(dock, /prefersReducedMotion/);
 
         const board = read('app/components/Board.tsx');
@@ -123,7 +129,9 @@ describe('Power Inventory Dock — Tap/Inspect State Machine & Telemetry', () =>
         assert.doesNotMatch(board, /function PowerGlyph/);
 
         const boardCss = read('app/styles/board.css');
-        assert.match(boardCss, /\.power-popover/);
+        assert.match(boardCss, /\.power-dossier/);
+        assert.match(boardCss, /\.power-sim-stage/);
+        assert.doesNotMatch(boardCss, /\.power-example-ribbon/);
         assert.match(boardCss, /\.power-orb-ring/);
         const teleportRule = boardCss.match(/\.power-orb-teleport\s*\{[^}]*\}/)?.[0] ?? '';
         assert.match(teleportRule, /#10b981/);

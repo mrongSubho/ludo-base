@@ -575,15 +575,25 @@ body.theme-retro-futurism .power-orb.is-ready {
     0 0 16px var(--orb-glow),
     inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
-body.theme-retro-futurism .power-popover {
-  --power-popover-bg: rgba(9, 15, 28, 0.95);
+body.theme-retro-futurism .power-dossier {
+  --power-popover-bg: rgba(8, 13, 25, 0.95);
   --power-popover-border: rgba(var(--accent-rgb), 0.34);
-  --power-popover-shadow: 0 22px 50px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  --power-stage-bg: rgba(15, 24, 42, 0.9);
+  --power-popover-shadow: 0 22px 50px rgba(0, 0, 0, 0.74), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --power-stage-bg: rgba(14, 22, 40, 0.9);
   --power-stage-border: rgba(var(--accent-rgb), 0.22);
   --power-stage-tile: rgba(255, 255, 255, 0.06);
   --power-stage-stroke: rgba(var(--accent-rgb), 0.28);
+  border-radius: 20px;
 }
-body.theme-retro-futurism .power-popover-cta {
+body.theme-retro-futurism .power-dossier-emblem-bay,
+body.theme-retro-futurism .power-dossier-close,
+body.theme-retro-futurism .power-dossier-spec,
+body.theme-retro-futurism .power-dossier-lock,
+body.theme-retro-futurism .power-dossier-cta {
   border-radius: 9999px;
+}
+body.theme-retro-futurism .power-charge-pip {
+  border-radius: 9999px;
+  height: 7px;
+  width: 7px;
 }

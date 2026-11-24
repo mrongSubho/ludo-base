@@ -651,46 +651,47 @@ body.theme-daybreak .power-orb-count.zero {
     box-shadow: 0 8px 18px -4px rgba(28, 25, 23, 0.2);
   }
 }
-body.theme-daybreak .power-popover {
+body.theme-daybreak .power-dossier {
   --power-popover-bg: rgba(255, 255, 255, 0.98);
   --power-popover-border: rgba(28, 25, 23, 0.12);
   --power-popover-shadow: 0 22px 48px -12px rgba(28, 25, 23, 0.26), 0 4px 12px rgba(28, 25, 23, 0.08), inset 0 1px 0 #ffffff;
   --power-popover-ink: #18181b;
   --power-popover-muted: rgba(24, 24, 27, 0.68);
-  --power-stage-bg: #eef2f6;
+  --power-stage-bg: #f1efe9;
   --power-stage-border: rgba(28, 25, 23, 0.09);
   --power-stage-tile: #ffffff;
-  --power-stage-stroke: rgba(28, 25, 23, 0.18);
+  --power-stage-stroke: rgba(28, 25, 23, 0.16);
   --power-stage-ink: #18181b;
   --power-stage-muted: rgba(24, 24, 27, 0.56);
-  --power-stage-arrow: rgba(24, 24, 27, 0.5);
-  --power-ribbon-bg: #dc2626;
-  --power-ribbon-ink: #ffffff;
 }
-body.theme-daybreak .power-popover-stock {
+body.theme-daybreak .power-dossier-emblem-bay {
+  background: color-mix(in srgb, var(--power-accent) 10%, #ffffff);
+  border-color: color-mix(in srgb, var(--power-accent) 32%, transparent);
+  box-shadow: 0 3px 8px rgba(28, 25, 23, 0.08), inset 0 1px 0 #ffffff;
+}
+body.theme-daybreak .power-dossier-close {
   background: rgba(28, 25, 23, 0.06);
   border-color: rgba(28, 25, 23, 0.1);
+  color: rgba(24, 24, 27, 0.62);
 }
-body.theme-daybreak .power-popover-stock.is-timed {
-  background: color-mix(in srgb, var(--power-accent) 12%, #ffffff);
-  border-color: color-mix(in srgb, var(--power-accent) 42%, transparent);
+body.theme-daybreak .power-charge-pip {
+  background: rgba(28, 25, 23, 0.1);
+  border-color: rgba(28, 25, 23, 0.12);
 }
-body.theme-daybreak .power-popover-stock.urgency-warn {
+body.theme-daybreak .power-decay-track {
+  background: rgba(28, 25, 23, 0.1);
+}
+body.theme-daybreak .power-dossier-stock-text.urgency-warn {
   color: #b45309;
 }
-body.theme-daybreak .power-popover-stock.urgency-critical {
+body.theme-daybreak .power-dossier-stock-text.urgency-critical {
   color: #b91c1c;
 }
-body.theme-daybreak .power-popover-close {
-  background: rgba(28, 25, 23, 0.07);
-  border-color: rgba(28, 25, 23, 0.12);
-  color: rgba(24, 24, 27, 0.65);
-}
-body.theme-daybreak .power-popover-status {
-  background: rgba(28, 25, 23, 0.06);
+body.theme-daybreak .power-dossier-lock {
+  background: rgba(28, 25, 23, 0.05);
   border-color: rgba(28, 25, 23, 0.1);
   color: rgba(24, 24, 27, 0.72);
 }
-body.theme-daybreak .power-popover-cta {
+body.theme-daybreak .power-dossier-cta {
   color: #ffffff;
 }

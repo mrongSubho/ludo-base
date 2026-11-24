@@ -1045,24 +1045,34 @@ body.theme-3077 .power-orb-count {
   border-radius: 6px;
   font-family: var(--font-mono, monospace);
 }
-body.theme-3077 .power-popover {
-  --power-popover-bg: rgba(8, 12, 20, 0.97);
+body.theme-3077 .power-dossier {
+  --power-popover-bg: rgba(7, 11, 18, 0.97);
   --power-popover-border: rgba(var(--accent-rgb), 0.36);
-  --power-popover-shadow: 0 20px 46px rgba(0, 0, 0, 0.8), 0 0 20px rgba(var(--accent-rgb), 0.1);
-  --power-stage-bg: #0c121e;
-  --power-stage-border: rgba(var(--accent-rgb), 0.2);
-  --power-stage-tile: rgba(255, 255, 255, 0.05);
-  --power-stage-stroke: rgba(var(--accent-rgb), 0.28);
-  border-radius: 12px;
+  --power-popover-shadow: 0 20px 46px rgba(0, 0, 0, 0.82), 0 0 22px rgba(var(--accent-rgb), 0.1);
+  --power-stage-bg: #0b111d;
+  --power-stage-border: rgba(var(--accent-rgb), 0.22);
+  --power-stage-tile: rgba(255, 255, 255, 0.045);
+  --power-stage-stroke: rgba(var(--accent-rgb), 0.26);
+  border-radius: 10px;
 }
-body.theme-3077 .power-example-stage {
+body.theme-3077 .power-dossier-emblem-bay {
   border-radius: 8px;
 }
-body.theme-3077 .power-popover-title {
+body.theme-3077 .power-sim-stage {
+  border-radius: 8px;
+  background-image:
+    linear-gradient(rgba(var(--accent-rgb), 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--accent-rgb), 0.04) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+body.theme-3077 .power-dossier-title {
   font-family: var(--font-heading, sans-serif);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-body.theme-3077 .power-popover-cta {
+body.theme-3077 .power-dossier-spec,
+body.theme-3077 .power-dossier-close,
+body.theme-3077 .power-dossier-lock,
+body.theme-3077 .power-dossier-cta {
   border-radius: 6px;
 }
