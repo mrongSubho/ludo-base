@@ -13,7 +13,8 @@ export type PreferenceKey =
     | 'ludo-music-vol'
     | 'ludo-haptic'
     | 'token-style'
-    | 'dice-style';
+    | 'dice-style'
+    | 'ludo-motion';
 
 export function setPreferenceCookie(key: PreferenceKey, value: string) {
     // Set cookie for 1 year

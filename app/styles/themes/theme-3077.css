@@ -730,20 +730,35 @@ body.theme-3077 .rail-sweep-3077::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body.theme-3077 .rail-sweep-3077::after,
-  body.theme-3077 .animate-hud-reticle-spin,
-  body.theme-3077 .animate-hud-reticle-spin-rev,
-  body.theme-3077 .animate-hud-boot-bar,
-  body.theme-3077 .hud-status-breath,
-  body.theme-3077 .trap-mine-3077,
-  body.theme-3077 .animate-emblem-core-pulse {
+  body.theme-3077:not(.motion-force-full) .rail-sweep-3077::after,
+  body.theme-3077:not(.motion-force-full) .animate-hud-reticle-spin,
+  body.theme-3077:not(.motion-force-full) .animate-hud-reticle-spin-rev,
+  body.theme-3077:not(.motion-force-full) .animate-hud-boot-bar,
+  body.theme-3077:not(.motion-force-full) .hud-status-breath,
+  body.theme-3077:not(.motion-force-full) .trap-mine-3077,
+  body.theme-3077:not(.motion-force-full) .animate-emblem-core-pulse {
     animation: none !important;
     transition-duration: 0.01ms !important;
   }
-  body.theme-3077 .rail-sweep-3077::after {
+  body.theme-3077:not(.motion-force-full) .rail-sweep-3077::after {
     transform: translateX(0);
     opacity: 0.5;
   }
+}
+
+body.theme-3077.motion-force-reduced .rail-sweep-3077::after,
+body.theme-3077.motion-force-reduced .animate-hud-reticle-spin,
+body.theme-3077.motion-force-reduced .animate-hud-reticle-spin-rev,
+body.theme-3077.motion-force-reduced .animate-hud-boot-bar,
+body.theme-3077.motion-force-reduced .hud-status-breath,
+body.theme-3077.motion-force-reduced .trap-mine-3077,
+body.theme-3077.motion-force-reduced .animate-emblem-core-pulse {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+}
+body.theme-3077.motion-force-reduced .rail-sweep-3077::after {
+  transform: translateX(0);
+  opacity: 0.5;
 }
 
 /* ─── 9. Slide-Over Panels: E3 Surface & Single-Scroller Rule (P7) ─── */

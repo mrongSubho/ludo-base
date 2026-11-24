@@ -385,18 +385,33 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-hud-reticle-spin,
-  .animate-hud-reticle-spin-rev,
-  .animate-hud-boot-bar,
-  .trap-mine-3077,
-  .hud-status-breath,
-  .home-deploy-badge-pulse,
-  .animate-emblem-core-pulse,
-  .animate-knob-alert-blink {
+  body:not(.motion-force-full) .animate-hud-reticle-spin,
+  body:not(.motion-force-full) .animate-hud-reticle-spin-rev,
+  body:not(.motion-force-full) .animate-hud-boot-bar,
+  body:not(.motion-force-full) .trap-mine-3077,
+  body:not(.motion-force-full) .hud-status-breath,
+  body:not(.motion-force-full) .home-deploy-badge-pulse,
+  body:not(.motion-force-full) .animate-emblem-core-pulse,
+  body:not(.motion-force-full) .animate-knob-alert-blink {
     animation: none !important;
     transition-duration: 0.01ms !important;
   }
-  .animate-hud-boot-bar {
+  body:not(.motion-force-full) .animate-hud-boot-bar {
     transform: scaleX(1) !important;
   }
+}
+
+body.motion-force-reduced .animate-hud-reticle-spin,
+body.motion-force-reduced .animate-hud-reticle-spin-rev,
+body.motion-force-reduced .animate-hud-boot-bar,
+body.motion-force-reduced .trap-mine-3077,
+body.motion-force-reduced .hud-status-breath,
+body.motion-force-reduced .home-deploy-badge-pulse,
+body.motion-force-reduced .animate-emblem-core-pulse,
+body.motion-force-reduced .animate-knob-alert-blink {
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+}
+body.motion-force-reduced .animate-hud-boot-bar {
+  transform: scaleX(1) !important;
 }

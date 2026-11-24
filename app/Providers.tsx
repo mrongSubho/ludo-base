@@ -15,6 +15,7 @@ import { baseAccount, coinbaseWallet, injected, walletConnect, metaMask, safe } 
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { MotionConfig } from "framer-motion";
 import { ReactNode, useEffect } from "react";
+import { usePreferences } from "@/hooks/usePreferences";
 import { DATA_SUFFIX } from "@/lib/builderCode";
 import { initTelemetry } from "@/lib/telemetry";
 import ProfileSyncer from "./components/ProfileSyncer";
@@ -72,6 +73,14 @@ installWagmiConnectorGuards(config);
 const queryClient = new QueryClient();
 
 export function Providers({ children }: { children: ReactNode }) {
+    const { preferences } = usePreferences();
+    const framerReducedMotion =
+        preferences.motion === 'full'
+            ? 'never'
+            : preferences.motion === 'reduced'
+              ? 'always'
+              : 'user';
+
     useEffect(() => {
         initTelemetry();
         installBrowserWindowGuard();
@@ -80,10 +89,9 @@ export function Providers({ children }: { children: ReactNode }) {
     }, []);
     return (
         // CSS_LAYOUT_ANIMATION_PLAN §3.4: the CSS reduced-motion kill-switch does
-        // not reach framer-motion; `reducedMotion="user"` makes every motion.*
-        // component honor the OS setting (lib/motion.ts carries the same query
-        // for the GSAP token timelines and canvas-confetti).
-        <MotionConfig reducedMotion="user">
+        // not reach framer-motion; `reducedMotion` maps System/Full/Reduced
+        // (`user` / `never` / `always`) onto every motion.* component.
+        <MotionConfig reducedMotion={framerReducedMotion}>
             <WagmiProvider config={config}>
             <QueryClientProvider client={queryClient}>
                 <CdpAuthProvider>

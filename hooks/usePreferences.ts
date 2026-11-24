@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { getPreferenceCookie, setPreferenceCookie, PreferenceKey } from '@/lib/preferencesUtils';
 
+export type MotionPreference = 'system' | 'full' | 'reduced';
+
 export interface Preferences {
     theme: string;
     sfx: boolean;
@@ -12,6 +14,7 @@ export interface Preferences {
     haptics: boolean;
     tokenStyle: string;
     diceStyle: string;
+    motion: MotionPreference;
 }
 
 const DEFAULTS: Preferences = {
@@ -23,6 +26,7 @@ const DEFAULTS: Preferences = {
     haptics: true,
     tokenStyle: 'orb',
     diceStyle: 'classic',
+    motion: 'system',
 };
 
 function parseVolume(raw: string | undefined, fallback: number): number {
@@ -86,6 +90,7 @@ function snapshot(): Preferences {
         getVal('dice-style', 'classic'),
         getVal('ludo-sfx-vol', '80'),
         getVal('ludo-music-vol', '70'),
+        getVal('ludo-motion', 'system'),
     ].join('|');
     if (cachedSnapshot && cachedRaw === raw) return cachedSnapshot;
 
@@ -110,9 +115,12 @@ function snapshot(): Preferences {
     const diceStyle = diceRaw === 'midnight' || diceRaw === 'gold' ? diceRaw : 'classic';
     const sfxVolume = parseVolume(parts[6], DEFAULTS.sfxVolume);
     const musicVolume = parseVolume(parts[7], DEFAULTS.musicVolume);
+    const motionRaw = parts[8] ?? 'system';
+    const motion: MotionPreference =
+        motionRaw === 'full' || motionRaw === 'reduced' ? motionRaw : 'system';
 
     cachedRaw = raw;
-    cachedSnapshot = { theme, sfx, music, sfxVolume, musicVolume, haptics, tokenStyle, diceStyle };
+    cachedSnapshot = { theme, sfx, music, sfxVolume, musicVolume, haptics, tokenStyle, diceStyle, motion };
     return cachedSnapshot;
 }
 
@@ -123,6 +131,8 @@ function applyBodyClasses(p: Preferences): void {
     else if (p.theme === 'light') document.body.classList.add('theme-daybreak');
     else document.body.classList.add('theme-3077');
     document.body.classList.toggle('token-style-orb', p.tokenStyle === 'orb');
+    document.body.classList.toggle('motion-force-full', p.motion === 'full');
+    document.body.classList.toggle('motion-force-reduced', p.motion === 'reduced');
 }
 
 /**

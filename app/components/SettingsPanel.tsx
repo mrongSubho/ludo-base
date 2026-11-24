@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDisconnect } from 'wagmi';
 import {
     useDeletePasskey,
@@ -10,6 +10,13 @@ import {
     useSignOut,
 } from '@coinbase/cdp-hooks';
 import { usePreferences } from '@/hooks/usePreferences';
+import {
+    OS_REDUCED_MOTION_HINTS,
+    REDUCED_MOTION_QUERY,
+    detectOsPlatform,
+    osPrefersReducedMotion,
+    type OsPlatform,
+} from '@/lib/motion';
 import { useSecurityPrefs } from '@/hooks/useSecurityPrefs';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppSession } from '@/hooks/useAppSession';
@@ -404,6 +411,19 @@ export function SettingsPanel({
     const [passkeyBusy, setPasskeyBusy] = useState(false);
     const [passkeyMsg, setPasskeyMsg] = useState<string | null>(null);
     const [showPasskeys, setShowPasskeys] = useState(false);
+    const [showOsMotionHelp, setShowOsMotionHelp] = useState(false);
+    const [osReduced, setOsReduced] = useState(osPrefersReducedMotion);
+    const [osPlatform, setOsPlatform] = useState<OsPlatform>('other');
+
+    useEffect(() => {
+        setOsPlatform(detectOsPlatform());
+        setOsReduced(osPrefersReducedMotion());
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+        const mq = window.matchMedia(REDUCED_MOTION_QUERY);
+        const onChange = () => setOsReduced(mq.matches);
+        mq.addEventListener('change', onChange);
+        return () => mq.removeEventListener('change', onChange);
+    }, []);
     const passkeyCount = (passkeys || []).length;
     const bio = useBiometricGate();
 
@@ -574,6 +594,82 @@ export function SettingsPanel({
                                             { value: 'orb', label: 'Orbs', icon: <TokenOrbIcon className="w-4 h-4" /> },
                                         ]}
                                     />
+                                </div>
+                                <div className="p-3.5">
+                                    <div className="flex items-center justify-between gap-2 mb-2">
+                                        <span className="text-ludo-xs font-extrabold uppercase tracking-widest text-ink-faint">
+                                            Reduced Motion
+                                        </span>
+                                        <span
+                                            className={`text-ludo-2xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${
+                                                osReduced
+                                                    ? 'bg-accent-soft text-accent border-accent/30'
+                                                    : 'bg-surface-hover text-ink-muted border-line-soft'
+                                            }`}
+                                        >
+                                            {osReduced ? 'OS: Reduce On' : 'OS: Normal'}
+                                        </span>
+                                    </div>
+                                    <PanelTabs
+                                        cols={3}
+                                        value={preferences.motion}
+                                        onPick={(v) => {
+                                            updatePreference('ludo-motion', v);
+                                            getSoundEngine().play('pref_cosmetic_swap');
+                                        }}
+                                        options={[
+                                            { value: 'system', label: 'System' },
+                                            { value: 'full', label: 'Full' },
+                                            { value: 'reduced', label: 'Reduced' },
+                                        ]}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowOsMotionHelp((v) => !v)}
+                                        aria-expanded={showOsMotionHelp}
+                                        className="mt-2.5 w-full flex items-center justify-between text-left text-ludo-xs font-bold text-ink-muted hover:text-ink-strong transition-colors"
+                                    >
+                                        <span>OS Reduce Motion guide</span>
+                                        <svg
+                                            viewBox="0 0 24 24"
+                                            className={`w-3.5 h-3.5 transition-transform shrink-0 ${showOsMotionHelp ? 'rotate-180' : ''}`}
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2.2"
+                                            strokeLinecap="round"
+                                        >
+                                            <path d="M6 9l6 6 6-6" />
+                                        </svg>
+                                    </button>
+                                    {showOsMotionHelp && (
+                                        <div className="mt-2 rounded-xl border border-line-soft bg-surface-hover/50 p-2.5 space-y-1.5">
+                                            <p className="text-ludo-xs font-bold text-ink-muted leading-snug">
+                                                Browsers cannot toggle device accessibility settings directly. Update it in your OS settings:
+                                            </p>
+                                            {[...(['macos', 'windows', 'ios', 'android'] as const)]
+                                                .sort((a, b) => (a === osPlatform ? -1 : b === osPlatform ? 1 : 0))
+                                                .map((key) => {
+                                                    const hint = OS_REDUCED_MOTION_HINTS[key];
+                                                    const isCurrent = key === osPlatform;
+                                                    return (
+                                                        <div
+                                                            key={key}
+                                                            className={`text-ludo-xs leading-snug rounded-lg px-2 py-1 ${
+                                                                isCurrent
+                                                                    ? 'bg-accent-soft/70 border border-accent/25 text-ink-strong'
+                                                                    : 'text-ink-faint'
+                                                            }`}
+                                                        >
+                                                            <span className="font-extrabold uppercase tracking-wider">
+                                                                {hint.label}
+                                                                {isCurrent ? ' (Detected)' : ''}:{' '}
+                                                            </span>
+                                                            <span className="font-semibold">{hint.steps}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <p className="text-ludo-xs font-bold text-ink-faint mt-2 px-1">

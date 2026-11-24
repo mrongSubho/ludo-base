@@ -55,6 +55,7 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const theme = cookieStore.get('ludo-theme')?.value;
   const tokenStyle = cookieStore.get('token-style')?.value;
+  const motionPref = cookieStore.get('ludo-motion')?.value;
 
   // Three themes: 3077 (flagship cyber-tactical HUD, default), Retro-Futurism (dark), and Daybreak (soft-UI light).
   // Legacy 'dark'/'ui' cookies migrate to Retro-Futurism; legacy 'porcelain'
@@ -69,11 +70,17 @@ export default async function RootLayout({
   // default. Only an explicit 'pawn' cookie suppresses it. The client
   // re-asserts this in usePreferences' mount effect.
   const tokenClass = tokenStyle === 'pawn' ? '' : ' token-style-orb';
+  const motionClass =
+    motionPref === 'full'
+      ? ' motion-force-full'
+      : motionPref === 'reduced'
+        ? ' motion-force-reduced'
+        : '';
     return (
         <html lang="en" className={fontVariables}>
             <head>
             </head>
-            <body className={`${themeClass}${tokenClass}`} suppressHydrationWarning>
+            <body className={`${themeClass}${tokenClass}${motionClass}`} suppressHydrationWarning>
                 <Providers>{children}</Providers>
             </body>
         </html>

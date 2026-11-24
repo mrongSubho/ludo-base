@@ -4154,27 +4154,49 @@ textarea:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  body:not(.motion-force-full) *,
+  body:not(.motion-force-full) *::before,
+  body:not(.motion-force-full) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
 
-  .cosmic-orb,
-  .boot-dot,
-  .ludo-token-pulse,
-  .await-ring,
-  .animate-pulse,
-  .animate-spin {
+  body:not(.motion-force-full) .cosmic-orb,
+  body:not(.motion-force-full) .boot-dot,
+  body:not(.motion-force-full) .ludo-token-pulse,
+  body:not(.motion-force-full) .await-ring,
+  body:not(.motion-force-full) .animate-pulse,
+  body:not(.motion-force-full) .animate-spin {
     animation: none !important;
   }
 
-  .ludo-token:hover {
+  body:not(.motion-force-full) .ludo-token:hover {
     transform: none;
   }
+}
+
+body.motion-force-reduced *,
+body.motion-force-reduced *::before,
+body.motion-force-reduced *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+body.motion-force-reduced .cosmic-orb,
+body.motion-force-reduced .boot-dot,
+body.motion-force-reduced .ludo-token-pulse,
+body.motion-force-reduced .await-ring,
+body.motion-force-reduced .animate-pulse,
+body.motion-force-reduced .animate-spin {
+  animation: none !important;
+}
+
+body.motion-force-reduced .ludo-token:hover {
+  transform: none;
 }
 
 /* ─── Match footer: Emotes left · Power orbs center (under dice/HUD) ─── */
@@ -6110,24 +6132,45 @@ body.theme-daybreak .emote-float:has(.emote-float-media) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .landscape-guard-icon,
-  .token-shield-ring,
-  .token-boost-arc,
-  .token-valid-halo,
-  .token-valid-ring,
-  .token-step-ripple,
-  .dice-boost-ring,
-  .dice-streak-strip.is-danger,
-  .move-dest-reticle,
-  .move-dest-finish-ring,
-  .dice-bay-well-spin,
-  .dice-air-trail-3077,
-  .dice-air-trail-retro,
-  .dice-ready-emblem.is-live {
+  body:not(.motion-force-full) .landscape-guard-icon,
+  body:not(.motion-force-full) .token-shield-ring,
+  body:not(.motion-force-full) .token-boost-arc,
+  body:not(.motion-force-full) .token-valid-halo,
+  body:not(.motion-force-full) .token-valid-ring,
+  body:not(.motion-force-full) .token-step-ripple,
+  body:not(.motion-force-full) .dice-boost-ring,
+  body:not(.motion-force-full) .dice-streak-strip.is-danger,
+  body:not(.motion-force-full) .move-dest-reticle,
+  body:not(.motion-force-full) .move-dest-finish-ring,
+  body:not(.motion-force-full) .dice-bay-well-spin,
+  body:not(.motion-force-full) .dice-air-trail-3077,
+  body:not(.motion-force-full) .dice-air-trail-retro,
+  body:not(.motion-force-full) .dice-ready-emblem.is-live {
     animation: none !important;
   }
-  .dice-bay,
-  .dice-bay-well {
+  body:not(.motion-force-full) .dice-bay,
+  body:not(.motion-force-full) .dice-bay-well {
     transition: none !important;
   }
+}
+
+body.motion-force-reduced .landscape-guard-icon,
+body.motion-force-reduced .token-shield-ring,
+body.motion-force-reduced .token-boost-arc,
+body.motion-force-reduced .token-valid-halo,
+body.motion-force-reduced .token-valid-ring,
+body.motion-force-reduced .token-step-ripple,
+body.motion-force-reduced .dice-boost-ring,
+body.motion-force-reduced .dice-streak-strip.is-danger,
+body.motion-force-reduced .move-dest-reticle,
+body.motion-force-reduced .move-dest-finish-ring,
+body.motion-force-reduced .dice-bay-well-spin,
+body.motion-force-reduced .dice-air-trail-3077,
+body.motion-force-reduced .dice-air-trail-retro,
+body.motion-force-reduced .dice-ready-emblem.is-live {
+  animation: none !important;
+}
+body.motion-force-reduced .dice-bay,
+body.motion-force-reduced .dice-bay-well {
+  transition: none !important;
 }
