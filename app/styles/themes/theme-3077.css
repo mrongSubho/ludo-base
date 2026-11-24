@@ -1019,3 +1019,50 @@ body.theme-3077 .mode-rail-3077:focus-visible {
 body.theme-3077 .mode-rail-shuttle-3077 {
   filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.78));
 }
+
+/* ─── 14. Power Inventory Dock & Popover (3077 Tactical Module) ─── */
+body.theme-3077 .power-orb {
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(var(--accent-rgb), 0.12), transparent 55%),
+    rgba(9, 13, 21, 0.96);
+  border-color: rgba(var(--accent-rgb), 0.24);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+body.theme-3077 .power-orb.is-ready {
+  border-color: var(--orb-accent);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.65),
+    0 0 14px var(--orb-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+body.theme-3077 .power-orb-ring {
+  border-radius: 14px;
+}
+body.theme-3077 .power-orb-count {
+  border-radius: 6px;
+  font-family: var(--font-mono, monospace);
+}
+body.theme-3077 .power-popover {
+  --power-popover-bg: rgba(8, 12, 20, 0.97);
+  --power-popover-border: rgba(var(--accent-rgb), 0.36);
+  --power-popover-shadow: 0 20px 46px rgba(0, 0, 0, 0.8), 0 0 20px rgba(var(--accent-rgb), 0.1);
+  --power-stage-bg: #0c121e;
+  --power-stage-border: rgba(var(--accent-rgb), 0.2);
+  --power-stage-tile: rgba(255, 255, 255, 0.05);
+  --power-stage-stroke: rgba(var(--accent-rgb), 0.28);
+  border-radius: 12px;
+}
+body.theme-3077 .power-example-stage {
+  border-radius: 8px;
+}
+body.theme-3077 .power-popover-title {
+  font-family: var(--font-heading, sans-serif);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+body.theme-3077 .power-popover-cta {
+  border-radius: 6px;
+}

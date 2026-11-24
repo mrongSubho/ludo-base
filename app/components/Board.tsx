@@ -37,6 +37,7 @@ import {
 } from '@/lib/rematch';
 import { usePoolClaim } from '@/hooks/useChipsPool';
 import { EmoteTray, parseEmotePayload } from './EmoteTray';
+import { PowerInventoryDock } from './PowerInventoryDock';
 import { EmojiPickerPopover } from './EmojiPicker';
 import { RichChatField } from './RichChatField';
 import { encodeChatDraft, insertDraftEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
@@ -892,24 +893,21 @@ export default function Board({
                     )}
                 </div>
                 <div className="match-footer-slot center">
-                    {showInventory && (
-                        <div className="power-inv-strip">
-                            {groupedInventory.map(g => {
-                                const has = g.count > 0;
-                                return (
-                                    <button
-                                        key={g.type}
-                                        onClick={() => spendPower(g.type)}
-                                        disabled={!canSpend || !has}
-                                        aria-label={`Use ${g.type} power, ${g.count} held`}
-                                        className={`power-orb power-orb-${g.type} ${targeting?.type === g.type ? 'power-orb-armed' : ''} ${has ? '' : 'power-orb-empty'}`}
-                                    >
-                                        <PowerGlyph type={g.type} />
-                                        <span className={`power-orb-count ${has ? '' : 'zero'}`}>{g.count}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
+                    {showInventory && ownColor && (
+                        <PowerInventoryDock
+                            items={groupedInventory}
+                            canSpend={canSpend}
+                            isMyTurn={isMyTurn}
+                            gamePhase={localGameState.gamePhase}
+                            powerSpentThisTurn={Boolean(localGameState.powerSpentThisTurn)}
+                            activeBoost={localGameState.activeBoost}
+                            activeShields={localGameState.activeShields}
+                            ownColor={ownColor}
+                            targeting={targeting}
+                            chatOpen={chatOpen}
+                            matchFinished={Boolean(localGameState.winner)}
+                            onSpendPower={spendPower}
+                        />
                     )}
                 </div>
                 <div className="match-footer-slot right">
@@ -968,39 +966,4 @@ function BoardTurnStatus({
 // Helper for the timer translation
 function useBoardLayoutRotation(smoothProgress: any) {
     return useTransform(smoothProgress, [0, 1], [270, -90]);
-}
-
-// Power glyphs — match-footprint size (ref row).
-function PowerGlyph({ type }: { type: PowerType }) {
-    const cls = 'w-5 h-5 sm:w-6 sm:h-6';
-    if (type === 'shield') {
-        return (
-            <svg viewBox="0 0 24 24" fill="none" stroke="#67e8f9" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
-                <path d="M12 2l8 3v6c0 5-3.5 9.5-8 11-4.5-1.5-8-6-8-11V5l8-3z" />
-            </svg>
-        );
-    }
-    if (type === 'boost') {
-        return (
-            <svg viewBox="0 0 24 24" fill="#facc15" className={cls}>
-                <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" />
-            </svg>
-        );
-    }
-    if (type === 'nuke') {
-        return (
-            <svg viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.2" className={cls}>
-                <circle cx="12" cy="12" r="8" />
-                <circle cx="12" cy="12" r="2.5" fill="#f87171" />
-            </svg>
-        );
-    }
-    return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={cls}>
-            <path d="M4 12a8 8 0 0 1 14-5l2 2" />
-            <path d="M20 4v5h-5" />
-            <path d="M20 12a8 8 0 0 1-14 5l-2-2" />
-            <path d="M4 20v-5h5" />
-        </svg>
-    );
 }

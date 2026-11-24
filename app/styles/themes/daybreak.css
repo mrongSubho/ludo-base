@@ -609,3 +609,88 @@ body.theme-daybreak .footer-nav {
   }
 }
 body.theme-daybreak .game-top-bar :is(.text-pink-300, .text-pink-400) { color: #be185d; }
+
+/* ─── Power Inventory Dock & Popover (Daybreak Tactile Ceramic Studio) ─── */
+body.theme-daybreak .power-orb {
+  background: linear-gradient(180deg, #ffffff 0%, #f5f2eb 100%);
+  border: 1.5px solid rgba(28, 25, 23, 0.14);
+  box-shadow:
+    0 5px 14px -4px rgba(28, 25, 23, 0.2),
+    0 1px 3px rgba(28, 25, 23, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.98);
+}
+body.theme-daybreak .power-orb.is-ready {
+  border-color: var(--orb-accent);
+  box-shadow:
+    0 6px 16px -4px rgba(28, 25, 23, 0.24),
+    0 0 0 2px color-mix(in srgb, var(--orb-accent) 22%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+body.theme-daybreak .power-orb.is-empty {
+  background: linear-gradient(180deg, #efece4 0%, #e5e0d5 100%);
+  filter: saturate(0.5);
+  opacity: 0.92;
+}
+body.theme-daybreak .power-orb-ring-track {
+  stroke: rgba(28, 25, 23, 0.1);
+}
+body.theme-daybreak .power-orb-count {
+  color: #ffffff;
+  border-color: #ffffff;
+  box-shadow: 0 2px 6px rgba(28, 25, 23, 0.24);
+}
+body.theme-daybreak .power-orb-count.zero {
+  background: #a1a1aa;
+  color: #ffffff;
+}
+@media (hover: hover) and (pointer: fine) {
+  body.theme-daybreak .power-orb-tooltip {
+    color: #18181b;
+    background: rgba(255, 255, 255, 0.96);
+    border-color: rgba(28, 25, 23, 0.14);
+    box-shadow: 0 8px 18px -4px rgba(28, 25, 23, 0.2);
+  }
+}
+body.theme-daybreak .power-popover {
+  --power-popover-bg: rgba(255, 255, 255, 0.98);
+  --power-popover-border: rgba(28, 25, 23, 0.12);
+  --power-popover-shadow: 0 22px 48px -12px rgba(28, 25, 23, 0.26), 0 4px 12px rgba(28, 25, 23, 0.08), inset 0 1px 0 #ffffff;
+  --power-popover-ink: #18181b;
+  --power-popover-muted: rgba(24, 24, 27, 0.68);
+  --power-stage-bg: #eef2f6;
+  --power-stage-border: rgba(28, 25, 23, 0.09);
+  --power-stage-tile: #ffffff;
+  --power-stage-stroke: rgba(28, 25, 23, 0.18);
+  --power-stage-ink: #18181b;
+  --power-stage-muted: rgba(24, 24, 27, 0.56);
+  --power-stage-arrow: rgba(24, 24, 27, 0.5);
+  --power-ribbon-bg: #dc2626;
+  --power-ribbon-ink: #ffffff;
+}
+body.theme-daybreak .power-popover-stock {
+  background: rgba(28, 25, 23, 0.06);
+  border-color: rgba(28, 25, 23, 0.1);
+}
+body.theme-daybreak .power-popover-stock.is-timed {
+  background: color-mix(in srgb, var(--power-accent) 12%, #ffffff);
+  border-color: color-mix(in srgb, var(--power-accent) 42%, transparent);
+}
+body.theme-daybreak .power-popover-stock.urgency-warn {
+  color: #b45309;
+}
+body.theme-daybreak .power-popover-stock.urgency-critical {
+  color: #b91c1c;
+}
+body.theme-daybreak .power-popover-close {
+  background: rgba(28, 25, 23, 0.07);
+  border-color: rgba(28, 25, 23, 0.12);
+  color: rgba(24, 24, 27, 0.65);
+}
+body.theme-daybreak .power-popover-status {
+  background: rgba(28, 25, 23, 0.06);
+  border-color: rgba(28, 25, 23, 0.1);
+  color: rgba(24, 24, 27, 0.72);
+}
+body.theme-daybreak .power-popover-cta {
+  color: #ffffff;
+}

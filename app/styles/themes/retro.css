@@ -557,3 +557,33 @@ body.theme-retro-futurism .cb-tab.active {
 body.theme-retro-futurism .cb-tab.active {
   background: rgba(var(--accent-rgb), 0.14);
 }
+
+/* ─── Power Inventory Dock & Popover (Retro Smoked Orbital Pods) ─── */
+body.theme-retro-futurism .power-orb {
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.16), transparent 52%),
+    rgba(8, 13, 25, 0.92);
+  border-color: rgba(var(--accent-rgb), 0.26);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.56),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+body.theme-retro-futurism .power-orb.is-ready {
+  border-color: var(--orb-accent);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.58),
+    0 0 16px var(--orb-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28);
+}
+body.theme-retro-futurism .power-popover {
+  --power-popover-bg: rgba(9, 15, 28, 0.95);
+  --power-popover-border: rgba(var(--accent-rgb), 0.34);
+  --power-popover-shadow: 0 22px 50px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  --power-stage-bg: rgba(15, 24, 42, 0.9);
+  --power-stage-border: rgba(var(--accent-rgb), 0.22);
+  --power-stage-tile: rgba(255, 255, 255, 0.06);
+  --power-stage-stroke: rgba(var(--accent-rgb), 0.28);
+}
+body.theme-retro-futurism .power-popover-cta {
+  border-radius: 9999px;
+}
