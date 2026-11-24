@@ -405,7 +405,9 @@ export function useGameActions({
 
         setLocalGameState((prev) => ({ ...prev, isRolling: true, diceValue: null, timeLeft: 15 }));
 
-        const tumblePromise = new Promise(r => setTimeout(r, 1200));
+        // Match LudoDice's ~440ms high-speed 3-axis breakout tumble so there is zero dead pause.
+        const ROLL_TUMBLE_MS = 440;
+        const tumblePromise = new Promise(r => setTimeout(r, ROLL_TUMBLE_MS));
 
         // 2. Generate and Set Result
         //
@@ -414,7 +416,7 @@ export function useGameActions({
         // is the authority — it waits for the fan-out, which is what makes the roll
         // the same fact on every socket.
         if (roomAuthority) {
-            await tumblePromise;
+            await new Promise(r => setTimeout(r, 320));
             const res = await sendRoomIntent('REQUEST_ROLL', { seatColor: color });
             rollingRef.current = false;
             if (!res.ok) {

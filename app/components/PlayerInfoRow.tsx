@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import React, { useState, useEffect, useRef } from 'react';
-import LudoDice from './LudoDice';
+import { AnchoredDiceBay } from './AnchoredDiceBay';
 import { Player } from '@/hooks/useGameEngine';
 import { PlayerColor } from '@/lib/types';
 import { Corner } from '@/lib/boardLayout';
+import type { TurnRollEntry } from '@/lib/diceVisuals';
 import { getTierInfo } from '@/lib/progression';
 import { usePreferences } from '@/hooks/usePreferences';
 import { isDirectImage, resolveAvatarDef } from '@/lib/avatars';
@@ -126,6 +127,7 @@ interface PlayerRowProps {
     spectatorMode: boolean;
     myPlayerColor: PlayerColor | undefined;
     bustState?: { color: PlayerColor; key: number } | null;
+    turnRolls?: TurnRollEntry[];
 }
 
 export function PlayerRow({
@@ -137,6 +139,7 @@ export function PlayerRow({
     spectatorMode,
     myPlayerColor,
     bustState = null,
+    turnRolls = [],
 }: PlayerRowProps) {
     const isTop = (corners as any).includes('TL');
     const items = (corners as any as Corner[]).map((corner) => {
@@ -159,10 +162,10 @@ export function PlayerRow({
         const flexDir = (corner === 'TL' || corner === 'BL') ? 'flex-row' : 'flex-row-reverse';
         const side = (corner === 'TL' || corner === 'BL') ? 'left' : 'right';
         const rowEdge = isTop ? 'top' : 'bottom';
-        const streakSixes = isMyTurn ? Math.min(2, Math.max(0, Number(localGameState.consecutiveSixes || 0))) : 0;
+        const consecutiveSixes = Number(localGameState.consecutiveSixes || 0);
 
         return (
-            <div key={p.color} className={`player-wrapper ${isMyTurn ? 'active-turn' : ''} flex ${flexDir} items-center gap-2.5`}>
+            <div key={p.color} className={`player-wrapper ${isMyTurn ? 'active-turn' : ''} flex ${flexDir} items-center gap-0`}>
                 <PlayerCard
                     player={p}
                     isActive={isMyTurn}
@@ -170,45 +173,23 @@ export function PlayerRow({
                     isKicked={isCurrentlyBot && !p.isAi}
                 />
                 {isMyTurn && !spectatorMode && (
-                    <div
-                        className={`dice-bay dice-bay-${side} dice-bay-row-${rowEdge} ${canRoll ? 'is-ready' : ''} ${localGameState.isRolling ? 'is-rolling' : ''} ${localGameState.activeBoost === p.color ? 'is-boosted' : ''}`}
-                        data-seat-color={p.color}
-                    >
-                        <span className="dice-bay-pointer" aria-hidden="true" />
-                        {streakSixes > 0 && (
-                            <div
-                                className={`dice-streak-strip ${streakSixes >= 2 ? 'is-danger' : ''}`}
-                                aria-label={`${streakSixes} consecutive six${streakSixes > 1 ? 'es' : ''}`}
-                                title={streakSixes >= 2 ? '2 sixes in a row — a 3rd six busts your turn!' : '1 six rolled — bonus roll active'}
-                            >
-                                {Array.from({ length: streakSixes }).map((_, sIdx) => (
-                                    <span key={sIdx} className="dice-streak-pip" aria-hidden="true">
-                                        <svg viewBox="0 0 20 20" className="w-full h-full">
-                                            <circle cx="6" cy="5" r="1.65" fill="currentColor" />
-                                            <circle cx="6" cy="10" r="1.65" fill="currentColor" />
-                                            <circle cx="6" cy="15" r="1.65" fill="currentColor" />
-                                            <circle cx="14" cy="5" r="1.65" fill="currentColor" />
-                                            <circle cx="14" cy="10" r="1.65" fill="currentColor" />
-                                            <circle cx="14" cy="15" r="1.65" fill="currentColor" />
-                                        </svg>
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-                        <LudoDice
-                            key={p.color}
-                            onRoll={handleRoll}
-                            disabled={!canRoll}
-                            currentValue={localGameState.diceValue}
-                            isRolling={localGameState.isRolling}
-                            activeColor={p.color}
-                            boostActive={localGameState.activeBoost === p.color}
-                            bustKey={bustState?.color === p.color ? bustState.key : 0}
-                        />
-                    </div>
+                    <AnchoredDiceBay
+                        color={p.color}
+                        corner={corner}
+                        side={side}
+                        rowEdge={rowEdge}
+                        canRoll={canRoll}
+                        isRolling={Boolean(localGameState.isRolling)}
+                        diceValue={localGameState.diceValue ?? null}
+                        boostActive={localGameState.activeBoost === p.color}
+                        bustKey={bustState?.color === p.color ? bustState.key : 0}
+                        turnRolls={turnRolls}
+                        dangerSixes={consecutiveSixes >= 2}
+                        onRoll={handleRoll}
+                    />
                 )}
                 {isMyTurn && spectatorMode && localGameState.diceValue != null && (
-                    <div className="hud-chamfer-sm w-10 h-10 rounded-xl bg-surface-recessed border border-accent/40 flex items-center justify-center text-accent font-mono font-extrabold text-lg tabular-nums shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                    <div className="hud-chamfer-sm ml-2 mr-2 w-10 h-10 rounded-xl bg-surface-recessed border border-accent/40 flex items-center justify-center text-accent font-mono font-extrabold text-lg tabular-nums shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
                         {localGameState.diceValue}
                     </div>
                 )}

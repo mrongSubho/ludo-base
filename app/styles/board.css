@@ -51,6 +51,8 @@
    between the board and the HUD. min-height:0 keeps it shrinkable when the
    viewport is genuinely too short. */
 .board-area {
+  position: relative;
+  z-index: 15;
   min-height: 0;
   flex: 0 1 auto;
   display: flex;
@@ -118,10 +120,14 @@
 .player-wrapper {
   position: relative;
   z-index: 10;
-  transition: all 0.3s ease;
+  transition: transform 0.24s ease, opacity 0.24s ease;
   transform-origin: center center;
   background: transparent;
   box-shadow: none;
+}
+
+.player-wrapper.active-turn {
+  z-index: 42;
 }
 
 /* New corner-avatar style overrides the old pill card */
@@ -1925,11 +1931,15 @@ body.theme-retro-futurism .home-pad {
     transform: none !important;
   }
 
+  .player-wrapper.active-turn {
+    z-index: 42 !important;
+  }
+
   .player-row {
     width: 100% !important;
     padding: 0 10px !important;
     justify-content: space-between !important;
-    min-height: 48px !important;
+    min-height: 58px !important;
     flex-shrink: 0 !important;
   }
 
@@ -3517,6 +3527,112 @@ body.theme-3077 .token-valid-arrow {
   z-index: 12;
 }
 
+.dice-ambient-aura {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 64px;
+  height: 64px;
+  margin-top: -32px;
+  margin-left: -32px;
+  filter: blur(18px);
+}
+.dice-ready-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 52px;
+  height: 52px;
+  margin-top: -26px;
+  margin-left: -26px;
+  border: 2px solid currentColor;
+}
+.dice-core-plane {
+  position: absolute;
+  inset: 2px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+.dice-face-shade {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes diceReadyPulse {
+  0%, 100% { transform: scale(0.95); opacity: 0.86; }
+  50% { transform: scale(1.07); opacity: 1; }
+}
+.dice-ready-emblem {
+  width: 82%;
+  height: 82%;
+  display: block;
+  position: relative;
+  z-index: 2;
+}
+.dice-ready-emblem.is-live {
+  animation: diceReadyPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes diceAirTrail3077 {
+  from { transform: rotate(0deg) scale(1.06); }
+  to { transform: rotate(90deg) scale(1.12); }
+}
+@keyframes diceAirTrailRetro {
+  from { transform: rotate(0deg) scale(1.08); }
+  to { transform: rotate(360deg) scale(1.08); }
+}
+.dice-air-trail-3077 {
+  position: absolute;
+  inset: -6px;
+  border-radius: 9px;
+  border: 1.5px solid;
+  opacity: 0.72;
+  box-shadow: 0 0 12px currentColor;
+  pointer-events: none;
+  animation: diceAirTrail3077 0.24s linear infinite;
+}
+.dice-air-trail-retro {
+  position: absolute;
+  inset: -7px;
+  border-radius: 9999px;
+  border: 2px dashed;
+  opacity: 0.78;
+  box-shadow: 0 0 14px currentColor;
+  pointer-events: none;
+  animation: diceAirTrailRetro 0.35s linear infinite;
+}
+.dice-air-shadow-daybreak {
+  position: absolute;
+  inset: 4px -4px -8px 4px;
+  border-radius: 12px;
+  background: rgba(28, 25, 23, 0.28);
+  filter: blur(6px);
+  pointer-events: none;
+  transform: translate(6px, 12px);
+}
+.dice-ground-shadow-daybreak {
+  width: 34px;
+  height: 5px;
+  background: rgba(28, 25, 23, 0.32);
+  filter: blur(3px);
+}
+
+.dice-land-ring.theme-fx-3077,
+.dice-crit-ring.theme-fx-3077 {
+  border-radius: 9px;
+}
+.dice-crit-spark.theme-fx-3077 {
+  border-radius: 2px;
+}
+.dice-crit-spark.theme-fx-daybreak {
+  border-radius: 1px;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  box-shadow: 0 0 6px rgba(217, 119, 6, 0.65);
+}
+
 /* Ground shadow / emitter pad sits outside flex flow so 3D cube centers vertically */
 .dice-ground-shadow {
   position: absolute;
@@ -3530,9 +3646,54 @@ body.theme-3077 .token-valid-arrow {
   z-index: 1;
 }
 
-/* Anchored Dice Bay: couples turn die cleanly beside its seat avatar */
-.dice-bay {
+/* Sculpted Tethered Launch Dock (couples avatar ring + bay + overdrive wing) */
+.dice-bay-assembly {
   --bay-accent: #22d3ee;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.dice-bay-assembly[data-seat-color="green"] { --bay-accent: var(--ludo-green, #10b981); }
+.dice-bay-assembly[data-seat-color="red"] { --bay-accent: var(--ludo-red, #ef4444); }
+.dice-bay-assembly[data-seat-color="yellow"] { --bay-accent: var(--ludo-yellow, #f59e0b); }
+.dice-bay-assembly[data-seat-color="blue"] { --bay-accent: var(--ludo-blue, #3b82f6); }
+
+.dice-bay-assembly.dice-bay-side-left {
+  flex-direction: row;
+  margin-left: -6px;
+}
+.dice-bay-assembly.dice-bay-side-right {
+  flex-direction: row-reverse;
+  margin-right: -6px;
+}
+
+.dice-bay-tether {
+  width: 14px;
+  height: 28px;
+  flex: 0 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+  margin-right: -2px;
+}
+.dice-bay-tether.side-right {
+  transform: scaleX(-1);
+  margin-right: 0;
+  margin-left: -2px;
+}
+.dice-tether-body {
+  fill: rgba(10, 15, 26, 0.9);
+}
+.dice-tether-stroke {
+  stroke: rgba(255, 255, 255, 0.22);
+}
+.dice-tether-accent {
+  stroke: var(--bay-accent);
+}
+
+.dice-bay {
   position: relative;
   width: 54px;
   height: 54px;
@@ -3546,69 +3707,125 @@ body.theme-3077 .token-valid-arrow {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.1),
     0 6px 18px rgba(0, 0, 0, 0.45);
+  z-index: 4;
   transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
-.dice-bay[data-seat-color="green"] { --bay-accent: var(--ludo-green, #10b981); }
-.dice-bay[data-seat-color="red"] { --bay-accent: var(--ludo-red, #ef4444); }
-.dice-bay[data-seat-color="yellow"] { --bay-accent: var(--ludo-yellow, #f59e0b); }
-.dice-bay[data-seat-color="blue"] { --bay-accent: var(--ludo-blue, #3b82f6); }
-
-.dice-bay.is-ready {
+.dice-bay-assembly.is-ready .dice-bay {
   border-color: color-mix(in srgb, var(--bay-accent) 72%, transparent);
   box-shadow:
     0 0 16px color-mix(in srgb, var(--bay-accent) 26%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
-
-.dice-bay.is-rolling {
+.dice-bay-assembly.is-rolling .dice-bay {
   border-color: var(--bay-accent);
   box-shadow:
     0 0 22px color-mix(in srgb, var(--bay-accent) 44%, transparent),
     inset 0 0 10px color-mix(in srgb, var(--bay-accent) 18%, transparent);
 }
-
-.dice-bay.is-boosted {
+.dice-bay-assembly.is-boosted .dice-bay {
   border-color: rgba(245, 158, 11, 0.86);
   box-shadow:
     0 0 18px rgba(245, 158, 11, 0.34),
     inset 0 0 10px rgba(245, 158, 11, 0.14);
 }
 
-.dice-bay-pointer {
+@keyframes diceWellSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.dice-bay-well {
   position: absolute;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  background: inherit;
-  border: 1.5px solid transparent;
-  transform: translateY(-50%) rotate(45deg);
+  inset: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.32;
   pointer-events: none;
-  z-index: 0;
+  z-index: 1;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.dice-bay-well.is-active {
+  opacity: 0.56;
+}
+.dice-bay-well.is-airborne {
+  opacity: 1;
+  transform: scale(1.04);
+}
+.dice-bay-well-spin {
+  transform-origin: 24px 24px;
+  animation: diceWellSpin 8s linear infinite;
 }
 
-.dice-bay-left .dice-bay-pointer {
-  left: -5px;
-  border-left-color: inherit;
-  border-bottom-color: inherit;
+/* Dual-Core +6 Overdrive Wing attached to bay outer flank */
+.dice-bay-overdrive {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 3px;
+  z-index: 3;
+}
+.dice-bay-side-right .dice-bay-overdrive {
+  flex-direction: row-reverse;
+  margin-left: 0;
+  margin-right: 3px;
+}
+.dice-bay-overdrive-coupler {
+  width: 5px;
+  height: 10px;
+  border-radius: 2px;
+  background: rgba(245, 158, 11, 0.7);
+  margin-right: -1px;
+}
+.dice-bay-side-right .dice-bay-overdrive-coupler {
+  margin-right: 0;
+  margin-left: -1px;
+}
+.dice-bay-overdrive-core {
+  width: 34px;
+  height: 34px;
+  padding: 4px;
+  border-radius: 9px;
+  border: 1.5px solid rgba(245, 158, 11, 0.72);
+  background: rgba(30, 20, 6, 0.92);
+  color: #fbbf24;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dice-bay-overdrive-pips {
+  width: 100%;
+  height: 100%;
+}
+.dice-bay-overdrive-tag {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  padding: 1px 4px;
+  border-radius: 9999px;
+  background: #f59e0b;
+  color: #18181b;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.05;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.52);
+  pointer-events: none;
+}
+.dice-bay-side-right .dice-bay-overdrive-tag {
+  right: auto;
+  left: -4px;
 }
 
-.dice-bay-right .dice-bay-pointer {
-  right: -5px;
-  border-right-color: inherit;
-  border-top-color: inherit;
-}
-
-/* Turn roll-streak pips for chained sixes (doubles/bust warning) */
+/* Turn roll-history strip ([6][6][4]) aligned toward avatar edge */
 @keyframes diceStreakPulse {
-  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.92; }
-  50% { transform: translateX(-50%) scale(1.07); opacity: 1; }
+  0%, 100% { transform: scale(1); opacity: 0.92; }
+  50% { transform: scale(1.06); opacity: 1; }
 }
 
 .dice-streak-strip {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -3621,6 +3838,15 @@ body.theme-3077 .token-valid-arrow {
   z-index: 16;
 }
 
+.dice-bay-side-left .dice-streak-strip {
+  left: -4px;
+}
+
+.dice-bay-side-right .dice-streak-strip {
+  right: -4px;
+  flex-direction: row-reverse;
+}
+
 .dice-bay-row-top .dice-streak-strip {
   top: -21px;
 }
@@ -3630,15 +3856,21 @@ body.theme-3077 .token-valid-arrow {
 }
 
 .dice-streak-pip {
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
+  width: 15px;
+  height: 15px;
+  border-radius: 3.5px;
   background: rgba(255, 255, 255, 0.94);
   color: #0f172a;
-  padding: 1px;
+  padding: 1.5px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.dice-streak-pip.is-boosted-pip {
+  background: #fef3c7;
+  color: #b45309;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
 }
 
 .dice-streak-strip.is-danger {
@@ -5720,7 +5952,13 @@ body.theme-daybreak .emote-float:has(.emote-float-media) {
   }
 
   .board-terminal-line1 {
-    max-width: calc(100vw - 232px);
+    max-width: calc(100vw - 244px);
+  }
+}
+
+@media (max-width: 390px) {
+  .board-outer:has(.dice-bay-row-top.is-boosted) .board-terminal-line1 {
+    max-width: calc(100vw - 262px);
   }
 }
 
@@ -5731,10 +5969,15 @@ body.theme-daybreak .emote-float:has(.emote-float-media) {
   .dice-boost-ring,
   .dice-streak-strip.is-danger,
   .move-dest-reticle,
-  .move-dest-finish-ring {
+  .move-dest-finish-ring,
+  .dice-bay-well-spin,
+  .dice-air-trail-3077,
+  .dice-air-trail-retro,
+  .dice-ready-emblem.is-live {
     animation: none !important;
   }
-  .dice-bay {
+  .dice-bay,
+  .dice-bay-well {
     transition: none !important;
   }
 }

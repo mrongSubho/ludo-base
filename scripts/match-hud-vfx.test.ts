@@ -8,6 +8,13 @@ import type { GameState } from '../lib/types';
 import { deriveMatchFeedEvent, formatColorList, formatPrimaryTurnLine } from '../lib/matchFeed';
 import { computeNukeBlastCorridor, derivePowerVfxEvents } from '../lib/powerVfx';
 import { computeMovePreview, computeSingleLegalMovePreview } from '../lib/movePreview';
+import {
+    computeBreakoutTrajectory,
+    resolveDisplayedTurnRolls,
+    resolveDiceThemeId,
+    updateTurnRollHistory,
+    type TurnRollHistoryState,
+} from '../lib/diceVisuals';
 
 const root = join(import.meta.dirname ?? __dirname, '..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
@@ -202,14 +209,25 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
         assert.match(dice, /dice-ground-shadow/);
         assert.match(dice, /w-11 h-11/);
         assert.match(dice, /tz = '22px'/);
+        assert.match(dice, /DiceSolidCore/);
+        assert.match(dice, /DiceReadyEmblem/);
+        assert.match(dice, /skippedRollPhase/);
         assert.doesNotMatch(dice, /y:\s*\[0,\s*3,\s*-18/);
 
         assert.match(board, /is-line2-promoted/);
 
+        const bay = read('app/components/AnchoredDiceBay.tsx');
+        assert.match(bay, /dice-bay-tether/);
+        assert.match(bay, /dice-bay-well/);
+        assert.match(bay, /dice-bay-overdrive/);
+        assert.match(bay, /dice-streak-strip/);
+
         const row = read('app/components/PlayerInfoRow.tsx');
-        assert.match(row, /dice-bay/);
-        assert.match(row, /dice-bay-pointer/);
-        assert.match(row, /dice-streak-strip/);
+        assert.match(row, /<AnchoredDiceBay/);
+
+        const actions = read('hooks/useGameActions.ts');
+        assert.match(actions, /ROLL_TUMBLE_MS = 440/);
+        assert.doesNotMatch(actions, /setTimeout\(r, 1200\)/);
 
         const piece = read('app/components/board/TokenPiece.tsx');
         assert.match(piece, /isBoosted \? 0\.085 : 0\.115/);
@@ -222,6 +240,63 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
         const boardCss = read('app/styles/board.css');
         assert.match(boardCss, /\.board-terminal-hud\s*\{[^}]*position:\s*absolute;/);
         assert.match(boardCss, /\.move-dest-reticle/);
+        assert.match(boardCss, /\.player-wrapper\.active-turn/);
+    });
+
+    it('computes board-inward 3D breakout trajectories for all 3 themes and accumulates turn roll chains', () => {
+        assert.equal(resolveDiceThemeId('3077'), '3077');
+        assert.equal(resolveDiceThemeId('retro'), 'retro');
+        assert.equal(resolveDiceThemeId('light'), 'daybreak');
+
+        for (const themeId of ['3077', 'retro', 'daybreak'] as const) {
+            const tl = computeBreakoutTrajectory('TL', themeId);
+            assert.equal(tl.dirX, 1);
+            assert.equal(tl.dirY, 1);
+            assert.ok(Math.max(...tl.flightKeyframes.scale) >= 1.55);
+
+            const tr = computeBreakoutTrajectory('TR', themeId);
+            assert.equal(tr.dirX, -1);
+            assert.equal(tr.dirY, 1);
+
+            const bl = computeBreakoutTrajectory('BL', themeId);
+            assert.equal(bl.dirX, 1);
+            assert.equal(bl.dirY, -1);
+
+            const br = computeBreakoutTrajectory('BR', themeId);
+            assert.equal(br.dirX, -1);
+            assert.equal(br.dirY, -1);
+        }
+
+        // Distinct settle physics across themes
+        const t3077 = computeBreakoutTrajectory('TL', '3077');
+        const tRetro = computeBreakoutTrajectory('TL', 'retro');
+        const tDay = computeBreakoutTrajectory('TL', 'daybreak');
+        assert.notEqual(t3077.settleSpring.stiffness, tRetro.settleSpring.stiffness);
+        assert.notEqual(tRetro.settleSpring.stiffness, tDay.settleSpring.stiffness);
+
+        // Turn roll history chain [6, 6 (boosted), 4] then reset on turn switch
+        let chain: TurnRollHistoryState = { player: 'green', rolls: [], nextId: 0 };
+        const rolling6 = cloneState({ currentPlayer: 'green', isRolling: true, diceValue: null });
+        const land6a = cloneState({ currentPlayer: 'green', isRolling: false, diceValue: 6 });
+        chain = updateTurnRollHistory(chain, rolling6, land6a);
+        assert.deepEqual(chain.rolls.map((r) => r.value), [6]);
+
+        const rolling6b = cloneState({ currentPlayer: 'green', isRolling: true, diceValue: null, activeBoost: 'green' });
+        const land6b = cloneState({ currentPlayer: 'green', isRolling: false, diceValue: 6, activeBoost: null });
+        chain = updateTurnRollHistory(chain, rolling6b, land6b);
+        assert.deepEqual(chain.rolls.map((r) => [r.value, r.boosted]), [[6, false], [6, true]]);
+
+        const land4 = cloneState({ currentPlayer: 'green', isRolling: false, diceValue: 4 });
+        chain = updateTurnRollHistory(chain, land6b, land4);
+        assert.deepEqual(chain.rolls.map((r) => r.value), [6, 6, 4]);
+
+        const nextTurn = cloneState({ currentPlayer: 'red', isRolling: false, diceValue: null });
+        chain = updateTurnRollHistory(chain, land4, nextTurn);
+        assert.equal(chain.player, 'red');
+        assert.equal(chain.rolls.length, 0);
+
+        // Mid-turn hydration fallback
+        assert.deepEqual(resolveDisplayedTurnRolls([], 2).map((r) => r.value), [6, 6]);
     });
 
     it('computes authoritative move destination previews for normal, safe, power, capture, and finish squares', () => {

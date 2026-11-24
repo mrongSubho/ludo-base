@@ -737,18 +737,45 @@ body.theme-daybreak .board-terminal-line2.tone-bust {
   color: #9f1239;
 }
 body.theme-daybreak .dice-bay {
-  border-radius: 14px;
-  background: linear-gradient(180deg, #faf8f2 0%, #ede8dc 100%);
-  border-color: rgba(28, 25, 23, 0.16);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #faf7f0 0%, #eae3d4 100%);
+  border-color: rgba(28, 25, 23, 0.18);
   box-shadow:
-    inset 0 2px 6px rgba(28, 25, 23, 0.08),
-    0 4px 12px rgba(28, 25, 23, 0.12);
+    inset 0 2px 6px rgba(28, 25, 23, 0.1),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.9),
+    0 5px 14px rgba(28, 25, 23, 0.14);
 }
-body.theme-daybreak .dice-bay.is-ready {
-  border-color: color-mix(in srgb, var(--bay-accent) 68%, rgba(28, 25, 23, 0.12));
+body.theme-daybreak .dice-bay.is-ready,
+body.theme-daybreak .dice-bay-assembly.is-ready .dice-bay {
+  border-color: color-mix(in srgb, var(--bay-accent) 72%, rgba(28, 25, 23, 0.14));
   box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--bay-accent) 18%, transparent),
-    0 6px 14px rgba(28, 25, 23, 0.14);
+    0 0 0 2px color-mix(in srgb, var(--bay-accent) 20%, transparent),
+    0 7px 16px rgba(28, 25, 23, 0.16),
+    inset 0 2px 5px rgba(28, 25, 23, 0.08);
+}
+body.theme-daybreak .dice-tether-body {
+  fill: #f0ebe0;
+}
+body.theme-daybreak .dice-tether-accent {
+  stroke: var(--bay-accent);
+  opacity: 0.72;
+}
+body.theme-daybreak .dice-well-dish {
+  fill: rgba(28, 25, 23, 0.06);
+}
+body.theme-daybreak .dice-well-stroke {
+  stroke: color-mix(in srgb, var(--bay-accent) 48%, rgba(28, 25, 23, 0.2));
+}
+body.theme-daybreak .dice-well-core {
+  stroke: color-mix(in srgb, var(--bay-accent) 62%, transparent);
+  fill: color-mix(in srgb, var(--bay-accent) 12%, transparent);
+}
+body.theme-daybreak .dice-bay-overdrive-core {
+  border-radius: 11px;
+  background: linear-gradient(180deg, #fffbeb 0%, #fde68a 100%);
+  border-color: rgba(180, 83, 9, 0.45);
+  color: #92400e;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 3px 10px rgba(180, 83, 9, 0.22);
 }
 body.theme-daybreak .dice-streak-strip {
   background: rgba(255, 255, 255, 0.96);

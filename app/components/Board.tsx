@@ -36,6 +36,11 @@ import {
 } from '@/lib/matchFeed';
 import { derivePowerVfxEvents, type PowerVfxEvent } from '@/lib/powerVfx';
 import {
+    resolveDisplayedTurnRolls,
+    updateTurnRollHistory,
+    type TurnRollHistoryState,
+} from '@/lib/diceVisuals';
+import {
     computeMovePreview,
     computeSingleLegalMovePreview,
     type MovePreviewTarget,
@@ -222,6 +227,11 @@ export default function Board({
     const [feedEvent, setFeedEvent] = useState<CombatFeedLine | null>(null);
     const [powerVfxEvents, setPowerVfxEvents] = useState<PowerVfxEvent[]>([]);
     const [bustState, setBustState] = useState<{ color: PlayerColor; key: number } | null>(null);
+    const [turnRollHistory, setTurnRollHistory] = useState<TurnRollHistoryState>(() => ({
+        player: 'green',
+        rolls: [],
+        nextId: 0,
+    }));
     const prevStateRef = useRef<GameState | null>(null);
     const feedSeqRef = useRef(0);
     const vfxSeqRef = useRef(0);
@@ -276,6 +286,8 @@ export default function Board({
         const prev = prevStateRef.current;
         prevStateRef.current = localGameState;
         if (!prev) return;
+
+        setTurnRollHistory((cur) => updateTurnRollHistory(cur, prev, localGameState));
 
         const ownPlayerColor =
             (players.find((p) => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) ||
@@ -747,6 +759,11 @@ export default function Board({
         });
     }, [spectatorMode, targeting, localGameState, hoveredMoveToken, colorCorner, playerCount, ownColor]);
 
+    const displayedTurnRolls = resolveDisplayedTurnRolls(
+        turnRollHistory.player === localGameState.currentPlayer ? turnRollHistory.rolls : [],
+        localGameState.consecutiveSixes,
+    );
+
     return (
         <div data-theme="default" className="board-outer board-match-theme-wrapper w-full h-full">
             <PlayerRow
@@ -758,6 +775,7 @@ export default function Board({
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
                 bustState={bustState}
+                turnRolls={displayedTurnRolls}
             />
 
             <BoardTerminalHud line1={primaryTurnLine} line2={feedEvent} />
@@ -936,6 +954,7 @@ export default function Board({
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
                 bustState={bustState}
+                turnRolls={displayedTurnRolls}
             />
 
             {/* Match footer: social controls, shared by classic and power (hidden while spectating). */}
