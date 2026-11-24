@@ -26,8 +26,15 @@ import {
     NameOverlay,
     StatusNotification,
 } from './BoardOverlays';
-import { ChatIcon, DirectiveTargetIcon, OverdriveBoltIcon, SimBotIcon } from './icons';
-import { MatchStatsOverlay } from './MatchStatsOverlay';
+import { ChatIcon, SimBotIcon } from './icons';
+import { MatchStatsOverlay, type RematchOverlayState } from './MatchStatsOverlay';
+import { TerminalTypeText } from './TerminalTypeText';
+import {
+    REMATCH_TIMEOUT_MS,
+    evaluateRematchOutcome,
+    parseRematchPayload,
+    type RematchVote,
+} from '@/lib/rematch';
 import { usePoolClaim } from '@/hooks/useChipsPool';
 import { EmoteTray, parseEmotePayload } from './EmoteTray';
 import { EmojiPickerPopover } from './EmojiPicker';
@@ -40,13 +47,24 @@ import { EMOTE_TTL_MS } from '@/lib/emotes';
 import type { GameActionPayload } from '@/lib/types';
 import { getHopSamples } from '@/lib/perf/budget';
 import { installPerfDebugHook } from '@/lib/perf/report';
-import { PlayerRow, getDisplayNameHelper } from './PlayerInfoRow';
+import { PlayerRow, getDisplayNameHelper, type BoardSelfPrompt } from './PlayerInfoRow';
 
 // Modular Hooks
 import { useBoardLayout } from '@/hooks/useBoardLayout';
 import { useBoardAudio } from '@/hooks/useBoardAudio';
 import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import { emoteSoundIdFor } from '@/lib/audio/boardAudioState';
+
+export interface RematchResolutionPlan {
+    action: 'rematch_all' | 'hybrid_quick_search' | 'solo_quick_search';
+    gameMode: 'classic' | 'power';
+    playerCount: '1v1' | '2v2' | '4P';
+    wager: number;
+    acceptedWallets: string[];
+    slotsNeeded: number;
+    proposalId: string;
+    startedMatchId?: string;
+}
 
 export default function Board({
     showLeaderboard = false,
@@ -64,6 +82,7 @@ export default function Board({
     botDifficulty = 'pro',
     onExitMatch,
     onOpenChat: _onOpenChat,
+    onRematchResolved,
 }: {
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
@@ -82,10 +101,12 @@ export default function Board({
     onExitMatch?: () => void;
     /** Open in-match chat / messages. */
     onOpenChat?: () => void;
+    /** Online post-match rematch vote resolved (all accepted or quick-search fallback). */
+    onRematchResolved?: (plan: RematchResolutionPlan) => void;
 }) {
     // Effective identity (wallet or guest id) so guests resolve as human.
     const { address } = useCurrentUser();
-    const { participants, broadcastAction, serverSeq } = useTeamUp();
+    const { roomId, participants, broadcastAction, serverSeq } = useTeamUp();
     const {
         claim: claimChips,
         claimable: onchainClaimable,
@@ -311,6 +332,284 @@ export default function Board({
     useEffect(() => {
         setTargeting(null);
     }, [localGameState.currentPlayer, localGameState.gamePhase]);
+
+    // ─── Online Post-Match Rematch Vote (15s) + Quick-Search Fallback ────
+    const humanPlayers = React.useMemo(() => players.filter((p) => !p.isAi), [players]);
+    const isOnlineMultiplayer =
+        !isBotMatch &&
+        !spectatorMode &&
+        Boolean(roomId || serverSeq > 0) &&
+        humanPlayers.length >= 2;
+
+    const [rematchProposalId, setRematchProposalId] = useState<string | null>(null);
+    const [rematchProposer, setRematchProposer] = useState<{ name: string; color: PlayerColor } | null>(null);
+    const [rematchVotes, setRematchVotes] = useState<Partial<Record<PlayerColor, RematchVote>>>({});
+    const [rematchDeadlineAt, setRematchDeadlineAt] = useState<number | null>(null);
+    const [rematchSecondsLeft, setRematchSecondsLeft] = useState(0);
+    const [rematchStatusUI, setRematchStatusUI] = useState<'idle' | 'searching' | 'starting' | 'declined'>('idle');
+    const [rematchStatusMsg, setRematchStatusMsg] = useState<string | null>(null);
+    const rematchResolvedIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (!localGameState.winner) {
+            setRematchProposalId(null);
+            setRematchProposer(null);
+            setRematchVotes({});
+            setRematchDeadlineAt(null);
+            setRematchSecondsLeft(0);
+            setRematchStatusUI('idle');
+            setRematchStatusMsg(null);
+            rematchResolvedIdRef.current = null;
+        }
+    }, [localGameState.winner]);
+
+    useEffect(() => {
+        if (!isOnlineMultiplayer || !localGameState.winner) return;
+        const onRematchSignal = (ev: Event) => {
+            const sig = parseRematchPayload((ev as CustomEvent).detail);
+            if (!sig) return;
+            if (localGameState.matchId && sig.matchId && sig.matchId !== localGameState.matchId) return;
+
+            if (sig.kind === 'started' && sig.newMatchId) {
+                const startKey = `${sig.proposalId}:started`;
+                if (rematchResolvedIdRef.current === startKey) return;
+                rematchResolvedIdRef.current = startKey;
+                setRematchStatusUI('starting');
+                setRematchStatusMsg('Starting rematch table...');
+                onRematchResolved?.({
+                    action: 'rematch_all',
+                    gameMode,
+                    playerCount,
+                    wager,
+                    acceptedWallets: [],
+                    slotsNeeded: 0,
+                    proposalId: sig.proposalId,
+                    startedMatchId: sig.newMatchId,
+                });
+                return;
+            }
+
+            if (sig.kind === 'propose') {
+                setRematchProposalId((cur) => {
+                    if (!cur) {
+                        const seatPlayer = players.find((p) => p.color === sig.color);
+                        setRematchProposer({
+                            name: sig.actor || (seatPlayer ? getDisplayNameHelper(seatPlayer) : sig.color),
+                            color: sig.color,
+                        });
+                        setRematchDeadlineAt(Date.now() + REMATCH_TIMEOUT_MS);
+                        setRematchSecondsLeft(Math.ceil(REMATCH_TIMEOUT_MS / 1000));
+                        setRematchStatusUI('idle');
+                        setRematchStatusMsg(null);
+                        return sig.proposalId;
+                    }
+                    return cur;
+                });
+                setRematchVotes((prev) => ({ ...prev, [sig.color]: 'accepted' }));
+                return;
+            }
+
+            if (sig.kind === 'accept' || sig.kind === 'decline') {
+                setRematchVotes((prev) => ({
+                    ...prev,
+                    [sig.color]: sig.kind === 'accept' ? 'accepted' : 'declined',
+                }));
+            }
+        };
+
+        window.addEventListener('ludo-rematch', onRematchSignal);
+        return () => window.removeEventListener('ludo-rematch', onRematchSignal);
+    }, [isOnlineMultiplayer, localGameState.winner, localGameState.matchId, players, gameMode, playerCount, wager, onRematchResolved]);
+
+    const rematchExpired = rematchDeadlineAt !== null && rematchSecondsLeft === 0;
+    useEffect(() => {
+        if (!rematchDeadlineAt) return;
+        const update = () => {
+            const left = Math.max(0, Math.ceil((rematchDeadlineAt - Date.now()) / 1000));
+            setRematchSecondsLeft(left);
+        };
+        update();
+        const timer = window.setInterval(update, 400);
+        return () => window.clearInterval(timer);
+    }, [rematchDeadlineAt]);
+
+    useEffect(() => {
+        if (!isOnlineMultiplayer || !localGameState.winner || !rematchProposalId) return;
+        if (rematchResolvedIdRef.current === rematchProposalId) return;
+
+        const res = evaluateRematchOutcome({
+            votes: rematchVotes,
+            humanColors: humanPlayers.map((p) => p.color),
+            myColor: ownColor,
+            playerCount,
+            expired: rematchExpired,
+        });
+
+        if (res.outcome === 'pending') return;
+        rematchResolvedIdRef.current = rematchProposalId;
+
+        const acceptedWallets = res.acceptedColors
+            .map((c) => players.find((p) => p.color === c)?.walletAddress?.toLowerCase())
+            .filter((w): w is string => Boolean(w));
+
+        if (res.outcome === 'declined') {
+            setRematchStatusUI('declined');
+            setRematchStatusMsg('Rematch declined');
+            return;
+        }
+
+        const resolvedAction: RematchResolutionPlan['action'] =
+            res.outcome === 'all_accepted' ? 'rematch_all' : res.outcome;
+
+        if (resolvedAction === 'rematch_all') {
+            setRematchStatusUI('starting');
+            setRematchStatusMsg('All players accepted · launching rematch...');
+        } else {
+            setRematchStatusUI('searching');
+            setRematchStatusMsg(
+                resolvedAction === 'hybrid_quick_search'
+                    ? `Opponent declined · filling ${res.slotsNeeded} seat${res.slotsNeeded > 1 ? 's' : ''} (${gameMode.toUpperCase()} · ${playerCount})...`
+                    : `Opponent declined · searching ${gameMode.toUpperCase()} ${playerCount}...`,
+            );
+        }
+
+        const t = window.setTimeout(() => {
+            onRematchResolved?.({
+                action: resolvedAction,
+                gameMode,
+                playerCount,
+                wager,
+                acceptedWallets,
+                slotsNeeded: res.slotsNeeded,
+                proposalId: rematchProposalId,
+            });
+        }, 450);
+        return () => window.clearTimeout(t);
+    }, [
+        isOnlineMultiplayer,
+        localGameState.winner,
+        rematchProposalId,
+        rematchVotes,
+        rematchExpired,
+        humanPlayers,
+        ownColor,
+        playerCount,
+        players,
+        gameMode,
+        wager,
+        onRematchResolved,
+    ]);
+
+    const handleRematchClick = React.useCallback(() => {
+        if (!isOnlineMultiplayer) {
+            resetGame();
+            return;
+        }
+        if (!ownColor || rematchProposalId) return;
+        const proposalId =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                ? crypto.randomUUID()
+                : `rematch-${Date.now()}`;
+        const actor = myPlayer ? getDisplayNameHelper(myPlayer) : ownColor;
+        setRematchProposalId(proposalId);
+        setRematchProposer({ name: actor, color: ownColor });
+        setRematchVotes({ [ownColor]: 'accepted' });
+        setRematchDeadlineAt(Date.now() + REMATCH_TIMEOUT_MS);
+        setRematchSecondsLeft(Math.ceil(REMATCH_TIMEOUT_MS / 1000));
+        setRematchStatusUI('idle');
+        setRematchStatusMsg(null);
+        broadcastAction('REMATCH', {
+            kind: 'propose',
+            proposalId,
+            matchId: localGameState.matchId,
+            roomCode: roomId ?? undefined,
+            color: ownColor,
+            wallet: address?.toLowerCase(),
+            actor,
+            t: Date.now(),
+        });
+    }, [isOnlineMultiplayer, resetGame, ownColor, rematchProposalId, myPlayer, broadcastAction, localGameState.matchId, roomId, address]);
+
+    const handleRespondRematch = React.useCallback(
+        (accept: boolean) => {
+            if (!rematchProposalId || !ownColor) return;
+            setRematchVotes((prev) => ({ ...prev, [ownColor]: accept ? 'accepted' : 'declined' }));
+            broadcastAction('REMATCH', {
+                kind: accept ? 'accept' : 'decline',
+                proposalId: rematchProposalId,
+                matchId: localGameState.matchId,
+                roomCode: roomId ?? undefined,
+                color: ownColor,
+                wallet: address?.toLowerCase(),
+                actor: myPlayer ? getDisplayNameHelper(myPlayer) : ownColor,
+                t: Date.now(),
+            });
+        },
+        [rematchProposalId, ownColor, broadcastAction, localGameState.matchId, roomId, address, myPlayer],
+    );
+
+    const rematchOverlayState: RematchOverlayState | null = React.useMemo(() => {
+        if (!isOnlineMultiplayer || !rematchProposalId) return null;
+        const totalHumans = humanPlayers.length;
+        const acceptedCount = humanPlayers.filter((p) => rematchVotes[p.color] === 'accepted').length;
+        const myVote: 'pending' | 'accepted' | 'declined' = ownColor
+            ? rematchVotes[ownColor] ?? 'pending'
+            : 'pending';
+        const status: RematchOverlayState['status'] =
+            rematchStatusUI !== 'idle'
+                ? rematchStatusUI
+                : rematchProposer?.color === ownColor
+                  ? 'proposing'
+                  : 'invited';
+        return {
+            status,
+            proposerName: rematchProposer?.name,
+            secondsLeft: rematchSecondsLeft,
+            acceptedCount,
+            totalHumans,
+            myVote,
+            statusMessage: rematchStatusMsg ?? undefined,
+            onAccept: () => handleRespondRematch(true),
+            onDecline: () => handleRespondRematch(false),
+        };
+    }, [
+        isOnlineMultiplayer,
+        rematchProposalId,
+        humanPlayers,
+        rematchVotes,
+        ownColor,
+        rematchStatusUI,
+        rematchProposer,
+        rematchSecondsLeft,
+        rematchStatusMsg,
+        handleRespondRematch,
+    ]);
+
+    // ─── Bottom Self Prompt (middle of bottom two player zones) ──────────
+    const effectiveMyDice =
+        ownColor && localGameState.diceValue !== null && localGameState.diceValue !== undefined
+            ? Number(localGameState.diceValue) +
+              (localGameState.activeBoost === localGameState.currentPlayer || localGameState.activeBoost === ownColor
+                  ? 6
+                  : 0)
+            : null;
+    const myTokensInHome = ownColor
+        ? (localGameState.positions?.[ownColor] || []).filter((pos: number) => Number(pos) === -1).length
+        : 0;
+    const selfPrompt: BoardSelfPrompt | null = React.useMemo(() => {
+        if (spectatorMode || !isMyTurn || Boolean(localGameState.winner)) return null;
+        if (targeting) return { label: 'Tap target token', kind: 'target' };
+        if (localGameState.gamePhase === 'moving') {
+            if (effectiveMyDice === 6 && myTokensInHome > 0) {
+                return { label: 'Deploy [6] or move', kind: 'deploy' };
+            }
+            return { label: 'Select a token', kind: 'move' };
+        }
+        if (localGameState.gamePhase === 'rolling' && localGameState.diceValue === null) {
+            return { label: 'Roll to start', kind: 'roll' };
+        }
+        return { label: 'Move in progress', kind: 'move' };
+    }, [spectatorMode, isMyTurn, localGameState.winner, targeting, localGameState.gamePhase, localGameState.diceValue, effectiveMyDice, myTokensInHome]);
     const spendPower = (type: PowerType) => {
         if (!canSpend || !ownColor) return;
         if (type === 'nuke' || type === 'teleport') {
@@ -345,8 +644,6 @@ export default function Board({
 
             <BoardTurnStatus
                 currentPlayer={localGameState.currentPlayer}
-                gamePhase={localGameState.gamePhase}
-                diceValue={localGameState.diceValue}
                 myColor={myPlayer?.color}
                 spectatorMode={spectatorMode}
             />
@@ -484,7 +781,8 @@ export default function Board({
                 wager={wager}
                 gameMode={gameMode}
                 lxpGain={lxpGain}
-                onRematch={resetGame}
+                onRematch={handleRematchClick}
+                rematchState={rematchOverlayState}
                 onExit={onExitMatch}
                 onOpenProfile={onOpenProfile}
                 poolId={claimConfigured ? poolId : null}
@@ -514,6 +812,7 @@ export default function Board({
                 handleRoll={handleRoll}
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
+                centerPrompt={selfPrompt}
             />
 
             {/* Match footer: social controls, shared by classic and power (hidden while spectating). */}
@@ -595,7 +894,6 @@ export default function Board({
                 <div className="match-footer-slot center">
                     {showInventory && (
                         <div className="power-inv-strip">
-                            {targeting && <span className="power-inv-hint">Tap a token</span>}
                             {groupedInventory.map(g => {
                                 const has = g.count > 0;
                                 return (
@@ -644,37 +942,25 @@ export default function Board({
 
 function BoardTurnStatus({
     currentPlayer,
-    gamePhase,
-    diceValue,
     myColor,
     spectatorMode,
 }: {
     currentPlayer: PlayerColor;
-    gamePhase: string;
-    diceValue: number | null;
     myColor?: PlayerColor;
     spectatorMode: boolean;
 }) {
     const isMyTurn = !spectatorMode && !!myColor && currentPlayer === myColor;
+    if (isMyTurn) return null;
+
     const label = spectatorMode
         ? `Watching ${currentPlayer}`
-        : isMyTurn
-            ? gamePhase === 'moving' ? 'Select a token' : diceValue === null ? 'Roll to start' : 'Move in progress'
-            : `Waiting for ${currentPlayer}`;
+        : `Waiting for ${currentPlayer}`;
 
     return (
-        <div className={`board-turn-status ${isMyTurn ? 'is-yours' : ''}`} aria-live="polite">
+        <div className="board-turn-status" aria-live="polite">
             <span className="board-turn-status-dot" />
-            {isMyTurn ? (
-                gamePhase === 'moving' ? (
-                    <DirectiveTargetIcon className="w-3 h-3 shrink-0" active />
-                ) : (
-                    <OverdriveBoltIcon className="w-3 h-3 shrink-0" active />
-                )
-            ) : (
-                <SimBotIcon className="w-3 h-3 shrink-0 opacity-70" />
-            )}
-            <span>{label}</span>
+            <SimBotIcon className="w-3 h-3 shrink-0 opacity-70" />
+            <TerminalTypeText key={label} text={label} charMs={18} />
         </div>
     );
 }

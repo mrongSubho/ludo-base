@@ -1055,6 +1055,15 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             return;
         }
 
+        // Post-match rematch vote signal (does not touch match rules state)
+        if (type === 'REMATCH') {
+            const payload = (data.payload ?? data.action ?? data) as Record<string, unknown>;
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('ludo-rematch', { detail: payload }));
+            }
+            return;
+        }
+
         // 📬 Guest intent via Supabase (dual-path with PeerJS GAME_ACTION)
         if (type === 'GAME_INTENT' && isHost) {
             const action = data.action;

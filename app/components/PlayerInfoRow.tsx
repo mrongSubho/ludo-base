@@ -6,7 +6,10 @@ import { PlayerColor } from '@/lib/types';
 import { Corner } from '@/lib/boardLayout';
 import { getTierInfo } from '@/lib/progression';
 import { usePreferences } from '@/hooks/usePreferences';
-import { PilotAvatarFallbackIcon } from './icons';
+import { isDirectImage, resolveAvatarDef } from '@/lib/avatars';
+import { PilotAvatar } from './PilotAvatar';
+import { TerminalTypeText } from './TerminalTypeText';
+import { DirectiveTargetIcon, OverdriveBoltIcon, PilotAvatarFallbackIcon } from './icons';
 
 export const getDisplayNameHelper = (player: Player) => {
     let baseName = player.name;
@@ -90,22 +93,19 @@ export function PlayerCard({
                     className={`avatar-circle hud-avatar-frame ${player.color} ${isActive ? 'active-glow' : ''} ${awaitingMove ? 'await-move' : ''}`}
                     title={getDisplayNameHelper(player)}
                 >
-                    {player.avatar && (player.avatar.startsWith('http') || player.avatar.startsWith('/')) ? (
-                        <img
-                            src={player.avatar}
-                            alt={player.name}
-                            className="w-full h-full object-cover rounded-full"
-                            width={96}
-                            height={96}
+                    {resolveAvatarDef(player.avatar) || isDirectImage(player.avatar) ? (
+                        <PilotAvatar
+                            avatarUrl={player.avatar}
+                            name={getDisplayNameHelper(player)}
+                            size="md"
+                            className="!w-full !h-full !border-0 !rounded-none !bg-transparent"
                         />
+                    ) : player.avatar && !player.avatar.startsWith('avatar:') && player.avatar.length <= 8 ? (
+                        <span className="avatar-emoji">{player.avatar}</span>
                     ) : (
-                        player.avatar && !player.avatar.startsWith('avatar:') && player.avatar.length <= 8 ? (
-                          <span className="avatar-emoji">{player.avatar}</span>
-                        ) : (
-                          <span className="avatar-emoji flex items-center justify-center text-accent/80">
+                        <span className="avatar-emoji flex items-center justify-center text-accent/80">
                             <PilotAvatarFallbackIcon className="w-5 h-5" />
-                          </span>
-                        )
+                        </span>
                     )}
                 </div>
                 <div className={`avatar-level-badge ${levelUp ? 'level-up' : ''}`} style={{ background: getTierInfo(player.rxp || 0).tier === 'Arena Master' ? '#ea580c' : getTierInfo(player.rxp || 0).tier === 'Diamond' ? '#0891b2' : getTierInfo(player.rxp || 0).tier === 'Platinum' ? '#2563eb' : getTierInfo(player.rxp || 0).tier === 'Gold' ? '#ca8a04' : getTierInfo(player.rxp || 0).tier === 'Silver' ? '#64748b' : '#b45309' }}>
@@ -117,6 +117,11 @@ export function PlayerCard({
     );
 }
 
+export interface BoardSelfPrompt {
+    label: string;
+    kind: 'roll' | 'move' | 'deploy' | 'target';
+}
+
 interface PlayerRowProps {
     corners: ('TL' | 'TR')[] | ('BL' | 'BR')[];
     uiSlots: Record<string, PlayerColor | null>;
@@ -126,6 +131,7 @@ interface PlayerRowProps {
     handleRoll: () => void;
     spectatorMode: boolean;
     myPlayerColor: PlayerColor | undefined;
+    centerPrompt?: BoardSelfPrompt | null;
 }
 
 export function PlayerRow({
@@ -136,49 +142,79 @@ export function PlayerRow({
     handleRoll,
     spectatorMode,
     myPlayerColor,
+    centerPrompt = null,
 }: PlayerRowProps) {
-    return (
-        <div className={`player-row player-row-${(corners as any).includes('TL') ? 'top' : 'bottom'}`}>
-            {(corners as any as Corner[]).map((corner) => {
-                const color = uiSlots[corner];
-                const p = players.find(player => player.color === color);
-                if (!p) {
-                    return <div key={`empty-${corner}`} className="player-placeholder" style={{ width: 140 }}></div>;
-                }
-                
-                const isMyTurn = localGameState.currentPlayer === p.color;
-                const isMyColor = p.color === myPlayerColor;
-                const isCurrentlyBot = p.isAi || localGameState.afkStats[p.color].isKicked;
-                const canRoll = isMyTurn && (isMyColor || spectatorMode) && !isCurrentlyBot && localGameState.gamePhase === 'rolling' && localGameState.diceValue === null && !localGameState.isRolling;
-                
-                const flexDir = (corner === 'TL' || corner === 'BL') ? 'flex-row' : 'flex-row-reverse';
+    const isTop = (corners as any).includes('TL');
+    const items = (corners as any as Corner[]).map((corner) => {
+        const color = uiSlots[corner];
+        const p = players.find(player => player.color === color);
+        if (!p) {
+            return (
+                <div
+                    key={`empty-${corner}`}
+                    className={`player-placeholder ${isTop ? 'w-[140px]' : 'w-14 sm:w-[116px] shrink-0'}`}
+                />
+            );
+        }
 
-                return (
-                    <div key={p.color} className={`player-wrapper ${isMyTurn ? 'active-turn' : ''} flex ${flexDir} items-center gap-3`}>
-                        <PlayerCard
-                            player={p}
-                            isActive={isMyTurn}
-                            awaitingMove={isMyTurn && localGameState.gamePhase === 'moving' && !p.isAi}
-                            isKicked={isCurrentlyBot && !p.isAi}
-                        />
-                        {isMyTurn && !spectatorMode && (
-                            <LudoDice
-                                key={p.color}
-                                onRoll={handleRoll}
-                                disabled={!canRoll}
-                                currentValue={localGameState.diceValue}
-                                isRolling={localGameState.isRolling}
-                                activeColor={p.color}
-                            />
-                        )}
-                        {isMyTurn && spectatorMode && localGameState.diceValue != null && (
-                            <div className="hud-chamfer-sm w-10 h-10 rounded-xl bg-surface-recessed border border-accent/40 flex items-center justify-center text-accent font-mono font-extrabold text-lg tabular-nums shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
-                                {localGameState.diceValue}
-                            </div>
-                        )}
+        const isMyTurn = localGameState.currentPlayer === p.color;
+        const isMyColor = p.color === myPlayerColor;
+        const isCurrentlyBot = p.isAi || localGameState.afkStats[p.color].isKicked;
+        const canRoll = isMyTurn && (isMyColor || spectatorMode) && !isCurrentlyBot && localGameState.gamePhase === 'rolling' && localGameState.diceValue === null && !localGameState.isRolling;
+
+        const flexDir = (corner === 'TL' || corner === 'BL') ? 'flex-row' : 'flex-row-reverse';
+
+        return (
+            <div key={p.color} className={`player-wrapper ${isMyTurn ? 'active-turn' : ''} flex ${flexDir} items-center gap-3`}>
+                <PlayerCard
+                    player={p}
+                    isActive={isMyTurn}
+                    awaitingMove={isMyTurn && localGameState.gamePhase === 'moving' && !p.isAi}
+                    isKicked={isCurrentlyBot && !p.isAi}
+                />
+                {isMyTurn && !spectatorMode && (
+                    <LudoDice
+                        key={p.color}
+                        onRoll={handleRoll}
+                        disabled={!canRoll}
+                        currentValue={localGameState.diceValue}
+                        isRolling={localGameState.isRolling}
+                        activeColor={p.color}
+                    />
+                )}
+                {isMyTurn && spectatorMode && localGameState.diceValue != null && (
+                    <div className="hud-chamfer-sm w-10 h-10 rounded-xl bg-surface-recessed border border-accent/40 flex items-center justify-center text-accent font-mono font-extrabold text-lg tabular-nums shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
+                        {localGameState.diceValue}
                     </div>
-                );
-            })}
+                )}
+            </div>
+        );
+    });
+
+    return (
+        <div className={`player-row player-row-${isTop ? 'top' : 'bottom'}`}>
+            {items[0]}
+            {!isTop && (
+                <div className="board-self-prompt-slot" aria-live="polite">
+                    {centerPrompt && (
+                        <div className="board-turn-status is-yours board-self-prompt">
+                            <span className="board-turn-status-dot shrink-0" />
+                            {centerPrompt.kind === 'target' || centerPrompt.kind === 'move' ? (
+                                <DirectiveTargetIcon className="w-3 h-3 shrink-0" active />
+                            ) : (
+                                <OverdriveBoltIcon className="w-3 h-3 shrink-0" active />
+                            )}
+                            <TerminalTypeText
+                                key={centerPrompt.label}
+                                text={centerPrompt.label}
+                                charMs={18}
+                                showCursor
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+            {items[1]}
         </div>
     );
 }

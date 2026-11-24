@@ -51,45 +51,70 @@ export function useBoardLayout({
         return { boardRotationDeg, counterRotationDeg, uiSlots };
     }, [colorCorner, players, address]);
 
-    // 2. Real Profile Syncing
-    useEffect(() => {
-        const syncMyProfile = async () => {
-            if (!address) return;
+    // 2. Real Profile Syncing (batch-fetch all human seats in the roster)
+    const walletKey = useMemo(() => {
+        const set = new Set<string>();
+        if (address) set.add(address.toLowerCase());
+        for (const p of players) {
+            if (!p.isAi && p.walletAddress) set.add(p.walletAddress.toLowerCase());
+        }
+        return Array.from(set).sort().join(',');
+    }, [address, players]);
 
+    useEffect(() => {
+        if (!walletKey) return;
+        let cancelled = false;
+        const wallets = walletKey.split(',').filter(Boolean);
+        const myAddrLower = address?.toLowerCase();
+
+        const syncRosterProfiles = async () => {
             try {
                 const { data, error } = await supabase
                     .from('players')
-                    .select('username, avatar_url, lxp, rxp')
-                    .eq('wallet_address', address.toLowerCase())
-                    .single();
+                    .select('wallet_address, username, avatar_url, lxp, rxp')
+                    .in('wallet_address', wallets);
 
-                if (data && !error) {
-                    const newLevel = calculateLevel(data.lxp || 0).level;
-                    setBoardConfig((prev: any) => ({
-                        ...prev,
-                        players: prev.players.map((p: Player) => {
-                            if (!p.isAi && (p.name === 'Alex' || p.walletAddress === address.toLowerCase())) {
-                                return {
-                                    ...p,
-                                    name: data.username || p.name,
-                                    avatar: data.avatar_url || p.avatar,
-                                    walletAddress: address.toLowerCase(),
-                                    level: Math.max(p.level, newLevel),
-                                    lxp: data.lxp ?? p.lxp,
-                                    rxp: data.rxp ?? p.rxp
-                                };
-                            }
-                            return p;
-                        })
-                    }));
+                if (cancelled || error || !data || data.length === 0) return;
+
+                const byWallet = new Map<string, (typeof data)[number]>();
+                for (const row of data) {
+                    if (row.wallet_address) {
+                        byWallet.set(String(row.wallet_address).toLowerCase(), row);
+                    }
                 }
+
+                setBoardConfig((prev: any) => ({
+                    ...prev,
+                    players: prev.players.map((p: Player) => {
+                        if (p.isAi) return p;
+                        const lookupAddr =
+                            p.walletAddress?.toLowerCase() ||
+                            (p.name === 'Alex' && myAddrLower ? myAddrLower : undefined);
+                        if (!lookupAddr) return p;
+                        const row = byWallet.get(lookupAddr);
+                        if (!row) return p;
+                        const newLevel = calculateLevel(row.lxp || 0).level;
+                        return {
+                            ...p,
+                            name: row.username || p.name,
+                            avatar: row.avatar_url || p.avatar,
+                            walletAddress: lookupAddr,
+                            level: Math.max(p.level || 1, newLevel),
+                            lxp: row.lxp ?? p.lxp,
+                            rxp: row.rxp ?? p.rxp,
+                        };
+                    }),
+                }));
             } catch (err) {
-                console.error("Board: Profile sync failed", err);
+                console.error('Board: Profile sync failed', err);
             }
         };
 
-        syncMyProfile();
-    }, [address, setBoardConfig]);
+        void syncRosterProfiles();
+        return () => {
+            cancelled = true;
+        };
+    }, [walletKey, address, setBoardConfig]);
 
     // 3. TeamUp Profile Sync
     useEffect(() => {

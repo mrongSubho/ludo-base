@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import { isDirectImage, resolveAvatarDef } from '@/lib/avatars';
 import Button from './Button';
+import { PilotAvatar } from './PilotAvatar';
+import { PilotAvatarFallbackIcon } from './icons';
 
 const ClanProfileModal = dynamic(() => import('./ClanProfileModal'), { ssr: false });
 
@@ -86,7 +89,20 @@ export default function PlayerProfileSheet({ player, wins, onClose }: PlayerProf
             >
                 {/* Coloured top strip + avatar */}
                 <div className="pp-header" style={{ background: COLOR_MAP[player.color] }}>
-                    <div className="pp-avatar">{player.avatar}</div>
+                    <div className="pp-avatar overflow-hidden flex items-center justify-center">
+                        {resolveAvatarDef(player.avatar) || isDirectImage(player.avatar) ? (
+                            <PilotAvatar
+                                avatarUrl={player.avatar}
+                                name={player.name}
+                                size="md"
+                                className="!w-full !h-full !border-0 !rounded-none !bg-transparent"
+                            />
+                        ) : player.avatar && !player.avatar.startsWith('avatar:') && player.avatar.length <= 8 ? (
+                            <span>{player.avatar}</span>
+                        ) : (
+                            <PilotAvatarFallbackIcon className="w-5 h-5 text-white" />
+                        )}
+                    </div>
                     <button className="pp-close" onClick={onClose} aria-label="Close player profile">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="w-3.5 h-3.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                     </button>

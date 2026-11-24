@@ -4,6 +4,7 @@ export type Corner = 'BL' | 'BR' | 'TR' | 'TL';
 export type ColorCorner = Record<PlayerColor, Corner>;
 import type { Dispatch, SetStateAction } from 'react';
 import type { BotDifficulty } from './constants';
+import type { RematchSignalPayload } from './rematch';
 export type { BotDifficulty };
 // One held power item. expiresAt (ms epoch) refreshes on re-pickup of the
 // same type; expiry sweeps run on every game transition.
@@ -21,7 +22,7 @@ export interface MatchCaptureStat {
 }
 export type MatchCaptureStats = Record<PlayerColor, MatchCaptureStat>;
 
-export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'ENGINE_STATE' | 'CMD_REQUEST_TRUST' | 'POWER_HAND' | 'EMOTE' | 'CHAT';
+export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'ENGINE_STATE' | 'CMD_REQUEST_TRUST' | 'POWER_HAND' | 'EMOTE' | 'CHAT' | 'REMATCH';
 export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'REQUEST_POWER';
 
 export interface GameIntentPayloads {
@@ -72,6 +73,8 @@ export interface GameActionPayloads {
     EMOTE: { emoteId: string; color: PlayerColor; actor?: string; customText?: string; assetUrl?: string; t?: number };
     /** In-match lobby chat bubble (seat-local, not a DM). */
     CHAT: { text: string; color: PlayerColor; actor?: string; audience?: 'all' | 'team'; t?: number };
+    /** Post-match rematch handshake (never mutates active game state). */
+    REMATCH: RematchSignalPayload;
 }
 
 export type GameActionPayload<T extends GameActionType> = GameActionPayloads[T];

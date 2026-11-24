@@ -188,12 +188,12 @@ const HomeProgressRing = ({ pos, color, counterRotationDeg = 0, colorCorner, tok
                     className="tabular-nums font-extrabold leading-none"
                     style={{
                         color: zoneHex,
-                        fontSize: isDone ? '14px' : '9px',
+                        fontSize: isDone ? '14px' : '10px',
                         textShadow: `0 0 6px ${zoneHex}`,
                         display: 'inline-block',
                     }}
                 >
-                    {isDone ? '✓' : `${displayIndex}`}
+                    {isDone ? '✓' : displayIndex === 0 ? '▶' : `${displayIndex}`}
                 </motion.span>
             </div>
         </div>
@@ -333,15 +333,6 @@ export function HomeBlock({
                     );
                 })}
             </div>
-            {isDeployReady && (
-                <div className="home-deploy-anchor pointer-events-none" aria-hidden="true">
-                    <div style={{ transform: `rotate(${counterRotationDeg}deg)` }}>
-                        <span className="home-deploy-badge home-deploy-badge-pulse">
-                            DEPLOY [6]
-                        </span>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

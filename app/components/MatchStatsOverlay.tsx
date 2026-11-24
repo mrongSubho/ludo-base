@@ -22,6 +22,8 @@ import { usePoolSummary } from '@/hooks/useChipsPool';
 import { getTierInfo } from '@/lib/progression';
 import PublicProfileModal from './PublicProfileModal';
 import RankTierIcon, { getTierColorClass } from './RankTierIcon';
+import { PilotAvatar } from './PilotAvatar';
+import { TerminalTypeText } from './TerminalTypeText';
 import { usePreferences } from '@/hooks/usePreferences';
 import { HudCornerTicks, HudProgressGauge } from './HudPrimitives';
 import { ApexRankIcon, ChipsHexIcon, WarningHexIcon } from './icons';
@@ -91,6 +93,18 @@ function combatFor(
     return { kicks: s?.kicks ?? 0, gotKicked: s?.gotKicked ?? 0 };
 }
 
+export interface RematchOverlayState {
+    status: 'idle' | 'proposing' | 'invited' | 'searching' | 'starting' | 'declined';
+    proposerName?: string;
+    secondsLeft: number;
+    acceptedCount: number;
+    totalHumans: number;
+    myVote: 'pending' | 'accepted' | 'declined';
+    statusMessage?: string;
+    onAccept: () => void;
+    onDecline: () => void;
+}
+
 export interface MatchStatsOverlayProps {
     open: boolean;
     gameState: GameState;
@@ -102,6 +116,8 @@ export interface MatchStatsOverlayProps {
     /** Post-match XP toast value when engine exposed one. */
     lxpGain?: number | null;
     onRematch: () => void;
+    /** Online post-match rematch vote state (omitted offline / bot matches). */
+    rematchState?: RematchOverlayState | null;
     onExit?: () => void;
     /** Open user public profile modal callback */
     onOpenProfile?: (address: string) => void;
@@ -142,6 +158,7 @@ export function MatchStatsOverlay({
     gameMode = 'classic',
     lxpGain,
     onRematch,
+    rematchState = null,
     onExit,
     onOpenProfile,
     onClaimChips,
@@ -353,165 +370,155 @@ export function MatchStatsOverlay({
                                         transition={{ duration: 0.2, delay: 0.06 + idx * 0.04, ease: [0.22, 1, 0.36, 1] }}
                                         className={`match-stats-row ${row.won ? 'won' : ''} ${isMe ? 'me' : ''}`}
                                     >
-                                        {/* Left: Rank Badge + Avatar + Username (Clickable to open profile) */}
-                                        <div className="flex items-center gap-2 min-w-0">
-                                            <div
-                                                className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-mono font-extrabold shrink-0 ${
-                                                    row.won
-                                                        ? 'bg-warn/20 border border-warn/40 text-warn'
-                                                        : 'bg-surface-recessed border border-line-soft text-ink-faint'
-                                                }`}
-                                                aria-label={`Rank ${idx + 1}`}
-                                            >
-                                                {idx + 1}
-                                            </div>
-
-                                            <button
-                                                type="button"
-                                                disabled={!isClickable}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (isClickable && wallet) {
-                                                        if (onOpenProfile) {
-                                                            onOpenProfile(wallet);
-                                                        } else {
-                                                            setSelectedProfileAddress(wallet);
-                                                        }
-                                                    }
-                                                }}
-                                                className={`flex items-center gap-2 min-w-0 group text-left ${
-                                                    isClickable
-                                                        ? 'cursor-pointer hover:opacity-90'
-                                                        : 'cursor-default'
-                                                }`}
-                                                title={isClickable ? 'Inspect combatant profile' : undefined}
-                                            >
+                                        {/* Line 1: Rank + Avatar + Identity on left, Winner/Outcome badge on right */}
+                                        <div className="flex items-center justify-between gap-2 min-w-0">
+                                            <div className="flex items-center gap-2 min-w-0 flex-1">
                                                 <div
-                                                    className="hud-avatar-frame w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden border transition-colors group-hover:border-accent"
-                                                    style={{
-                                                        borderColor: accent,
-                                                        backgroundColor: `${accent}20`,
+                                                    className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-mono font-extrabold shrink-0 ${
+                                                        row.won
+                                                            ? 'bg-warn/20 border border-warn/40 text-warn'
+                                                            : 'bg-surface-recessed border border-line-soft text-ink-faint'
+                                                    }`}
+                                                    aria-label={`Rank ${idx + 1}`}
+                                                >
+                                                    {idx + 1}
+                                                </div>
+
+                                                <button
+                                                    type="button"
+                                                    disabled={!isClickable}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (isClickable && wallet) {
+                                                            if (onOpenProfile) {
+                                                                onOpenProfile(wallet);
+                                                            } else {
+                                                                setSelectedProfileAddress(wallet);
+                                                            }
+                                                        }
                                                     }}
+                                                    className={`flex items-center gap-2 min-w-0 flex-1 group text-left ${
+                                                        isClickable
+                                                            ? 'cursor-pointer hover:opacity-90'
+                                                            : 'cursor-default'
+                                                    }`}
+                                                    title={isClickable ? 'Inspect combatant profile' : undefined}
                                                 >
-                                                    {row.player.avatar &&
-                                                    (row.player.avatar.startsWith('http') ||
-                                                        row.player.avatar.startsWith('/')) ? (
-                                                        <img
-                                                            src={row.player.avatar}
-                                                            alt={displayName}
-                                                            className="w-full h-full object-cover"
-                                                            width={28}
-                                                            height={28}
+                                                    <div
+                                                        className="hud-avatar-frame w-8 h-8 rounded-full flex items-center justify-center shrink-0 overflow-hidden border transition-colors group-hover:border-accent"
+                                                        style={{
+                                                            borderColor: accent,
+                                                            backgroundColor: 'rgba(10, 14, 24, 0.85)',
+                                                        }}
+                                                    >
+                                                        <PilotAvatar
+                                                            avatarUrl={row.player.avatar}
+                                                            name={displayName}
+                                                            size="xs"
+                                                            className="!w-full !h-full !border-0 !rounded-none !bg-transparent"
                                                         />
-                                                    ) : (
-                                                        <span
-                                                            className="text-ludo-xs font-bold label-chrome uppercase"
-                                                            style={{ color: accent }}
-                                                        >
-                                                            {displayName.slice(0, 1)}
-                                                        </span>
-                                                    )}
-                                                </div>
-
-                                                <div className="min-w-0">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <span
-                                                            className={`text-ludo-xs font-bold text-ink-strong truncate transition-colors ${
-                                                                isClickable
-                                                                    ? 'group-hover:text-accent group-hover:underline'
-                                                                    : ''
-                                                            }`}
-                                                        >
-                                                            {displayName}
-                                                        </span>
-                                                        {isMe && (
-                                                            <span className="px-1.5 py-0.2 rounded bg-accent-soft text-accent text-ludo-xs font-mono font-bold label-chrome uppercase shrink-0">
-                                                                You
-                                                            </span>
-                                                        )}
-                                                        {row.player.isAi && (
-                                                            <span className="px-1.5 py-0.2 rounded bg-warn/20 text-warn text-ludo-xs font-mono font-bold label-chrome uppercase shrink-0">
-                                                                AI
-                                                            </span>
-                                                        )}
                                                     </div>
-                                                    <div className="flex items-center gap-1 min-w-0 mt-0.5">
-                                                        <RankTierIcon
-                                                            tier={tier}
-                                                            isAi={row.player.isAi}
-                                                            className="w-3 h-3 shrink-0"
-                                                        />
-                                                        <span
-                                                            className={`text-ludo-xs font-mono font-bold tracking-tight uppercase truncate ${getTierColorClass(
-                                                                tier,
-                                                                row.player.isAi
-                                                            )}`}
-                                                        >
-                                                            {tier}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </button>
-                                        </div>
 
-                                        {/* Right: Individual Telemetry (Home, Kicked, Captured) + Outcome */}
-                                        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                                            <div className="flex items-center gap-1 sm:gap-1.5 text-ludo-xs font-mono">
-                                                <span
-                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft font-bold text-positive"
-                                                    title="Tokens Home"
-                                                >
-                                                    <FiHome className="w-3 h-3 text-positive shrink-0" />
-                                                    <span className="tabular-nums font-bold">{row.home}/4</span>
-                                                    <span className="hidden sm:inline text-ludo-xs text-ink-faint uppercase tracking-tight">
-                                                        Home
-                                                    </span>
-                                                </span>
-
-                                                <span
-                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft font-bold text-warn"
-                                                    title="Captures / Kicks made"
-                                                >
-                                                    <LuSwords className="w-3 h-3 text-warn shrink-0" />
-                                                    <span className="tabular-nums font-bold">{row.kicks}</span>
-                                                    <span className="hidden sm:inline text-ludo-xs text-ink-faint uppercase tracking-tight">
-                                                        Kicked
-                                                    </span>
-                                                </span>
-
-                                                <span
-                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft font-bold text-negative"
-                                                    title="Times token was captured / kicked"
-                                                >
-                                                    <LuShieldAlert className="w-3 h-3 text-negative shrink-0" />
-                                                    <span className="tabular-nums font-bold">{row.gotKicked}</span>
-                                                    <span className="hidden sm:inline text-ludo-xs text-ink-faint uppercase tracking-tight">
-                                                        Captured
-                                                    </span>
-                                                </span>
-                                            </div>
-
-                                            {row.won ? (
-                                                <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded-md bg-warn/10 border border-warn/30 text-ludo-xs font-mono font-extrabold text-warn uppercase shrink-0">
-                                                    <LuTrophy className="w-3 h-3 shrink-0" />
-                                                    {isPaid && estClaim > 0 ? (
-                                                        <span>
-                                                            {formatChips(Math.floor(estClaim))} CHIPS
-                                                            {winnerCount > 1 && (
-                                                                <span className="hidden sm:inline text-ludo-xs text-warn/80 ml-1">
-                                                                    ({payoutShareLabel(shape, idx + 1, winnerCount)})
+                                                    <div className="min-w-0 flex-1">
+                                                        <div className="flex items-center gap-1.5 min-w-0">
+                                                            <span
+                                                                className={`text-ludo-sm font-bold text-ink-strong truncate transition-colors ${
+                                                                    isClickable
+                                                                        ? 'group-hover:text-accent group-hover:underline'
+                                                                        : ''
+                                                                }`}
+                                                            >
+                                                                {displayName}
+                                                            </span>
+                                                            {isMe && (
+                                                                <span className="px-1.5 py-0.5 rounded bg-accent-soft text-accent text-ludo-xs font-mono font-bold label-chrome uppercase shrink-0">
+                                                                    You
                                                                 </span>
                                                             )}
-                                                        </span>
-                                                    ) : (
-                                                        'Winner'
-                                                    )}
+                                                            {row.player.isAi && (
+                                                                <span className="px-1.5 py-0.5 rounded bg-warn/20 text-warn text-ludo-xs font-mono font-bold label-chrome uppercase shrink-0">
+                                                                    AI
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-1 min-w-0 mt-0.5">
+                                                            <RankTierIcon
+                                                                tier={tier}
+                                                                isAi={row.player.isAi}
+                                                                className="w-3 h-3 shrink-0"
+                                                            />
+                                                            <span
+                                                                className={`text-ludo-xs font-mono font-bold tracking-tight uppercase truncate ${getTierColorClass(
+                                                                    tier,
+                                                                    row.player.isAi
+                                                                )}`}
+                                                            >
+                                                                {tier}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            </div>
+
+                                            <div className="shrink-0">
+                                                {row.won ? (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-warn/10 border border-warn/30 text-ludo-xs font-mono font-extrabold text-warn uppercase whitespace-nowrap">
+                                                        <LuTrophy className="w-3 h-3 shrink-0" />
+                                                        {isPaid && estClaim > 0 ? (
+                                                            <span>
+                                                                {formatChips(Math.floor(estClaim))} CHIPS
+                                                                {winnerCount > 1 && (
+                                                                    <span className="hidden sm:inline text-ludo-xs text-warn/80 ml-1">
+                                                                        ({payoutShareLabel(shape, idx + 1, winnerCount)})
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                        ) : (
+                                                            'Winner'
+                                                        )}
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-surface-recessed border border-line-soft text-ludo-xs font-mono font-bold text-ink-faint uppercase whitespace-nowrap">
+                                                        Defeated
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Line 2: Compact Telemetry Strip (Home, Kicked, Captured) */}
+                                        <div className="flex items-center flex-wrap gap-1.5 pl-8 text-ludo-xs font-mono">
+                                            <span
+                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft font-bold text-positive"
+                                                title="Tokens Home"
+                                            >
+                                                <FiHome className="w-3 h-3 text-positive shrink-0" />
+                                                <span className="tabular-nums font-bold">{row.home}/4</span>
+                                                <span className="text-ludo-xs text-ink-faint uppercase tracking-tight">
+                                                    Home
                                                 </span>
-                                            ) : (
-                                                <span className="px-1.5 sm:px-2 py-0.5 text-ludo-xs font-mono font-bold text-ink-faint uppercase shrink-0">
-                                                    Defeated
+                                            </span>
+
+                                            <span
+                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft font-bold text-warn"
+                                                title="Captures / Kicks made"
+                                            >
+                                                <LuSwords className="w-3 h-3 text-warn shrink-0" />
+                                                <span className="tabular-nums font-bold">{row.kicks}</span>
+                                                <span className="text-ludo-xs text-ink-faint uppercase tracking-tight">
+                                                    Kicked
                                                 </span>
-                                            )}
+                                            </span>
+
+                                            <span
+                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft font-bold text-negative"
+                                                title="Times token was captured / kicked"
+                                            >
+                                                <LuShieldAlert className="w-3 h-3 text-negative shrink-0" />
+                                                <span className="tabular-nums font-bold">{row.gotKicked}</span>
+                                                <span className="text-ludo-xs text-ink-faint uppercase tracking-tight">
+                                                    Captured
+                                                </span>
+                                            </span>
                                         </div>
                                     </motion.div>
                                 );
@@ -662,13 +669,90 @@ export function MatchStatsOverlay({
                             </div>
                         )}
 
+                        {/* Inline Rematch Vote / Fallback Banner (online multiplayer only) */}
+                        {rematchState && rematchState.status !== 'idle' && (
+                            <div className="match-stats-claim ready" style={{ marginBottom: 8 }}>
+                                <div className="match-stats-claim-head">
+                                    <span className="match-stats-claim-tag">
+                                        {rematchState.status === 'invited'
+                                            ? 'REMATCH REQUEST'
+                                            : rematchState.status === 'searching'
+                                              ? 'QUICK SEARCH FALLBACK'
+                                              : rematchState.status === 'starting'
+                                                ? 'LAUNCHING REMATCH'
+                                                : rematchState.status === 'declined'
+                                                  ? 'REMATCH ENDED'
+                                                  : 'WAITING FOR PLAYERS'}
+                                    </span>
+                                    {rematchState.secondsLeft > 0 &&
+                                        (rematchState.status === 'invited' || rematchState.status === 'proposing') && (
+                                            <span className="text-ludo-xs font-mono font-extrabold text-accent tabular-nums">
+                                                {rematchState.secondsLeft}s · {rematchState.acceptedCount}/
+                                                {rematchState.totalHumans} Ready
+                                            </span>
+                                        )}
+                                </div>
+                                <div className="text-ludo-xs font-mono font-semibold text-ink-strong">
+                                    <TerminalTypeText
+                                        key={`${rematchState.status}-${rematchState.acceptedCount}-${rematchState.statusMessage || ''}`}
+                                        text={
+                                            rematchState.statusMessage ||
+                                            (rematchState.status === 'invited'
+                                                ? `${rematchState.proposerName || 'Opponent'} wants a rematch (${gameMode.toUpperCase()} · ${playerCount})`
+                                                : rematchState.status === 'searching'
+                                                  ? 'Finding new players with same mode & fee...'
+                                                  : rematchState.status === 'starting'
+                                                    ? 'All players ready · booting new table...'
+                                                    : 'Waiting for opponent confirmation...')
+                                        }
+                                        charMs={16}
+                                    />
+                                </div>
+                                {rematchState.status === 'invited' && rematchState.myVote === 'pending' && (
+                                    <div className="grid grid-cols-2 gap-2 mt-1.5">
+                                        <button
+                                            type="button"
+                                            className="match-stats-cta ghost"
+                                            onClick={rematchState.onDecline}
+                                        >
+                                            Decline
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="match-stats-cta primary"
+                                            onClick={rematchState.onAccept}
+                                        >
+                                            Accept
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* Actions */}
                         <div className="match-stats-actions">
                             <button type="button" className="match-stats-cta ghost" onClick={onExit || onRematch}>
                                 Back
                             </button>
-                            <button type="button" className="match-stats-cta primary" onClick={onRematch}>
-                                Restart
+                            <button
+                                type="button"
+                                className="match-stats-cta primary"
+                                onClick={onRematch}
+                                disabled={
+                                    rematchState?.status === 'proposing' ||
+                                    rematchState?.status === 'searching' ||
+                                    rematchState?.status === 'starting' ||
+                                    (rematchState?.status === 'invited' && rematchState.myVote === 'accepted')
+                                }
+                            >
+                                {rematchState?.status === 'proposing' ||
+                                (rematchState?.status === 'invited' && rematchState.myVote === 'accepted')
+                                    ? `Waiting… (${rematchState.acceptedCount}/${rematchState.totalHumans})`
+                                    : rematchState?.status === 'searching'
+                                      ? 'Searching…'
+                                      : rematchState?.status === 'starting'
+                                        ? 'Starting…'
+                                        : 'Restart'}
                             </button>
                             <button
                                 type="button"

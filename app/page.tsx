@@ -5,7 +5,8 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import WalletConnectCard from './components/WalletConnectCard';
-import GameLobby from './components/GameLobby';
+import GameLobby, { type PendingRematchSearch } from './components/GameLobby';
+import type { RematchResolutionPlan } from './components/Board';
 import { useBroadcastData } from './components/ActivityFeed';
 import { PanelErrorBoundary } from './components/PanelErrorBoundary';
 const AudioDriver = dynamic(() => import('./components/AudioToggle'));
@@ -320,7 +321,7 @@ export default function Page() {
     prevUnreadRef.current = totalUnreadCount;
   }, [totalUnreadCount]);
   const { notifCount } = useNotifications();
-  const { gameState, broadcastAction, broadcastLobbyAction, updateGameState, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot, connectRoom, roomAuthority } = useTeamUp();
+  const { gameState, broadcastAction, broadcastLobbyAction, updateGameState, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot, connectRoom, allowOpenJoins, roomAuthority } = useTeamUp();
 
   // NET-07: the HOST_ELECT handshake's authority layer. The panel asks this to
   // elect; the answer must be a seat that can prove it holds the current
@@ -349,6 +350,8 @@ export default function Page() {
   const [isBotMatch, setIsBotMatch] = useState(false);
   const [botDifficulty, setBotDifficulty] = useState<import('@/lib/types').BotDifficulty>('pro');
   const [boardSeed, setBoardSeed] = useState<{ players: Player[]; colorCorner: any; isBotMatch: boolean } | null>(null);
+  const [boardInstanceKey, setBoardInstanceKey] = useState(0);
+  const [pendingRematchSearch, setPendingRematchSearch] = useState<PendingRematchSearch | null>(null);
   // First-run setup (per device): theme + tokens before the lobby.
   const [onboarded, setOnboarded] = useState<boolean>(() => hasOnboarded());
 
@@ -673,7 +676,7 @@ export default function Page() {
               ...p,
               walletAddress: myAddr,
               name: finalName || profileData?.username || 'You',
-              avatar: profileData?.avatar_url || p.avatar
+              avatar: profileData?.avatar_url || profile?.avatar_url || p.avatar
             } as Player;
           }
           return p;
@@ -745,6 +748,143 @@ export default function Page() {
     setBoardSeed(null);
     setAppState('dashboard');
   }, [isHost, gameState, lobbyState, address, signMessageAsync, leaveGame]);
+
+  const handleBoardRematchResolved = useCallback(async (plan: RematchResolutionPlan) => {
+    const myWallet = address?.toLowerCase() || '';
+
+    const enterQuickSearch = (mode: 'solo' | 'hybrid', hybridCode?: string, slotsNeeded = plan.slotsNeeded) => {
+      if (mode === 'solo') leaveGame();
+      setBoardSeed(null);
+      setSelectedMode(plan.gameMode);
+      setPlayerCount(plan.playerCount);
+      setBetAmount(plan.wager);
+      setIsBotMatch(false);
+      setAppState('dashboard');
+      setPendingRematchSearch({
+        id: Date.now(),
+        mode,
+        gameMode: plan.gameMode,
+        matchType: plan.playerCount,
+        wager: plan.wager,
+        roomCode: hybridCode,
+        slotsNeeded,
+      });
+    };
+
+    if (plan.action === 'rematch_all') {
+      if (plan.startedMatchId) {
+        setBoardSeed(null);
+        connectRoom(plan.startedMatchId);
+        setBoardInstanceKey((k) => k + 1);
+        return;
+      }
+
+      const sortedWallets = [...plan.acceptedWallets].sort();
+      const iAmStarter = isHost || (!lobbyState && myWallet && sortedWallets[0] === myWallet);
+
+      if (plan.wager === 0 && iAmStarter) {
+        try {
+          const sid = peekAppSession() || (myWallet ? await ensureAppSession() : null);
+          const orderedParticipants = myWallet
+            ? [myWallet, ...plan.acceptedWallets.filter((w) => w !== myWallet)]
+            : plan.acceptedWallets.length > 0
+              ? plan.acceptedWallets
+              : ['anonymous'];
+          const code = lobbyState?.roomCode || roomId || `RM-${Date.now().toString(36).toUpperCase()}`;
+          const res = await fetch('/api/match/start', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(sid ? { Authorization: `Bearer ${sid}`, 'x-session-id': sid } : {}),
+            },
+            body: JSON.stringify({
+              roomCode: code,
+              gameMode: plan.gameMode,
+              matchShape: plan.playerCount,
+              participants: orderedParticipants,
+              walletAddress: myWallet,
+              sessionId: sid,
+            }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && typeof data.matchId === 'string') {
+            const mySeatColor =
+              gameState?.initialBoardConfig?.players?.find(
+                (p) => p.walletAddress?.toLowerCase() === myWallet,
+              )?.color || 'green';
+            broadcastAction('REMATCH', {
+              kind: 'started',
+              proposalId: plan.proposalId,
+              matchId: gameState?.matchId,
+              newMatchId: data.matchId,
+              color: mySeatColor,
+              wallet: myWallet,
+              t: Date.now(),
+            });
+            updateGameState({
+              matchId: data.matchId,
+              isStarted: true,
+              winner: null,
+              winners: [],
+            });
+            setBoardSeed(null);
+            connectRoom(data.matchId);
+            setBoardInstanceKey((k) => k + 1);
+            return;
+          }
+        } catch (err) {
+          console.error('❌ [Page] Rematch /api/match/start failed:', err);
+        }
+        enterQuickSearch('solo');
+        return;
+      }
+
+      if (plan.wager > 0) {
+        // Paid pool tables re-run matchmaking / vault check with same mode & entry fee
+        enterQuickSearch('solo');
+      }
+      return;
+    }
+
+    if (plan.action === 'hybrid_quick_search' && isHost && lobbyState) {
+      const acceptedSet = new Set(plan.acceptedWallets.map((w) => w.toLowerCase()));
+      const updatedSlots = (lobbyState.slots || []).map((s) =>
+        s.playerId && acceptedSet.has(s.playerId.toLowerCase())
+          ? s
+          : {
+              ...s,
+              status: 'empty' as const,
+              playerId: undefined,
+              playerName: undefined,
+              playerAvatar: undefined,
+              peerId: undefined,
+            },
+      );
+      allowOpenJoins();
+      broadcastLobbyAction('LOBBY_SYNC', {
+        lobbyState: { ...lobbyState, status: 'quickmatch', slots: updatedSlots },
+      });
+      enterQuickSearch('hybrid', lobbyState.roomCode || roomId || undefined, plan.slotsNeeded);
+      return;
+    }
+
+    enterQuickSearch('solo');
+  }, [
+    address,
+    isHost,
+    lobbyState,
+    roomId,
+    gameState?.matchId,
+    gameState?.initialBoardConfig,
+    peekAppSession,
+    ensureAppSession,
+    broadcastAction,
+    updateGameState,
+    connectRoom,
+    allowOpenJoins,
+    broadcastLobbyAction,
+    leaveGame,
+  ]);
 
   const onStartGame = useCallback((isBot?: boolean, difficulty: import('@/lib/types').BotDifficulty = 'pro') => {
     setIsBotMatch(!!isBot);
@@ -856,6 +996,8 @@ export default function Page() {
                     setArenaInitialTab(tab);
                     if (activeTab !== 'arena') toggle('arena');
                   }}
+                  pendingRematchSearch={pendingRematchSearch}
+                  onConsumeRematchSearch={() => setPendingRematchSearch(null)}
                 />
               </main>
 
@@ -1124,6 +1266,7 @@ export default function Page() {
               <main className="board-main has-top-back">
                 {(
                   <Board
+                    key={`board-${boardInstanceKey}`}
                     playerCount={playerCount}
                     gameMode={selectedMode as any}
                     isBotMatch={boardSeed?.isBotMatch ?? (gameState?.initialBoardConfig?.players?.length ? gameState.isBotMatch : isBotMatch)}
@@ -1146,6 +1289,7 @@ export default function Page() {
                     botDifficulty={botDifficulty}
                     onExitMatch={handleBackToSubMenu}
                     onOpenChat={() => toggle('messages')}
+                    onRematchResolved={handleBoardRematchResolved}
                   />
                 )}
               </main>

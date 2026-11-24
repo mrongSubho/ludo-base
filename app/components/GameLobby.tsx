@@ -68,6 +68,16 @@ export function formatEntryFee(val: number): string {
     return String(val);
 }
 
+export interface PendingRematchSearch {
+    id: number;
+    mode: 'solo' | 'hybrid';
+    gameMode: 'classic' | 'power';
+    matchType: '1v1' | '2v2' | '4P';
+    wager: number;
+    roomCode?: string;
+    slotsNeeded?: number;
+}
+
 interface GameLobbyProps {
     gameMode: 'classic' | 'power';
     setGameMode: (mode: 'classic' | 'power') => void;
@@ -81,6 +91,8 @@ interface GameLobbyProps {
     onOpenProfile?: (address: string) => void;
     onBroadcastOpenChange?: (open: boolean) => void;
     onOpenArena?: (tab?: 'arena' | 'comms') => void;
+    pendingRematchSearch?: PendingRematchSearch | null;
+    onConsumeRematchSearch?: () => void;
 }
 
 export default function GameLobby({
@@ -95,6 +107,8 @@ export default function GameLobby({
     onOpenProfile,
     onBroadcastOpenChange,
     onOpenArena,
+    pendingRematchSearch,
+    onConsumeRematchSearch,
 }: GameLobbyProps) {
     const {
         roomId,
@@ -171,6 +185,24 @@ export default function GameLobby({
         };
     }, []);
     const [searchId, setSearchId] = useState(0);
+
+    useEffect(() => {
+        if (!pendingRematchSearch) return;
+        clearHuntTimers();
+        if (pendingRematchSearch.mode === 'hybrid' && pendingRematchSearch.roomCode) {
+            allowOpenJoins();
+            setHybridParams({
+                roomCode: pendingRematchSearch.roomCode,
+                slotsNeeded: pendingRematchSearch.slotsNeeded ?? 1,
+                matchType: pendingRematchSearch.matchType,
+            });
+        } else {
+            setHybridParams(null);
+        }
+        setSearchId((prev) => prev + 1);
+        setIsQuickMatchActive(true);
+        onConsumeRematchSearch?.();
+    }, [pendingRematchSearch, onConsumeRematchSearch, allowOpenJoins, clearHuntTimers]);
 
     const [pendingJoin, setPendingJoin] = useState<{ code: string; since: number } | null>(null);
     const [joinError, setJoinError] = useState<string | null>(null);
@@ -1148,7 +1180,7 @@ export default function GameLobby({
                 />
             )}
 
-            {/* Solo radar (own overlay) */}
+            {/* Solo or Hybrid radar (own overlay) */}
             {(isQuickMatchActive || lobbyState?.status === 'quickmatch') && (
                 <QuickMatchPanel
                     key={`quickmatch-${searchId}`}
@@ -1157,9 +1189,12 @@ export default function GameLobby({
                     wager={wager}
                     onStartGame={onStartGame}
                     onCancel={handleCancelQuickMatch}
-                    isHybrid={lobbyState?.status === 'quickmatch'}
-                    roomCode={roomId}
-                    slotsNeeded={lobbyState?.slots.filter(s => s.status === 'empty').length}
+                    isHybrid={Boolean(hybridParams) || lobbyState?.status === 'quickmatch'}
+                    roomCode={hybridParams?.roomCode || roomId}
+                    slotsNeeded={
+                        hybridParams?.slotsNeeded ??
+                        lobbyState?.slots.filter(s => s.status === 'empty').length
+                    }
                 />
             )}
 
