@@ -1,7 +1,7 @@
 import { BASE_INDEX, BOARD_FINISH_INDEX, HOME_LANE_START_INDEX } from '@/lib/constants';
 import { getBoardCoordinate, type ColorCorner, type Corner, type Point } from '@/lib/boardLayout';
 import { seatedColorsFor } from '@/lib/engine/core';
-import { getIntermediatePathCoords } from '@/lib/gameLogic';
+import { getIntermediatePathCoords, getTeammateColor } from '@/lib/gameLogic';
 import type { GameState, PlayerColor } from '@/lib/types';
 
 export const CORNER_GRID_ANCHOR: Record<Corner, Point> = {
@@ -20,6 +20,7 @@ export type PowerVfxEvent =
           impactCell: Point;
           corridorCells: Point[];
           victimCells: { pt: Point; color: PlayerColor }[];
+          deflectedCells?: Point[];
       }
     | {
           id: number;
@@ -151,14 +152,30 @@ export function derivePowerVfxEvents(
             }
         }
 
+        const resolvedCorridor = corridorCells.length > 0 ? corridorCells : [impactCell];
+        const corridorKeySet = new Set(resolvedCorridor.map((p) => `${p.r},${p.c}`));
+        const deflectedRaw: Point[] = [];
+        for (const s of next.activeShields ?? []) {
+            if (s.color === actor) continue;
+            if (playerCount === '2v2' && s.color === getTeammateColor(actor, playerCount)) continue;
+            const sPos = Number(next.positions?.[s.color]?.[s.tokenIdx] ?? BASE_INDEX);
+            if (sPos < 0 || sPos >= HOME_LANE_START_INDEX) continue;
+            const sPt = getBoardCoordinate(sPos, s.color, cc);
+            if (sPt && corridorKeySet.has(`${sPt.r},${sPt.c}`)) {
+                deflectedRaw.push(sPt);
+            }
+        }
+        const deflectedCells = dedupPoints(deflectedRaw);
+
         const attackerCorner = cc[actor] ?? 'BL';
         events.push({
             kind: 'nuke',
             attacker: actor,
             originCell: CORNER_GRID_ANCHOR[attackerCorner],
             impactCell,
-            corridorCells: corridorCells.length > 0 ? corridorCells : [impactCell],
+            corridorCells: resolvedCorridor,
             victimCells,
+            ...(deflectedCells.length > 0 ? { deflectedCells } : {}),
         });
     }
 

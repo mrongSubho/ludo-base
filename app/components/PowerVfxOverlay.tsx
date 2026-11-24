@@ -4,7 +4,24 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { prefersReducedMotion } from '@/lib/motion';
 import type { Point } from '@/lib/boardLayout';
+import type { PlayerColor } from '@/lib/types';
 import type { PowerVfxEvent } from '@/lib/powerVfx';
+
+const TELEPORT_ACCENT: Record<PlayerColor, string> = {
+    green: '#10b981',
+    red: '#ef4444',
+    yellow: '#f59e0b',
+    blue: '#3b82f6',
+};
+
+const TELEPORT_SPARKS = [
+    { dx: -16, dy: -16, rot: -135 },
+    { dx: 16, dy: -14, rot: 120 },
+    { dx: -18, dy: 8, rot: -75 },
+    { dx: 18, dy: 10, rot: 145 },
+    { dx: -4, dy: -20, rot: 45 },
+    { dx: 4, dy: 19, rot: -165 },
+];
 
 function cellCenterSvg(pt: Point): { x: number; y: number } {
     return {
@@ -182,6 +199,29 @@ function NukeVfxSequence({
                             ))}
                     </div>
                 ))}
+
+                {/* Shield deflect ripples on shielded enemies inside blast corridor */}
+                {(event.deflectedCells ?? []).map((pt, i) => (
+                    <div
+                        key={`deflect-${pt.r}-${pt.c}-${i}`}
+                        className="power-vfx-cell-host"
+                        style={{ gridRow: pt.r, gridColumn: pt.c }}
+                    >
+                        <motion.span
+                            className="power-shield-deflect"
+                            initial={{ opacity: 0, scale: reduced ? 1 : 0.6 }}
+                            animate={{
+                                opacity: [0, 1, 0],
+                                scale: reduced ? 1 : [0.6, 1.85],
+                            }}
+                            transition={{
+                                duration: reduced ? 0.32 : 0.62,
+                                delay: blastDelay,
+                                ease: 'easeOut',
+                            }}
+                        />
+                    </div>
+                ))}
             </div>
 
             {/* Falling warhead descending along corner -> target vector during siren */}
@@ -240,17 +280,50 @@ function ShieldVfxSequence({
     return (
         <div className="power-vfx-grid">
             {event.cells.map((pt, i) => (
-                <motion.div
+                <div
                     key={`${pt.r}-${pt.c}-${i}`}
-                    className="power-shield-burst"
+                    className="power-vfx-cell-host"
                     style={{ gridRow: pt.r, gridColumn: pt.c }}
-                    initial={{ opacity: 0, scale: reduced ? 1 : 0.45 }}
-                    animate={{
-                        opacity: [0, 0.95, 0],
-                        scale: reduced ? 1 : [0.45, 1.55],
-                    }}
-                    transition={{ duration: reduced ? 0.35 : 0.78, ease: 'easeOut' }}
-                />
+                >
+                    <motion.div
+                        className="power-shield-burst"
+                        initial={{ opacity: 0, scale: reduced ? 1 : 0.45 }}
+                        animate={{
+                            opacity: [0, 0.95, 0],
+                            scale: reduced ? 1 : [0.45, 1.75],
+                        }}
+                        transition={{ duration: reduced ? 0.35 : 0.82, ease: 'easeOut' }}
+                    />
+                    <motion.div
+                        className="power-shield-lock"
+                        initial={{ opacity: 0, scale: reduced ? 1 : 1.45, rotate: 0 }}
+                        animate={{
+                            opacity: [0, 0.92, 0],
+                            scale: reduced ? 1 : [1.45, 0.95, 1.15],
+                            rotate: reduced ? 0 : [0, -90],
+                        }}
+                        transition={{ duration: reduced ? 0.35 : 0.72, delay: reduced ? 0 : 0.06, ease: 'easeOut' }}
+                    />
+                    <motion.div
+                        className="power-shield-crest-flash"
+                        initial={{ opacity: 0, scale: reduced ? 1 : 0.5 }}
+                        animate={{
+                            opacity: [0, 1, 0],
+                            scale: reduced ? 1 : [0.5, 1.25, 0.95],
+                        }}
+                        transition={{ duration: reduced ? 0.32 : 0.68, delay: reduced ? 0 : 0.04, ease: 'easeOut' }}
+                    >
+                        <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
+                            <path
+                                d="M8 1.5L13.5 3.6V7.7C13.5 11.1 11.2 13.8 8 14.8C4.8 13.8 2.5 11.1 2.5 7.7V3.6L8 1.5Z"
+                                fill="#22d3ee"
+                                stroke="#ecfeff"
+                                strokeWidth="1.2"
+                                strokeLinejoin="round"
+                            />
+                        </svg>
+                    </motion.div>
+                </div>
             ))}
         </div>
     );
@@ -322,54 +395,166 @@ function TeleportVfxSequence({
 }) {
     const p1 = cellCenterSvg(event.fromCell);
     const p2 = cellCenterSvg(event.toCell);
-    const midX = (p1.x + p2.x) / 2;
-    const midY = Math.min(p1.y, p2.y) - 18;
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const arcLift = Math.min(28, Math.max(12, dist * 0.28));
+    const nx = -dy / dist;
+    const ny = dx / dist;
+    const sign = ny <= 0 ? 1 : -1;
+    const midX = Math.max(10, Math.min(140, (p1.x + p2.x) / 2 + nx * arcLift * sign));
+    const midY = Math.max(10, Math.min(140, (p1.y + p2.y) / 2 + ny * arcLift * sign));
+
+    const pulseXs: number[] = [];
+    const pulseYs: number[] = [];
+    for (let i = 0; i <= 6; i += 1) {
+        const t = i / 6;
+        const u = 1 - t;
+        pulseXs.push(u * u * p1.x + 2 * u * t * midX + t * t * p2.x);
+        pulseYs.push(u * u * p1.y + 2 * u * t * midY + t * t * p2.y);
+    }
+
+    const factionHex = TELEPORT_ACCENT[event.color] ?? '#10b981';
+    const beamOuter = event.toFinish ? '#fbbf24' : '#10b981';
+    const beamCore = event.toFinish ? '#fef3c7' : '#a7f3d0';
+    const beamPath = `M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}`;
 
     return (
         <>
             <div className="power-vfx-grid">
-                <motion.div
-                    className="power-tp-vortex"
+                {/* Beat 1: Departure Hologram Dissolve + Spinning Vortex + Quantum Column */}
+                <div
+                    className="power-vfx-cell-host"
                     style={{ gridRow: event.fromCell.r, gridColumn: event.fromCell.c }}
-                    initial={{ opacity: 0.95, scale: reduced ? 1 : 1.3, rotate: 0 }}
-                    animate={{
-                        opacity: [0.95, 0],
-                        scale: reduced ? 1 : [1.3, 0.25],
-                        rotate: reduced ? 0 : 180,
-                    }}
-                    transition={{ duration: reduced ? 0.35 : 0.52, ease: 'easeIn' }}
-                />
+                >
+                    {!reduced && (
+                        <>
+                            <motion.div
+                                className="power-tp-column is-departure"
+                                initial={{ opacity: 0, scaleY: 0.2 }}
+                                animate={{ opacity: [0, 0.9, 0], scaleY: [0.2, 1.5, 0.4] }}
+                                transition={{ duration: 0.34, ease: 'easeOut' }}
+                            />
+                            <motion.span
+                                className="power-tp-ghost"
+                                style={{ '--tp-faction': factionHex } as React.CSSProperties}
+                                initial={{ opacity: 0.95, scaleX: 1, scaleY: 1, y: 0 }}
+                                animate={{
+                                    opacity: [0.95, 0.8, 0],
+                                    scaleX: [1, 0.3, 0.08],
+                                    scaleY: [1, 1.9, 2.5],
+                                    y: [0, -10, -22],
+                                }}
+                                transition={{ duration: 0.32, ease: 'easeIn' }}
+                            />
+                        </>
+                    )}
+                    <motion.div
+                        className="power-tp-vortex"
+                        initial={{ opacity: 0.95, scale: reduced ? 1 : 1.4, rotate: 0 }}
+                        animate={{
+                            opacity: [0.95, 0],
+                            scale: reduced ? 1 : [1.4, 0.2],
+                            rotate: reduced ? 0 : 220,
+                        }}
+                        transition={{ duration: reduced ? 0.35 : 0.44, ease: 'easeIn' }}
+                    />
+                </div>
 
-                <motion.div
-                    className="power-tp-ring"
+                {/* Beat 3: Arrival Column + Double Rings + Quantum Sparks */}
+                <div
+                    className="power-vfx-cell-host"
                     style={{ gridRow: event.toCell.r, gridColumn: event.toCell.c }}
-                    initial={{ opacity: 0, scale: reduced ? 1 : 0.35 }}
-                    animate={{
-                        opacity: [0, 1, 0],
-                        scale: reduced ? 1 : [0.35, 2.1],
-                    }}
-                    transition={{
-                        duration: reduced ? 0.35 : 0.72,
-                        delay: reduced ? 0 : 0.16,
-                        ease: 'easeOut',
-                    }}
-                />
+                >
+                    {!reduced && (
+                        <motion.div
+                            className={`power-tp-column is-arrival ${event.toFinish ? 'is-finish' : ''}`}
+                            initial={{ opacity: 0, scaleY: 1.8 }}
+                            animate={{ opacity: [0, 0.95, 0], scaleY: [1.8, 1.0, 0.2] }}
+                            transition={{ duration: 0.46, delay: 0.2, ease: 'easeOut' }}
+                        />
+                    )}
+                    <motion.div
+                        className={`power-tp-ring ${event.toFinish ? 'is-finish' : ''}`}
+                        initial={{ opacity: 0, scale: reduced ? 1 : 0.35 }}
+                        animate={{
+                            opacity: [0, 1, 0],
+                            scale: reduced ? 1 : [0.35, 2.2],
+                        }}
+                        transition={{
+                            duration: reduced ? 0.35 : 0.62,
+                            delay: reduced ? 0 : 0.22,
+                            ease: 'easeOut',
+                        }}
+                    />
+                    {!reduced && (
+                        <>
+                            <motion.div
+                                className={`power-tp-ring-outer ${event.toFinish ? 'is-finish' : ''}`}
+                                initial={{ opacity: 0, scale: 0.45 }}
+                                animate={{ opacity: [0, 0.85, 0], scale: [0.45, 2.65] }}
+                                transition={{ duration: 0.62, delay: 0.28, ease: 'easeOut' }}
+                            />
+                            {TELEPORT_SPARKS.map((sp, si) => (
+                                <motion.span
+                                    key={si}
+                                    className={`power-tp-spark ${event.toFinish ? 'is-finish' : ''}`}
+                                    initial={{ opacity: 0, x: 0, y: 0, scale: 1, rotate: 0 }}
+                                    animate={{
+                                        opacity: [0, 1, 0],
+                                        x: sp.dx,
+                                        y: sp.dy,
+                                        scale: 0.3,
+                                        rotate: sp.rot,
+                                    }}
+                                    transition={{
+                                        duration: 0.5,
+                                        delay: 0.24 + si * 0.015,
+                                        ease: 'easeOut',
+                                    }}
+                                />
+                            ))}
+                        </>
+                    )}
+                </div>
             </div>
 
-            {!reduced && (
-                <svg viewBox="0 0 150 150" className="power-vfx-svg" fill="none">
-                    <motion.path
-                        d={`M ${p1.x} ${p1.y} Q ${midX} ${midY} ${p2.x} ${p2.y}`}
-                        stroke="#10b981"
-                        strokeWidth="1.6"
-                        strokeDasharray="3 2.5"
-                        strokeLinecap="round"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: [0, 0.95, 0] }}
-                        transition={{ duration: 0.7, ease: 'easeInOut' }}
-                    />
-                </svg>
-            )}
+            {/* Beat 2: Dual-Layer Warp Beam + Traveling Quantum Pulse Orb */}
+            <svg viewBox="0 0 150 150" className="power-vfx-svg" fill="none">
+                <motion.path
+                    d={beamPath}
+                    stroke={beamOuter}
+                    strokeWidth="4.4"
+                    strokeLinecap="round"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0, 0.55, 0] }}
+                    transition={{ duration: reduced ? 0.36 : 0.52, delay: reduced ? 0 : 0.04, ease: 'easeInOut' }}
+                />
+                <motion.path
+                    d={beamPath}
+                    stroke={beamCore}
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    initial={reduced ? { opacity: 0 } : { opacity: 0, pathLength: 0 }}
+                    animate={reduced ? { opacity: [0, 0.95, 0] } : { opacity: [0, 1, 0], pathLength: [0, 1] }}
+                    transition={{ duration: reduced ? 0.36 : 0.46, delay: reduced ? 0 : 0.04, ease: 'easeInOut' }}
+                />
+                {!reduced && (
+                    <motion.g
+                        initial={{ x: pulseXs[0], y: pulseYs[0], scale: 0.6, opacity: 0 }}
+                        animate={{
+                            x: pulseXs,
+                            y: pulseYs,
+                            scale: [0.6, 1.35, 1.15, 0.5],
+                            opacity: [0, 1, 1, 0],
+                        }}
+                        transition={{ duration: 0.36, delay: 0.06, ease: 'easeInOut' }}
+                    >
+                        <circle cx="0" cy="0" r="4.2" fill={beamOuter} opacity="0.6" />
+                        <circle cx="0" cy="0" r="2.2" fill="#ffffff" />
+                    </motion.g>
+                )}
+            </svg>
         </>
     );
 }

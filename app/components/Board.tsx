@@ -322,7 +322,7 @@ export default function Board({
             const stamped = vfxItems.map((item) => ({ ...item, id: ++vfxSeqRef.current }) as PowerVfxEvent);
             setPowerVfxEvents((cur) => [...cur, ...stamped]);
             stamped.forEach((ev) => {
-                const ttl = ev.kind === 'nuke' ? 2500 : 1200;
+                const ttl = ev.kind === 'nuke' ? 2500 : ev.kind === 'teleport' ? 1500 : 1200;
                 const clearTimer = window.setTimeout(() => {
                     setPowerVfxEvents((cur) => cur.filter((x) => x.id !== ev.id));
                 }, ttl);
@@ -680,10 +680,7 @@ export default function Board({
     // ─── Line 1 Primary Turn Directive (2-line terminal stack above board) ─
     const effectiveMyDice =
         ownColor && localGameState.diceValue !== null && localGameState.diceValue !== undefined
-            ? Number(localGameState.diceValue) +
-              (localGameState.activeBoost === localGameState.currentPlayer || localGameState.activeBoost === ownColor
-                  ? 6
-                  : 0)
+            ? Number(localGameState.diceValue)
             : null;
     const myTokensInHome = ownColor
         ? (localGameState.positions?.[ownColor] || []).filter((pos: number) => Number(pos) === -1).length
@@ -698,6 +695,7 @@ export default function Board({
                 spectatorMode,
                 targeting: targeting?.type ?? null,
                 activeBoost: localGameState.activeBoost,
+                boostPendingDice: localGameState.boostPendingDice ?? null,
                 winner: localGameState.winner ?? null,
                 myTokensInHome,
                 effectiveMyDice,
@@ -710,6 +708,7 @@ export default function Board({
             spectatorMode,
             targeting,
             localGameState.activeBoost,
+            localGameState.boostPendingDice,
             localGameState.winner,
             myTokensInHome,
             effectiveMyDice,
@@ -857,8 +856,7 @@ export default function Board({
                             const isControllableHome = localGameState.currentPlayer === color || isAssistTarget;
                             const effectiveHomeDice =
                                 localGameState.diceValue !== null && localGameState.diceValue !== undefined
-                                    ? Number(localGameState.diceValue) +
-                                      (localGameState.activeBoost === localGameState.currentPlayer || localGameState.activeBoost === color ? 6 : 0)
+                                    ? Number(localGameState.diceValue)
                                     : null;
                             return (
                                 <HomeBlock

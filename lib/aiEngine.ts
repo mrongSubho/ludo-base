@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- lint burn-down quarantine 2026-09-23 */
 import { PlayerColor, PowerType, GameState } from '@/lib/types';
 import { checkMultiCapture, getTeamForceAtPoint, getTeam, getTeammateColor, calculateNextPosition, getLegalTokenIndices } from './gameLogic';
+import { countNukeVictims as countNukeVictimsCore, type EngineGameState } from './engine/core';
 import { Point, ColorCorner, getBoardCoordinate, CORNER_SLOTS, SAFE_POSITIONS as GLOBAL_SAFE_POINTS } from './boardLayout';
 import {
     BOARD_FINISH_INDEX,
@@ -9,7 +10,6 @@ import {
     TOTAL_PATH_CELLS,
     AI_SCORES,
     DICE_MAX,
-    NUKE_RADIUS,
     BotDifficulty,
     DIFFICULTY_PARAMS
 } from './constants';
@@ -342,41 +342,12 @@ export function getBestPowerUsage(    state: GameState,
     return null;
 }
 
-// Victims within ±NUKE_RADIUS of an own token (unshielded, off safe stars).
+// Victims within circular ±NUKE_RADIUS of an own token (safe stars, shields, and ≥2-token stacks/teammates protected).
 export function countNukeVictims(
     state: GameState, color: PlayerColor, tokenIdx: number,
     colorCorner: ColorCorner, playerCount: string
 ): { victims: { color: PlayerColor, idx: number }[], cells: { r: number, c: number }[] } {
-    const victims: { color: PlayerColor, idx: number }[] = [];
-    const cellKeys = new Set<string>();
-    const cells: { r: number, c: number }[] = [];
-    const myPos = state.positions[color][tokenIdx];
-    if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return { victims, cells };
-    const pushCell = (r: number, c: number) => {
-        const k = `${r},${c}`;
-        if (!cellKeys.has(k)) {
-            cellKeys.add(k);
-            cells.push({ r, c });
-        }
-    };
-    const myPt = getBoardCoordinate(myPos, color, colorCorner);
-    if (myPt) pushCell(myPt.r, myPt.c);
-    (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
-        if (oppColor === color) return;
-        if (playerCount === '2v2' && oppColor === getTeammateColor(color, playerCount)) return;
-        state.positions[oppColor].forEach((oppPos: number, oppIdx: number) => {
-            if (oppPos < 0 || oppPos >= HOME_LANE_START_INDEX) return;
-            if (Math.abs(oppPos - myPos) > NUKE_RADIUS) return;
-            const oppPt = getBoardCoordinate(oppPos, oppColor, colorCorner);
-            if (!oppPt) return;
-            // Shields and safe stars hold against the blast.
-            if (state.activeShields.some(s => s.color === oppColor && s.tokenIdx === oppIdx)) return;
-            if (GLOBAL_SAFE_POINTS.some(p => p.r === oppPt.r && p.c === oppPt.c)) return;
-            victims.push({ color: oppColor, idx: oppIdx });
-            pushCell(oppPt.r, oppPt.c);
-        });
-    });
-    return { victims, cells };
+    return countNukeVictimsCore(state as unknown as EngineGameState, color, tokenIdx, colorCorner, playerCount);
 }
 
 function bestNukeTarget(

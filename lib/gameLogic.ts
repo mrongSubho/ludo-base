@@ -67,6 +67,8 @@ export const INITIAL_GAME_STATE: GameState = {
     playerPowers: { green: [], red: [], yellow: [], blue: [] },
     powerSpentThisTurn: false,
     activeBoost: null,
+    boostPendingDice: null,
+    boostSubMoveBonus: false,
     nukeFlash: [],
     boostTrail: null,
     activeTraps: [],
@@ -359,6 +361,7 @@ export function checkMultiCapture(
 export interface MoveResult {
     newState: GameState;
     captured: boolean;
+    finishedToken: boolean;
     bonusRoll: boolean;
 }
 
@@ -455,17 +458,17 @@ export function processMove(
     activeColors?: PlayerColor[]
 ): MoveResult {
     const actingColor = actingPlayer || tokenColor;
-    if (state.winner) return { newState: state, captured: false, bonusRoll: false };
+    if (state.winner) return { newState: state, captured: false, finishedToken: false, bonusRoll: false };
 
     const initialPos = state.positions[tokenColor][tokenIndex];
     const nextPos = calculateNextPosition(initialPos, steps, tokenColor, cc);
 
     if (nextPos === initialPos && steps !== 0) {
-        return { newState: state, captured: false, bonusRoll: false };
+        return { newState: state, captured: false, finishedToken: false, bonusRoll: false };
     }
 
     const targetPoint = getBoardCoordinate(nextPos, tokenColor, cc);
-    if (!targetPoint) return { newState: state, captured: false, bonusRoll: false };
+    if (!targetPoint) return { newState: state, captured: false, finishedToken: false, bonusRoll: false };
     
     // 1. Resolve Traps
     const trapResult = resolveTrap(state, targetPoint, tokenColor, tokenIndex, playerCount);
@@ -475,6 +478,7 @@ export function processMove(
         return {
             newState: finishTrappedMove(state, trapResult.newPositions, newTraps, actingColor, playerCount, activeColors, cc),
             captured: false,
+            finishedToken: false,
             bonusRoll: false
         };
     }
@@ -512,7 +516,8 @@ export function processMove(
         }
     }
 
-    const bonusRoll = captured || steps === DICE_ROLL_SIX;
+    const finishedToken = nextPos === BOARD_FINISH_INDEX;
+    const bonusRoll = captured || finishedToken || steps === DICE_ROLL_SIX;
     const nextPlayer = (bonusRoll && status !== 'finished') ? actingColor : getNextPlayer(actingColor, playerCount, activeColors, cc);
 
     // ENG-06: record EVERY newly-finished color (parity with core.ts).
@@ -534,6 +539,7 @@ export function processMove(
             lastUpdate: Date.now()
         },
         captured,
+        finishedToken,
         bonusRoll
     };
 }

@@ -189,21 +189,25 @@ export function updateTurnRollHistory(
         return { player: nextState.currentPlayer, rolls: [], nextId: current.nextId };
     }
 
+    const steppedFromBoost = prevState.boostPendingDice != null && nextState.boostPendingDice == null;
     const landedFreshFace =
         nextState.currentPlayer === prevState.currentPlayer &&
         !nextState.isRolling &&
         isDiceFaceNumber(nextState.diceValue) &&
-        (prevState.diceValue !== nextState.diceValue || prevState.isRolling);
+        (prevState.diceValue !== nextState.diceValue || prevState.isRolling || steppedFromBoost);
 
     if (!landedFreshFace || !isDiceFaceNumber(nextState.diceValue)) {
         return current;
     }
 
     const nextId = current.nextId + 1;
-    const boosted = Boolean(
-        prevState.activeBoost === nextState.currentPlayer ||
-        nextState.activeBoost === nextState.currentPlayer,
-    );
+    const boosted = steppedFromBoost
+        ? false
+        : Boolean(
+              prevState.activeBoost === nextState.currentPlayer ||
+                  nextState.activeBoost === nextState.currentPlayer ||
+                  nextState.boostPendingDice != null,
+          );
     const nextRolls = [
         ...current.rolls,
         { id: nextId, value: nextState.diceValue, boosted },

@@ -182,6 +182,7 @@ export function PlayerRow({
                         isRolling={Boolean(localGameState.isRolling)}
                         diceValue={localGameState.diceValue ?? null}
                         boostActive={localGameState.activeBoost === p.color}
+                        boostPendingDice={isMyTurn ? (localGameState.boostPendingDice ?? null) : null}
                         bustKey={bustState?.color === p.color ? bustState.key : 0}
                         turnRolls={turnRolls}
                         dangerSixes={consecutiveSixes >= 2}

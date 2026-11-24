@@ -2,14 +2,13 @@ import { useCallback, useRef, useEffect } from 'react';
 import { PlayerColor, PowerType, PowerItem, GameState, GameStateSetter, BetType, GameActionType, GameIntentType, GameIntentPayloads, GameActionPayload } from '@/lib/types';
 import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, getLegalTokenIndices } from '@/lib/gameLogic';
 import { activeColorsForTurns } from '@/lib/engine';
-import { applyPowerPickup, sweepExpiredPowers } from '@/lib/engine/core';
+import { applyPowerPickup, resolveControllableColor, sweepExpiredPowers } from '@/lib/engine/core';
 import { countNukeVictims } from '@/lib/aiEngine';
 import { Player } from './useGameEngine';
 import { ColorCorner } from '@/lib/boardLayout';
 import {
     BOARD_FINISH_INDEX,
     BASE_INDEX,
-    DICE_MAX,
     DICE_ROLL_SIX,
     HOME_LANE_START_INDEX,
 } from '@/lib/constants';
@@ -134,7 +133,9 @@ export function useGameActions({
     const _bettingWindowIdRef = useRef<string | null>(null);
     const rollingRef = useRef<boolean>(false);
     const serverActionPendingRef = useRef(false);
+    const roomAutoMoveKeyRef = useRef<string>('');
     const stateRef = useRef(localGameState);
+    const moveTokenRef = useRef<(color: PlayerColor, tokenIndex: number, steps: number, isRemote?: boolean) => Promise<MoveTokenOutcome>>(async () => 'failed');
 
     useEffect(() => {
         stateRef.current = localGameState;
@@ -206,45 +207,64 @@ export function useGameActions({
         const currentState = stateRef.current;
         if (currentState.gamePhase !== 'moving' && !isRemote) return 'failed';
 
-        // Boosted move: +6 steps, consumed on use (host computes; guests
-        // replay the broadcast steps without re-adding).
-        const boosted = !isRemote && currentState.activeBoost === currentState.currentPlayer;
-        const effSteps = boosted ? steps + DICE_MAX : steps;
+        const pendingBoostDice = !isRemote ? (currentState.boostPendingDice ?? null) : null;
+        const isStep2 = !isRemote && pendingBoostDice === null && Boolean(currentState.boostSubMoveBonus);
 
-        const { newState, captured } = processMove(
+        const { newState, captured, finishedToken } = processMove(
             currentState,
             color,
             tokenIndex,
-            effSteps,
+            steps,
             playerCount,
             colorCorner,
             currentState.currentPlayer,
             activeColorsArr
         );
 
+        const actingSeat = currentState.currentPlayer;
+        const stepStreakBreak = captured || finishedToken;
+        const streakBreaker = stepStreakBreak || isStep2;
+        const isBonusTurn = pendingBoostDice === null
+            ? (streakBreaker || steps === DICE_ROLL_SIX || Boolean(newState.winner))
+            : Boolean(newState.winner);
+
         let pTurnSwitchPending = false;
         let pNextPlayer: PlayerColor | null = null;
-        const isBonusTurn = (steps === DICE_ROLL_SIX || captured || newState.winner);
+        const actingPlayerInfo = initialPlayers.find((p) => p.color === actingSeat);
+        const isActingBot = Boolean(actingPlayerInfo?.isAi || currentState.afkStats?.[actingSeat]?.isKicked);
+
+        const captureNotice = captured
+            ? `Captured! Bonus roll for ${actingSeat}!`
+            : finishedToken && !newState.winner
+              ? `Token home! Bonus roll for ${actingSeat}!`
+              : null;
 
         const finalState: GameState = {
             ...currentState,
             ...newState,
-            // REA-10: the bonus-turn holder is written on the FRESH state, not
-            // on the aliased `newState` returned by processMove (mutating the
-            // engine's return value).
-            currentPlayer: (isBonusTurn && !currentState.winner) ? color : newState.currentPlayer,
+            // Preserve the current mover during Boost Step 1 -> Step 2, or grant bonus roll when earned.
+            currentPlayer:
+                pendingBoostDice !== null || (isBonusTurn && !newState.winner)
+                    ? actingSeat
+                    : newState.currentPlayer,
             diceValue: isBonusTurn ? null : newState.diceValue,
-            captureMessage: captured ? `Captured! Bonus roll for ${color}!` : null,
-            strikes: { ...currentState.strikes, [color]: 0 },
-            consecutiveSixes: (newState.currentPlayer !== color) ? 0 : currentState.consecutiveSixes,
+            captureMessage: captureNotice,
+            strikes: { ...currentState.strikes, [actingSeat]: 0 },
+            consecutiveSixes:
+                pendingBoostDice !== null
+                    ? (stepStreakBreak ? 0 : currentState.consecutiveSixes)
+                    : (streakBreaker ? 0 : (isBonusTurn && !newState.winner ? currentState.consecutiveSixes : 0)),
+            activeBoost: null,
+            boostPendingDice: pendingBoostDice !== null && !newState.winner ? pendingBoostDice : null,
+            boostSubMoveBonus: pendingBoostDice !== null ? stepStreakBreak : false,
+            powerSpentThisTurn: pendingBoostDice !== null && !newState.winner,
             gamePhase: 'landing' as const, // Buffer to prevent AI state stomping
             timeLeft: 15, // Reset timer during animation
             lastUpdate: Date.now()
         };
 
-        // Boost consumed by this move — leave a motion trail on the mover.
-        if (boosted) {
-            finalState.activeBoost = null;
+        // Boost visual trail during split Boost steps
+        if (pendingBoostDice !== null || currentState.boostTrail === color) {
             finalState.boostTrail = color;
             setTimeout(() => {
                 setLocalGameState((latest) => latest.boostTrail === color ? { ...latest, boostTrail: null, lastUpdate: Date.now() } : latest);
@@ -256,14 +276,8 @@ export function useGameActions({
         );
 
         // ── Power pickup: landing exactly on a hidden tile reveals + grants.
-        // PW-4/PW-6: this used to be a third hand-written copy of the pickup rule,
-        // including its own copy of the LCG reseed formula. It now delegates to the
-        // engine's `applyPowerPickup`, which is the same function the room engine
-        // runs — one implementation, one reseed, one set of golden tests.
         const landedPos = newState.positions[color][tokenIndex];
         {
-            // The engine state type is structurally wider than `GameState` (it has an
-            // index signature), so this is a pure type-boundary cast, not a conversion.
             const beforeTiles = finalState.powerTiles;
             const picked = applyPowerPickup(
                 finalState as unknown as Parameters<typeof applyPowerPickup>[0],
@@ -277,30 +291,28 @@ export function useGameActions({
                 finalState.powerTiles = picked.powerTiles ?? finalState.powerTiles;
                 if ((picked.playerPowers?.[color] || []).length > hadBefore) {
                     const foundMsg = picked.captureMessage ?? 'POWER discovered!';
-                    finalState.captureMessage = captured
-                        ? `${finalState.captureMessage ?? ''} ${foundMsg}`.trim()
+                    finalState.captureMessage = captureNotice
+                        ? `${captureNotice} ${foundMsg}`.trim()
                         : foundMsg;
                     audio.playPickup();
                 }
             }
         }
 
-        // PW-5: the host is the authority, so it decides expiry — once, at the turn
-        // boundary — instead of every client filtering by its own clock.
+        // PW-5: the host is the authority, so it decides expiry — once, at the turn boundary.
         finalState.playerPowers = sweepExpiredPowers(
             finalState as unknown as Parameters<typeof sweepExpiredPowers>[0],
         ).playerPowers as GameState['playerPowers'];
 
-        if (!isRemote) {
-            if (newState.currentPlayer !== currentState.currentPlayer || isBonusTurn) {
+        if (!isRemote && !newState.winner) {
+            if (pendingBoostDice !== null || newState.currentPlayer !== currentState.currentPlayer || isBonusTurn) {
                 pTurnSwitchPending = true;
-                pNextPlayer = isBonusTurn ? color : newState.currentPlayer;
+                pNextPlayer = pendingBoostDice !== null || isBonusTurn ? actingSeat : newState.currentPlayer;
             }
         }
 
         setLocalGameState(finalState);
 
-        // State travels via server room DO or local state.
         if (broadcastAction && isLobbyConnected && !isRemote) {
             broadcastAction('ENGINE_STATE', {}, finalState);
         }
@@ -311,7 +323,6 @@ export function useGameActions({
             audio.playWin();
             triggerWinConfetti();
             recordWin(color);
-            // ENG-06: a 2v2 team win records BOTH teammates (see above).
             const mate = getTeammateColor(color, playerCount);
             if (playerCount === '2v2' && mate && newState.winner.startsWith('Team ')) {
                 recordWin(mate);
@@ -327,20 +338,71 @@ export function useGameActions({
             const isYardDeploy = Number(currentState.positions[color][tokenIndex]) === BASE_INDEX;
             const settleSteps = isYardDeploy
                 ? DICE_ROLL_SIX
-                : movedDelta > 0 && movedDelta <= 12
+                : movedDelta > 0 && movedDelta <= 6
                   ? movedDelta
-                  : effSteps;
-            const settleBufferMs = computeMoveSettleBufferMs(settleSteps, boosted);
+                  : steps;
+            const settleBufferMs = computeMoveSettleBufferMs(settleSteps, pendingBoostDice !== null);
             autoMoveTimeoutRef.current = setTimeout(() => {
-                // Release the roll guard — this path skips the normal-flow
-                // reset, and a stuck guard deadlocks every future roll
-                // (AFK auto-play then loops on strikes forever).
                 rollingRef.current = false;
+                if (pendingBoostDice !== null) {
+                    const latestSnap = stateRef.current;
+                    const step2Target = resolveControllableColor(latestSnap.positions, actingSeat, playerCount);
+                    const step2Legal = getLegalTokenIndices(latestSnap.positions, step2Target, pendingBoostDice, colorCorner);
+                    if (step2Legal.length > 0) {
+                        setLocalGameState((latest) => {
+                            const nextStepState: GameState = {
+                                ...latest,
+                                currentPlayer: actingSeat,
+                                diceValue: pendingBoostDice,
+                                boostPendingDice: null,
+                                boostSubMoveBonus: stepStreakBreak,
+                                powerSpentThisTurn: true,
+                                gamePhase: 'moving',
+                                lastUpdate: Date.now(),
+                                timeLeft: 15,
+                            };
+                            if (broadcastAction && isLobbyConnected) broadcastAction('ENGINE_STATE', {}, nextStepState);
+                            return nextStepState;
+                        });
+                        const allStep2InBase = step2Legal.every((idx) => latestSnap.positions[step2Target][idx] === BASE_INDEX);
+                        if (!isActingBot && (step2Legal.length === 1 || (pendingBoostDice === DICE_ROLL_SIX && allStep2InBase))) {
+                            if (autoMoveTimeoutRef.current) clearTimeout(autoMoveTimeoutRef.current);
+                            autoMoveTimeoutRef.current = setTimeout(() => {
+                                autoMoveTimeoutRef.current = null;
+                                void moveTokenRef.current(step2Target, step2Legal[0], pendingBoostDice);
+                            }, 180);
+                        }
+                        return;
+                    }
+                    // Step 2 has no legal moves on post-Step-1 board: grant bonus roll on capture/finish, else pass turn.
+                    const step2NextPlayer = stepStreakBreak ? actingSeat : getNextPlayer(actingSeat, latestSnap.positions);
+                    setLocalGameState((latest) => {
+                        const passOrBonusState: GameState = {
+                            ...latest,
+                            currentPlayer: step2NextPlayer,
+                            diceValue: null,
+                            boostPendingDice: null,
+                            boostSubMoveBonus: false,
+                            consecutiveSixes: 0,
+                            powerSpentThisTurn: false,
+                            gamePhase: 'rolling',
+                            lastUpdate: Date.now(),
+                            timeLeft: 15,
+                        };
+                        if (broadcastAction && isLobbyConnected) broadcastAction('ENGINE_STATE', {}, passOrBonusState);
+                        return passOrBonusState;
+                    });
+                    return;
+                }
+
                 setLocalGameState((latest) => {
                     const switchState: GameState = {
                         ...latest,
                         currentPlayer: pNextPlayer ?? latest.currentPlayer,
                         diceValue: null,
+                        boostPendingDice: null,
+                        boostSubMoveBonus: false,
+                        powerSpentThisTurn: false,
                         gamePhase: 'rolling', // Now it's officially the next turn
                         lastUpdate: Date.now(),
                         timeLeft: 15 // Reset for next turn
@@ -351,7 +413,9 @@ export function useGameActions({
             }, settleBufferMs);
         }
         return 'applied';
-    }, [isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers, applyServerState]);
+    }, [isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers, applyServerState, getNextPlayer]);
+
+    moveTokenRef.current = moveToken;
 
     /**
      * Pull the authoritative snapshot after a refused write (403 wrong turn,
@@ -455,14 +519,31 @@ export function useGameActions({
         // Wait for the tumble animation to finish
         await tumblePromise;
 
+        const preLandState = stateRef.current;
+        if (preLandState.gamePhase !== 'rolling' || preLandState.winner) {
+            rollingRef.current = false;
+            return 'failed';
+        }
+
+        const teammate = (playerCount === '2v2') ? getTeammateColor(color, playerCount) : null;
+        const isSelfFinished = preLandState.positions[color].every((p: number) => p === BOARD_FINISH_INDEX);
+        const targetColor = (playerCount === '2v2' && isSelfFinished && teammate) ? teammate : color;
+        const { isThreeSixes, nextSixes } = handleThreeSixes(preLandState.consecutiveSixes, rollValue);
+        const boosted = !isThreeSixes && (preLandState.activeBoost === color || preLandState.activeBoost === targetColor);
+        const legalForSix = boosted ? getLegalTokenIndices(preLandState.positions, targetColor, DICE_ROLL_SIX, colorCorner) : [];
+        const boostSplitActive = boosted && legalForSix.length > 0;
+        const activeDice = boostSplitActive ? DICE_ROLL_SIX : rollValue;
+        const pendingDiceForBoost = boostSplitActive ? rollValue : null;
+
         setLocalGameState((prev) => ({
             ...prev,
             isRolling: false,
-            diceValue: rollValue,
+            diceValue: isThreeSixes ? rollValue : activeDice,
+            boostPendingDice: pendingDiceForBoost,
+            activeBoost: boostSplitActive ? null : prev.activeBoost,
+            boostTrail: null,
             lastUpdate: Date.now(),
             timeLeft: 15, // Reset timer during animation
-            // A fresh roll opens a fresh power budget: one power per roll.
-            powerSpentThisTurn: false
         }));
         
         // Brief pause for visual impact of the landing face
@@ -475,30 +556,37 @@ export function useGameActions({
             return 'failed';
         }
 
-
-        const teammate = (playerCount === '2v2') ? getTeammateColor(color, playerCount) : null;
-        const isSelfFinished = currentState.positions[color].every((p: number) => p === BOARD_FINISH_INDEX);
-        const targetColor = (playerCount === '2v2' && isSelfFinished && teammate) ? teammate : color;
-
         let pDelayedAction: 'turnSwitch' | 'autoMove' | null = null;
         let pNextPlayer: PlayerColor | null = null;
         const pTargetColor: PlayerColor = targetColor;
         let pLastValidTokenIndex = -1;
+        const pActiveStepValue = activeDice;
         let pFinalStateForBroadcast: GameState | null = null;
-
-        const { isThreeSixes, nextSixes } = handleThreeSixes(currentState.consecutiveSixes, rollValue);
 
         if (isThreeSixes) {
             pNextPlayer = getNextPlayer(color, currentState.positions);
             pDelayedAction = 'turnSwitch';
             // 🔧 FIX 2: Use functional updater to avoid clobbering concurrent state
             setLocalGameState((prev) => {
-                pFinalStateForBroadcast = { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'rolling', consecutiveSixes: 0 };
+                pFinalStateForBroadcast = {
+                    ...prev,
+                    isRolling: false,
+                    diceValue: rollValue,
+                    gamePhase: 'rolling',
+                    consecutiveSixes: 0,
+                    activeBoost: null,
+                    boostPendingDice: null,
+                    boostSubMoveBonus: false,
+                    powerSpentThisTurn: false,
+                    captureMessage: 'Three 6s! Turn forfeited.',
+                };
                 return pFinalStateForBroadcast;
             });
         } else {
             // Engine-accurate legality (gate crossing, base exit, overshoot)
-            const legalIdxs = getLegalTokenIndices(currentState.positions, targetColor, rollValue, colorCorner);
+            const legalIdxs = boostSplitActive
+                ? legalForSix
+                : getLegalTokenIndices(currentState.positions, targetColor, activeDice, colorCorner);
             const validMovesCount = legalIdxs.length;
             const lastValidTokenIndex = legalIdxs[legalIdxs.length - 1] ?? -1;
 
@@ -506,39 +594,55 @@ export function useGameActions({
                 console.log(`🎲 [Engine] No valid moves for ${color}. Switching turn.`);
                 pNextPlayer = getNextPlayer(color, currentState.positions);
                 pDelayedAction = 'turnSwitch';
-                // 🔧 FIX 2: Functional updater
                 setLocalGameState((prev) => {
-                    pFinalStateForBroadcast = { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'rolling', consecutiveSixes: nextSixes };
+                    pFinalStateForBroadcast = {
+                        ...prev,
+                        isRolling: false,
+                        diceValue: activeDice,
+                        gamePhase: 'rolling',
+                        consecutiveSixes: 0,
+                        activeBoost: null,
+                        boostPendingDice: null,
+                        boostSubMoveBonus: false,
+                        powerSpentThisTurn: false,
+                    };
                     return pFinalStateForBroadcast;
                 });
             } else {
-                // --- Zero-Click Auto-Move Flow ---
-                const allAtHome = currentState.positions[targetColor].every((p: number) => p === -1);
-                const tokensOnBoard = currentState.positions[targetColor].filter((p: number) => p >= 0 && p < 57).length;
-                const isForcedStart = allAtHome && rollValue === 6;
+                // Immediate auto-move whenever only 1 legal move exists (or all eligible tokens sit in Yard on a 6).
+                const allLegalInBase =
+                    activeDice === DICE_ROLL_SIX &&
+                    legalIdxs.every((idx) => currentState.positions[targetColor][idx] === BASE_INDEX);
                 const isSingleMove = validMovesCount === 1;
-                const isEndGame = tokensOnBoard === 1 && validMovesCount === 1;
 
-                if ((isSingleMove || isForcedStart || isEndGame) && !isRemote && !isCurrentlyBot) {
-                    console.log(`🎲 [Engine] Auto-move triggered (forced=${isForcedStart}, single=${isSingleMove}, endGame=${isEndGame})`);
-                    pLastValidTokenIndex = lastValidTokenIndex;
+                if ((isSingleMove || allLegalInBase) && !isRemote && !isCurrentlyBot) {
+                    pLastValidTokenIndex = legalIdxs[0] ?? lastValidTokenIndex;
                     pDelayedAction = 'autoMove';
-                    // 🔧 FIX 2: Functional updater
-                    setLocalGameState((prev) => {
-                        pFinalStateForBroadcast = { ...prev, isRolling: false, diceValue: rollValue, gamePhase: 'moving', consecutiveSixes: nextSixes };
-                        return pFinalStateForBroadcast;
-                    });
-                } else {
-                    // Normal Flow: Just change phase and wait for user/bot interaction
-                    rollingRef.current = false;
-                    // 🔧 FIX 2: Functional updater
                     setLocalGameState((prev) => {
                         pFinalStateForBroadcast = {
                             ...prev,
                             isRolling: false,
-                            diceValue: rollValue,
+                            diceValue: activeDice,
+                            gamePhase: 'moving',
+                            consecutiveSixes: nextSixes,
+                            activeBoost: null,
+                            boostPendingDice: pendingDiceForBoost,
+                            boostSubMoveBonus: false,
+                        };
+                        return pFinalStateForBroadcast;
+                    });
+                } else {
+                    rollingRef.current = false;
+                    setLocalGameState((prev) => {
+                        pFinalStateForBroadcast = {
+                            ...prev,
+                            isRolling: false,
+                            diceValue: activeDice,
                             gamePhase: 'moving' as const,
                             consecutiveSixes: nextSixes,
+                            activeBoost: null,
+                            boostPendingDice: pendingDiceForBoost,
+                            boostSubMoveBonus: false,
                             lastUpdate: Date.now(),
                             timeLeft: 15
                         };
@@ -608,6 +712,10 @@ export function useGameActions({
                     diceValue: null,
                     gamePhase: 'rolling',
                     consecutiveSixes: 0,
+                    activeBoost: null,
+                    boostPendingDice: null,
+                    boostSubMoveBonus: false,
+                    powerSpentThisTurn: false,
                     timeLeft: 15,
                     lastUpdate: Date.now()
                 };
@@ -620,10 +728,10 @@ export function useGameActions({
         } else if (pDelayedAction === 'autoMove') {
             if (autoMoveTimeoutRef.current) clearTimeout(autoMoveTimeoutRef.current);
             autoMoveTimeoutRef.current = setTimeout(() => {
-                moveToken(pTargetColor, pLastValidTokenIndex, rollValue);
+                moveToken(pTargetColor, pLastValidTokenIndex, pActiveStepValue);
                 rollingRef.current = false;
                 autoMoveTimeoutRef.current = null;
-            }, 360);
+            }, 160);
         }
         return 'applied';
     }, [isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address, moveAuth, serverSeqRef, lastRollIdRef, applyServerState, resyncFromServer]);
@@ -759,7 +867,7 @@ export function useGameActions({
         }
         else if (pick === 'boost') {
             nextState.activeBoost = myColor;
-            nextState.captureMessage = `BOOST! Next move +${DICE_MAX} steps.`;
+            nextState.captureMessage = 'BOOST! Next roll grants an extra 6 first, then your roll.';
             sound = 'boost';
         }
         else if (pick === 'teleport') {
@@ -847,6 +955,65 @@ export function useGameActions({
 
         moveToken(color, tokenIndex, localGameState.diceValue);
     }, [localGameState.gamePhase, localGameState.diceValue, localGameState.currentPlayer, localGameState.positions, playerCount, isLobbyConnected, roomAuthority, sendIntent, moveToken, address, initialPlayers]);
+
+    // Immediate auto-move for room-authoritative seats when only 1 legal move exists
+    // (covering normal rolls as well as Boost Step 1 and Step 2).
+    useEffect(() => {
+        if (!roomAuthority) return;
+        if (
+            localGameState.status === 'finished' ||
+            localGameState.winner ||
+            localGameState.isRolling ||
+            localGameState.gamePhase !== 'moving' ||
+            localGameState.diceValue === null
+        ) {
+            roomAutoMoveKeyRef.current = '';
+            return;
+        }
+
+        const actingColor = localGameState.currentPlayer;
+        const myPlayer =
+            initialPlayers.find((p) => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) ||
+            initialPlayers.find((p) => !p.isAi);
+        const myColor = myPlayer?.color;
+        if (!myColor || actingColor !== myColor) return;
+        const isBot = initialPlayers.find((p) => p.color === actingColor)?.isAi || localGameState.afkStats?.[actingColor]?.isKicked;
+        if (isBot) return;
+
+        const targetColor = resolveControllableColor(localGameState.positions, myColor, playerCount);
+        const diceVal = localGameState.diceValue;
+        const legal = getLegalTokenIndices(localGameState.positions, targetColor, diceVal, colorCorner);
+        if (legal.length === 0) return;
+
+        const allInBaseOnSix =
+            diceVal === DICE_ROLL_SIX &&
+            legal.every((idx) => localGameState.positions[targetColor][idx] === BASE_INDEX);
+        if (legal.length !== 1 && !allInBaseOnSix) return;
+
+        const key = `${actingColor}|${diceVal}|${localGameState.boostPendingDice ?? ''}|${(localGameState.positions[targetColor] || []).join(',')}`;
+        if (roomAutoMoveKeyRef.current === key) return;
+        roomAutoMoveKeyRef.current = key;
+
+        const timer = setTimeout(() => {
+            void moveTokenRef.current(targetColor, legal[0], diceVal);
+        }, 180);
+        return () => clearTimeout(timer);
+    }, [
+        roomAuthority,
+        localGameState.status,
+        localGameState.winner,
+        localGameState.isRolling,
+        localGameState.gamePhase,
+        localGameState.diceValue,
+        localGameState.boostPendingDice,
+        localGameState.currentPlayer,
+        localGameState.positions,
+        localGameState.afkStats,
+        initialPlayers,
+        address,
+        playerCount,
+        colorCorner,
+    ]);
 
     return {
         moveToken,

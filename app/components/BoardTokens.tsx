@@ -146,7 +146,7 @@ export function BoardTokens({
         const msg = localGameState.captureMessage || '';
         const isTeleportMsg = /TELEPORT!/i.test(msg);
         const isNukeMsg = (localGameState.nukeFlash?.length ?? 0) > 0 || /NUKE!/i.test(msg);
-        const isBoostedMove = Boolean(localGameState.boostTrail || localGameState.activeBoost);
+        const isBoostedMove = Boolean(localGameState.boostTrail || localGameState.activeBoost || localGameState.boostPendingDice != null);
 
         const nextDeployed: Record<string, boolean> = {};
         const nextTeleport: Record<string, boolean> = {};
@@ -186,7 +186,7 @@ export function BoardTokens({
                     const waypoints = isTeleportMsg ? [] : getIntermediatePathCoords(oldPos, newPos, color, colorCorner);
                     const steps = waypoints.length;
                     const cadence = computeHopCadence(Math.max(1, steps), isBoostedMove, themeId);
-                    const walkMs = reduced ? 0 : isTeleportMsg ? 320 : cadence.totalWalkMs;
+                    const walkMs = reduced ? 0 : isTeleportMsg ? 560 : cadence.totalWalkMs;
 
                     if (destPt) {
                         moverLandings.push({ key, pt: destPt, walkMs });
@@ -512,11 +512,7 @@ export function BoardTokens({
                     (color === myColor || canHelpTeammate);
 
                 const diceVal: number | null = localGameState.diceValue ?? null;
-                const effectiveSteps: number | null =
-                    diceVal !== null
-                        ? diceVal +
-                          (localGameState.activeBoost === localGameState.currentPlayer || localGameState.activeBoost === color ? 6 : 0)
-                        : null;
+                const effectiveSteps: number | null = diceVal;
                 const isValidMove =
                     isDraggable &&
                     effectiveSteps !== null &&
@@ -526,7 +522,9 @@ export function BoardTokens({
                 );
                 const targetable = !!targetingColor && color === targetingColor && pos >= 0 && pos < 52;
                 const boosted = localGameState.boostTrail === color;
-                const boostArmed = localGameState.activeBoost === color;
+                const boostArmed =
+                    localGameState.activeBoost === color ||
+                    (localGameState.currentPlayer === color && localGameState.boostPendingDice != null);
 
                 return (
                     <TokenPiece

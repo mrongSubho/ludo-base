@@ -3425,6 +3425,14 @@ body.theme-3077 .token-valid-arrow {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+@keyframes tokenShieldCounterSpin {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+@keyframes tokenShieldBadgePulse {
+  0%, 100% { transform: scale(1); opacity: 0.96; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
 @keyframes tokenBoostPulse {
   0%, 100% { transform: scale(0.98) rotate(0deg); opacity: 0.72; }
   50% { transform: scale(1.1) rotate(180deg); opacity: 1; }
@@ -3435,20 +3443,88 @@ body.theme-3077 .token-valid-arrow {
 }
 
 .ludo-token.token-shielded {
-  box-shadow: 0 0 0 1.5px rgba(34, 211, 238, 0.85), 0 0 14px rgba(6, 182, 212, 0.55);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.95), 0 0 18px rgba(6, 182, 212, 0.65);
 }
 .token-shield-field {
   position: absolute;
-  inset: -16%;
+  inset: -20%;
   border-radius: 9999px;
-  background: radial-gradient(circle, rgba(34, 211, 238, 0.16) 35%, rgba(6, 182, 212, 0.04) 72%, transparent);
   pointer-events: none;
-  z-index: 6;
+  z-index: 14;
+}
+.token-shield-dome {
+  position: absolute;
+  inset: 7%;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle at 30% 26%, rgba(236, 254, 255, 0.55) 0%, rgba(165, 243, 252, 0.16) 24%, rgba(34, 211, 238, 0.05) 54%, rgba(6, 182, 212, 0.36) 88%, rgba(8, 145, 178, 0.58) 100%);
+  border: 1.5px solid rgba(165, 243, 252, 0.9);
+  box-shadow:
+    0 0 0 1.5px rgba(8, 51, 68, 0.52),
+    0 0 12px rgba(34, 211, 238, 0.65),
+    inset 0 2px 5px rgba(236, 254, 255, 0.45),
+    inset 0 -3px 6px rgba(6, 182, 212, 0.35);
+  pointer-events: none;
 }
 .token-shield-ring {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  animation: tokenShieldSpin 4.8s linear infinite;
+  animation: tokenShieldSpin 4.4s linear infinite;
+}
+.token-shield-hex {
+  position: absolute;
+  inset: 4%;
+  width: 92%;
+  height: 92%;
+  animation: tokenShieldCounterSpin 7.2s linear infinite;
+}
+.token-shield-badge {
+  position: absolute;
+  top: -12%;
+  right: -12%;
+  width: 44%;
+  height: 44%;
+  min-width: 13px;
+  min-height: 13px;
+  border-radius: 9999px;
+  background: rgba(8, 22, 34, 0.94);
+  border: 1.5px solid #a5f3fc;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.65), 0 0 8px rgba(34, 211, 238, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  pointer-events: none;
+  z-index: 16;
+  animation: tokenShieldBadgePulse 2.4s ease-in-out infinite;
+}
+.token-shield-badge-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+body.theme-daybreak .token-shield-dome {
+  background:
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.65) 0%, rgba(165, 243, 252, 0.22) 26%, rgba(8, 145, 178, 0.08) 54%, rgba(8, 145, 178, 0.45) 90%, rgba(14, 116, 144, 0.68) 100%);
+  border-color: #0891b2;
+  box-shadow:
+    0 0 0 1.5px rgba(255, 255, 255, 0.85),
+    0 2px 10px rgba(8, 145, 178, 0.55),
+    inset 0 2px 5px rgba(255, 255, 255, 0.65);
+}
+body.theme-daybreak .token-shield-badge {
+  background: #0e7490;
+  border-color: #ffffff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.38), 0 0 6px rgba(6, 182, 212, 0.55);
+}
+body.theme-3077 .token-shield-dome {
+  border-color: #22d3ee;
+  box-shadow:
+    0 0 0 1.5px rgba(0, 229, 255, 0.45),
+    0 0 14px rgba(0, 229, 255, 0.72),
+    inset 0 2px 5px rgba(207, 250, 254, 0.5);
 }
 .token-boost-aura {
   position: absolute;
@@ -3563,12 +3639,37 @@ body.theme-3077 .token-valid-arrow {
   box-shadow: 0 0 6px #ef4444;
 }
 .power-shield-burst {
+  position: absolute;
   width: 100%;
   height: 100%;
   border-radius: 9999px;
   border: 2.5px solid #22d3ee;
-  background: radial-gradient(circle, rgba(165, 243, 252, 0.45), rgba(6, 182, 212, 0.12) 60%, transparent);
-  box-shadow: 0 0 14px rgba(34, 211, 238, 0.65);
+  background: radial-gradient(circle, rgba(165, 243, 252, 0.5), rgba(6, 182, 212, 0.14) 60%, transparent);
+  box-shadow: 0 0 16px rgba(34, 211, 238, 0.72);
+}
+.power-shield-lock {
+  position: absolute;
+  width: 90%;
+  height: 90%;
+  border-radius: 9999px;
+  border: 2px dashed #ecfeff;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.7);
+}
+.power-shield-crest-flash {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.9));
+}
+.power-shield-deflect {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  border: 2.5px solid #a5f3fc;
+  background: radial-gradient(circle, rgba(236, 254, 255, 0.55), rgba(34, 211, 238, 0.22) 58%, transparent);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.85);
 }
 .power-boost-arm-burst {
   width: 100%;
@@ -3589,20 +3690,75 @@ body.theme-3077 .token-valid-arrow {
   background: radial-gradient(circle, rgba(254, 240, 138, 0.92), rgba(245, 158, 11, 0.4) 72%);
   box-shadow: 0 0 14px rgba(245, 158, 11, 0.85);
 }
+.power-tp-ghost {
+  position: absolute;
+  width: 72%;
+  height: 72%;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 38% 32%, #ffffff 0%, var(--tp-faction, #10b981) 65%, transparent 100%);
+  box-shadow: 0 0 14px var(--tp-faction, #10b981);
+}
+.power-tp-column {
+  position: absolute;
+  width: 64%;
+  height: 165%;
+  border-radius: 9999px;
+  transform-origin: center bottom;
+  background: linear-gradient(180deg, transparent 0%, rgba(167, 243, 208, 0.78) 45%, rgba(16, 185, 129, 0.35) 100%);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.65);
+}
+.power-tp-column.is-arrival {
+  transform-origin: center top;
+  background: linear-gradient(0deg, transparent 0%, rgba(167, 243, 208, 0.85) 45%, rgba(16, 185, 129, 0.4) 100%);
+}
+.power-tp-column.is-finish {
+  background: linear-gradient(0deg, transparent 0%, rgba(254, 243, 199, 0.92) 45%, rgba(251, 191, 36, 0.55) 100%);
+  box-shadow: 0 0 18px rgba(251, 191, 36, 0.8);
+}
 .power-tp-vortex {
+  position: absolute;
   width: 100%;
   height: 100%;
   border-radius: 9999px;
   border: 2.5px dashed #34d399;
-  background: radial-gradient(circle, rgba(16, 185, 129, 0.5), transparent 72%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.58), transparent 72%);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.72);
 }
 .power-tp-ring {
+  position: absolute;
   width: 100%;
   height: 100%;
   border-radius: 9999px;
   border: 2.5px solid #6ee7b7;
-  background: radial-gradient(circle, rgba(167, 243, 208, 0.65), rgba(16, 185, 129, 0.18) 65%, transparent);
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.75);
+  background: radial-gradient(circle, rgba(167, 243, 208, 0.68), rgba(16, 185, 129, 0.2) 65%, transparent);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.8);
+}
+.power-tp-ring.is-finish {
+  border-color: #fde68a;
+  background: radial-gradient(circle, rgba(254, 243, 199, 0.78), rgba(251, 191, 36, 0.26) 65%, transparent);
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.85);
+}
+.power-tp-ring-outer {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  border: 1.5px solid #a7f3d0;
+}
+.power-tp-ring-outer.is-finish {
+  border-color: #22d3ee;
+}
+.power-tp-spark {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #a7f3d0;
+  box-shadow: 0 0 8px #10b981;
+}
+.power-tp-spark.is-finish {
+  background: #fef3c7;
+  box-shadow: 0 0 10px #fbbf24;
 }
 
 /* Redesigned Dice Effects */
@@ -3963,6 +4119,14 @@ body.theme-3077 .token-valid-arrow {
 .dice-bay-side-right .dice-bay-overdrive-tag {
   right: auto;
   left: -4px;
+}
+.dice-bay-overdrive.is-queued .dice-bay-overdrive-core {
+  border-style: dashed;
+}
+.dice-bay-overdrive.is-queued .dice-bay-overdrive-tag {
+  background: #0ea5e9;
+  color: #f8fafc;
+  box-shadow: 0 2px 6px rgba(14, 165, 233, 0.48);
 }
 
 /* Turn roll-history strip ([6][6][4]) aligned toward avatar edge */
@@ -6134,6 +6298,8 @@ body.theme-daybreak .emote-float:has(.emote-float-media) {
 @media (prefers-reduced-motion: reduce) {
   body:not(.motion-force-full) .landscape-guard-icon,
   body:not(.motion-force-full) .token-shield-ring,
+  body:not(.motion-force-full) .token-shield-hex,
+  body:not(.motion-force-full) .token-shield-badge,
   body:not(.motion-force-full) .token-boost-arc,
   body:not(.motion-force-full) .token-valid-halo,
   body:not(.motion-force-full) .token-valid-ring,
@@ -6156,6 +6322,8 @@ body.theme-daybreak .emote-float:has(.emote-float-media) {
 
 body.motion-force-reduced .landscape-guard-icon,
 body.motion-force-reduced .token-shield-ring,
+body.motion-force-reduced .token-shield-hex,
+body.motion-force-reduced .token-shield-badge,
 body.motion-force-reduced .token-boost-arc,
 body.motion-force-reduced .token-valid-halo,
 body.motion-force-reduced .token-valid-ring,

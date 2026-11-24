@@ -152,24 +152,52 @@ export function Token({
             )}
 
             {shielded && (
-                <span className="token-shield-field" aria-hidden="true">
-                    <svg viewBox="0 0 36 36" fill="none" className="token-shield-ring">
-                        <circle
-                            cx="18"
-                            cy="18"
-                            r="15.5"
-                            stroke="#22d3ee"
-                            strokeWidth="1.6"
-                            strokeDasharray="4.5 2.5"
-                        />
-                        <polygon
-                            points="18,3.2 30.8,10.6 30.8,25.4 18,32.8 5.2,25.4 5.2,10.6"
-                            stroke="#a5f3fc"
-                            strokeWidth="1.15"
-                            opacity="0.78"
-                        />
-                    </svg>
-                </span>
+                <>
+                    <span className="token-shield-field" aria-hidden="true">
+                        <span className="token-shield-dome" />
+                        <svg viewBox="0 0 36 36" fill="none" className="token-shield-ring">
+                            <circle
+                                cx="18"
+                                cy="18"
+                                r="16"
+                                stroke="#22d3ee"
+                                strokeWidth="1.9"
+                                strokeDasharray="5.2 2.4"
+                            />
+                            <path
+                                d="M8.5 9.5A12.5 12.5 0 0 1 21 5.8"
+                                stroke="#ecfeff"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                                opacity="0.92"
+                            />
+                        </svg>
+                        <svg viewBox="0 0 36 36" fill="none" className="token-shield-hex">
+                            <polygon
+                                points="18,3.2 30.8,10.6 30.8,25.4 18,32.8 5.2,25.4 5.2,10.6"
+                                stroke="#a5f3fc"
+                                strokeWidth="1.25"
+                                opacity="0.88"
+                            />
+                        </svg>
+                    </span>
+                    <span className="token-shield-badge" aria-hidden="true">
+                        <svg viewBox="0 0 16 16" fill="none" className="token-shield-badge-svg">
+                            <path
+                                d="M8 1.5L13.5 3.6V7.7C13.5 11.1 11.2 13.8 8 14.8C4.8 13.8 2.5 11.1 2.5 7.7V3.6L8 1.5Z"
+                                fill="#06b6d4"
+                                stroke="#ecfeff"
+                                strokeWidth="1.25"
+                                strokeLinejoin="round"
+                            />
+                            <path
+                                d="M8 4.4L10.4 7.2L8 10.6L5.6 7.2L8 4.4Z"
+                                fill="#ecfeff"
+                                opacity="0.95"
+                            />
+                        </svg>
+                    </span>
+                </>
             )}
 
             {(boostArmed || boosted) && !shielded && (

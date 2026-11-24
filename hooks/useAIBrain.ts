@@ -74,7 +74,7 @@ export function useAIBrain({
         }
 
         // Action Key: prevent double-scheduling the same turn state
-        const actionKey = `${color}-${phase}-${diceValue}-${isRolling}`;
+        const actionKey = `${color}-${phase}-${diceValue}-${isRolling}-${localGameState.boostPendingDice ?? 'none'}`;
         if (lastActionRef.current === actionKey) return;
 
         // 🔧 FIX 1: When the actionKey changes, clear any stale timers from the
@@ -160,6 +160,7 @@ export function useAIBrain({
         localGameState.currentPlayer,
         localGameState.gamePhase, 
         localGameState.diceValue, 
+        localGameState.boostPendingDice,
         localGameState.isRolling,
         isLobbyConnected,
         matchConnectionStatus,

@@ -150,8 +150,12 @@ export interface GameState {
     powerTiles: (PowerTile | PowerTilePublic)[];
     playerPowers: Record<PlayerColor, PowerItem[]>;
     powerSpentThisTurn: boolean;
-    /** Active boost owner — next move by this color gets +DICE_MAX. */
+    /** Active boost owner — next roll plays a bonus 6 first, then the rolled die. */
     activeBoost: PlayerColor | null;
+    /** Queued rolled die (1..6) waiting for Boost Step 1 (6) to finish. */
+    boostPendingDice?: number | null;
+    /** Preserves capture/finish streak-break & bonus roll from Boost Step 1 to Step 2. */
+    boostSubMoveBonus?: boolean;
     nukeFlash: { r: number; c: number }[];
     boostTrail: PlayerColor | null;
     activeTraps: { r: number, c: number, owner: PlayerColor }[];

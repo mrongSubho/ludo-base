@@ -15,9 +15,9 @@ export interface PowerMetaEntry {
 export const POWER_META: Record<PowerType, PowerMetaEntry> = {
     boost: {
         title: 'Boost',
-        shortTag: '+6 STEPS',
-        summary: 'Add +6 bonus steps to your next dice roll',
-        simCaption: 'DIE 4 + BOOST 6 → 10-TILE SURGE',
+        shortTag: '+6 THEN ROLL',
+        summary: 'Play a bonus 6 first (can deploy from yard), then move your rolled die',
+        simCaption: 'BOOST 6 FIRST → THEN ROLLED DIE · ANY ELIGIBLE TOKEN',
         ctaLabel: 'USE BOOST',
         armedLabel: 'BOOST ACTIVE',
         accentVar: '#f59e0b',
@@ -43,8 +43,8 @@ export const POWER_META: Record<PowerType, PowerMetaEntry> = {
     nuke: {
         title: 'Nuke',
         shortTag: '±3 BLAST',
-        summary: 'Blast unshielded enemies within ±3 tiles to base',
-        simCaption: 'VAPORIZES UNSHIELDED ENEMIES WITHIN ±3',
+        summary: 'Blast solo unshielded enemies within ±3 tiles (stars & stacks safe)',
+        simCaption: 'VAPORIZES SOLO ENEMIES WITHIN ±3 · STACKS & STARS SAFE',
         ctaLabel: 'ARM NUKE',
         armedLabel: 'TAP TARGET',
         accentVar: '#ef4444',

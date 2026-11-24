@@ -109,6 +109,8 @@ export function gameStateDigest(state: GameState): Record<string, unknown> {
         playerPowers,
         powerSpentThisTurn: !!state.powerSpentThisTurn,
         activeBoost: state.activeBoost ?? null,
+        boostPendingDice: state.boostPendingDice ?? null,
+        boostSubMoveBonus: !!state.boostSubMoveBonus,
         activeTraps: traps,
         activeShields: shields,
         consecutiveSixes: state.consecutiveSixes ?? 0,

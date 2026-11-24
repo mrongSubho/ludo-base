@@ -30,9 +30,7 @@ export function computeMovePreview(params: {
     const pos = Number(state.positions?.[color]?.[tokenIndex]);
     if (!Number.isFinite(pos) || pos === BOARD_FINISH_INDEX) return null;
 
-    const effectiveSteps =
-        Number(rawDice) +
-        (state.activeBoost === state.currentPlayer || state.activeBoost === color ? 6 : 0);
+    const effectiveSteps = Number(rawDice);
 
     const nextPos = calculateNextPosition(pos, effectiveSteps, color, colorCorner);
     if (nextPos === pos || nextPos === BASE_INDEX) return null;

@@ -37,6 +37,7 @@ import {
     clampSteps,
     processMove,
     resolveNetworkedMove,
+    resolveRollWithBoost,
     stripPowerTypesForWire,
     type EngineGameState,
     type PlayerColor,
@@ -452,17 +453,199 @@ test('resolveNetworkedMove refuses an illegal token for the face', () => {
     assert.equal(r.ok, false, '56 + 6 overshoots home');
 });
 
-test('resolveNetworkedMove consumes a boost and adds six steps', () => {
-    const s = st({
+test('Boost split flow: plays bonus 6 first (including base deploy), then rolled die on any eligible token', () => {
+    const armed = st({
         positions: { green: [0, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
         activeBoost: 'green',
     });
-    assert.equal(effectiveMoveSteps(s, 'green', 3), 9, 'boost adds a die');
-    const r = resolveNetworkedMove({ state: s, color: 'green', tokenIndex: 0, dice: 3, cc: CC4P, playerCount: '4P' });
-    assert.equal(r.ok, true);
-    assert.equal(r.toPos, 9, 'nine steps, not three');
-    assert.equal(r.state!.activeBoost, null, 'the boost is spent');
-    assert.equal(r.state!.powerSpentThisTurn, false, 'and the turn budget resets for the next roll');
+    assert.equal(effectiveMoveSteps(armed, 'green', 4), 4, 'effectiveMoveSteps returns exact step size for split move');
+
+    const rolled = resolveRollWithBoost({
+        state: armed,
+        color: 'green',
+        rollValue: 4,
+        cc: CC4P,
+        playerCount: '4P',
+    });
+    assert.equal(rolled.outcome, 'moving');
+    assert.equal(rolled.activeDice, 6);
+    assert.equal(rolled.boostSplitActive, true);
+    assert.equal(rolled.state.boostPendingDice, 4);
+    assert.equal(rolled.state.activeBoost, null);
+    assert.deepEqual(rolled.legalMoves, [0, 1, 2, 3], 'bonus 6 can advance token 0 or deploy yard tokens');
+
+    // Step 1: use bonus 6 to deploy token 1 from yard (-1 -> BL startIdx 34)
+    const step1 = resolveNetworkedMove({
+        state: rolled.state,
+        color: 'green',
+        tokenIndex: 1,
+        dice: 6,
+        cc: CC4P,
+        playerCount: '4P',
+    });
+    assert.equal(step1.ok, true);
+    assert.equal(step1.toPos, 34, 'yard token deploys to start square');
+    assert.equal(step1.splitStepRemaining, 4);
+    assert.equal(step1.bonusRoll, false);
+    assert.equal(step1.state!.diceValue, 4);
+    assert.equal(step1.state!.boostPendingDice, null);
+    assert.equal(step1.state!.powerSpentThisTurn, true, 'turn power budget stays locked until Step 2 finishes');
+
+    // Step 2: move a DIFFERENT token (token 0) with the rolled 4
+    const step2 = resolveNetworkedMove({
+        state: step1.state!,
+        color: 'green',
+        tokenIndex: 0,
+        dice: 4,
+        cc: CC4P,
+        playerCount: '4P',
+    });
+    assert.equal(step2.ok, true);
+    assert.equal(step2.toPos, 4);
+    assert.equal(step2.splitStepRemaining, null);
+    assert.equal(step2.bonusRoll, false);
+    assert.equal(step2.state!.powerSpentThisTurn, false);
+    assert.notEqual(step2.state!.currentPlayer, 'green');
+});
+
+test('Boost + 6 -> 6 -> 6 is valid, 6 6 6 1-5 is valid, and 6 6 6 6 forfeits on the 3rd rolled six', () => {
+    const now = 1_000_000;
+    const start = st({
+        positions: { green: [0, 10, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        activeBoost: 'green',
+        playerPowers: { green: [{ type: 'boost', expiresAt: now + 300_000 }] } as never,
+    });
+
+    // Roll 1: Boost + 6 -> Boost 6 + Rolled 6 (consecutiveSixes = 1)
+    const r1 = resolveRollWithBoost({ state: start, color: 'green', rollValue: 6, cc: CC4P, playerCount: '4P', now });
+    assert.equal(r1.boostSplitActive, true);
+    assert.equal(r1.state.consecutiveSixes, 0, 'Boost 6 never increments consecutiveSixes');
+    const s1a = resolveNetworkedMove({ state: r1.state, color: 'green', tokenIndex: 0, dice: 6, cc: CC4P, playerCount: '4P', now });
+    const s1b = resolveNetworkedMove({ state: s1a.state!, color: 'green', tokenIndex: 1, dice: 6, cc: CC4P, playerCount: '4P', now });
+    assert.equal(s1b.ok, true);
+    assert.equal(s1b.bonusRoll, true);
+    assert.equal(s1b.state!.consecutiveSixes, 1);
+    assert.equal(s1b.state!.powerSpentThisTurn, false, 'player can Boost again on bonus roll');
+
+    // Re-arm Boost and roll 2nd rolled 6 -> 3rd six total (6 6 6) is VALID
+    const rearmed = applyPower(
+        { ...s1b.state!, diceValue: null, gamePhase: 'rolling' },
+        'green',
+        'boost',
+        undefined,
+        CC4P,
+        '4P',
+        now,
+    );
+    assert.equal(rearmed.ok, true);
+    const r2 = resolveRollWithBoost({ state: rearmed.state!, color: 'green', rollValue: 6, cc: CC4P, playerCount: '4P', now });
+    assert.equal(r2.outcome, 'moving');
+    const s2a = resolveNetworkedMove({ state: r2.state, color: 'green', tokenIndex: 0, dice: 6, cc: CC4P, playerCount: '4P', now });
+    const s2b = resolveNetworkedMove({ state: s2a.state!, color: 'green', tokenIndex: 1, dice: 6, cc: CC4P, playerCount: '4P', now });
+    assert.equal(s2b.ok, true);
+    assert.equal(s2b.bonusRoll, true);
+    assert.equal(s2b.state!.consecutiveSixes, 2);
+
+    // 3rd rolled 1-5 (6 6 6 4) is VALID
+    const r3Valid = resolveRollWithBoost({
+        state: { ...s2b.state!, diceValue: null, gamePhase: 'rolling' },
+        color: 'green',
+        rollValue: 4,
+        cc: CC4P,
+        playerCount: '4P',
+        now,
+    });
+    assert.equal(r3Valid.outcome, 'moving');
+    const s3Valid = resolveNetworkedMove({ state: r3Valid.state, color: 'green', tokenIndex: 0, dice: 4, cc: CC4P, playerCount: '4P', now });
+    assert.equal(s3Valid.ok, true);
+    assert.equal(s3Valid.state!.consecutiveSixes, 0);
+
+    // 3rd rolled 6 (6 6 6 6) FORFEITS turn
+    const r3Bust = resolveRollWithBoost({
+        state: { ...s2b.state!, diceValue: null, gamePhase: 'rolling' },
+        color: 'green',
+        rollValue: 6,
+        cc: CC4P,
+        playerCount: '4P',
+        now,
+    });
+    assert.equal(r3Bust.outcome, 'forfeit_three_sixes');
+    assert.notEqual(r3Bust.state.currentPlayer, 'green');
+    assert.equal(r3Bust.state.consecutiveSixes, 0);
+});
+
+test('Capture or finish (57) after 2 rolled sixes resets streak so player can roll two sixes again', () => {
+    // 2nd rolled six captures an opponent -> resets consecutiveSixes to 0
+    const capState = st({
+        positions: { green: [0, 30, -1, -1], red: [6, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        consecutiveSixes: 1,
+    });
+    const capRes = resolveNetworkedMove({ state: capState, color: 'green', tokenIndex: 0, dice: 6, cc: CC4P, playerCount: '4P' });
+    assert.equal(capRes.ok, true);
+    assert.equal(capRes.captured, true);
+    assert.equal(capRes.bonusRoll, true);
+    assert.equal(capRes.state!.consecutiveSixes, 0, 'capture resets consecutiveSixes to 0');
+
+    // Player can now roll two more sixes without busting
+    const nextSix = resolveRollWithBoost({
+        state: { ...capRes.state!, diceValue: null, gamePhase: 'rolling' },
+        color: 'green',
+        rollValue: 6,
+        cc: CC4P,
+        playerCount: '4P',
+    });
+    assert.equal(nextSix.outcome, 'moving');
+
+    // 2nd rolled six finishes a token (BL gate 32 + 6 -> 57) -> resets consecutiveSixes to 0 & grants bonus roll
+    const finState = st({
+        positions: { green: [32, 10, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        consecutiveSixes: 1,
+    });
+    const finRes = resolveNetworkedMove({ state: finState, color: 'green', tokenIndex: 0, dice: 6, cc: CC4P, playerCount: '4P' });
+    assert.equal(finRes.ok, true);
+    assert.equal(finRes.finishedToken, true);
+    assert.equal(finRes.bonusRoll, true);
+    assert.equal(finRes.state!.consecutiveSixes, 0, 'finishing a token resets consecutiveSixes to 0');
+});
+
+test('Boost Step 1 capture preserves bonus roll across Step 2 & unplayable Step 1 falls through', () => {
+    // Step 1 capture -> Step 2 non-capturing move still grants bonus roll
+    const s = st({
+        positions: { green: [0, 10, -1, -1], red: [6, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        activeBoost: 'green',
+    });
+    const rolled = resolveRollWithBoost({ state: s, color: 'green', rollValue: 3, cc: CC4P, playerCount: '4P' });
+    const step1 = resolveNetworkedMove({ state: rolled.state, color: 'green', tokenIndex: 0, dice: 6, cc: CC4P, playerCount: '4P' });
+    assert.equal(step1.captured, true);
+    assert.equal(step1.state!.boostSubMoveBonus, true);
+    const step2 = resolveNetworkedMove({ state: step1.state!, color: 'green', tokenIndex: 1, dice: 3, cc: CC4P, playerCount: '4P' });
+    assert.equal(step2.ok, true);
+    assert.equal(step2.bonusRoll, true, 'Step 1 capture grants bonus roll after Step 2');
+    assert.equal(step2.state!.currentPlayer, 'green');
+
+    // Step 1 finish (BL gate 32 + 6 -> 57) when Step 2 has no legal moves -> keeps bonus roll
+    const step1FinishNoStep2 = st({
+        positions: { green: [32, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        activeBoost: 'green',
+    });
+    const rFin = resolveRollWithBoost({ state: step1FinishNoStep2, color: 'green', rollValue: 3, cc: CC4P, playerCount: '4P' });
+    const mFin = resolveNetworkedMove({ state: rFin.state, color: 'green', tokenIndex: 0, dice: 6, cc: CC4P, playerCount: '4P' });
+    assert.equal(mFin.ok, true);
+    assert.equal(mFin.finishedToken, true);
+    assert.equal(mFin.splitStepRemaining, null);
+    assert.equal(mFin.bonusRoll, true);
+    assert.equal(mFin.state!.currentPlayer, 'green');
+
+    // Step 1 unplayable 6 (only token at 54) falls through directly to rolled 3
+    const only54 = st({
+        positions: { green: [54, 57, 57, 57], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        activeBoost: 'green',
+    });
+    const fallthrough = resolveRollWithBoost({ state: only54, color: 'green', rollValue: 3, cc: CC4P, playerCount: '4P' });
+    assert.equal(fallthrough.outcome, 'moving');
+    assert.equal(fallthrough.boostSplitActive, false);
+    assert.equal(fallthrough.activeDice, 3);
+    assert.equal(fallthrough.state.boostPendingDice, null);
 });
 
 test('effectiveMoveSteps refuses an invalid face', () => {
@@ -525,6 +708,55 @@ test('applyPower nuke vaporises tokens in blast range', () => {
     for (const v of victims.victims) {
         assert.equal(r.state!.positions[v.color][v.idx], BASE_INDEX);
     }
+});
+
+test('Nuke spares 2/3/4 own stacks and 2v2 teammate stacks, wraps 51<->0, and keeps item when all in range are safe', () => {
+    // 2, 3, and 4 stacked own tokens are safe -> 0 victims -> Nuke kept
+    const stackedOnly = st({
+        positions: {
+            green: [10, -1, -1, -1],
+            red: [11, 11, -1, -1],
+            yellow: [12, 12, 12, -1],
+            blue: [9, 9, 9, 9],
+        },
+        playerCount: '4P',
+        playerPowers: { green: [{ type: 'nuke', expiresAt: 2_000_000 }] } as never,
+    });
+    assert.equal(countNukeVictims(stackedOnly, 'green', 0, CC4P, '4P').victims.length, 0);
+    const keptRes = applyPower(stackedOnly, 'green', 'nuke', 0, CC4P, '4P', 1_000_000);
+    assert.equal(keptRes.ok, false);
+    assert.equal(keptRes.kept, true);
+
+    // 2v2: red + yellow stacked together on tile 11 are safe; solo red on tile 12 is vaporized
+    const teamStack = st({
+        positions: {
+            green: [10, -1, -1, -1],
+            blue: [-1, -1, -1, -1],
+            red: [11, 12, -1, -1],
+            yellow: [11, -1, -1, -1],
+        },
+        playerCount: '2v2',
+        playerPowers: { green: [{ type: 'nuke', expiresAt: 2_000_000 }] } as never,
+    });
+    const teamVictims = countNukeVictims(teamStack, 'green', 0, CC2V2, '2v2');
+    assert.deepEqual(teamVictims.victims, [{ color: 'red', idx: 1 }]);
+    const teamRes = applyPower(teamStack, 'green', 'nuke', 0, CC2V2, '2v2', 1_000_000);
+    assert.equal(teamRes.ok, true);
+    assert.equal(teamRes.state!.positions.red[0], 11, 'teammate-stacked red survives');
+    assert.equal(teamRes.state!.positions.yellow[0], 11, 'teammate-stacked yellow survives');
+    assert.equal(teamRes.state!.positions.red[1], BASE_INDEX, 'solo enemy in range is vaporized');
+
+    // Circular wrap across 51 <-> 0 seam: green at 50 hits solo red at 1 (circularDist = 3)
+    const wrapNuke = st({
+        positions: { green: [50, -1, -1, -1], red: [1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        playerCount: '4P',
+        playerPowers: { green: [{ type: 'nuke', expiresAt: 2_000_000 }] } as never,
+    });
+    const wrapVictims = countNukeVictims(wrapNuke, 'green', 0, CC4P, '4P');
+    assert.deepEqual(wrapVictims.victims, [{ color: 'red', idx: 0 }]);
+    const wrapRes = applyPower(wrapNuke, 'green', 'nuke', 0, CC4P, '4P', 1_000_000);
+    assert.equal(wrapRes.ok, true);
+    assert.equal(wrapRes.state!.positions.red[0], BASE_INDEX);
 });
 
 test('applyPower teleport from the home lane goes straight home', () => {

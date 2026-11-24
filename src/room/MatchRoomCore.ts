@@ -32,9 +32,8 @@ import {
   getNextPlayer,
   getLegalTokenIndices,
   resolveNetworkedMove,
+  resolveRollWithBoost,
   resolveControllableColor,
-  effectiveMoveSteps,
-  checkThreeSixesForMove,
   applyPower,
   lcg32,
   activeColorsForTurns,
@@ -706,25 +705,19 @@ export class MatchRoomCore {
           red: 'TL',
         };
 
-        // SV-03B: Check third consecutive six at roll time and auto-pass turn
-        const sixes = checkThreeSixesForMove(
-          this.state as unknown as EngineGameState,
-          rollValue
-        );
-        if (sixes.forbidden) {
-          const nextPlayer = getNextPlayer(curColor, this.state.playerCount, this.getActiveColors(), cc);
-          const nextState: GameState = {
-            ...this.state,
-            diceValue: null,
-            currentPlayer: nextPlayer,
-            isRolling: false,
-            gamePhase: 'rolling',
-            consecutiveSixes: 0,
-            activeBoost: null,
-            powerSpentThisTurn: false,
-            captureMessage: 'Three 6s! Turn forfeited.',
-            lastUpdate: Date.now(),
-          };
+        // SV-03A/B/C + SV-04: Three-sixes forfeit check, Boost 6-then-roll split, and legal move check
+        const resolvedRoll = resolveRollWithBoost({
+          state: this.state as unknown as EngineGameState,
+          color: curColor,
+          rollValue,
+          cc,
+          playerCount: this.state.playerCount,
+          activeColors: this.getActiveColors(),
+          now: Date.now(),
+        });
+
+        if (resolvedRoll.outcome === 'forfeit_three_sixes') {
+          const nextState = resolvedRoll.state as unknown as GameState;
           await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
           ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: nextState, seq: this.seq } }));
           return;
@@ -740,53 +733,15 @@ export class MatchRoomCore {
           };
         }
 
-        // SV-03C + SV-04: Resolve controllable color (2v2 teammate assist) and effective steps (boost +6)
-        const targetColor = resolveControllableColor(this.state.positions, curColor, this.state.playerCount);
-        const steps = effectiveMoveSteps(
-          this.state as unknown as EngineGameState,
-          curColor,
-          rollValue
-        );
-
-        const legalMoves = getLegalTokenIndices(
-          this.state.positions,
-          targetColor,
-          steps,
-          cc
-        );
-
-        // SV-03A: Auto-pass whenever there are zero legal moves, even on a 6
-        if (legalMoves.length === 0) {
-          const nextPlayer = getNextPlayer(curColor, this.state.playerCount, this.getActiveColors(), cc);
-          const nextState: GameState = {
-            ...this.state,
-            diceValue: null,
-            currentPlayer: nextPlayer,
-            isRolling: false,
-            gamePhase: 'rolling',
-            consecutiveSixes: 0,
-            activeBoost: null,
-            powerSpentThisTurn: false,
-            strikes: nextStrikes,
-            afkStats: nextAfk,
-            lastUpdate: Date.now(),
-          };
-          await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
-          ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: nextState, seq: this.seq } }));
-          return;
-        }
-
         const nextState: GameState = {
-          ...this.state,
-          diceValue: rollValue,
-          isRolling: false,
-          gamePhase: 'moving',
+          ...(resolvedRoll.state as unknown as GameState),
           strikes: nextStrikes,
           afkStats: nextAfk,
           lastUpdate: Date.now(),
         };
 
-        await this.applyNewState(nextState, this.seq + 1, 'roll_minted');
+        const eventType = resolvedRoll.outcome === 'no_moves' ? 'turn_passed' : 'roll_minted';
+        await this.applyNewState(nextState, this.seq + 1, eventType);
         ws.send(JSON.stringify({ t: 'intent_ack', intentId, data: { state: nextState, seq: this.seq } }));
         return;
       }
@@ -872,6 +827,8 @@ export class MatchRoomCore {
             gamePhase: 'rolling',
             consecutiveSixes: 0,
             activeBoost: null,
+            boostPendingDice: null,
+            boostSubMoveBonus: false,
             powerSpentThisTurn: false,
             lastUpdate: Date.now(),
           };
@@ -926,9 +883,9 @@ export class MatchRoomCore {
           afkStats: nextAfk,
         };
 
-        // A bonus roll (six, capture, or a power that ended the turn) keeps the mover
-        // on turn. `processMove` has already advanced `currentPlayer`, so restore it.
-        if (resolved.bonusRoll && !nextState.winner) {
+        // A bonus roll (six, capture, finish, or a power) keeps the mover on turn.
+        // Only reset to `rolling` when no split Boost Step 2 remains.
+        if (resolved.bonusRoll && !nextState.winner && resolved.splitStepRemaining == null) {
           nextState = {
             ...nextState,
             currentPlayer: curColor,
@@ -1206,6 +1163,86 @@ export class MatchRoomCore {
   private async executeServerBotTurn(color: PlayerColor): Promise<void> {
     if (!this.state || this.state.winner || this.state.currentPlayer !== color) return;
 
+    const cc = this.state.initialBoardConfig?.colorCorner || {
+      green: 'BL',
+      yellow: 'BR',
+      blue: 'TR',
+      red: 'TL',
+    };
+
+    const pickBotToken = (
+      positions: GameState['positions'],
+      targetColor: PlayerColor,
+      legalMoves: number[],
+      steps: number,
+    ): number => {
+      let chosenToken = legalMoves[0];
+      for (const tIdx of legalMoves) {
+        const pos = positions[targetColor][tIdx];
+        if (pos === -1 && steps === 6) {
+          return tIdx;
+        }
+        if (pos > positions[targetColor][chosenToken]) {
+          chosenToken = tIdx;
+        }
+      }
+      return chosenToken;
+    };
+
+    // Continue pending move (e.g. Boost Step 2) without rolling a second time.
+    if (this.state.gamePhase === 'moving' && typeof this.state.diceValue === 'number') {
+      const targetColor = resolveControllableColor(this.state.positions, color, this.state.playerCount);
+      const stepVal = this.state.diceValue;
+      const legalMoves = getLegalTokenIndices(this.state.positions, targetColor, stepVal, cc);
+      if (legalMoves.length === 0) {
+        const nextPlayer = getNextPlayer(color, this.state.playerCount, this.getActiveColors(), cc);
+        await this.applyNewState(
+          {
+            ...this.state,
+            diceValue: null,
+            currentPlayer: nextPlayer,
+            isRolling: false,
+            gamePhase: 'rolling',
+            consecutiveSixes: 0,
+            activeBoost: null,
+            boostPendingDice: null,
+            boostSubMoveBonus: false,
+            powerSpentThisTurn: false,
+            lastUpdate: Date.now(),
+          },
+          this.seq + 1,
+          'turn_passed'
+        );
+        return;
+      }
+
+      const chosenToken = pickBotToken(this.state.positions, targetColor, legalMoves, stepVal);
+      const resolved = resolveNetworkedMove({
+        state: this.state as unknown as EngineGameState,
+        color,
+        tokenIndex: chosenToken,
+        dice: stepVal,
+        cc,
+        playerCount: this.state.playerCount,
+        activeColors: this.getActiveColors(),
+        now: Date.now(),
+      });
+      if (resolved.ok && resolved.state) {
+        let nextState = resolved.state as unknown as GameState;
+        if (resolved.bonusRoll && !nextState.winner && resolved.splitStepRemaining == null) {
+          nextState = {
+            ...nextState,
+            currentPlayer: color,
+            diceValue: null,
+            isRolling: false,
+            gamePhase: 'rolling',
+          };
+        }
+        await this.applyNewState(nextState, this.seq + 1, 'move_committed');
+        return;
+      }
+    }
+
     let seed = 0;
     for (let i = 0; i < this.matchId.length; i++) {
       seed = (seed * 31 + this.matchId.charCodeAt(i)) >>> 0;
@@ -1214,83 +1251,34 @@ export class MatchRoomCore {
     const rng = lcg32(seed);
     const rollValue = Math.floor(rng() * 6) + 1;
 
-    const cc = this.state.initialBoardConfig?.colorCorner || {
-      green: 'BL',
-      yellow: 'BR',
-      blue: 'TR',
-      red: 'TL',
-    };
-
-    const sixes = checkThreeSixesForMove(
-      this.state as unknown as EngineGameState,
-      rollValue
-    );
-    if (sixes.forbidden) {
-      const nextPlayer = getNextPlayer(color, this.state.playerCount, this.getActiveColors(), cc);
-      const nextState: GameState = {
-        ...this.state,
-        diceValue: null,
-        currentPlayer: nextPlayer,
-        isRolling: false,
-        gamePhase: 'rolling',
-        consecutiveSixes: 0,
-        activeBoost: null,
-        powerSpentThisTurn: false,
-        captureMessage: 'Three 6s! Turn forfeited.',
-        lastUpdate: Date.now(),
-      };
-      await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
-      return;
-    }
-
-    const targetColor = resolveControllableColor(this.state.positions, color, this.state.playerCount);
-    const steps = effectiveMoveSteps(
-      this.state as unknown as EngineGameState,
+    const resolvedRoll = resolveRollWithBoost({
+      state: this.state as unknown as EngineGameState,
       color,
-      rollValue
-    );
+      rollValue,
+      cc,
+      playerCount: this.state.playerCount,
+      activeColors: this.getActiveColors(),
+      now: Date.now(),
+    });
 
-    const legalMoves = getLegalTokenIndices(
-      this.state.positions,
-      targetColor,
-      steps,
-      cc
-    );
-
-    if (legalMoves.length === 0) {
-      const nextPlayer = getNextPlayer(color, this.state.playerCount, this.getActiveColors(), cc);
-      const nextState: GameState = {
-        ...this.state,
-        diceValue: null,
-        currentPlayer: nextPlayer,
-        isRolling: false,
-        gamePhase: 'rolling',
-        consecutiveSixes: 0,
-        activeBoost: null,
-        powerSpentThisTurn: false,
-        lastUpdate: Date.now(),
-      };
-      await this.applyNewState(nextState, this.seq + 1, 'turn_passed');
+    if (resolvedRoll.outcome !== 'moving' || resolvedRoll.activeDice == null || resolvedRoll.legalMoves.length === 0) {
+      await this.applyNewState(resolvedRoll.state as unknown as GameState, this.seq + 1, 'turn_passed');
       return;
     }
 
-    let chosenToken = legalMoves[0];
-    for (const tIdx of legalMoves) {
-      const pos = this.state.positions[targetColor][tIdx];
-      if (pos === -1 && steps === 6) {
-        chosenToken = tIdx;
-        break;
-      }
-      if (pos > this.state.positions[targetColor][chosenToken]) {
-        chosenToken = tIdx;
-      }
-    }
+    const activeDice = resolvedRoll.activeDice;
+    const chosenToken = pickBotToken(
+      resolvedRoll.state.positions,
+      resolvedRoll.targetColor,
+      resolvedRoll.legalMoves,
+      activeDice
+    );
 
     const resolved = resolveNetworkedMove({
-      state: this.state as unknown as import('./engine').EngineGameState,
+      state: resolvedRoll.state as unknown as EngineGameState,
       color,
       tokenIndex: chosenToken,
-      dice: rollValue,
+      dice: activeDice,
       cc,
       playerCount: this.state.playerCount,
       activeColors: this.getActiveColors(),
@@ -1299,7 +1287,7 @@ export class MatchRoomCore {
 
     if (resolved.ok && resolved.state) {
       let nextState = resolved.state as unknown as GameState;
-      if (resolved.bonusRoll && !nextState.winner) {
+      if (resolved.bonusRoll && !nextState.winner && resolved.splitStepRemaining == null) {
         nextState = {
           ...nextState,
           currentPlayer: color,
@@ -1319,6 +1307,8 @@ export class MatchRoomCore {
         gamePhase: 'rolling',
         consecutiveSixes: 0,
         activeBoost: null,
+        boostPendingDice: null,
+        boostSubMoveBonus: false,
         powerSpentThisTurn: false,
         lastUpdate: Date.now(),
       };
@@ -1390,6 +1380,8 @@ export class MatchRoomCore {
           gamePhase: 'rolling',
           consecutiveSixes: 0,
           activeBoost: null,
+          boostPendingDice: null,
+          boostSubMoveBonus: false,
           powerSpentThisTurn: false,
           strikes,
           afkStats: afk,

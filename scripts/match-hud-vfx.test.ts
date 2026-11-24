@@ -100,6 +100,23 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
 
         assert.equal(formatColorList(['green', 'blue', 'green']), 'GREEN & BLUE');
         assert.equal(formatColorList(['green', 'red', 'yellow']), 'GREEN, RED & YELLOW');
+
+        assert.deepEqual(
+            formatPrimaryTurnLine({
+                currentPlayer: 'green',
+                gamePhase: 'moving',
+                diceValue: 6,
+                myColor: 'green',
+                spectatorMode: false,
+                targeting: null,
+                activeBoost: null,
+                boostPendingDice: 4,
+                winner: null,
+                myTokensInHome: 2,
+                effectiveMyDice: 6,
+            }),
+            { text: 'BOOST 1/2 · DEPLOY OR MOVE [6] → NEXT [4]', tone: 'yours', color: 'green' },
+        );
     });
 
     it('derives rich actor/victim presets while enforcing PW-1 privacy on opponent pickups', () => {
@@ -193,6 +210,25 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
             assert.equal(vfx[0].victimCells.length, 2);
             assert.ok(vfx[0].corridorCells.length >= 1);
         }
+
+        // Shielded enemy in Nuke corridor produces deflectedCells
+        const prevNukeDeflect = cloneState({
+            currentPlayer: 'red',
+            positions: { green: [14, -1, -1, -1], blue: [-1, -1, -1, -1], red: [13, -1, -1, -1], yellow: [-1, -1, -1, -1] },
+            nukeFlash: [],
+        });
+        const nextNukeDeflect = cloneState({
+            currentPlayer: 'red',
+            positions: { green: [14, -1, -1, -1], blue: [-1, -1, -1, -1], red: [13, -1, -1, -1], yellow: [-1, -1, -1, -1] },
+            activeShields: [{ color: 'green', tokenIdx: 0 }],
+            nukeFlash: [{ r: 7, c: 10 }],
+            captureMessage: 'NUKE! 0 tokens vaporized!',
+        });
+        const deflectVfx = derivePowerVfxEvents(prevNukeDeflect, nextNukeDeflect, cc, '4P');
+        assert.equal(deflectVfx[0]?.kind, 'nuke');
+        if (deflectVfx[0]?.kind === 'nuke') {
+            assert.equal(deflectVfx[0].deflectedCells?.length, 1);
+        }
     });
 
     it('wires readable ...| typewriter, above-board 2-line HUD, PowerVfxOverlay, and upgraded Dice', () => {
@@ -208,6 +244,9 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
         const vfxOverlay = read('app/components/PowerVfxOverlay.tsx');
         assert.match(vfxOverlay, /power-nuke-board-tint/);
         assert.match(vfxOverlay, /power-nuke-blood-cell/);
+        assert.match(vfxOverlay, /power-shield-deflect/);
+        assert.match(vfxOverlay, /power-tp-ghost/);
+        assert.match(vfxOverlay, /power-tp-column/);
         assert.match(vfxOverlay, /prefersReducedMotion/);
 
         const dice = read('app/components/LudoDice.tsx');
@@ -228,6 +267,7 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
         assert.match(bay, /dice-bay-tether/);
         assert.match(bay, /dice-bay-well/);
         assert.match(bay, /dice-bay-overdrive/);
+        assert.match(bay, /boostPendingDice/);
         assert.match(bay, /dice-streak-strip/);
 
         const row = read('app/components/PlayerInfoRow.tsx');
@@ -247,6 +287,8 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
         assert.match(visual, /showValid \? 'ludo-token-pulse ' : ''/);
         assert.match(visual, /token-valid-halo/);
         assert.match(visual, /token-valid-ring/);
+        assert.match(visual, /token-shield-dome/);
+        assert.match(visual, /token-shield-badge/);
         assert.match(visual, /computeReverseTrackCoords/);
 
         const tokens = read('app/components/BoardTokens.tsx');
@@ -325,6 +367,23 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
 
         // Mid-turn hydration fallback
         assert.deepEqual(resolveDisplayedTurnRolls([], 2).map((r) => r.value), [6, 6]);
+
+        // Split Boost + 6 -> Step 2 (6) and Boost + 4 -> Step 2 (4) roll history tracking
+        let splitChain6: TurnRollHistoryState = { player: 'green', rolls: [], nextId: 0 };
+        const splitRoll6 = cloneState({ currentPlayer: 'green', isRolling: true, diceValue: null, activeBoost: 'green' });
+        const splitStep1_6 = cloneState({ currentPlayer: 'green', isRolling: false, diceValue: 6, boostPendingDice: 6, activeBoost: null });
+        const splitStep2_6 = cloneState({ currentPlayer: 'green', isRolling: false, diceValue: 6, boostPendingDice: null, activeBoost: null });
+        splitChain6 = updateTurnRollHistory(splitChain6, splitRoll6, splitStep1_6);
+        splitChain6 = updateTurnRollHistory(splitChain6, splitStep1_6, splitStep2_6);
+        assert.deepEqual(splitChain6.rolls.map((r) => [r.value, r.boosted]), [[6, true], [6, false]]);
+
+        let splitChain4: TurnRollHistoryState = { player: 'green', rolls: [], nextId: 0 };
+        const splitRoll4 = cloneState({ currentPlayer: 'green', isRolling: true, diceValue: null, activeBoost: 'green' });
+        const splitStep1_4 = cloneState({ currentPlayer: 'green', isRolling: false, diceValue: 6, boostPendingDice: 4, activeBoost: null });
+        const splitStep2_4 = cloneState({ currentPlayer: 'green', isRolling: false, diceValue: 4, boostPendingDice: null, activeBoost: null });
+        splitChain4 = updateTurnRollHistory(splitChain4, splitRoll4, splitStep1_4);
+        splitChain4 = updateTurnRollHistory(splitChain4, splitStep1_4, splitStep2_4);
+        assert.deepEqual(splitChain4.rolls.map((r) => [r.value, r.boosted]), [[6, true], [4, false]]);
     });
 
     it('computes authoritative move destination previews for normal, safe, power, capture, and finish squares', () => {
@@ -424,6 +483,20 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
         assert.equal(
             computeSingleLegalMovePreview({ state: multiChoiceState, myColor: 'green', colorCorner: cc, playerCount: '4P' }),
             null,
+        );
+
+        // Active boost does not add +6 to computeMovePreview steps (split move previews exact diceValue)
+        const boostPreviewState = cloneState({
+            currentPlayer: 'green',
+            gamePhase: 'moving',
+            diceValue: 6,
+            activeBoost: 'green',
+            boostPendingDice: 4,
+            positions: { green: [35, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        });
+        assert.equal(
+            computeMovePreview({ state: boostPreviewState, color: 'green', tokenIndex: 0, colorCorner: cc, playerCount: '4P' })?.steps,
+            6,
         );
     });
 

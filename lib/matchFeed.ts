@@ -49,6 +49,7 @@ export function formatPrimaryTurnLine(input: {
     spectatorMode: boolean;
     targeting: PowerType | null;
     activeBoost: PlayerColor | null | undefined;
+    boostPendingDice?: number | null;
     winner: string | null;
     myTokensInHome: number;
     effectiveMyDice: number | null;
@@ -78,6 +79,15 @@ export function formatPrimaryTurnLine(input: {
             };
         }
         if (input.gamePhase === 'moving') {
+            if (input.boostPendingDice != null) {
+                return {
+                    text: input.myTokensInHome > 0
+                        ? `BOOST 1/2 · DEPLOY OR MOVE [6] → NEXT [${input.boostPendingDice}]`
+                        : `BOOST 1/2 · MOVE [6] → NEXT [${input.boostPendingDice}]`,
+                    tone: 'yours',
+                    color: input.myColor,
+                };
+            }
             if (input.effectiveMyDice === 6 && input.myTokensInHome > 0) {
                 return {
                     text: 'YOUR TURN · DEPLOY [6] OR MOVE',

@@ -134,6 +134,9 @@ export interface EngineGameState {
     activeShields: { color: PlayerColor; tokenIdx: number }[];
     activeTraps: { r: number; c: number; owner: PlayerColor }[];
     activeBoost: PlayerColor | null;
+    boostPendingDice?: number | null;
+    boostSubMoveBonus?: boolean;
+    boostTrail?: PlayerColor | null;
     powerSpentThisTurn: boolean;
     lastUpdate: number;
     matchId?: string;
@@ -389,6 +392,7 @@ export function checkMultiCapture(
 export interface MoveResult {
     newState: EngineGameState;
     captured: boolean;
+    finishedToken: boolean;
     bonusRoll: boolean;
     /** False when processMove refused (illegal / overshoot / no delta). */
     applied: boolean;
@@ -486,14 +490,12 @@ export function processMove(
     activeColors?: PlayerColor[]
 ): MoveResult {
     const actingColor = actingPlayer || tokenColor;
-    if (state.winner) return { newState: state, captured: false, bonusRoll: false, applied: false };
+    if (state.winner) return { newState: state, captured: false, finishedToken: false, bonusRoll: false, applied: false };
 
     // ENG-13: `steps` is caller-supplied on the Edge path and must be a whole
-    // number of cells. Note this is NOT isValidDice — a boosted move is
-    // `dice + DICE_MAX`, so a legitimate step count runs 1..12. Validating steps
-    // with the dice predicate rejected every boosted move outright.
+    // number of cells. Note this is NOT isValidDice — a legitimate step count runs 1..6.
     if (!isValidStepCount(steps)) {
-        return { newState: state, captured: false, bonusRoll: false, applied: false };
+        return { newState: state, captured: false, finishedToken: false, bonusRoll: false, applied: false };
     }
 
     const initialPos = state.positions[tokenColor][tokenIndex];
@@ -503,11 +505,11 @@ export function processMove(
     // leaving base). The old guard was `steps !== 0`, which described the input
     // rather than the outcome.
     if (steps < 1 || nextPos === initialPos) {
-        return { newState: state, captured: false, bonusRoll: false, applied: false };
+        return { newState: state, captured: false, finishedToken: false, bonusRoll: false, applied: false };
     }
 
     const targetPoint = getBoardCoordinate(nextPos, tokenColor, cc);
-    if (!targetPoint) return { newState: state, captured: false, bonusRoll: false, applied: false };
+    if (!targetPoint) return { newState: state, captured: false, finishedToken: false, bonusRoll: false, applied: false };
 
     // ENG-12: 2v2 teammate truce — a teammate's trap never fires on you,
     // matching capture and nuke.
@@ -523,6 +525,7 @@ export function processMove(
         return {
             newState: finishTrappedMove(state, newPositions, newTraps, actingColor, playerCount, activeColors, cc),
             captured: false,
+            finishedToken: false,
             bonusRoll: false,
             applied: true,
         };
@@ -556,7 +559,8 @@ export function processMove(
     const newlyFinished = (['green', 'red', 'yellow', 'blue'] as PlayerColor[])
         .filter(c => allFinished(c) && !state.winners.includes(c));
 
-    const bonusRoll = captured || steps === DICE_ROLL_SIX;
+    const finishedToken = nextPos === BOARD_FINISH_INDEX;
+    const bonusRoll = captured || finishedToken || steps === DICE_ROLL_SIX;
     const nextPlayer = bonusRoll && victory.status !== 'finished'
         ? actingColor
         : getNextPlayer(actingColor, playerCount, activeColors, cc);
@@ -576,6 +580,7 @@ export function processMove(
             lastUpdate: Date.now(),
         },
         captured,
+        finishedToken,
         bonusRoll,
         applied: true,
     };
@@ -664,7 +669,8 @@ export const PERSISTED_STATE_FIELDS = [
     'positions', 'currentPlayer', 'diceValue', 'isRolling', 'gamePhase', 'status',
     'winner', 'winners', 'consecutiveSixes', 'playerCount', 'isStarted',
     'lastUpdate', 'timeLeft', 'strikes', 'afkStats', 'matchStats',
-    'activeShields', 'activeTraps', 'activeBoost', 'powerSpentThisTurn',
+    'activeShields', 'activeTraps', 'activeBoost', 'boostPendingDice',
+    'boostSubMoveBonus', 'powerSpentThisTurn',
     'boostTrail', 'nukeFlash', 'captureMessage', 'playerPowers',
     'botDifficulty', 'matchId', 'powerSpentTurn', 'turnStartedAt',
     'powerTileSeed',
@@ -784,8 +790,9 @@ export function nearestStarAhead(pos: number, color: PlayerColor, cc: ColorCorne
 
 /**
  * Find opponents in the nuke's logical range and the screen cells to flash.
- * Range is measured on track indices; safe cells and shields are checked
- * after mapping each candidate to its rendered coordinate.
+ * Circular 52-tile distance handles the 51 <-> 0 seam. Opponents are SAFE on
+ * safe stars, when shielded, in base/home stretch, or when stacked >= 2
+ * (own multi-token stack OR 2v2 teammate stack).
  */
 export function countNukeVictims(
     state: EngineGameState,
@@ -810,14 +817,19 @@ export function countNukeVictims(
     if (myPt) pushCell(myPt.r, myPt.c);
     (['green', 'red', 'blue', 'yellow'] as PlayerColor[]).forEach(oppColor => {
         if (oppColor === color) return;
+        const oppTeam = getTeam(oppColor, playerCount);
         if (playerCount === '2v2' && oppColor === getTeammateColor(color, playerCount)) return;
         state.positions[oppColor].forEach((oppPos, oppIdx) => {
             if (oppPos < 0 || oppPos >= HOME_LANE_START_INDEX) return;
-            if (Math.abs(oppPos - myPos) > NUKE_RADIUS) return;
+            const rawDiff = Math.abs(oppPos - myPos);
+            const circularDist = Math.min(rawDiff, HOME_LANE_START_INDEX - rawDiff);
+            if (circularDist > NUKE_RADIUS) return;
             const oppPt = getBoardCoordinate(oppPos, oppColor, cc);
             if (!oppPt) return;
             if ((state.activeShields || []).some(s => s.color === oppColor && s.tokenIdx === oppIdx)) return;
             if (SAFE_POSITIONS.some(p => p.r === oppPt.r && p.c === oppPt.c)) return;
+            // Stacked opponent tokens (2/3/4 own or 2v2 teammate stack) are blast-proof.
+            if (getTeamForceAtPoint(oppTeam, oppPos, state, playerCount) >= 2) return;
             victims.push({ color: oppColor, idx: oppIdx });
             pushCell(oppPt.r, oppPt.c);
         });
@@ -825,12 +837,10 @@ export function countNukeVictims(
     return { victims, cells };
 }
 
-/** Steps for this move including active Boost (+6). */
-export function effectiveMoveSteps(state: EngineGameState, color: PlayerColor, dice: number): number {
-    // ENG-13: an invalid face must not become a step count.
+/** Valid step count for the current move (Boost grants a split 6 + roll, not 6 + dice). */
+export function effectiveMoveSteps(_state: EngineGameState, _color: PlayerColor, dice: number): number {
     if (!isValidDice(dice)) return 0;
-
-    return state.activeBoost === color ? dice + DICE_MAX : dice;
+    return dice;
 }
 
 /** Sweep expired powers and return live inventory for a color. */
@@ -922,7 +932,7 @@ export function applyPower(
 
     if (type === 'boost') {
         next.activeBoost = color;
-        message = `BOOST! Next move +${DICE_MAX} steps.`;
+        message = 'BOOST! Next roll grants an extra 6 first, then your rolled die.';
         next.playerPowers = { ...next.playerPowers, [color]: consumeOne(inv, 'boost') };
         next.powerSpentThisTurn = true;
         next.lastUpdate = now;
@@ -1093,8 +1103,130 @@ export function applyPowerPickup(
 
 /** Wire a full move including boost consumption + pickup (Edge path). */
 /**
- * Validate and resolve a server-authorized move, including boost consumption,
- * pickup handling, and the reset of the per-turn power flag.
+ * Resolve a rolled die face with optional armed Boost split:
+ * - Rolled 3rd consecutive six forfeits the turn (Boost's bonus 6 never counts toward consecutiveSixes).
+ * - When Boost is armed and at least one token can legally move `6`, enters Step 1 (`diceValue = 6`, `boostPendingDice = rollValue`).
+ * - If `6` has no legal move while Boosted, falls through directly to `rollValue`.
+ */
+export function resolveRollWithBoost(params: {
+    state: EngineGameState;
+    color: PlayerColor;
+    rollValue: number;
+    cc: ColorCorner;
+    playerCount: string;
+    activeColors?: PlayerColor[];
+    now?: number;
+}): {
+    outcome: 'forfeit_three_sixes' | 'no_moves' | 'moving';
+    state: EngineGameState;
+    legalMoves: number[];
+    targetColor: PlayerColor;
+    activeDice: number | null;
+    boostSplitActive: boolean;
+} {
+    const { state, color, rollValue, cc, playerCount, activeColors, now = Date.now() } = params;
+    const sixes = checkThreeSixesForMove(state, rollValue);
+    if (sixes.forbidden) {
+        const nextPlayer = getNextPlayer(color, playerCount, activeColors, cc);
+        return {
+            outcome: 'forfeit_three_sixes',
+            targetColor: color,
+            activeDice: null,
+            boostSplitActive: false,
+            legalMoves: [],
+            state: {
+                ...state,
+                diceValue: null,
+                currentPlayer: nextPlayer,
+                isRolling: false,
+                gamePhase: 'rolling',
+                consecutiveSixes: 0,
+                activeBoost: null,
+                boostPendingDice: null,
+                boostSubMoveBonus: false,
+                boostTrail: null,
+                powerSpentThisTurn: false,
+                captureMessage: 'Three 6s! Turn forfeited.',
+                lastUpdate: now,
+            },
+        };
+    }
+
+    const targetColor = resolveControllableColor(state.positions, color, playerCount);
+    const boosted = state.activeBoost === color || state.activeBoost === targetColor;
+    const legalForSix = boosted ? getLegalTokenIndices(state.positions, targetColor, DICE_ROLL_SIX, cc) : [];
+
+    if (boosted && legalForSix.length > 0) {
+        return {
+            outcome: 'moving',
+            targetColor,
+            activeDice: DICE_ROLL_SIX,
+            boostSplitActive: true,
+            legalMoves: legalForSix,
+            state: {
+                ...state,
+                diceValue: DICE_ROLL_SIX,
+                boostPendingDice: rollValue,
+                boostSubMoveBonus: false,
+                activeBoost: null,
+                boostTrail: null,
+                consecutiveSixes: rollValue === DICE_ROLL_SIX ? (state.consecutiveSixes || 0) : 0,
+                isRolling: false,
+                gamePhase: 'moving',
+                lastUpdate: now,
+            },
+        };
+    }
+
+    const legalMoves = getLegalTokenIndices(state.positions, targetColor, rollValue, cc);
+    if (legalMoves.length === 0) {
+        const nextPlayer = getNextPlayer(color, playerCount, activeColors, cc);
+        return {
+            outcome: 'no_moves',
+            targetColor,
+            activeDice: null,
+            boostSplitActive: false,
+            legalMoves: [],
+            state: {
+                ...state,
+                diceValue: null,
+                currentPlayer: nextPlayer,
+                isRolling: false,
+                gamePhase: 'rolling',
+                consecutiveSixes: 0,
+                activeBoost: null,
+                boostPendingDice: null,
+                boostSubMoveBonus: false,
+                boostTrail: null,
+                powerSpentThisTurn: false,
+                lastUpdate: now,
+            },
+        };
+    }
+
+    return {
+        outcome: 'moving',
+        targetColor,
+        activeDice: rollValue,
+        boostSplitActive: false,
+        legalMoves,
+        state: {
+            ...state,
+            diceValue: rollValue,
+            boostPendingDice: null,
+            boostSubMoveBonus: false,
+            activeBoost: null,
+            boostTrail: null,
+            isRolling: false,
+            gamePhase: 'moving',
+            lastUpdate: now,
+        },
+    };
+}
+
+/**
+ * Validate and resolve a server-authorized move, including split Boost two-step
+ * execution, capture/finish streak reset, pickup handling, and turn-power reset.
  */
 export function resolveNetworkedMove(params: {
     state: EngineGameState;
@@ -1109,43 +1241,157 @@ export function resolveNetworkedMove(params: {
     ok: boolean;
     state?: EngineGameState;
     captured?: boolean;
+    finishedToken?: boolean;
     bonusRoll?: boolean;
+    splitStepRemaining?: number | null;
     error?: string;
     code?: string;
     fromPos?: number;
     toPos?: number;
 } {
     const { state, color, tokenIndex, dice, cc, playerCount, activeColors, now = Date.now() } = params;
+    const pendingDice = state.boostPendingDice ?? null;
 
-    // ENG-13 + ENG-05 at the authority boundary: refuse an impossible face, then
-    // refuse a third consecutive six before any move is resolved.
+    // ── Branch A: Boost Step 1 (`6` from Boost while `boostPendingDice` holds the rolled die) ─
+    if (pendingDice !== null && pendingDice !== undefined) {
+        if (!isValidDice(pendingDice)) return { ok: false, error: 'Invalid pending dice face' };
+        if (dice !== DICE_ROLL_SIX) return { ok: false, error: 'Boost Step 1 must use bonus 6' };
+
+        const targetColor = resolveControllableColor(state.positions, color, playerCount);
+        const legal = getLegalTokenIndices(state.positions, targetColor, DICE_ROLL_SIX, cc);
+        if (!legal.includes(tokenIndex)) {
+            return { ok: false, error: 'Illegal token for Boost 6' };
+        }
+        const fromPos = state.positions[targetColor][tokenIndex];
+        const result = processMove(state, targetColor, tokenIndex, DICE_ROLL_SIX, playerCount, cc, color, activeColors);
+        if (!result.applied) return { ok: false, error: 'Move rejected by engine' };
+
+        const toPos = result.newState.positions[targetColor][tokenIndex];
+        const step1Finished = toPos === BOARD_FINISH_INDEX;
+        const step1StreakBreak = result.captured || step1Finished;
+
+        let next: EngineGameState = {
+            ...result.newState,
+            activeBoost: null,
+            boostTrail: targetColor,
+        };
+        next = applyPowerPickup(next, targetColor, toPos, cc, now);
+        next = sweepExpiredPowers(next, now);
+
+        if (next.winner) {
+            next = {
+                ...next,
+                boostPendingDice: null,
+                boostSubMoveBonus: false,
+                consecutiveSixes: 0,
+                powerSpentThisTurn: false,
+                diceValue: null,
+                isRolling: false,
+                gamePhase: 'rolling',
+                lastUpdate: now,
+            };
+            return {
+                ok: true,
+                state: next,
+                captured: result.captured,
+                finishedToken: step1Finished,
+                bonusRoll: true,
+                splitStepRemaining: null,
+                fromPos,
+                toPos,
+            };
+        }
+
+        const step2Target = resolveControllableColor(next.positions, color, playerCount);
+        const step2Legal = getLegalTokenIndices(next.positions, step2Target, pendingDice, cc);
+        const preservedSixes = step1StreakBreak ? 0 : (state.consecutiveSixes || 0);
+
+        if (step2Legal.length > 0) {
+            next = {
+                ...next,
+                currentPlayer: color,
+                diceValue: pendingDice,
+                isRolling: false,
+                gamePhase: 'moving',
+                boostPendingDice: null,
+                boostSubMoveBonus: step1StreakBreak,
+                consecutiveSixes: preservedSixes,
+                powerSpentThisTurn: true,
+                lastUpdate: now,
+            };
+            return {
+                ok: true,
+                state: next,
+                captured: result.captured,
+                finishedToken: step1Finished,
+                bonusRoll: false,
+                splitStepRemaining: pendingDice,
+                fromPos,
+                toPos,
+            };
+        }
+
+        // Step 2 has no legal moves on post-Step-1 board: grant bonus roll if Step 1 broke streak, else pass turn.
+        const keepTurn = step1StreakBreak;
+        next = {
+            ...next,
+            currentPlayer: keepTurn ? color : getNextPlayer(color, playerCount, activeColors, cc),
+            diceValue: null,
+            isRolling: false,
+            gamePhase: 'rolling',
+            boostPendingDice: null,
+            boostSubMoveBonus: false,
+            consecutiveSixes: 0,
+            powerSpentThisTurn: false,
+            lastUpdate: now,
+        };
+        return {
+            ok: true,
+            state: next,
+            captured: result.captured,
+            finishedToken: step1Finished,
+            bonusRoll: keepTurn,
+            splitStepRemaining: null,
+            fromPos,
+            toPos,
+        };
+    }
+
+    // ── Branch B: Normal Move OR Boost Step 2 ──────────────────────────────────
     if (!isValidDice(dice)) return { ok: false, error: 'Invalid dice face' };
     const sixes = checkThreeSixesForMove(state, dice);
     if (sixes.forbidden) return { ok: false, error: sixes.reason, code: 'THREE_SIXES' };
 
     const targetColor = resolveControllableColor(state.positions, color, playerCount);
-    const boosted = state.activeBoost === color || state.activeBoost === targetColor;
-    const steps = boosted ? dice + DICE_MAX : dice;
-    const legal = getLegalTokenIndices(state.positions, targetColor, steps, cc);
+    const boostedFallback = state.activeBoost === color || state.activeBoost === targetColor;
+    const legal = getLegalTokenIndices(state.positions, targetColor, dice, cc);
     if (!legal.includes(tokenIndex)) {
-        return { ok: false, error: 'Illegal token for this roll (with boost)' };
+        return { ok: false, error: 'Illegal token for this roll' };
     }
     const fromPos = state.positions[targetColor][tokenIndex];
-    const result = processMove(state, targetColor, tokenIndex, steps, playerCount, cc, color, activeColors);
+    const result = processMove(state, targetColor, tokenIndex, dice, playerCount, cc, color, activeColors);
     if (!result.applied) return { ok: false, error: 'Move rejected by engine' };
 
-    // ENG-05: processMove does not own the counter, so the authoritative value
-    // is written here — the one place a networked move is resolved.
-    let next: EngineGameState = { ...result.newState, consecutiveSixes: sixes.nextSixes };
-    if (boosted) {
-        next = { ...next, activeBoost: null, boostTrail: targetColor };
-        (next as { boostTrail?: PlayerColor | null }).boostTrail = targetColor;
-    }
-    // Bonus on raw six as well as processMove's captured/six-on-steps
-    const bonusRoll = result.bonusRoll || result.captured || dice === DICE_ROLL_SIX || !!next.winner;
-    const toPos = next.positions[targetColor][tokenIndex];
+    const toPos = result.newState.positions[targetColor][tokenIndex];
+    const finishedToken = toPos === BOARD_FINISH_INDEX;
+    const streakBreaker = result.captured || finishedToken || Boolean(state.boostSubMoveBonus);
+    const bonusRoll = streakBreaker || dice === DICE_ROLL_SIX || Boolean(result.newState.winner);
+
+    // Capturing or finishing breaks the consecutive-sixes streak so the player gets a fresh streak!
+    const nextSixes = streakBreaker ? 0 : (bonusRoll ? sixes.nextSixes : 0);
+
+    let next: EngineGameState = {
+        ...result.newState,
+        currentPlayer: bonusRoll && !result.newState.winner
+            ? color
+            : getNextPlayer(color, playerCount, activeColors, cc),
+        consecutiveSixes: nextSixes,
+        activeBoost: null,
+        boostPendingDice: null,
+        boostSubMoveBonus: false,
+        boostTrail: boostedFallback ? targetColor : null,
+    };
     next = applyPowerPickup(next, targetColor, toPos, cc, now);
-    // PW-5: one sweep, on the authority, at the turn boundary.
     next = sweepExpiredPowers(next, now);
     next = { ...next, powerSpentThisTurn: false, lastUpdate: now };
 
@@ -1153,7 +1399,9 @@ export function resolveNetworkedMove(params: {
         ok: true,
         state: next,
         captured: result.captured,
+        finishedToken,
         bonusRoll,
+        splitStepRemaining: null,
         fromPos,
         toPos,
     };

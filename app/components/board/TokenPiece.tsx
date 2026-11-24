@@ -294,14 +294,18 @@ export function TokenPiece({
     }, [counterRotationDeg, dismissCrown, playLanding, triggerShockwave]);
 
     const playTeleportArrival = React.useCallback(() => {
-        triggerShockwave(520);
         if (prefersReducedMotion()) {
+            triggerShockwave(420);
             gsap.set([glideRef.current, hopRef.current], { x: 0, y: 0, scaleX: 1, scaleY: 1, opacity: 1 });
+            gsap.set(shadowRef.current, { opacity: 0.9, scaleX: 1, scaleY: 1 });
+            if (ctxRef.current.isFinishing) setIsFinishedHidden(true);
             return;
         }
         isAnimatingRef.current = true;
         setIsMoving(true);
         gsap.set(glideRef.current, { x: 0, y: 0 });
+        gsap.set(hopRef.current, { scaleX: 0.25, scaleY: 2.0, y: -18, opacity: 0 });
+        gsap.set(shadowRef.current, { opacity: 0, scaleX: 0.25 });
         tlRef.current?.kill();
         const tl = gsap.timeline({
             onComplete: () => {
@@ -311,11 +315,16 @@ export function TokenPiece({
             },
         });
         tlRef.current = tl;
-        tl.fromTo(
+        tl.call(() => triggerShockwave(520), undefined, 0.22);
+        tl.to(
             hopRef.current,
-            { scaleX: 0.35, scaleY: 1.68, y: -16, opacity: 0 },
-            { scaleX: 1, scaleY: 1, y: 0, opacity: 1, duration: 0.32, ease: 'back.out(1.8)' },
-            0,
+            { scaleX: 1, scaleY: 1, y: 0, opacity: 1, duration: 0.32, ease: 'back.out(1.9)' },
+            0.22,
+        );
+        tl.to(
+            shadowRef.current,
+            { opacity: 0.9, scaleX: 1, scaleY: 1, duration: 0.26, ease: 'power2.out' },
+            0.22,
         );
     }, [playLanding, triggerShockwave]);
 

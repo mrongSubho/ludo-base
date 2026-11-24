@@ -6,6 +6,7 @@ import type { Corner, PlayerColor } from '@/lib/types';
 import {
     DOT_POSITIONS,
     resolveDiceThemeId,
+    type DiceFaceNumber,
     type DiceThemeId,
     type TurnRollEntry,
 } from '@/lib/diceVisuals';
@@ -22,6 +23,7 @@ interface AnchoredDiceBayProps {
     isRolling: boolean;
     diceValue: number | null;
     boostActive: boolean;
+    boostPendingDice?: number | null;
     bustKey: number;
     turnRolls: TurnRollEntry[];
     dangerSixes: boolean;
@@ -42,6 +44,7 @@ export function AnchoredDiceBay({
     isRolling,
     diceValue,
     boostActive,
+    boostPendingDice = null,
     bustKey,
     turnRolls,
     dangerSixes,
@@ -51,10 +54,18 @@ export function AnchoredDiceBay({
     const themeId = resolveDiceThemeId(preferences.theme);
     const [isAirborne, setIsAirborne] = useState(false);
     const reduced = prefersReducedMotion();
+    const hasQueuedBoostFace =
+        boostPendingDice !== null &&
+        boostPendingDice !== undefined &&
+        Number.isInteger(boostPendingDice) &&
+        boostPendingDice >= 1 &&
+        boostPendingDice <= 6;
+    const showOverdriveWing = boostActive || hasQueuedBoostFace;
+    const wingFace = (hasQueuedBoostFace ? boostPendingDice : 6) as DiceFaceNumber;
 
     return (
         <div
-            className={`dice-bay-assembly dice-bay-side-${side} dice-bay-row-${rowEdge} ${canRoll ? 'is-ready' : ''} ${isRolling || isAirborne ? 'is-rolling' : ''} ${boostActive ? 'is-boosted' : ''}`}
+            className={`dice-bay-assembly dice-bay-side-${side} dice-bay-row-${rowEdge} ${canRoll ? 'is-ready' : ''} ${isRolling || isAirborne ? 'is-rolling' : ''} ${showOverdriveWing ? 'is-boosted' : ''}`}
             data-seat-color={color}
             data-dice-theme={themeId}
         >
@@ -105,27 +116,27 @@ export function AnchoredDiceBay({
                 />
             </div>
 
-            {/* Dual-Core +6 Overdrive Companion Core (mounted on outer bay flank when Boost armed) */}
+            {/* Dual-Core +6 Overdrive Companion Core (mounted on outer bay flank when Boost armed or queued) */}
             <AnimatePresence>
-                {boostActive && (
+                {showOverdriveWing && (
                     <motion.div
                         key="overdrive-wing"
-                        className="dice-bay-overdrive"
+                        className={`dice-bay-overdrive ${hasQueuedBoostFace ? 'is-queued' : ''}`}
                         initial={reduced ? { opacity: 1 } : { opacity: 0, scale: 0.72, x: side === 'left' ? -10 : 10 }}
                         animate={{ opacity: 1, scale: 1, x: 0 }}
                         exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.72, x: side === 'left' ? -8 : 8 }}
                         transition={{ duration: reduced ? 0.01 : 0.2, ease: 'easeOut' }}
-                        aria-label="+6 Boost Overdrive armed"
+                        aria-label={hasQueuedBoostFace ? `Queued roll ${wingFace} after Boost 6` : '+6 Boost Overdrive armed'}
                     >
                         <span className="dice-bay-overdrive-coupler" aria-hidden="true" />
                         <div className="dice-bay-overdrive-core">
                             <svg viewBox="0 0 100 100" className="dice-bay-overdrive-pips" aria-hidden="true">
-                                {DOT_POSITIONS[6].map(([cx, cy], idx) => (
+                                {DOT_POSITIONS[wingFace].map(([cx, cy], idx) => (
                                     <circle key={idx} cx={cx} cy={cy} r="10" fill="currentColor" />
                                 ))}
                             </svg>
                         </div>
-                        <span className="dice-bay-overdrive-tag">+6</span>
+                        <span className="dice-bay-overdrive-tag">{hasQueuedBoostFace ? 'NEXT' : '+6'}</span>
                     </motion.div>
                 )}
             </AnimatePresence>
