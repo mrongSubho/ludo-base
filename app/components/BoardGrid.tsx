@@ -10,6 +10,7 @@ import { ProximityMineIcon } from './icons';
 import { HudCornerTicks } from './HudPrimitives';
 import { PowerVfxOverlay } from './PowerVfxOverlay';
 import type { PowerVfxEvent } from '@/lib/powerVfx';
+import type { MovePreviewTarget } from '@/lib/movePreview';
 
 interface BoardGridProps {
     pathCells: PathCell[];
@@ -25,6 +26,7 @@ interface BoardGridProps {
     // paint), falls back to viewport-relative sizing.
     squarePx?: number;
     powerVfxEvents?: PowerVfxEvent[];
+    movePreview?: MovePreviewTarget | null;
 }
 
 const ZONE_HEX: Record<string, string> = {
@@ -101,6 +103,7 @@ export function BoardGrid({
     counterRotationDeg,
     squarePx,
     powerVfxEvents = [],
+    movePreview = null,
 }: BoardGridProps) {
     const { preferences } = usePreferences();
     const is3077 = preferences.theme === '3077';
@@ -173,6 +176,8 @@ export function BoardGrid({
                     bg = `${safeZoneColor}33`;
                 }
 
+                const isMoveDest = Boolean(movePreview && movePreview.kind !== 'finish' && movePreview.r === row && movePreview.c === col);
+
                 return (
                     <div
                         key={`${row}-${col}`}
@@ -188,6 +193,13 @@ export function BoardGrid({
                         }}
                     >
                         {nukeHit && !hasActiveNukeVfx && <span className="nuke-flash" aria-hidden />}
+                        {isMoveDest && movePreview && (
+                            <span
+                                className={`move-dest-reticle kind-${movePreview.kind}`}
+                                data-seat-color={movePreview.color}
+                                aria-hidden="true"
+                            />
+                        )}
                         {isSafe && !occupiedCells.has(`${row}-${col}`) && <StarMarker color={safeZoneColor || '#eab308'} counterRotationDeg={counterRotationDeg} />}
                         {mysteryPower && (
                             <span className="mystery-upright" style={{ transform: `rotate(${counterRotationDeg || 0}deg)` }} aria-hidden>
@@ -299,6 +311,13 @@ export function BoardGrid({
                 </div>
 
                 {/* 4.5. Timer Ring - Sweep Progress (Layer 4.5) */}
+                {movePreview?.kind === 'finish' && (
+                    <span
+                        className="move-dest-finish-ring"
+                        data-seat-color={movePreview.color}
+                        aria-hidden="true"
+                    />
+                )}
                 {sweepProgress && (
                     <div style={{
                         position: 'absolute',

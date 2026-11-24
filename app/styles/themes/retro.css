@@ -603,3 +603,26 @@ body.theme-retro-futurism .board-terminal-line2 {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
+body.theme-retro-futurism .dice-bay {
+  border-radius: 14px;
+  background: radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.08), rgba(8, 14, 28, 0.92));
+  border-color: rgba(var(--accent-rgb), 0.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 8px 20px rgba(0, 0, 0, 0.56);
+}
+body.theme-retro-futurism .dice-bay.is-ready {
+  border-color: color-mix(in srgb, var(--bay-accent) 78%, transparent);
+  box-shadow:
+    0 0 18px color-mix(in srgb, var(--bay-accent) 32%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+body.theme-retro-futurism .dice-streak-strip {
+  border-radius: 8px;
+  background: rgba(8, 13, 25, 0.92);
+  border-color: rgba(var(--accent-rgb), 0.34);
+}
+body.theme-retro-futurism .dice-streak-pip {
+  background: rgba(255, 255, 255, 0.92);
+  color: #09101e;
+}

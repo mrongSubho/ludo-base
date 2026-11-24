@@ -7,6 +7,7 @@ import { INITIAL_GAME_STATE } from '../lib/gameLogic';
 import type { GameState } from '../lib/types';
 import { deriveMatchFeedEvent, formatColorList, formatPrimaryTurnLine } from '../lib/matchFeed';
 import { computeNukeBlastCorridor, derivePowerVfxEvents } from '../lib/powerVfx';
+import { computeMovePreview, computeSingleLegalMovePreview } from '../lib/movePreview';
 
 const root = join(import.meta.dirname ?? __dirname, '..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
@@ -198,5 +199,128 @@ describe('Two-Line Terminal HUD, Match Presets, Typewriter & Cinematic Power/Dic
         assert.match(dice, /boostActive/);
         assert.match(dice, /arcControls/);
         assert.match(dice, /dice-crit-spark/);
+        assert.match(dice, /dice-ground-shadow/);
+        assert.match(dice, /w-11 h-11/);
+        assert.match(dice, /tz = '22px'/);
+        assert.doesNotMatch(dice, /y:\s*\[0,\s*3,\s*-18/);
+
+        assert.match(board, /is-line2-promoted/);
+
+        const row = read('app/components/PlayerInfoRow.tsx');
+        assert.match(row, /dice-bay/);
+        assert.match(row, /dice-bay-pointer/);
+        assert.match(row, /dice-streak-strip/);
+
+        const piece = read('app/components/board/TokenPiece.tsx');
+        assert.match(piece, /isBoosted \? 0\.085 : 0\.115/);
+        assert.match(piece, /onHoverChange/);
+
+        const home = read('app/components/BoardHome.tsx');
+        assert.match(home, /w-\[74%\] h-\[74%\]/);
+        assert.match(home, /const r = 21;/);
+
+        const boardCss = read('app/styles/board.css');
+        assert.match(boardCss, /\.board-terminal-hud\s*\{[^}]*position:\s*absolute;/);
+        assert.match(boardCss, /\.move-dest-reticle/);
+    });
+
+    it('computes authoritative move destination previews for normal, safe, power, capture, and finish squares', () => {
+        const cc = { green: 'BL', red: 'TL', yellow: 'TR', blue: 'BR' } as const;
+
+        // Normal move: BL startIdx=34; from 35 + 2 -> 37 (no capture/power/safe)
+        const moveState = cloneState({
+            currentPlayer: 'green',
+            gamePhase: 'moving',
+            diceValue: 2,
+            positions: { green: [35, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        });
+        assert.deepEqual(
+            computeMovePreview({ state: moveState, color: 'green', tokenIndex: 0, colorCorner: cc, playerCount: '4P' }),
+            { r: 11, c: 7, kind: 'move', color: 'green', steps: 2 },
+        );
+
+        // Safe star cell: 39 + 3 -> 42 (r: 9, c: 3)
+        const safeState = cloneState({
+            currentPlayer: 'green',
+            gamePhase: 'moving',
+            diceValue: 3,
+            positions: { green: [39, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        });
+        assert.equal(
+            computeMovePreview({ state: safeState, color: 'green', tokenIndex: 0, colorCorner: cc, playerCount: '4P' })?.kind,
+            'safe',
+        );
+
+        // Mystery power tile preview
+        const powerState = cloneState({
+            currentPlayer: 'green',
+            gamePhase: 'moving',
+            diceValue: 2,
+            positions: { green: [35, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+            powerTiles: [{ r: 11, c: 7 }],
+        });
+        assert.equal(
+            computeMovePreview({ state: powerState, color: 'green', tokenIndex: 0, colorCorner: cc, playerCount: '4P' })?.kind,
+            'power',
+        );
+
+        // Capture preview vs shielded skip
+        const captureState = cloneState({
+            currentPlayer: 'green',
+            gamePhase: 'moving',
+            diceValue: 2,
+            positions: { green: [35, -1, -1, -1], red: [37, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        });
+        assert.equal(
+            computeMovePreview({ state: captureState, color: 'green', tokenIndex: 0, colorCorner: cc, playerCount: '4P' })?.kind,
+            'capture',
+        );
+
+        const shieldedState = cloneState({
+            currentPlayer: 'green',
+            gamePhase: 'moving',
+            diceValue: 2,
+            positions: { green: [35, -1, -1, -1], red: [37, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+            activeShields: [{ color: 'red', tokenIdx: 0 }],
+        });
+        assert.equal(
+            computeMovePreview({ state: shieldedState, color: 'green', tokenIndex: 0, colorCorner: cc, playerCount: '4P' })?.kind,
+            'move',
+        );
+
+        // Finish center preview (54 + 3 -> 57)
+        const finishState = cloneState({
+            currentPlayer: 'green',
+            gamePhase: 'moving',
+            diceValue: 3,
+            positions: { green: [54, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        });
+        assert.deepEqual(
+            computeMovePreview({ state: finishState, color: 'green', tokenIndex: 0, colorCorner: cc, playerCount: '4P' }),
+            { r: 8, c: 8, kind: 'finish', color: 'green', steps: 3 },
+        );
+
+        // Single-legal auto preview (4 yard tokens rolling 6 share one start cell) vs ambiguity
+        const deployOnlyState = cloneState({
+            currentPlayer: 'green',
+            gamePhase: 'moving',
+            diceValue: 6,
+            positions: { green: [-1, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        });
+        assert.deepEqual(
+            computeSingleLegalMovePreview({ state: deployOnlyState, myColor: 'green', colorCorner: cc, playerCount: '4P' }),
+            { r: 14, c: 7, kind: 'safe', color: 'green', steps: 6 },
+        );
+
+        const multiChoiceState = cloneState({
+            currentPlayer: 'green',
+            gamePhase: 'moving',
+            diceValue: 2,
+            positions: { green: [35, 38, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+        });
+        assert.equal(
+            computeSingleLegalMovePreview({ state: multiChoiceState, myColor: 'green', colorCorner: cc, playerCount: '4P' }),
+            null,
+        );
     });
 });

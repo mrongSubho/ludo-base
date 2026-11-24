@@ -736,3 +736,31 @@ body.theme-daybreak .board-terminal-line2.tone-bust {
   background: rgba(255, 228, 230, 0.95);
   color: #9f1239;
 }
+body.theme-daybreak .dice-bay {
+  border-radius: 14px;
+  background: linear-gradient(180deg, #faf8f2 0%, #ede8dc 100%);
+  border-color: rgba(28, 25, 23, 0.16);
+  box-shadow:
+    inset 0 2px 6px rgba(28, 25, 23, 0.08),
+    0 4px 12px rgba(28, 25, 23, 0.12);
+}
+body.theme-daybreak .dice-bay.is-ready {
+  border-color: color-mix(in srgb, var(--bay-accent) 68%, rgba(28, 25, 23, 0.12));
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--bay-accent) 18%, transparent),
+    0 6px 14px rgba(28, 25, 23, 0.14);
+}
+body.theme-daybreak .dice-streak-strip {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(28, 25, 23, 0.16);
+  box-shadow: 0 3px 10px rgba(28, 25, 23, 0.14);
+}
+body.theme-daybreak .dice-streak-pip {
+  background: #f5f1e8;
+  border: 1px solid rgba(28, 25, 23, 0.14);
+  color: #18181b;
+}
+body.theme-daybreak .dice-streak-strip.is-danger {
+  background: rgba(254, 243, 199, 0.98);
+  border-color: rgba(217, 119, 6, 0.65);
+}

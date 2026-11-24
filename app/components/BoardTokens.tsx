@@ -24,6 +24,7 @@ interface BoardTokensProps {
     counterRotationDeg?: number;
     targetingColor?: PlayerColor | null;
     onTargetToken?: (color: PlayerColor, tokenIndex: number) => void;
+    onTokenHover?: (token: { color: PlayerColor; index: number } | null) => void;
 }
 
 
@@ -36,7 +37,8 @@ export function BoardTokens({
     handleTokenClick,
     counterRotationDeg = 0,
     targetingColor = null,
-    onTargetToken
+    onTargetToken,
+    onTokenHover,
 }: BoardTokensProps) {
     const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
     const myColor = myPlayer?.color;
@@ -195,6 +197,7 @@ export function BoardTokens({
                         targetable={targetable}
                         boosted={boosted}
                         boostArmed={boostArmed}
+                        onHoverChange={(hovering) => onTokenHover?.(hovering ? { color, index } : null)}
                         onClick={() => targetable && onTargetToken ? onTargetToken(color, index) : handleTokenClick(color, index)}
                     />
                 );

@@ -35,6 +35,11 @@ import {
     type PrimaryTurnLine,
 } from '@/lib/matchFeed';
 import { derivePowerVfxEvents, type PowerVfxEvent } from '@/lib/powerVfx';
+import {
+    computeMovePreview,
+    computeSingleLegalMovePreview,
+    type MovePreviewTarget,
+} from '@/lib/movePreview';
 import { prefersReducedMotion } from '@/lib/motion';
 import {
     REMATCH_TIMEOUT_MS,
@@ -718,6 +723,30 @@ export default function Board({
         setTargeting(null);
     };
 
+    const [hoveredMoveToken, setHoveredMoveToken] = useState<{ color: PlayerColor; index: number } | null>(null);
+    useEffect(() => {
+        setHoveredMoveToken(null);
+    }, [localGameState.gamePhase, localGameState.currentPlayer, localGameState.diceValue, targeting]);
+
+    const activeMovePreview: MovePreviewTarget | null = React.useMemo(() => {
+        if (spectatorMode || targeting || localGameState.gamePhase !== 'moving') return null;
+        if (hoveredMoveToken) {
+            return computeMovePreview({
+                state: localGameState,
+                color: hoveredMoveToken.color,
+                tokenIndex: hoveredMoveToken.index,
+                colorCorner,
+                playerCount,
+            });
+        }
+        return computeSingleLegalMovePreview({
+            state: localGameState,
+            myColor: ownColor,
+            colorCorner,
+            playerCount,
+        });
+    }, [spectatorMode, targeting, localGameState, hoveredMoveToken, colorCorner, playerCount, ownColor]);
+
     return (
         <div data-theme="default" className="board-outer board-match-theme-wrapper w-full h-full">
             <PlayerRow
@@ -773,6 +802,7 @@ export default function Board({
                         pointRotation={pointRotation}
                         counterRotationDeg={counterRotationDeg}
                         powerVfxEvents={powerVfxEvents}
+                        movePreview={activeMovePreview}
                     >
                         {(['green', 'red', 'yellow', 'blue'] as const).map((color) => {
                             const isActivePlayer = players.some(p => p.color === color);
@@ -808,6 +838,7 @@ export default function Board({
                                     colorCorner={colorCorner}
                                     viewerColor={uiSlots.BL ?? undefined}
                                     onTokenClick={(idx) => handleTokenClick(color, idx)}
+                                    onTokenHover={(idx) => setHoveredMoveToken(idx === null ? null : { color, index: idx })}
                                     isDraggable={isActivePlayer && isControllableHome && localGameState.gamePhase === 'moving' && effectiveHomeDice === 6}
                                     counterRotationDeg={counterRotationDeg}
                                     diceValue={effectiveHomeDice}
@@ -826,6 +857,7 @@ export default function Board({
                     counterRotationDeg={counterRotationDeg}
                     targetingColor={targeting ? ownColor ?? null : null}
                     onTargetToken={spendTargeted}
+                    onTokenHover={setHoveredMoveToken}
                 />
             </BoardGrid>
 
@@ -1032,25 +1064,33 @@ function BoardTerminalHud({
     line1,
     line2,
 }: {
-    line1: PrimaryTurnLine;
+    line1: PrimaryTurnLine | null;
     line2: CombatFeedLine | null;
 }) {
-    const isYours = line1.tone === 'yours' || line1.tone === 'target';
+    const hasLine1 = Boolean(line1 && line1.text.trim().length > 0);
+    if (!hasLine1 && !line2) return null;
+
+    const isYours = Boolean(line1 && (line1.tone === 'yours' || line1.tone === 'target'));
     return (
-        <div className="board-terminal-hud" aria-live="polite">
-            <div
-                className={`board-turn-status board-terminal-line1 ${isYours ? 'is-yours' : ''} tone-${line1.tone}`}
-                data-seat-color={line1.color}
-            >
-                <span className="board-turn-status-dot shrink-0" />
-                {!isYours && <SimBotIcon className="w-3 h-3 shrink-0 opacity-75" />}
-                <TerminalTypeText
-                    key={line1.text}
-                    text={line1.text}
-                    charMs={16}
-                    trailingEllipsis
-                />
-            </div>
+        <div
+            className={`board-terminal-hud ${!hasLine1 ? 'is-line2-promoted' : ''}`}
+            aria-live="polite"
+        >
+            {hasLine1 && line1 && (
+                <div
+                    className={`board-turn-status board-terminal-line1 ${isYours ? 'is-yours' : ''} tone-${line1.tone}`}
+                    data-seat-color={line1.color}
+                >
+                    <span className="board-turn-status-dot shrink-0" />
+                    {!isYours && <SimBotIcon className="w-3 h-3 shrink-0 opacity-75" />}
+                    <TerminalTypeText
+                        key={line1.text}
+                        text={line1.text}
+                        charMs={16}
+                        trailingEllipsis
+                    />
+                </div>
+            )}
 
             <div className="board-terminal-line2-slot">
                 <AnimatePresence mode="wait">

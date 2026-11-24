@@ -1082,3 +1082,28 @@ body.theme-3077 .board-terminal-line2 {
   border-color: rgba(var(--accent-rgb), 0.24);
   letter-spacing: 0.1em;
 }
+body.theme-3077 .dice-bay {
+  border-radius: 8px;
+  background: linear-gradient(155deg, rgba(16, 22, 34, 0.96), rgba(6, 10, 18, 0.98));
+  border-color: rgba(var(--accent-rgb), 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 10px rgba(0, 0, 0, 0.65),
+    0 8px 20px rgba(0, 0, 0, 0.68);
+}
+body.theme-3077 .dice-bay.is-ready {
+  border-color: color-mix(in srgb, var(--bay-accent) 76%, transparent);
+  box-shadow:
+    0 0 16px color-mix(in srgb, var(--bay-accent) 30%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+body.theme-3077 .dice-streak-strip {
+  border-radius: 4px;
+  background: rgba(6, 10, 18, 0.95);
+  border-color: rgba(var(--accent-rgb), 0.34);
+}
+body.theme-3077 .dice-streak-pip {
+  background: rgba(var(--accent-rgb), 0.16);
+  border: 1px solid rgba(var(--accent-rgb), 0.45);
+  color: var(--accent, #00e5ff);
+}

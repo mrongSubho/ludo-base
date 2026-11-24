@@ -32,6 +32,7 @@ interface TokenPieceProps {
     boosted?: boolean;
     boostArmed?: boolean;
     onClick: () => void;
+    onHoverChange?: (hovering: boolean) => void;
 }
 
 export function TokenPiece({
@@ -51,7 +52,8 @@ export function TokenPiece({
     targetable = false,
     boosted = false,
     boostArmed = false,
-    onClick
+    onClick,
+    onHoverChange,
 }: TokenPieceProps) {
     const [visualPt, setVisualPt] = React.useState<Point | null>(targetPt);
     const prevPosRef = React.useRef(pos);
@@ -107,12 +109,12 @@ export function TokenPiece({
         if (prefersReducedMotion()) return;
         // Settle: squash -> recover -> rest
         const settle = gsap.timeline()
-            .to(hopRef.current, { scaleY: 0.84, scaleX: 1.16, y: 3, duration: 0.12, ease: 'power2.out' })
-            .to(hopRef.current, { scaleY: 1.05, scaleX: 0.97, y: -2, duration: 0.14, ease: 'sine.inOut' })
-            .to(hopRef.current, { scaleY: 1, scaleX: 1, y: 0, duration: 0.16, ease: 'sine.out' });
+            .to(hopRef.current, { scaleY: 0.85, scaleX: 1.15, y: 2.5, duration: 0.09, ease: 'power2.out' })
+            .to(hopRef.current, { scaleY: 1.05, scaleX: 0.96, y: -1.5, duration: 0.1, ease: 'sine.inOut' })
+            .to(hopRef.current, { scaleY: 1, scaleX: 1, y: 0, duration: 0.12, ease: 'sine.out' });
         const shade = gsap.timeline()
-            .to(shadowRef.current, { opacity: 1, duration: 0.1 })
-            .to(shadowRef.current, { opacity: 0.9, duration: 0.25 });
+            .to(shadowRef.current, { opacity: 1, duration: 0.08 })
+            .to(shadowRef.current, { opacity: 0.9, duration: 0.18 });
         trackCleanup(() => { settle.kill(); shade.kill(); });
     }, []);
 
@@ -199,11 +201,13 @@ export function TokenPiece({
                 }
                 const final = all[all.length - 1];
                 const n = all.length - 1; // number of cells travelled
-                // Ludo World benchmark: constant-velocity stepped hops at 0.16s per cell
-                const cellDur = 0.16;
-                const LEAP = 0.12;
-                const UP = 0.045;
-                const DOWN = 0.075;
+                // Snappy stepped hops: 0.115s/cell normal, 0.085s/cell during +6 Boost overdrive
+                const cellDur = isBoosted ? 0.085 : 0.115;
+                const GROUND = isBoosted ? 0.01 : 0.015;
+                const LEAP = isBoosted ? 0.064 : 0.084;
+                const UP = isBoosted ? 0.027 : 0.036;
+                const DOWN = isBoosted ? 0.037 : 0.048;
+                const RECOVER = Math.max(0.012, cellDur - GROUND - UP - DOWN);
 
                 // Waypoint offsets relative to the final cell (single snap).
                 // The element's grid slot IS the final cell, so the offset for
@@ -254,15 +258,16 @@ export function TokenPiece({
                             totalSteps: n,
                             boosted: isBoosted,
                         });
-                    }, undefined, t0 + 0.02);
-                    // constant-velocity travel: 0.12s leap with 0.02s grounded cushion
-                    tl.to(glide, { x: xs[i + 1], y: ys[i + 1], duration: LEAP, ease: 'none' }, t0 + 0.02);
-                    // leap up, then fall (vertical only — no lateral wobble)
-                    tl.to(hop, { y: -18, duration: UP, ease: 'power2.out' }, t0 + 0.02)
-                      .to(hop, { y: 0, duration: DOWN, ease: 'power2.in' }, t0 + 0.02 + UP);
+                    }, undefined, t0 + GROUND);
+                    // constant-velocity travel across the cell
+                    tl.to(glide, { x: xs[i + 1], y: ys[i + 1], duration: LEAP, ease: 'none' }, t0 + GROUND);
+                    // leap up (vertical takeoff stretch) -> land (squash impact) -> recover
+                    tl.to(hop, { y: isBoosted ? -17 : -15, scaleX: 0.91, scaleY: 1.12, duration: UP, ease: 'power2.out' }, t0 + GROUND)
+                      .to(hop, { y: 0, scaleX: 1.12, scaleY: 0.89, duration: DOWN, ease: 'power2.in' }, t0 + GROUND + UP)
+                      .to(hop, { scaleX: 1, scaleY: 1, duration: RECOVER, ease: 'power1.out' }, t0 + GROUND + UP + DOWN);
                     // shadow dims while airborne, restores on touchdown
-                    tl.to(shadow, { opacity: 0.5, duration: UP, ease: 'power2.out' }, t0 + 0.02)
-                      .to(shadow, { opacity: 0.9, duration: DOWN, ease: 'power2.in' }, t0 + 0.02 + UP);
+                    tl.to(shadow, { opacity: 0.5, duration: UP, ease: 'power2.out' }, t0 + GROUND)
+                      .to(shadow, { opacity: 0.9, duration: DOWN, ease: 'power2.in' }, t0 + GROUND + UP);
                 }
                 }).then((m) => recordHopSample(m));
             } else {
@@ -278,6 +283,10 @@ export function TokenPiece({
     return (
         <motion.div
             ref={cellRef}
+            onMouseEnter={() => isValidMove && onHoverChange?.(true)}
+            onMouseLeave={() => onHoverChange?.(false)}
+            onFocus={() => isValidMove && onHoverChange?.(true)}
+            onBlur={() => onHoverChange?.(false)}
             initial={{ opacity: 0, scale: 0.5 }}
             animate={{
                 opacity: 1,

@@ -157,9 +157,12 @@ export function PlayerRow({
         const canRoll = isMyTurn && (isMyColor || spectatorMode) && !isCurrentlyBot && localGameState.gamePhase === 'rolling' && localGameState.diceValue === null && !localGameState.isRolling;
 
         const flexDir = (corner === 'TL' || corner === 'BL') ? 'flex-row' : 'flex-row-reverse';
+        const side = (corner === 'TL' || corner === 'BL') ? 'left' : 'right';
+        const rowEdge = isTop ? 'top' : 'bottom';
+        const streakSixes = isMyTurn ? Math.min(2, Math.max(0, Number(localGameState.consecutiveSixes || 0))) : 0;
 
         return (
-            <div key={p.color} className={`player-wrapper ${isMyTurn ? 'active-turn' : ''} flex ${flexDir} items-center gap-3`}>
+            <div key={p.color} className={`player-wrapper ${isMyTurn ? 'active-turn' : ''} flex ${flexDir} items-center gap-2.5`}>
                 <PlayerCard
                     player={p}
                     isActive={isMyTurn}
@@ -167,16 +170,42 @@ export function PlayerRow({
                     isKicked={isCurrentlyBot && !p.isAi}
                 />
                 {isMyTurn && !spectatorMode && (
-                    <LudoDice
-                        key={p.color}
-                        onRoll={handleRoll}
-                        disabled={!canRoll}
-                        currentValue={localGameState.diceValue}
-                        isRolling={localGameState.isRolling}
-                        activeColor={p.color}
-                        boostActive={localGameState.activeBoost === p.color}
-                        bustKey={bustState?.color === p.color ? bustState.key : 0}
-                    />
+                    <div
+                        className={`dice-bay dice-bay-${side} dice-bay-row-${rowEdge} ${canRoll ? 'is-ready' : ''} ${localGameState.isRolling ? 'is-rolling' : ''} ${localGameState.activeBoost === p.color ? 'is-boosted' : ''}`}
+                        data-seat-color={p.color}
+                    >
+                        <span className="dice-bay-pointer" aria-hidden="true" />
+                        {streakSixes > 0 && (
+                            <div
+                                className={`dice-streak-strip ${streakSixes >= 2 ? 'is-danger' : ''}`}
+                                aria-label={`${streakSixes} consecutive six${streakSixes > 1 ? 'es' : ''}`}
+                                title={streakSixes >= 2 ? '2 sixes in a row — a 3rd six busts your turn!' : '1 six rolled — bonus roll active'}
+                            >
+                                {Array.from({ length: streakSixes }).map((_, sIdx) => (
+                                    <span key={sIdx} className="dice-streak-pip" aria-hidden="true">
+                                        <svg viewBox="0 0 20 20" className="w-full h-full">
+                                            <circle cx="6" cy="5" r="1.65" fill="currentColor" />
+                                            <circle cx="6" cy="10" r="1.65" fill="currentColor" />
+                                            <circle cx="6" cy="15" r="1.65" fill="currentColor" />
+                                            <circle cx="14" cy="5" r="1.65" fill="currentColor" />
+                                            <circle cx="14" cy="10" r="1.65" fill="currentColor" />
+                                            <circle cx="14" cy="15" r="1.65" fill="currentColor" />
+                                        </svg>
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                        <LudoDice
+                            key={p.color}
+                            onRoll={handleRoll}
+                            disabled={!canRoll}
+                            currentValue={localGameState.diceValue}
+                            isRolling={localGameState.isRolling}
+                            activeColor={p.color}
+                            boostActive={localGameState.activeBoost === p.color}
+                            bustKey={bustState?.color === p.color ? bustState.key : 0}
+                        />
+                    </div>
                 )}
                 {isMyTurn && spectatorMode && localGameState.diceValue != null && (
                     <div className="hud-chamfer-sm w-10 h-10 rounded-xl bg-surface-recessed border border-accent/40 flex items-center justify-center text-accent font-mono font-extrabold text-lg tabular-nums shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_20%,transparent)]">

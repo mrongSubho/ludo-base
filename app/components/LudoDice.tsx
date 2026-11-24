@@ -152,16 +152,16 @@ export default function LudoDice({
             controls.start({
                 rotateX: targetX,
                 rotateY: targetY,
-                rotateZ: prefersReducedMotion() ? 0 : 12,
-                transition: { duration: prefersReducedMotion() ? 0.01 : 0.3, ease: "linear" }
+                rotateZ: prefersReducedMotion() ? 0 : (spinsX % 2 === 0 ? 14 : -14),
+                transition: { duration: prefersReducedMotion() ? 0.01 : 0.34, ease: [0.22, 0.85, 0.36, 1] }
             });
 
             if (!prefersReducedMotion()) {
                 arcControls.start({
-                    y: [0, 3, -18, -12],
-                    scale: [1, 0.9, 1.15, 1.09],
-                    rotateZ: [0, -7, 8, -3],
-                    transition: { duration: 0.3, times: [0, 0.18, 0.65, 1], ease: 'easeOut' },
+                    y: [0, 1, -3, -1],
+                    scale: [1, 0.88, 1.22, 1.12],
+                    rotateZ: [0, -6, 6, -2],
+                    transition: { duration: 0.34, times: [0, 0.18, 0.62, 1], ease: 'easeOut' },
                 });
             }
 
@@ -187,15 +187,15 @@ export default function LudoDice({
                 rotateZ: 0,
                 transition: prefersReducedMotion()
                     ? { duration: 0.01 }
-                    : { type: 'spring', stiffness: 360, damping: 22 }
+                    : { type: 'spring', stiffness: 420, damping: 22 }
             });
 
             if (!prefersReducedMotion()) {
                 arcControls.start({
-                    y: [0, 2, -2, 0],
-                    scale: [1.08, 0.91, 1.04, 1],
+                    y: [0, 1.5, -1, 0],
+                    scale: [1.1, 0.9, 1.04, 1],
                     rotateZ: 0,
-                    transition: { duration: 0.24, times: [0, 0.35, 0.72, 1], ease: 'easeOut' },
+                    transition: { duration: 0.22, times: [0, 0.35, 0.72, 1], ease: 'easeOut' },
                 });
             } else {
                 arcControls.set({ y: 0, scale: 1, rotateZ: 0 });
@@ -247,15 +247,17 @@ export default function LudoDice({
 
     return (
         <motion.div
-            className="ludo-dice-container relative flex flex-col items-center justify-center p-4"
-            initial={{ scale: 0, opacity: 0, y: 46, rotate: -32 }}
+            className="ludo-dice-container relative flex items-center justify-center"
+            initial={prefersReducedMotion() ? false : { scale: 0.55, opacity: 0 }}
             animate={{
-                scale: [0, 1.22, 0.94, 1.06, 1],
-                opacity: [0, 1, 1, 1, 1],
-                y: [46, -12, 4, 0, 0],
-                rotate: [-32, 10, -6, 2, 0],
+                scale: prefersReducedMotion() ? 1 : [0.55, 1.1, 0.96, 1],
+                opacity: 1,
             }}
-            transition={{ duration: 0.85, times: [0, 0.45, 0.68, 0.85, 1], ease: 'easeOut' }}
+            transition={{
+                duration: prefersReducedMotion() ? 0.01 : 0.3,
+                times: [0, 0.52, 0.78, 1],
+                ease: 'easeOut',
+            }}
         >
             {/* Touchdown shock-ring on any roll settle */}
             {landKey > 0 && (
@@ -343,8 +345,8 @@ export default function LudoDice({
                 className="absolute w-24 h-24 rounded-full blur-2xl pointer-events-none"
                 initial={false}
                 animate={{
-                    scale: isRolling ? 0.85 : 1.5,
-                    opacity: isRolling ? 0.25 : 0.5,
+                    scale: isRolling ? 0.85 : 1.35,
+                    opacity: isRolling ? 0.25 : 0.45,
                     backgroundColor: boostActive ? '#f59e0b' : accentColor,
                 }}
                 transition={{ duration: 0.3 }}
@@ -359,10 +361,10 @@ export default function LudoDice({
                 />
             )}
 
-            {/* Airborne Launch Arc Wrapper + 3D Scene Wrapper */}
-            <motion.div animate={arcControls} className="relative w-12 h-12">
+            {/* Camera-Axis Z-Pop Tumble Wrapper + 3D Scene Wrapper */}
+            <motion.div animate={arcControls} className="relative w-11 h-11">
                 <div 
-                    className="relative w-12 h-12" 
+                    className="relative w-11 h-11" 
                     style={{ perspective: '800px' }}
                 >
                     {/* The Cube (Motor) */}
@@ -395,82 +397,82 @@ export default function LudoDice({
                 </div>
             </motion.div>
 
-            {/* Drop Shadow / 3077 Emitter Pad / Retro Dotted Orbital Ring */}
-            {is3077 ? (
-                <motion.div
-                    className="w-11 h-1.5 rounded-full pointer-events-none mt-4"
-                    style={{
-                        backgroundColor: accentColor,
-                        boxShadow: `0 0 12px ${accentColor}`,
-                    }}
-                    animate={{
-                        scale: isRolling ? [0.8, 0.55, 0.8] : 1,
-                        opacity: isRolling ? 0.28 : 0.55,
-                    }}
-                    transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
-                />
-            ) : isRetro ? (
-                <motion.div
-                    className="mt-3 pointer-events-none flex items-center justify-center"
-                    aria-hidden="true"
-                    animate={{
-                        scale: isRolling ? [0.85, 0.65, 0.85] : 1,
-                        opacity: isRolling ? 0.45 : 0.9,
-                    }}
-                    transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
-                >
-                    <svg viewBox="0 0 64 16" className="w-12 h-3" fill="none">
-                        <ellipse
-                            cx="32"
-                            cy="8"
-                            rx="26"
-                            ry="5"
-                            stroke={accentColor}
-                            strokeWidth="1.5"
-                            strokeDasharray="3 4"
-                            strokeLinecap="round"
-                            strokeOpacity="0.72"
-                        />
-                    </svg>
-                </motion.div>
-            ) : isDaybreak ? (
-                <motion.div
-                    className="mt-3 pointer-events-none flex flex-col items-center justify-center"
-                    aria-hidden="true"
-                    animate={{
-                        scale: isRolling ? [1, 0.72, 1] : 1,
-                        opacity: isRolling ? 0.32 : 0.75,
-                    }}
-                    transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
-                >
-                    <svg viewBox="0 0 64 16" className="w-12 h-3" fill="none">
-                        <ellipse
-                            cx="32"
-                            cy="8"
-                            rx="24"
-                            ry="4.5"
-                            stroke="rgba(28, 25, 23, 0.22)"
-                            strokeWidth="1"
-                        />
-                    </svg>
-                    <div
-                        className="w-9 h-1.5 -mt-2 rounded-[100%] blur-sm"
+            {/* Centered Absolute Drop Shadow / 3077 Emitter Pad / Retro Dotted Orbital Ring */}
+            <div className="dice-ground-shadow pointer-events-none" aria-hidden="true">
+                {is3077 ? (
+                    <motion.div
+                        className="w-10 h-1 rounded-full"
                         style={{
-                            backgroundColor: 'rgba(28, 25, 23, 0.26)',
-                            boxShadow: '0 2px 6px rgba(28, 25, 23, 0.22)',
+                            backgroundColor: accentColor,
+                            boxShadow: `0 0 10px ${accentColor}`,
                         }}
+                        animate={{
+                            scale: isRolling ? [0.8, 0.55, 0.8] : 1,
+                            opacity: isRolling ? 0.28 : 0.55,
+                        }}
+                        transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
                     />
-                </motion.div>
-            ) : (
-                <motion.div 
-                    className="w-10 h-1.5 rounded-[100%] bg-black/60 blur-sm pointer-events-none mt-4"
-                    animate={{
-                        scale: isRolling ? [1, 0.7, 1] : 1,
-                        opacity: isRolling ? 0.3 : 0.6
-                    }}
-                    transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
-                />
-            )}
+                ) : isRetro ? (
+                    <motion.div
+                        className="flex items-center justify-center"
+                        animate={{
+                            scale: isRolling ? [0.85, 0.65, 0.85] : 1,
+                            opacity: isRolling ? 0.45 : 0.9,
+                        }}
+                        transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
+                    >
+                        <svg viewBox="0 0 64 14" className="w-11 h-2.5" fill="none">
+                            <ellipse
+                                cx="32"
+                                cy="7"
+                                rx="25"
+                                ry="4.2"
+                                stroke={accentColor}
+                                strokeWidth="1.5"
+                                strokeDasharray="3 4"
+                                strokeLinecap="round"
+                                strokeOpacity="0.72"
+                            />
+                        </svg>
+                    </motion.div>
+                ) : isDaybreak ? (
+                    <motion.div
+                        className="flex flex-col items-center justify-center"
+                        animate={{
+                            scale: isRolling ? [1, 0.72, 1] : 1,
+                            opacity: isRolling ? 0.32 : 0.75,
+                        }}
+                        transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
+                    >
+                        <svg viewBox="0 0 64 14" className="w-11 h-2.5" fill="none">
+                            <ellipse
+                                cx="32"
+                                cy="7"
+                                rx="23"
+                                ry="4"
+                                stroke="rgba(28, 25, 23, 0.22)"
+                                strokeWidth="1"
+                            />
+                        </svg>
+                        <div
+                            className="w-8 h-1 -mt-1.5 rounded-full blur-sm"
+                            style={{
+                                backgroundColor: 'rgba(28, 25, 23, 0.26)',
+                                boxShadow: '0 2px 6px rgba(28, 25, 23, 0.22)',
+                            }}
+                        />
+                    </motion.div>
+                ) : (
+                    <motion.div 
+                        className="w-9 h-1 rounded-full bg-black/60 blur-sm"
+                        animate={{
+                            scale: isRolling ? [1, 0.7, 1] : 1,
+                            opacity: isRolling ? 0.3 : 0.6
+                        }}
+                        transition={isRolling ? { repeat: Infinity, duration: 0.6 } : {}}
+                    />
+                )}
+            </div>
 
             <style jsx>{`
                 .ludo-dice-container {
@@ -483,7 +485,7 @@ export default function LudoDice({
 }
 
 function getFaceTransform(index: number) {
-    const tz = '24px'; // Half of cube size (48px / 2 = 24px)
+    const tz = '22px'; // Half of cube size (44px / 2 = 22px)
     return [
         `translateZ(${tz})`,                 // Front
         `rotateY(90deg) translateZ(${tz})`,   // Right
@@ -513,7 +515,7 @@ function DiceFace({
 }) {
     return (
         <div
-            className={`absolute inset-0 w-12 h-12 flex items-center justify-center p-1 border ${
+            className={`absolute inset-0 w-11 h-11 flex items-center justify-center p-1 border ${
                 isTacticalFace
                     ? 'rounded-md shadow-[inset_0_0_8px_color-mix(in_srgb,var(--accent)_18%,transparent),inset_0_1px_1px_rgba(255,255,255,0.16),0_1px_4px_rgba(0,0,0,0.6)]'
                     : isPorcelainFace

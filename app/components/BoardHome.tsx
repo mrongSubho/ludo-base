@@ -149,7 +149,7 @@ function getZoneHex(
 const HomeProgressRing = ({ pos, color, counterRotationDeg = 0, colorCorner, tokenColor, viewerColor, is3077 = false, isRetro = false }: { pos: number; color: string; counterRotationDeg?: number; colorCorner?: ColorCorner; tokenColor?: string; viewerColor?: string; is3077?: boolean; isRetro?: boolean }) => {
     const hex = (is3077 ? FACTION_HEX_3077 : isRetro ? FACTION_HEX_RETRO : RING_HEX)[color] || '#ffffff';
     const zoneHex = tokenColor && colorCorner ? getZoneHex(pos, tokenColor, colorCorner, is3077, isRetro) : hex;
-    const r = 20;
+    const r = 21;
     const C = 2 * Math.PI * r;
     const localPos = tokenColor && colorCorner ? globalToLocal(pos, tokenColor, colorCorner) : pos;
     const pct = Math.min(Math.max(localPos, 0), 57) / 57;
@@ -159,16 +159,28 @@ const HomeProgressRing = ({ pos, color, counterRotationDeg = 0, colorCorner, tok
     const displayIndex = localPos;
 
     return (
-        <div className="relative w-[68%] h-[68%] flex items-center justify-center" style={{ pointerEvents: 'none' }}>
+        <div className="relative w-[74%] h-[74%] flex items-center justify-center" style={{ pointerEvents: 'none' }}>
             <svg width="100%" height="100%" viewBox="0 0 48 48" className="absolute inset-0">
-                <circle cx="24" cy="24" r={r} fill="none" stroke={hex} strokeOpacity="0.14" strokeWidth="4" />
+                {isDone && (
+                    <circle
+                        cx="24"
+                        cy="24"
+                        r="16.5"
+                        fill={hex}
+                        fillOpacity="0.18"
+                        stroke={hex}
+                        strokeOpacity="0.4"
+                        strokeWidth="1"
+                    />
+                )}
+                <circle cx="24" cy="24" r={r} fill="none" stroke={hex} strokeOpacity="0.16" strokeWidth="4.2" />
                 <circle
                     cx="24"
                     cy="24"
                     r={r}
                     fill="none"
                     stroke={hex}
-                    strokeWidth="3.5"
+                    strokeWidth="4"
                     strokeLinecap="round"
                     strokeDasharray={`${filled} ${C - filled}`}
                     transform="rotate(-90 24 24)"
@@ -183,17 +195,22 @@ const HomeProgressRing = ({ pos, color, counterRotationDeg = 0, colorCorner, tok
                 <motion.span
                     key={isDone ? 'done' : `${displayIndex}-${zoneHex}`}
                     initial={isDone ? { scale: 0 } : undefined}
-                    animate={isDone ? { scale: [0, 1.4, 1] } : { scale: 1 }}
-                    transition={isDone ? { duration: 0.5, times: [0, 0.6, 1], ease: 'easeOut' } : undefined}
-                    className="tabular-nums font-extrabold leading-none"
+                    animate={isDone ? { scale: [0, 1.35, 1] } : { scale: 1 }}
+                    transition={isDone ? { duration: 0.45, times: [0, 0.6, 1], ease: 'easeOut' } : undefined}
+                    className="tabular-nums font-extrabold leading-none flex items-center justify-center"
                     style={{
                         color: zoneHex,
-                        fontSize: isDone ? '14px' : '10px',
+                        fontSize: displayIndex >= 10 ? '11.5px' : '12px',
                         textShadow: `0 0 6px ${zoneHex}`,
-                        display: 'inline-block',
+                        width: isDone ? '100%' : undefined,
+                        height: isDone ? '100%' : undefined,
                     }}
                 >
-                    {isDone ? '✓' : displayIndex === 0 ? '▶' : `${displayIndex}`}
+                    {isDone ? (
+                        <svg viewBox="0 0 16 16" className="w-[54%] h-[54%]" fill="none" aria-hidden="true">
+                            <path d="M3.2 8.4L6.5 11.6L12.8 4.8" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    ) : displayIndex === 0 ? '▶' : `${displayIndex}`}
                 </motion.span>
             </div>
         </div>
@@ -211,6 +228,7 @@ interface HomeBlockProps {
     colorCorner?: ColorCorner;
     viewerColor?: string;
     onTokenClick: (tokenIndex: number) => void;
+    onTokenHover?: (tokenIndex: number | null) => void;
     isDraggable?: boolean;
     counterRotationDeg?: number;
     diceValue?: number | null;
@@ -229,6 +247,7 @@ export function HomeBlock({
     colorCorner,
     viewerColor,
     onTokenClick,
+    onTokenHover,
     isDraggable,
     counterRotationDeg = 0,
     diceValue = null,
@@ -302,7 +321,12 @@ export function HomeBlock({
                     const isPlayerTurn = currentPlayer === color && gamePhase === 'moving';
                     const isValidHome = isInHome && isPlayerTurn && diceValue === 6;
                     return (
-                        <div key={idx} className={`token-dot-wrapper ${isPlayerTurn && isInHome && !isValidHome ? 'token-home-invalid' : ''}`}>
+                        <div
+                            key={idx}
+                            className={`token-dot-wrapper ${isPlayerTurn && isInHome && !isValidHome ? 'token-home-invalid' : ''}`}
+                            onMouseEnter={() => isValidHome && onTokenHover?.(idx)}
+                            onMouseLeave={() => onTokenHover?.(null)}
+                        >
                             {isInHome && (
                                 <Token
                                     color={color}
