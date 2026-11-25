@@ -21,6 +21,7 @@ import {
     POWER_TILES_COUNT 
 } from '@/lib/constants';
 import { activeColorsForTurns } from '@/lib/engine';
+import { clearShieldsOnTurnChange } from '@/lib/engine/core';
 import { resetNetCounters } from '@/lib/netcode/counters';
 import { shouldFlushServerState } from '@/lib/netcode/flushGate';
 import { computeAuthority } from '@/lib/netcode/authorityGate';
@@ -367,6 +368,7 @@ export function useGameEngine({
                     ...prev,
                     gamePhase: 'rolling',
                     currentPlayer: nextPlayer,
+                    activeShields: clearShieldsOnTurnChange(prev.activeShields, prev.currentPlayer, nextPlayer),
                     diceValue: null,
                     timeLeft: 15,
                     lastUpdate: Date.now()

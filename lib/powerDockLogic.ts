@@ -25,8 +25,8 @@ export const POWER_META: Record<PowerType, PowerMetaEntry> = {
     shield: {
         title: 'Shield',
         shortTag: '1-TURN AEGIS',
-        summary: 'Protect your track tokens until your next move',
-        simCaption: 'BLOCKS CAPTURES & NUKES UNTIL NEXT MOVE',
+        summary: 'Protect your track tokens until your next turn',
+        simCaption: 'BLOCKS CAPTURES & NUKES UNTIL NEXT TURN',
         ctaLabel: 'USE SHIELD',
         armedLabel: 'SHIELD UP',
         accentVar: '#06b6d4',

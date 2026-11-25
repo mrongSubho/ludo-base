@@ -20,6 +20,7 @@ import { sanitizeGameStateForWire } from '@/lib/wireSanitize';
 import { createPeerInstance } from '@/lib/peerFactory';
 import { RoomClient } from '@/lib/netcode/roomClient';
 import { INITIAL_GAME_STATE as ENGINE_INIT, calculateNextPosition } from '@/lib/gameLogic';
+import { clearShieldsOnTurnChange } from '@/lib/engine/core';
 import {
     GameState,
     PlayerColor,
@@ -1270,6 +1271,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             setGameState((prev: GameState) => ({
                 ...prev,
                 currentPlayer: nextPlayer,
+                activeShields: clearShieldsOnTurnChange(prev.activeShields, prev.currentPlayer, nextPlayer),
                 diceValue: null,
                 isRolling: false,
                 gamePhase: 'rolling',

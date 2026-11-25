@@ -2,7 +2,7 @@ import { useCallback, useRef, useEffect } from 'react';
 import { PlayerColor, PowerType, PowerItem, GameState, GameStateSetter, BetType, GameActionType, GameIntentType, GameIntentPayloads, GameActionPayload } from '@/lib/types';
 import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, getLegalTokenIndices } from '@/lib/gameLogic';
 import { activeColorsForTurns } from '@/lib/engine';
-import { applyPowerPickup, resolveControllableColor, sweepExpiredPowers } from '@/lib/engine/core';
+import { applyPowerPickup, clearShieldsOnTurnChange, resolveControllableColor, sweepExpiredPowers } from '@/lib/engine/core';
 import { countNukeVictims } from '@/lib/aiEngine';
 import { Player } from './useGameEngine';
 import { ColorCorner } from '@/lib/boardLayout';
@@ -270,10 +270,11 @@ export function useGameActions({
                 setLocalGameState((latest) => latest.boostTrail === color ? { ...latest, boostTrail: null, lastUpdate: Date.now() } : latest);
             }, 1600);
         }
-        // Shields last until the owner's next move completes.
-        finalState.activeShields = (currentState.activeShields || []).filter(
-            (s) => s.color !== currentState.currentPlayer
-        );
+        // Shields stay active through this turn (including bonus rolls) and expire
+        // when turn control returns to the owner (`processMove` handles turn handoffs).
+        if (pendingBoostDice !== null) {
+            finalState.activeShields = currentState.activeShields || [];
+        }
 
         // ── Power pickup: landing exactly on a hidden tile reveals + grants.
         const landedPos = newState.positions[color][tokenIndex];
@@ -380,6 +381,7 @@ export function useGameActions({
                         const passOrBonusState: GameState = {
                             ...latest,
                             currentPlayer: step2NextPlayer,
+                            activeShields: clearShieldsOnTurnChange(latest.activeShields, actingSeat, step2NextPlayer),
                             diceValue: null,
                             boostPendingDice: null,
                             boostSubMoveBonus: false,
@@ -706,9 +708,11 @@ export function useGameActions({
             }
             // Instant pass: no dead time when nobody can move
             setLocalGameState((latest) => {
+                const targetNext = pNextPlayer ?? latest.currentPlayer;
                 const switchState: GameState = {
                     ...latest,
-                    currentPlayer: pNextPlayer ?? latest.currentPlayer,
+                    currentPlayer: targetNext,
+                    activeShields: clearShieldsOnTurnChange(latest.activeShields, color, targetNext),
                     diceValue: null,
                     gamePhase: 'rolling',
                     consecutiveSixes: 0,
@@ -809,7 +813,7 @@ export function useGameActions({
                 }
             });
             nextState.activeShields = newShields;
-            nextState.captureMessage = `Shield up! Safe until your next move.`;
+            nextState.captureMessage = `Shield up! Protected until your next turn.`;
             sound = 'shield';
         }
         else if (pick === 'nuke') {

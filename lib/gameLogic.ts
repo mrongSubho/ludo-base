@@ -6,6 +6,7 @@ import {
     TOTAL_PATH_CELLS,
     DEFAULT_TURN_TIMER_SECS,
     DICE_ROLL_SIX,
+    HOME_LANE_START_INDEX,
     BASE_INDEX,
     MAX_CONSECUTIVE_SIXES,
     POWER_RARITY,
@@ -13,6 +14,7 @@ import {
     TEAM_PAIRINGS,
     TEAM_ID
 } from './constants';
+import { clearShieldsOnTurnChange } from './engine/core';
 import type { PowerType } from './types';
 
 /** Zeroed combat counters for every color. */
@@ -376,18 +378,24 @@ function finishTrappedMove(
     state: GameState,
     newPositions: Record<PlayerColor, number[]>,
     newTraps: GameState['activeTraps'],
+    trappedColor: PlayerColor,
+    trappedTokenIdx: number,
     actingColor: PlayerColor,
     playerCount: string,
     activeColors: PlayerColor[] | undefined,
     cc: ColorCorner,
 ): GameState {
+    const nextPlayer = getNextPlayer(actingColor, playerCount, activeColors, cc);
+    const withoutTrapped = (state.activeShields || []).filter(
+        (s) => !(s.color === trappedColor && s.tokenIdx === trappedTokenIdx),
+    );
     return {
         ...state,
         positions: newPositions,
         activeTraps: newTraps,
-        activeShields: (state.activeShields || []).filter(s => s.color !== actingColor),
+        activeShields: clearShieldsOnTurnChange(withoutTrapped, actingColor, nextPlayer),
         lastUpdate: Date.now(),
-        currentPlayer: getNextPlayer(actingColor, playerCount, activeColors, cc),
+        currentPlayer: nextPlayer,
         gamePhase: 'rolling',
         diceValue: null,
     };
@@ -476,7 +484,7 @@ export function processMove(
         const newTraps = [...state.activeTraps];
         newTraps.splice(trapResult.trapIdx, 1);
         return {
-            newState: finishTrappedMove(state, trapResult.newPositions, newTraps, actingColor, playerCount, activeColors, cc),
+            newState: finishTrappedMove(state, trapResult.newPositions, newTraps, tokenColor, tokenIndex, actingColor, playerCount, activeColors, cc),
             captured: false,
             finishedToken: false,
             bonusRoll: false
@@ -525,6 +533,11 @@ export function processMove(
     const newlyFinished = (['green', 'red', 'yellow', 'blue'] as PlayerColor[])
         .filter(c => allFinished(c) && !state.winners.includes(c));
 
+    const shieldsAfterMove =
+        nextPos >= HOME_LANE_START_INDEX
+            ? (state.activeShields || []).filter((s) => !(s.color === tokenColor && s.tokenIdx === tokenIndex))
+            : (state.activeShields || []);
+
     return {
         newState: {
             ...state,
@@ -535,6 +548,7 @@ export function processMove(
             winner,
             status,
             winners: newlyFinished.length ? [...state.winners, ...newlyFinished] : state.winners,
+            activeShields: clearShieldsOnTurnChange(shieldsAfterMove, actingColor, nextPlayer),
             matchStats,
             lastUpdate: Date.now()
         },

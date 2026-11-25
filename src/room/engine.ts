@@ -453,22 +453,47 @@ export function isBoardCleared(positions: Record<PlayerColor, number[]>): boolea
  * downstream (which runs for trap results too), and a trap sends a token to
  * BASE so it can never complete a win.
  */
+/**
+ * Clear active shields belonging to `nextPlayer` when turn control rotates from
+ * another player into `nextPlayer`'s new turn. Shields stay up through the
+ * caster's own move (including bonus rolls) and across all opponent turns.
+ */
+export function clearShieldsOnTurnChange(
+    activeShields: { color: PlayerColor; tokenIdx: number }[] | undefined,
+    prevPlayer: PlayerColor,
+    nextPlayer: PlayerColor,
+): { color: PlayerColor; tokenIdx: number }[] {
+    const shields = activeShields || [];
+    if (prevPlayer === nextPlayer) return shields;
+    return shields.filter((s) => s.color !== nextPlayer);
+}
+
+/**
+ * ENG-14: shared post-move epilogue for the trap branch so shield cleanup and
+ * `diceValue` reset cannot diverge from the normal move branch.
+ */
 function finishTrappedMove(
     state: EngineGameState,
     newPositions: Record<PlayerColor, number[]>,
     newTraps: EngineGameState['activeTraps'],
+    trappedColor: PlayerColor,
+    trappedTokenIdx: number,
     actingColor: PlayerColor,
     playerCount: string,
     activeColors: PlayerColor[] | undefined,
     cc: ColorCorner,
 ): EngineGameState {
+    const nextPlayer = getNextPlayer(actingColor, playerCount, activeColors, cc);
+    const withoutTrapped = (state.activeShields || []).filter(
+        (s) => !(s.color === trappedColor && s.tokenIdx === trappedTokenIdx),
+    );
     return {
         ...state,
         positions: newPositions,
         activeTraps: newTraps,
-        activeShields: (state.activeShields || []).filter(s => s.color !== actingColor),
+        activeShields: clearShieldsOnTurnChange(withoutTrapped, actingColor, nextPlayer),
         lastUpdate: Date.now(),
-        currentPlayer: getNextPlayer(actingColor, playerCount, activeColors, cc),
+        currentPlayer: nextPlayer,
         gamePhase: 'rolling',
         diceValue: null,
     };
@@ -523,7 +548,7 @@ export function processMove(
         const newTraps = [...(state.activeTraps || [])];
         newTraps.splice(trapIdx, 1);
         return {
-            newState: finishTrappedMove(state, newPositions, newTraps, actingColor, playerCount, activeColors, cc),
+            newState: finishTrappedMove(state, newPositions, newTraps, tokenColor, tokenIndex, actingColor, playerCount, activeColors, cc),
             captured: false,
             finishedToken: false,
             bonusRoll: false,
@@ -565,6 +590,11 @@ export function processMove(
         ? actingColor
         : getNextPlayer(actingColor, playerCount, activeColors, cc);
 
+    const shieldsAfterMove =
+        nextPos >= HOME_LANE_START_INDEX
+            ? (state.activeShields || []).filter((s) => !(s.color === tokenColor && s.tokenIdx === tokenIndex))
+            : (state.activeShields || []);
+
     return {
         newState: {
             ...state,
@@ -575,7 +605,7 @@ export function processMove(
             winner: victory.winner,
             status: victory.status,
             winners: newlyFinished.length ? [...state.winners, ...newlyFinished] : state.winners,
-            activeShields: (state.activeShields || []).filter(s => s.color !== actingColor),
+            activeShields: clearShieldsOnTurnChange(shieldsAfterMove, actingColor, nextPlayer),
             matchStats,
             lastUpdate: Date.now(),
         },
@@ -923,7 +953,7 @@ export function applyPower(
             }
         });
         next.activeShields = newShields;
-        message = 'Shield up! Safe until your next move.';
+        message = 'Shield up! Protected until your next turn.';
         next.playerPowers = { ...next.playerPowers, [color]: consumeOne(inv, 'shield') };
         next.powerSpentThisTurn = true;
         next.lastUpdate = now;
@@ -1138,6 +1168,7 @@ export function resolveRollWithBoost(params: {
                 ...state,
                 diceValue: null,
                 currentPlayer: nextPlayer,
+                activeShields: clearShieldsOnTurnChange(state.activeShields, color, nextPlayer),
                 isRolling: false,
                 gamePhase: 'rolling',
                 consecutiveSixes: 0,
@@ -1191,6 +1222,7 @@ export function resolveRollWithBoost(params: {
                 ...state,
                 diceValue: null,
                 currentPlayer: nextPlayer,
+                activeShields: clearShieldsOnTurnChange(state.activeShields, color, nextPlayer),
                 isRolling: false,
                 gamePhase: 'rolling',
                 consecutiveSixes: 0,
@@ -1333,9 +1365,11 @@ export function resolveNetworkedMove(params: {
 
         // Step 2 has no legal moves on post-Step-1 board: grant bonus roll if Step 1 broke streak, else pass turn.
         const keepTurn = step1StreakBreak;
+        const step2NextPlayer = keepTurn ? color : getNextPlayer(color, playerCount, activeColors, cc);
         next = {
             ...next,
-            currentPlayer: keepTurn ? color : getNextPlayer(color, playerCount, activeColors, cc),
+            currentPlayer: step2NextPlayer,
+            activeShields: clearShieldsOnTurnChange(next.activeShields, color, step2NextPlayer),
             diceValue: null,
             isRolling: false,
             gamePhase: 'rolling',

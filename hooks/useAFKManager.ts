@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { PlayerColor, GameState, GameStateSetter, GameActionType, GameActionPayload } from '@/lib/types';
 import { Player } from './useGameEngine';
 import { getLegalTokenIndices } from '@/lib/gameLogic';
+import { clearShieldsOnTurnChange } from '@/lib/engine/core';
 import { ColorCorner } from '@/lib/boardLayout';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
 import type { RollOutcome, MoveTokenOutcome } from './useGameActions';
@@ -170,6 +171,7 @@ export function useAFKManager({
                             ...s,
                             gamePhase: 'rolling',
                             currentPlayer: nextPlayer,
+                            activeShields: clearShieldsOnTurnChange(s.activeShields, s.currentPlayer, nextPlayer),
                             diceValue: null,
                             timeLeft: 15,
                             lastUpdate: Date.now()

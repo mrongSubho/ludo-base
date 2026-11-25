@@ -22,6 +22,7 @@ import {
     activeColorsForTurns,
     calculateNextPosition,
     checkThreeSixesForMove,
+    clearShieldsOnTurnChange,
     countNukeVictims,
     effectiveMoveSteps,
     emptyEngineMatchStats,
@@ -888,4 +889,139 @@ test('getLegalTokenIndices offers only tokens that change position', () => {
     assert.ok(!legal.includes(2), 'a finished token cannot move');
     assert.ok(!legal.includes(3), 'base needs a six');
     assert.deepEqual(getLegalTokenIndices(positions, 'green', 6, CC4P), [0, 3]);
+});
+
+// ── Shield turn-cycle lifetime ─────────────────────────────────────────────
+
+test('Shield activated before roll stays active after caster moves and blocks captures & nukes until next turn', () => {
+    const start = st({
+        positions: {
+            green: [5, 10, -1, -1],
+            red: [4, -1, -1, -1],     // 4 + 4 = 8 -> lands right on green token 0 after green moves 5->8
+            yellow: [6, -1, -1, -1],  // within ±3 of green token 0/1 for nuke
+            blue: [20, -1, -1, -1],
+        },
+        playerCount: '4P',
+        currentPlayer: 'green',
+        gamePhase: 'rolling',
+        playerPowers: { green: [{ type: 'shield', expiresAt: 2_000_000 }] } as never,
+    });
+
+    // 1. Before rolling, Green activates Shield.
+    const shielded = applyPower(start, 'green', 'shield', undefined, CC4P, '4P', 1_000_000);
+    assert.equal(shielded.ok, true);
+    assert.deepEqual(shielded.state!.activeShields, [
+        { color: 'green', tokenIdx: 0 },
+        { color: 'green', tokenIdx: 1 },
+    ]);
+
+    // 2. Green rolls 3 and moves token 0 (5 -> 8). Turn passes to Red.
+    //    Green's Shield MUST remain active!
+    const rollG = resolveRollWithBoost({
+        state: shielded.state!,
+        color: 'green',
+        rollValue: 3,
+        cc: CC4P,
+        playerCount: '4P',
+        now: 1_000_001,
+    });
+    assert.equal(rollG.outcome, 'moving');
+    const moveG = resolveNetworkedMove({
+        state: rollG.state,
+        color: 'green',
+        tokenIndex: 0,
+        dice: 3,
+        cc: CC4P,
+        playerCount: '4P',
+        now: 1_000_002,
+    });
+    assert.equal(moveG.ok, true);
+    assert.equal(moveG.state!.currentPlayer, 'red');
+    assert.equal(moveG.state!.activeShields.length, 2, 'Green shield stays up after Green moves');
+
+    // 3. Red rolls 4 and moves onto Green's shielded token at index 8 -> NO capture!
+    const moveR = resolveNetworkedMove({
+        state: { ...moveG.state!, diceValue: 4, gamePhase: 'moving' },
+        color: 'red',
+        tokenIndex: 0,
+        dice: 4,
+        cc: CC4P,
+        playerCount: '4P',
+        now: 1_000_003,
+    });
+    assert.equal(moveR.ok, true);
+    assert.equal(moveR.captured, false, 'Shield blocks opponent capture on opponent turn');
+    assert.equal(moveR.state!.positions.green[0], 8);
+    assert.equal(moveR.state!.currentPlayer, 'yellow');
+    assert.equal(moveR.state!.activeShields.length, 2, 'Green shield stays up through Red turn');
+
+    // 4. Yellow checks Nuke near Green's tokens -> 0 victims because Green is shielded!
+    const nukeCheck = countNukeVictims(moveR.state!, 'yellow', 0, CC4P, '4P');
+    assert.equal(nukeCheck.victims.length, 0, 'Shield blocks opponent nuke on opponent turn');
+
+    const moveY = resolveNetworkedMove({
+        state: { ...moveR.state!, diceValue: 1, gamePhase: 'moving' },
+        color: 'yellow',
+        tokenIndex: 0,
+        dice: 1,
+        cc: CC4P,
+        playerCount: '4P',
+        now: 1_000_004,
+    });
+    assert.equal(moveY.state!.currentPlayer, 'blue');
+    assert.equal(moveY.state!.activeShields.length, 2, 'Green shield stays up through Yellow turn');
+
+    // 5. Blue finishes turn and control returns to Green -> Green's previous Shield expires now!
+    const moveB = resolveNetworkedMove({
+        state: { ...moveY.state!, diceValue: 2, gamePhase: 'moving' },
+        color: 'blue',
+        tokenIndex: 0,
+        dice: 2,
+        cc: CC4P,
+        playerCount: '4P',
+        now: 1_000_005,
+    });
+    assert.equal(moveB.ok, true);
+    assert.equal(moveB.state!.currentPlayer, 'green');
+    assert.equal(moveB.state!.activeShields.length, 0, 'Shield expires when control returns to owner next turn');
+});
+
+test('Shield survives caster bonus roll, no-moves pass, and prunes only trapped/home tokens', () => {
+    const start = st({
+        positions: {
+            green: [5, 30, -1, -1],
+            red: [-1, -1, -1, -1],
+            yellow: [10, -1, -1, -1],
+            blue: [-1, -1, -1, -1],
+        },
+        playerCount: '1v1',
+        currentPlayer: 'green',
+        gamePhase: 'rolling',
+        playerPowers: { green: [{ type: 'shield', expiresAt: 2_000_000 }] } as never,
+    });
+    const shieldRes = applyPower(start, 'green', 'shield', undefined, CC4P, '1v1', 1_000_000);
+    assert.equal(shieldRes.ok, true);
+    if (!shieldRes.ok) throw new Error('Expected shield to activate');
+    const shielded = shieldRes.state;
+
+    // Green rolls 6 (bonus roll) and moves token 1 across BL gate (32) into home lane (30 -> 55).
+    // Token 1 entered safe home stretch (pruned), token 0 stays shielded on same turn!
+    const bonusMove = processMove(shielded, 'green', 1, 6, '1v1', CC4P, 'green');
+    assert.equal(bonusMove.bonusRoll, true);
+    assert.equal(bonusMove.newState.currentPlayer, 'green');
+    assert.deepEqual(bonusMove.newState.activeShields, [{ color: 'green', tokenIdx: 0 }]);
+
+    // Opponent Yellow rolls with no legal moves (all tokens in yard) and hands turn back to Green -> expires Green's shield.
+    assert.deepEqual(clearShieldsOnTurnChange([{ color: 'green', tokenIdx: 0 }], 'green', 'yellow'), [{ color: 'green', tokenIdx: 0 }]);
+    const onGreenReturn = resolveRollWithBoost({
+        state: { ...bonusMove.newState, currentPlayer: 'yellow', positions: { ...bonusMove.newState.positions, yellow: [-1, -1, -1, -1] } },
+        color: 'yellow',
+        rollValue: 2,
+        cc: CC4P,
+        playerCount: '1v1',
+        now: 1_000_010,
+    });
+    assert.equal(onGreenReturn.outcome, 'no_moves');
+    assert.equal(onGreenReturn.state.currentPlayer, 'green');
+    assert.equal(onGreenReturn.state.activeShields.length, 0);
 });

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { INITIAL_GAME_STATE, getLegalTokenIndices } from '@/lib/gameLogic';
-import { lcg32, rollPowerTypeLcg, resolveNetworkedMove, seatedColorsFor } from '@/lib/engine/core';
+import { clearShieldsOnTurnChange, lcg32, rollPowerTypeLcg, resolveNetworkedMove, seatedColorsFor } from '@/lib/engine/core';
 import { assignCornersForShape, BOT_TEMPLATES, CORNER_TO_POSITION, getBoardCoordinate } from '@/lib/boardLayout';
 import { POWER_TILES_COUNT } from '@/lib/constants';
 import { calculateLevel } from '@/lib/progression';
@@ -325,11 +325,13 @@ export async function PATCH(request: Request) {
         activeColors,
         now: Date.now(),
       });
+      const fallbackNext = activeColors[(activeColors.indexOf(color) + 1) % activeColors.length];
       next = resolved.ok && resolved.state
         ? (resolved.state as unknown as GameState)
-        : { ...state, currentPlayer: activeColors[(activeColors.indexOf(color) + 1) % activeColors.length], diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
+        : { ...state, currentPlayer: fallbackNext, activeShields: clearShieldsOnTurnChange(state.activeShields, color, fallbackNext), diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
     } else {
-      next = { ...state, currentPlayer: activeColors[(activeColors.indexOf(color) + 1) % activeColors.length], diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
+      const passNext = activeColors[(activeColors.indexOf(color) + 1) % activeColors.length];
+      next = { ...state, currentPlayer: passNext, activeShields: clearShieldsOnTurnChange(state.activeShields, color, passNext), diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
     }
 
     const updated = await sb

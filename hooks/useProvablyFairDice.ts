@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 import { PlayerColor, GameState, LobbyState } from '@/lib/types';
 import { handleThreeSixes, getNextPlayer, getTeammateColor } from '@/lib/gameLogic';
+import { clearShieldsOnTurnChange } from '@/lib/engine/core';
 import { generateRandomNonce, sha256 } from '@/lib/encryption';
 
 interface UseProvablyFairDiceProps {
@@ -85,6 +86,7 @@ export function useProvablyFairDice({
                     consecutiveSixes: 0,
                     gamePhase: 'rolling',
                     currentPlayer: nextPlayer,
+                    activeShields: clearShieldsOnTurnChange(prev.activeShields, prev.currentPlayer, nextPlayer),
                     captureMessage: 'Three 6s! Turn passed.'
                 };
                 setTimeout(() => {
