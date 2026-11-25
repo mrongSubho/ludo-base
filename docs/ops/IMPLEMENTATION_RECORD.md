@@ -5,8 +5,8 @@
 | **Scope** | Authoritative system record for architecture, gameplay, matchmaking, wallet/blockchain, clans, database, UI/UX, and security audit closures |
 | **Supersedes** | `docs/planning/RECOMMENDED_IMPLEMENTATION_PLAN.md` and `docs/ops/REMEDIATION_CHECKLIST.md` (both kept as redirect stubs) |
 | **Companion** | [`SYSTEM_REVIEW.md`](./SYSTEM_REVIEW.md) — point-in-time 2026-10-05 & October 2026 audit findings |
-| **Status** | Audit **154/154 closed or signed off** · **Server Authority (P0–P6)** & **Server-Owned Lobby (S0–S5)** live · **Clans & 3N Wars (`ClanClaim`)** & **Reusable Quick Match / TeamUp Wagers (`ArenaVault`)** live (**2026-11-17**) |
-| **Gates (2026-11-17)** | `tsc` 0 errors · `arena-vault` + `clan-services` **9/9** · `record-integrity` **8/8** · `check:engine` in sync · `check:routes` **66 routes clean** · `check:wrangler-guard` **9/9** · `npm test` **595 pass / 1 fail / 11 skipped** (`LUDO_SCHEMA_DB_URL` unset; open item in `deploy-guardrails.test.ts` on `lib/arenaVaultVoucher.ts:32` anvil fallback) |
+| **Status** | Audit **154/154 closed or signed off** · **Server Authority (P0–P6)** & **Server-Owned Lobby (S0–S5)** live · **Clans & 3N Wars (`ClanClaim`)**, **Reusable Match & Pari-Mutuel Spectator Vaults (`ArenaVault`)**, **3-Theme Flagship (`3077`/`Retro`/`Daybreak`)**, **3-Genre Procedural Audio**, & **Power System v3 Split Boost / VFX** live (**2026-11-25**) |
+| **Gates (2026-11-25)** | `tsc` 0 errors · `lint` 0 errors (36 warnings) · `check:engine` in sync · `check:routes` **68 routes clean** · `check:schema` **55 migrations, 66 function defs** · `check:rls` **55 migrations clean** · `check:drift` **12/12** · `check:wrangler-guard` **9/9** · `check:type-scale` **0 hardcoded `text-[Npx]`** · `check:motion` clean (`167` files) · `check:fields` clean (`39` fields) · `check:img` clean (`35` imgs) · `contrast` **15/15** · `npm test` **695 pass / 0 fail / 11 skipped** (`LUDO_SCHEMA_DB_URL` unset; former `deploy-guardrails` item resolved) |
 
 ### Section Index (Organized By System Domain)
 
@@ -627,8 +627,10 @@ Coins are frozen (`202609300001`) and CHIPS became the only money. Rewards had b
 | Server-Owned Lobby Migration (S0–S5) | — | 2026-10-22 | **PASS** — MatchRoom DO self-seeding, `match_seats`, session `seat_color` binding, P2P formation retired, 523 tests green |
 | **Wagered + 2v2 play** | owner | 2026-10-11 | **Ship-rule condition met** — Phase 0–2 closed on 2026-10-11, which is what the rule required; whether wagered play is enabled is an owner call (the arming pair is deployed and verified on Sepolia) |
 
-| Clans & 3N Wars (`ClanClaim`) | — | 2026-11-17 | **PASS** — `ClanClaim.sol` live on Base Sepolia; direct on-chain creation + `depositWarStake` buy-in; 6/6 unit tests |
-| Quick Match / TeamUp Wagers (`ArenaVault`) | — | 2026-11-17 | **PASS (with 1 guardrail follow-up)** — `ArenaVault.sol` deployed; `202611170001` live; unified Vault & Claim Hub; `arena-vault` **3/3** (`deploy-guardrails` flags dev-key fallback at `lib/arenaVaultVoucher.ts:32`) |
+| Clans & 3N Wars (`ClanClaim`) | — | 2026-11-17 | **PASS** — `ClanClaim.sol` live on Base Sepolia; direct on-chain creation + `depositWarStake` buy-in; hardened atomic RPCs & `clan-war-*` realtime (`202611180001`) |
+| Quick Match / TeamUp Wagers (`ArenaVault`) | — | 2026-11-17 | **PASS** — `ArenaVault.sol` deployed; `202611170001` live; unified Vault & Claim Hub (`deploy-guardrails` closed) |
+| Pari-Mutuel Spectator Vault & Live Arena | — | 2026-11-19 | **PASS** — `202611190001` fixed `30–180s` (default `90s`) pari-mutuel betting, `ArenaVault` 0-gas debit, Watch & Bet HUD, & joinable/watchable AI demo rooms |
+| Multi-Theme, Audio, & Powers v3 VFX | — | 2026-11-25 | **PASS** — `3077` flagship / `Retro` ARC / `Daybreak` Porcelain + `deploy-mode` palettes, 3-genre Web Audio + 14 Hz pulses, Reduced Motion override, `AnchoredDiceBay`, split Boost `6`-then-roll & stack-safe Nuke |
 
 **Ship rule.** Wagered pools and 2v2 mode stayed disabled until Phase 0–2 closed; that condition was met on 2026-10-11. Non-wagered 4P offline play was blocked on ENG-01 only (one engine must be authoritative), which closed with the engine-diff harness and golden corpus above.
 
@@ -637,10 +639,13 @@ Coins are frozen (`202609300001`) and CHIPS became the only money. Rewards had b
 ## Part V — Architecture, Server Authority, & Netcode
 
 ### V.1 MatchRoom Durable Object & Single-Authority Engine (P0–P6)
-- **Single Authoritative Execution Context (`src/room/MatchRoom.ts`, `src/room/engine.ts`)**:
-  - Migrated networked gameplay from client host/P2P authority to the Cloudflare Worker Durable Object (`MatchRoom`) with deterministic CSPRNG dice, seat validation, and atomic Postgres persistence via `match_commit_action` RPC.
+- **Single Authoritative Execution Context (`src/room/MatchRoom.ts`, `src/room/MatchRoomCore.ts`, `src/room/engine.ts`)**:
+  - Migrated networked gameplay from client host/P2P authority to the Cloudflare Worker Durable Object (`MatchRoom`) with deterministic CSPRNG dice, seat validation (`sessions.seat_color`), split Boost Step 1/Step 2 orchestration (`resolveRollWithBoost` + `resolveNetworkedMove`), and atomic Postgres persistence via `match_commit_action` RPC.
   - Retired the 3 Deno Edge Functions (`roll-dice`, `move-auth`, `resolve-bet`) and Edge shared engine copy in P6; `npm run check:engine` enforces byte-level rule parity between `lib/engine/core.ts` and `src/room/engine.ts`.
   - Transport selection rule in `hooks/useGameActions.ts`: `roomAuthority` is active whenever `/api/room/:matchId/ws` is connected; clients submit `REQUEST_ROLL`, `REQUEST_MOVE`, and `REQUEST_POWER` intents and adopt server-broadcast state.
+- **Engine Enhancements (`835aa50`):**
+  - **Boost:** Converted from single-leap `+6` (`1..12`) into split two-step execution (`6` first with `boostPendingDice`, then rolled `1–6`), isolating Boost's bonus `6` from `consecutiveSixes` while allowing re-boost chains.
+  - **Nuke & Finish:** Upgraded `countNukeVictims` to circular 52-cell wrap distance (`51 <-> 0`) and added stack immunity (`getTeamForceAtPoint >= 2` across own stacks and 2v2 teammate pairs); `processMove` explicitly surfaces `finishedToken` for bonus roll + streak reset + SFX/HUD telemetry.
 - **DO Turn Deadlines, Alarms, & Hibernation Recovery (`STALL-02`, `ca49f42`)**:
   - `MatchRoom` persists authoritative match state into DO storage and schedules alarm deadlines (`28s` per human turn, `1.2s` for bot turns), surviving DO eviction/hibernation cycles via SQL restoration from `match_states` and automatic bot auto-play / AFK escalation.
   - Emits typed `RoomError` telemetry so connection failures surface actionable diagnostics rather than silent stalls.
@@ -680,9 +685,9 @@ Coins are frozen (`202609300001`) and CHIPS became the only money. Rewards had b
   - Fixed guest stall regressions (`P0-13..21`) across token minting, host-migration overlay suppression while room WebSocket is active, and stale matchmaking ticket reaping.
 
 ### VI.2 Reusable Quick Match & TeamUp Wagers System (`ArenaVault`)
-- **Entry Fee Ladder & Balance Gate (`app/components/GameLobby.tsx`, `hooks/useMatchmaking.ts`, `hooks/TeamUpContext.tsx`)**:
-  - Primary presets: `Free (0)`, `500`, `1K`, `10K`, `100K`, `500K` CHIPS, plus an expandable **`More ▾`** high-roller drawer (`1M`, `10M` CHIPS).
-  - Affordability checks real **wallet CHIPS + Arena Match Vault** balance rather than legacy off-chain `coins`.
+- **Entry Fee Ladder & Reactive Controls (`app/components/GameLobby.tsx`, `lib/entryFeeDial.ts`, `lib/modeRail.ts`, `hooks/useMatchmaking.ts`, `hooks/TeamUpContext.tsx`)**:
+  - Full-spectrum tiers from `Free (0)` up to `10M` CHIPS rendered via theme-native fee pickers: **3077** circular Orbital Rotary Dial Knob (`Free..3M/10M` + tier callouts), **Retro** Synth VU-Meter fader, and **Daybreak** Vernier dial picker. Mode switching uses the 3-chip `QUICK` / `TEAM` / `OFFLINE` selector & curved shuttle rail.
+  - Affordability checks real **wallet CHIPS + Arena Match Vault** balance via consolidated `hooks/useTotalChips.ts` rather than legacy off-chain `coins`.
 - **Differential Top-Up & 0-Gas Reuse (`hooks/useArenaVault.ts`, `app/components/QuickMatchPanel.tsx`)**:
   - Instead of locking funds per search attempt and forcing users to claim refunds on timeouts or cancelled lobbies, players hold a reusable **Match Vault** balance in `ArenaVault`.
   - When starting Quick Match or creating/joining a paid TeamUp room (`wager > 0`), `ensureVaultAndReserve` checks available Vault credit first: if `vaultBalance >= wager`, entry executes immediately with **0 wallet popups and 0 gas**; if short, `SignWaitModal` prompts **only the deficit (`wager - vaultBalance`)**.
@@ -691,6 +696,14 @@ Coins are frozen (`202609300001`) and CHIPS became the only money. Rewards had b
   - Because every player's stake is reserved before queuing/starting, matches launch immediately upon pairing with no post-match funding countdown. Stakes commit atomically on match formation (`app/api/matchmaking/join/route.ts`, `app/api/match/start/route.ts`).
   - Once `status === 'matched'` on a paid wager, Cancel/Close buttons are removed and a subtle warning reminds players that leaving or disconnecting forfeits their staked CHIPS.
   - On completion, `app/api/match/record/route.ts` applies a `5%` protocol rake and credits the `95%` net pot (split `50/50` across winning `2v2` teammates via `getTeammateColor`, `100%` to `1v1`/`4P` winner) into `arena_vault_claims` for pull-claiming in the unified Vault & Claim Hub.
+
+### VI.3 Pari-Mutuel Spectator Betting Vault & Live Arena Directory
+- **Pari-Mutuel Vault (`202611190001_spectator_parimutuel_vault.sql`, `lib/spectatorBetting.ts`, `lib/spectatorBettingMath.ts`)**:
+  - Replaced legacy spectator escrow settlement with 0-gas `arena_vault_place_spectator_bet` and `arena_vault_settle_spectator_bets` backed directly by `ArenaVault` balances and Claim Hub vouchers.
+  - Enforces a fixed early-match `winner` window (`30–180s`, default `90s`) via `/api/live-matches/window`, anti-self-bet checks, opposed pari-mutuel payouts (`5%` rake capped at losing pool), `100%` unopposed-winner `match_refund`, and 2v2 teammate equivalence (`resolveWinningBetValues`).
+- **Unified Live Broadcast & Demo Arenas (`lib/arena/directoryService.ts`, `lib/arena/demoArenas.ts`, `app/api/live-arena/directory/route.ts`)**:
+  - Combines open lobbies, room shouts, and live matches with hydrated seat dossiers (`is_public` privacy-aware) plus functional joinable/watchable AI exhibition rooms.
+  - Watch & Bet drawer supports drag-resizing (1-line compact bar to full height) decoupled from the locked board box.
 
 ---
 
@@ -710,7 +723,7 @@ Coins are frozen (`202609300001`) and CHIPS became the only money. Rewards had b
 | `SeasonClaim` | Season Merkle reward claims | `0x1A27120eab8638e40ed8eEf60fAe13cC18277bd3` | `NEXT_PUBLIC_SEASON_CLAIM_ADDRESS` |
 | `LegacyClaim` | Legacy coin-to-CHIPS conversion claims | `0x6f9E12D5F9d81132214cdA8369410ab7c187227F` | `NEXT_PUBLIC_LEGACY_CLAIM_ADDRESS` |
 
-### VII.2 Wallet Guard, Network Discipline, & Identity Boundaries
+### VII.2 Wallet Guard, Network Discipline, & Multi-Currency Settlement
 - **Boot-Gated Auth & Wallet Boundary (`useWalletMode`, `docs/architecture/WALLET_SIGNING_POLICY.md`)**:
   - **CDP In-Game Smart Account (`ingame`)**: Guarded at boot by passkeys/biometrics (`BootLock`); background match/session signing respects `autoSign` settings and attaches ERC-8021 builder code data suffixes.
   - **External Wallets (`external`: MetaMask, Base Account, WalletConnect)**: Never touch Ludo's passkey/device-bio locks; native wallet extensions handle unlock and approval.
@@ -721,11 +734,12 @@ Coins are frozen (`202609300001`) and CHIPS became the only money. Rewards had b
   - Auto-switches connected external wallets off disallowed chains onto Base Sepolia (`84532`) on connect and before every on-chain `writeContractAsync`.
 - **Global Token Allowances Hub (`AllowanceHubSheet.tsx`, `hooks/useChipsAllowance.ts`)**:
   - Plain-English budget presets for **CHIPS** (`10k Starter`, `100k Tactical`, `1M Pro Player`, `Unlimited`) and **USDC** (`$5`, `$20`, `$50`, `Unlimited`), plus 1-click single & global revokes. Skips redundant `approve` popups via `readAllowanceDirect`.
-- **Unified Vault & Claim Hub (`app/components/ClaimHubSheet.tsx`, `app/components/WalletPanel.tsx`)**:
-  - Combines **Arena Match Vault** (`+ Top Up Vault` via `depositVault`, `Withdraw` via EIP-712 `claimReward`), **Match Prizes** (`Claim All to Wallet` or 0-gas `Keep in Vault`), **Clan War Rewards & Refunds** (`ClanClaim`), and **Genesis Snapshot** into a single screen under Wallet → More.
-- **Match Sync Hub & E2EE Messaging**:
-  - Lazy free-match telemetry syncs in safe 10-match batches to `MissionSystem` (`hooks/useUnsyncedMatches.ts`, `app/components/UnsyncedMatchesPanel.tsx`) alongside 1:1 voucher claims.
-  - DMs use non-extractable IndexedDB **ECDH P-256** sealed boxes (`lib/encryption.ts`) with friend-gated outboxes and fail-closed encryption enforcement.
+- **Multi-Currency Marketplace & Confirmed Receipt Verification (`lib/marketplacePrices.ts`, `lib/onchainReceipt.ts`, `398e3ec`, `e884194`)**:
+  - Supports **CHIPS**, **USDC**, and native **ETH** purchases to `NEXT_PUBLIC_TREASURY_WALLET` on Base Sepolia (`100 CHIPS = 1 USDC = 0.0004 ETH`), verified on-chain with `waitForConfirmedReceipt` / `verifyErc20TransferLog` before provisioning unlocks. Resolved `deploy-guardrails` dev-key fallback (`lib/arenaVaultVoucher.ts`).
+- **Unified Vault, Claim Hub, Free-Match Sync & E2EE Messaging**:
+  - `ClaimHubSheet.tsx` consolidates **Arena Match Vault**, **Match Prizes**, **Clan War Rewards & Refunds**, and **Genesis Snapshot**.
+  - Free matches queue into `player_free_matches` (`202610270001`) for 10-match batch syncing to `MissionSystem` (`hooks/useUnsyncedMatches.ts`).
+  - DMs use non-extractable IndexedDB **ECDH P-256** sealed boxes (`lib/encryption.ts`) with fail-closed plaintext blocking and `140`-char live shout/chat cap with unlocked composing during cooldown (`3a01fb8`).
 
 ---
 
@@ -733,52 +747,59 @@ Coins are frozen (`202609300001`) and CHIPS became the only money. Rewards had b
 
 ### VIII.1 Clan Core, Direct On-Chain Creation, & Leveling
 - **On-Chain Creation (`hooks/useClanData.ts`, `lib/clan/clanService.ts`, `app/api/clans/route.ts`)**:
-  - Creating a clan prompts `SignWaitModal` (`clan-create`) to execute an on-chain `10,000 CHIPS` ERC-20 transfer straight to the protocol treasury (`0xbcCa5DcBF293D98A627fD3814D5AE8249bB1DFaF`), with server receipt verification, `txHash` replay prevention, `commander` assignment, and `chips_events` audit logging.
-- **Leveling & Live Plaintext Hall**:
-  - Caps start at 20 members (scaling via `clan_level_config` as CXP grows), roles (`commander`, `officer`, `elite`, `member`), clan missions, and live Supabase Realtime plaintext broadcast chat (`clan-${clanId}`).
+  - Creating a clan prompts `SignWaitModal` (`clan-create`) to execute an on-chain `10,000 CHIPS` ERC-20 transfer straight to `NEXT_PUBLIC_TREASURY_WALLET` (`0xbcCa5DcBF293D98A627fD3814D5AE8249bB1DFaF`), verified via `waitForConfirmedReceipt` + `chips_events` txHash replay protection, assigning `commander` role (`202611020002` also hardens the escrow overload tag length `2..5`).
+- **Hardened Lifecycle, Missions & Syndicate Dossier (`202611180001`, `202611180002`, `4efce04`, `588a47d`, `4e96bd7`, `064e0bd`)**:
+  - Atomic Postgres RPCs handle member CXP/WP updates (`increment_member_cxp_wp`), automatic threshold leveling (`increment_clan_cxp`), member counts (`clan_adjust_member_count`), and treasury donations (`clan_credit_treasury_donation`).
+  - Daily/weekly contracts live in `clan_mission_progress` rendered through the shared `MissionCard` contract; Syndicate Dossier exposes graph-first telemetry, treasury privacy toggle (`clans.treasury_public`), rename tracking (`rename_count`), and Clan Hall emotes over private `clan-*` Realtime policies.
 
 ### VIII.2 On-Chain War Roster Buy-In, 3N Fixtures, & Pull Claims
-- **War Notice & Governance Splits (`lib/clan/clanWarService.ts`)**:
-  - Commanders/officers open weekend war calls across `5v5`, `10v10`, `15v15`, or `20v20` brackets with configurable member entry fee and net-profit governance splits (`80%` War Points merit pool + `20%` split across Stakers / Clan Treasury / Leader / Officers summing to `100%`).
+- **War Notice, Atomic Matching & Governance Splits (`lib/clan/clanWarService.ts`)**:
+  - Commanders/officers open weekend war calls across `5v5`, `10v10`, `15v15`, or `20v20` brackets (`clan_match_war_calls` matches opponents atomically under advisory lock) with `80%` War Points merit pool + `20%` governance split.
 - **Non-Custodial Stake Deposit (`hooks/useClanWar.ts`, `app/api/clans/war/buyin/route.ts`)**:
-  - Members lock participation via `ClanClaim.depositWarStake(bytes32 warId, bytes32 clanId, uint256 amount)` under `SignWaitModal` (`clan-war-buyin`), verified server-side against `WarStakeDeposited` event logs with `txHash` replay protection in `chips_events`.
-  - Cancelled notices/wars convert all locked stakes into `war_refund` vouchers inside `clan_claims`.
-- **3N Fixture Matrix, Live Launcher, & Settlement Bridge**:
-  - Matched wars generate `3N` fixtures (`2N × 1v1` + `N × 2v2`), broadcast live telemetry over `clan-war-${warId}`, launch directly into game rooms from `ClanPanel.tsx` (`Deploy Battle` / `Join Battle`), score completions inside `/api/match/record/route.ts` (`finalizeFixtureScore`), and distribute `war_principal`, `war_merit_wp`, `war_gov_share`, and `war_refund` via EIP-712 `ClanClaim` vouchers (user pays gas).
+  - Members lock participation via `ClanClaim.depositWarStake(bytes32 warId, bytes32 clanId, uint256 amount)` under `SignWaitModal` (`clan-war-buyin`), verified against `WarStakeDeposited` logs with `txHash` replay protection.
+- **3N Fixture Matrix, Bilateral Scheduling & Settlement Bridge**:
+  - Matched wars generate `3N` fixtures (`2N × 1v1` + `N × 2v2`) with bilateral schedule proposals (`proposed_by`, `proposed_at`), live updates over `clan-war-${warId}`, direct battle launch from `ClanPanel.tsx`, idempotent completion scoring in `/api/match/record/route.ts` (`clan_score_queue` / `finalizeFixtureScore`), and deduplicated pull vouchers (`clan_claims_unique_source_idx`).
 
 ---
 
 ## Part IX — Database Schema, RLS, & CI Security Gates
 
-### IX.1 Canonical Migrations & Advisory-Locked RPCs
-- All canonical SQL lives strictly in `supabase/migrations/` (`migrations/` and `supabase/migrations_archive/` remain frozen and gated by `scripts/archive-guard.test.ts`):
-  - **Core Authority & Lobbies**: Baseline RLS + column-locked DM triggers, Session v2 (`sessions`, SHA-256 token hashing), `match_seats`, atomic `match_commit_action`, and matchmaking RPCs (`202610200001`, `202610200002`, `202610220004`, etc.).
-  - **Clans & 3N Wars**: `202611020001_clan_system_core.sql` and `202611020002_clan_create_escrow_overload.sql`.
-  - **Arena Match Vault**: `202611170001_arena_vault_system.sql` (`arena_vault_accounts`, `arena_match_stakes`, `arena_vault_claims`, `arena_vault_ledger` + advisory-locked `arena_vault_credit_deposit`, `arena_vault_reserve`, `arena_vault_release`, `arena_vault_commit_match`, `arena_vault_request_withdraw`, `arena_vault_roll_prize`, `arena_vault_settle_match`).
+### IX.1 Canonical Migrations & Inventory (`supabase/schema_list.md`)
+- `55` canonical migrations (`00000000000000_baseline.sql` through `202611220001_default_random_pilot_avatar.sql`), **`70` managed tables** (`69` in `public` + `realtime.messages`), and **`47` distinct SQL functions** (`40` callable `SECURITY DEFINER` RPCs, `1` `SECURITY INVOKER` avatar helper, `6` trigger functions; `migrations/` and `supabase/migrations_archive/` frozen via `scripts/archive-guard.test.ts`):
+  - **Core Authority, Seats & Sync:** Session v2 (`sessions.seat_color`), `match_seats` (`assign_match_seats` ASCII `"C"` collation), `match_commit_action` (`p_match_id::text` fix `202610230005`), shape-aware matchmaking expiry (`202610240001`), and `player_free_matches` (`202610270001`).
+  - **Clans & 3N Wars (`14` tables):** `202611020001`, `202611020002`, `202611180001`, `202611180002` (private `clan-*` / `clan-war-*` realtime policies, `clan_mission_progress`, atomic CXP/WP/war-match RPCs).
+  - **Arena & Pari-Mutuel Spectator Vaults (`4` core tables + `9` RPCs):** `202611170001_arena_vault_system.sql` + `202611190001_spectator_parimutuel_vault.sql`.
+  - **Identity & Privacy Defaults:** `202611200001_profile_privacy.sql` (`is_public`, `allow_requests`) + `202611220001_default_random_pilot_avatar.sql` (`random_pilot_avatar()` default + trigger across 18 portraits).
 
 ### IX.2 Active Repository & CI Gates
-- `npx tsc -p tsconfig.json --noEmit` — 0 TypeScript errors enforced (`ignoreBuildErrors: false`).
-- `npm run lint` — ESLint 9 with error rules on unused vars, `prefer-const`, and untyped `any`.
-- `npm run check:engine` — guarantees `lib/engine/core.ts` ↔ `src/room/engine.ts` parity.
-- `npm run check:routes` — verifies all 66 API routes in `app/api/` declare explicit authorization policy in `scripts/check-routes.mjs`.
-- `scripts/rate-limit.test.ts` — classifies every `app/api/` route into `RATE_LIMITS`, `SESSION_GATED`, or `NEVER_LIMIT` (`lib/rateLimitRoutes.ts`).
-- `npm run check:wrangler-guard` — rejects missing `NEXT_PUBLIC_` prefixes, secret keywords, private keys, PEM blocks, service JWTs, and seed phrases in `wrangler.jsonc`.
-- `npm run check:rls`, `npm run check:schema`, `npm run check:motion`, `npm run check:img`, `npm test` (595 pass / 1 fail on `lib/arenaVaultVoucher.ts:32` dev-key fallback / 11 skipped when `LUDO_SCHEMA_DB_URL` is unset), plus Foundry contract suites (`contracts/test/ArenaVault.t.sol`, `contracts/test/ClanClaim.t.sol`).
+- `npx tsc -p tsconfig.json --noEmit` — `0` errors (`ignoreBuildErrors: false`).
+- `npm run lint` — ESLint 9 (`0` errors, `36` warnings).
+- `npm run check:engine` — `lib/engine/core.ts` ↔ `src/room/engine.ts` byte parity.
+- `npm run check:routes` — all **`68`** API routes in `app/api/` classified & authorization-verified.
+- `scripts/rate-limit.test.ts` — classifies every route into `RATE_LIMITS`, `SESSION_GATED`, or `NEVER_LIMIT`.
+- `npm run check:wrangler-guard` — `9/9` passing (`wrangler.jsonc` vars leak inspection).
+- `npm run check:rls` & `npm run check:schema` (`55` migrations, `66` function defs), `npm run check:drift` (`12/12`), `npm run check:type-scale` (`0` hardcoded `text-[Npx]`), `npm run check:motion` (`167` files), `npm run check:fields` (`39` fields), `npm run check:img` (`35` `<img>`), `node scripts/contrast.mjs --pairs` (`15/15`), and `npm test` (**`695` pass / `0` fail / `11` skipped** when `LUDO_SCHEMA_DB_URL` is unset).
 
 ---
 
-## Part X — UI, Themes, Kinematics, & Visual Systems
+## Part X — UI, Themes, Kinematics, Audio, & Visual Systems
 
-### X.1 Theme Isolation, Motion Budget, & Visual-Diff Harness
-- **Selectable Theme Stack (`app/layout.tsx`, `app/globals.css`, `app/styles/themes/`)**:
-  - Supports **Retro-Futurism** (`theme-retro-futurism`, default dark), **Daybreak** (`theme-daybreak`, light), and **Cyber-Tactical 3077** (`theme-3077`), isolated via body classes and cookie persistence (`ludo-theme`).
-  - Canvas motion (`thinking-orbs`) passes exclusively through `app/components/ThinkingOrb.tsx` respecting theme tokens and `lib/motion.ts` reduced-motion gates; `npm run check:motion` restricts animations to compositor-friendly properties and `npm run check:img` bans unsized `<img>` tags.
-  - **Visual Gate (`scripts/visual-diff.mjs`)**: Playwright screenshot baseline comparison across 8+ setup/lobby/board/theme scenes (`>0.2%` pixel delta threshold against production build).
+### X.1 Theme Architecture, Reactive Mode Palettes & Motion Budget (`DESIGN.md`)
+- **Three-Theme Stack & Modular CSS (`app/globals.css`, `app/styles/`, `app/layout.tsx`):**
+  - Split monolith CSS into modular layers (`tokens.css`, `themes/theme-3077.css`, `themes/retro.css`, `themes/daybreak.css`, `themes/default.css`, `base.css`, `panels.css`, `board.css`, `motion.css` — `15,473` lines total).
+  - **`theme-3077` is the SSR flagship default** (Cyber-Tactical Precision grid, `9px` HUD reticle ticks, chamfered clusters/plates, laser active footer beam); **`theme-retro-futurism`** delivers Orbital Midnight CRT scanlines + `RetroArcLight` dual-spring physics capsule footer (`7670bad`); **`theme-daybreak`** delivers Warm Studio Porcelain `#F4F1EA` + Prussian Teal `#0D6D87` AA-safe light surfaces + frosted ceramic footer (`80fe8a8`, `309b0be`).
+  - **Deployment-Mode Reactive Palettes (`lib/deployTheme.ts`, `245355f`):** `body[data-deploy-mode="quick"|"team"|"offline"]` dynamically shifts `--accent` & HUD highlights across Quick Deploy (Cyan/Teal), 2v2 Squad (Amber), and Offline Ops (Emerald/Pine).
+- **Motion Override & Gates:**
+  - `lib/motion.ts` + `app/Providers.tsx` provide a 3-way `ludo-motion` override (`System` | `Full` | `Reduced`) across Framer `<MotionConfig>`, CSS scoping (`body:not(.motion-force-full)` + `body.motion-force-reduced`), canvas `ThinkingOrb.tsx`, GSAP hops, and confetti (`430ddbe`).
+  - Verified by `check:motion` (0 Framer `layout` hot-path animations), `check:type-scale` (0 `text-[Npx]` utilities), `check:fields` (OS interference attributes), `check:img`, and `scripts/visual-diff.mjs` (production build gate).
 
-### X.2 Lobby Redesign, Token Kinematics, & Telemetry Surfaces
-- **3077 Mobile Lobby & Interactive 3D ActionDice (`5c5af57`, `86cad05`, `f2bf1b3`)**:
-  - Compact header dock, carbon-glass card shell (`panel-shell-3077`), zero-scroll mobile layout, `ActionDice` quick/team/offline routing with tuned swipe-hint clearance, and zero purple/violet design tokens.
-- **Board Token Kinematics (`BoardTokens.tsx`, `TokenStyleSwitcher`, `deae19b`)**:
-  - **Orb** default tokens (`token-style-orb`) + opt-in **Chess** pawns (`ChessTokens.tsx`), GSAP FLIP arc hops, 2/3/4-way corner token stacking, and valid-move pulse indicators decoupled from counter-rotation roots.
-- **Scoreboard, Rank Vectors, Match History, & Stickers**:
-  - Unified victory scoreboard card with trophy visuals and progression XP telemetry (`MatchStatsOverlay`), custom inline SVG rank badges (`RankBadge`), CoD-Mobile-inspired Match History & Sync Hub cards, and original animated **Cyber-Orb** stickers delivered over Supabase Realtime.
+### X.2 Lobby Console, Board HUD, Token Kinematics & Procedural Audio
+- **Boot & Lobby Stack:** `useBootPreload.ts` + orbital cyber-shutter preloader + 7s boot video (`3b117fc`, `c4781f6`); 3077 Tactical Command Console, `Retro` Option B Dual-Bay & Synth VU-Meter, `Daybreak` Vernier picker, `HeaderNavPanel`, and compact CHIPS readout (`useTotalChips`).
+- **3-Tab Pilot Dossier & Avatars (`9ab104b`, `9238de5`, `836a56b`):** Replaced legacy helmet SVGs with **18 transparent custom pilot portraits** backfilled via SQL trigger (`202611220001`) alongside `/api/profile/public` and `/about`, `/terms`, `/privacy` inside `GamePanelShell`.
+- **In-Game Board HUD & VFX (`a118a3a`..`835aa50`):**
+  - `AnchoredDiceBay.tsx`: Tethered corner launch docks with 3-theme 3D breakout choreography, double-six danger `dice-streak-strip`, and Boost Dual-Core overdrive wing.
+  - `BoardTerminalHud` + `TerminalTypeText`: Split corner typewriter HUD & telemetry cues.
+  - `PowerInventoryDock.tsx` + `PowerVfxOverlay.tsx`: Live expiry rings, inline 3077 tactical simulation dossier, and compositor-only Nuke warhead/crimson blast corridor, Shield Aegis dome, Boost plasma trail, and Teleport 3-beat warp VFX.
+  - **3D Step-Crown Token Hops (`2dbbbea`, `BoardTokens.tsx`):** `token-style-orb` default orbs + opt-in `ChessTokens`, GSAP FLIP step-crown arcs with `RunHomeGhost` capture sprints and yard progress rings.
+- **Procedural Web Audio Engine (`lib/audio/`, `63a7c49`..`38e71c0`):**
+  - Zero static MP3 dependencies for core feedback: single-`AudioContext` `SoundEngine` (`sfxCatalog.ts`) synthesizing theme-aware dice/move/capture/power/UI SFX, `MusicDirector` running 3 interactive theme BGM engines (`lobby` / `queue` / `match_crunch`), bilateral L/R 14 Hz binaural pulse option, and automatic nested-modal ducking.

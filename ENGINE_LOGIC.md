@@ -1,295 +1,159 @@
 # Ludo 3077: Project Brain & Engine Logic
 
-This document serves as the primary technical reference for all core systems, game rules, and architectural decisions implemented in the Ludo 3077 project. **Consider this the definitive "Source of Truth" for engine logic.**
+This document is the primary technical reference for all core systems, game rules, and architectural decisions implemented in **Ludo 3077**. **Consider this the definitive "Source of Truth" for engine logic.**
 
 ---
 
 ## 1. Vision & Core Pillars
-- **Onchain Arena:** A high-end competitive Ludo game for the Base ecosystem.
-- **Fair Play First:** All dice rolls are provably fair and outcomes are verifiable.
-- **Mesh-Multiplayer:** A hybrid P2P/Realtime architecture for low-latency gameplay.
-- **Farcaster First:** Optimized for Farcaster Frames and mini-apps.
+- **Onchain Arena:** Competitive Ludo on Base Sepolia (`84532`) powered by reusable `ArenaVault` match/spectator vaults, `ClanClaim` war escrows, and EIP-712 pull settlements.
+- **Fair Play First:** Networked gameplay executes strictly inside a single server authority (`MatchRoom` Durable Object) with CSPRNG dice, seat-bound Session v2 tokens, and atomic compare-and-swap (CAS) commits.
+- **Zero-Video Spectator Betting:** Spectators sync game states directly from the room/match state pipeline with vault-funded pari-mutuel markets.
+- **Farcaster & Wallet Native:** Optimized for Farcaster Frames / Base App webviews and protected by the 3-tier Dual-Modal `SignWaitModal` wallet guard.
 
 ---
 
-## 2. Architecture [The Network Layer]
+## 2. Architecture [The Network & Room Layer]
 
-### 2.1 Matchmaking & Lifecycle (`EdgeServerClient` & `join_matchmaking` RPC)
-The matchmaking system is a **Hybrid Hub** that prioritizes the high-performance **Edge Server (Render)** with a resilient **Supabase Failover**.
-- **Phase 1: Edge Match (0-5s):** The client attempts a WebSocket connection to the Edge Server (`find_match`).
-    - **WebSocket handshakes** provide sub-second latency for pairing.
-    - **Instant Reveals:** The Edge server returns participant metadata (usernames, XP, levels) immediately, allowing for a premium "Match!" screen before P2P sync.
-- **Phase 2: Supabase Fallback (5s+):** If the Edge Server is offline or slow, the client falls back to the `join_matchmaking` RPC.
-    - **Advisory Locks:** Prevents race conditions during pairing.
-    - **Expansion (15s+):** Optional wager range expansion (+/- 20%, +/- 50%).
-- **Verification Token:** Both paths generate a `validation_token`. This token is required for the P2P handshake, ensuring only authorized participants can join a specific match ID.
-- **Handover:** 
-    - The **Host** calls `hostGame(roomCode, validationToken)`.
-    - The **Guest** calls `joinGame(roomCode, validationToken)`.
-- **Robustness (Phase 27):**
-    - **Guest Retries:** Guests attempt to connect to the Host up to **5 times** with exponential backoff.
-    - **Edge Verified UDP:** Matches identified by the Edge server are marked with a diagnostic badge in the UI.
-    - **Sync Delay:** Guests wait **800ms** before the first connection attempt to allow Host initialization.
+### 2.1 Matchmaking & Server-Owned Lobbies (S0–S5)
+Match formation prioritizes server-coordinated pairing and deterministic seating before entering a room:
+- **Queue & Hybrid Fill (`join_matchmaking` / `join_matchmaking_hybrid`):**
+  - Shape-aware Postgres RPCs (`1v1`, `2v2`, `4P`) protected by advisory locks and **30s ticket lease TTLs** (`expires_at > now()`, renewed by status polling and reaped by cron).
+  - Edge Server (`EdgeServerClient`, WebSocket `find_match`) remains supported with transparent failover to Supabase matchmaking RPCs.
+- **Deterministic Canonical Seating (`assign_match_seats` & `match_seats`):**
+  - On match formation, Postgres sorts participating wallets under explicit `"C"` ASCII collation and persists `match_seats(match_id, color, wallet_address, seat_index)`.
+  - Each player's Session v2 token can carry `seat_color` (`202610220003`), preventing one participant from issuing actions for another seat.
+- **Lobby Doors & Secrets (`lobby_join_policies`):**
+  - Every lobby declares a door: `matchmaking` (requires ticket `validation_token`), `invite` (requires server-minted `?s=` room secret and accepted friendship), or `open` (casual code join / hybrid open-fill after `allowOpenJoins()`).
+- **Zero-Popup Paid Wagers (`ArenaVault`):**
+  - Quick Match and TeamUp wagers reserve funds via `arena_vault_reserve` prior to queue/room entry (`ensureVaultAndReserve`). When vault credit covers the stake, entry executes at **0 gas**; otherwise `SignWaitModal` prompts only the deficit deposit (`wager - vaultBalance`). Cancelling an unmatched search or closing an unstarted room returns the reserve via `arena_vault_release` at 0 gas.
 
-### 2.2 Hybrid Mesh Communication Model
-- **Reliability Layer (Supabase Broadcast):** The primary channel for high-frequency game actions (dice rolls, token moves, turns). Subscribing to `game-room-<roomCode>` ensures low-latency delivery across the Supabase global mesh.- **P2P Identity & Initial Handshake (PeerJS):** Still strictly utilized for initial peer discovery, identity validation (`validation_token`), and specialized profile synchronization (`SYNC_PROFILE`). 
-- **Mesh Redundancy:** Actions are signed with a unique `actionId`. The engine implements a processed actions Set (`processedActionsRef`) to deduplicate payloads received via both PeerJS and Supabase.
-- **Cleanup:** Automatically clears searching tickets upon component unmount and forces immediate termination of stale sessions to prevent ghost matches.
+### 2.2 Transport Hierarchy & Relay Safety (`TU-1`)
+- **Primary Authority (MatchRoom WebSocket):** Whenever `/api/room/:matchId/ws` is connected, `roomAuthority` is active (`hooks/useGameActions.ts`). Clients emit lightweight validated intents (`REQUEST_ROLL`, `REQUEST_MOVE`, `REQUEST_POWER`) and adopt server-broadcast state snapshots.
+- **Public Relay Guard (`game-room-<roomCode>`):** Supabase Realtime Broadcast carries lobby sync, dual-path intents (`GAME_INTENT`), chat, emotes, and ACKs. State-bearing verbs (`START_GAME`, `ROLL_DICE`, `MOVE_TOKEN`, `TURN_SWITCH`, `ENGINE_STATE`, `POWER_HAND`) are **never** accepted from the public relay (`processGameAction(data, via)` admits them only when `via === 'peer'` on offline/local fallback paths).
+- **Guest Intent Dual-Path & Dedup:** Guests transmit intents over WebSocket/PeerJS + Supabase Broadcast using shared `intentId`s; LRU/TTL dedup stores (`lib/netcode/dedup.ts`) with monotonic high-water eviction reject replays.
 
-### 2.3 Server Authority Architecture (MatchRoom Durable Object)
-- **Single Source of Truth:** Cloudflare Durable Object (`MatchRoom.ts`) runs the in-process pure engine (`src/room/engine.ts`), holding authoritative game state, turn clock, and dice RNG.
-- **Protocol v2:** Networked clients connect via WebSocket (`/api/room/:roomId/ws`), authenticate via Session v2 bearer tokens, and send lightweight game intents (`REQUEST_ROLL`, `REQUEST_MOVE`).
-- **Atomic Commits:** On valid actions, the room persists incremental game state to Postgres via the `match_commit_action` RPC with strict CAS sequence verification (`seq`), preventing split-brain or stale writes.
-- **Turn Timers & Alarms:** Authoritative turn countdowns are scheduled via Durable Object storage alarms. Turn timeouts trigger auto-play and strike tracking directly on the server, guaranteeing match progression even during client disconnection.
-- **Retirements (Phase 6):**
-    - Legacy Deno Edge Functions (`roll-dice`, `move-auth`, `resolve-bet`) are completely retired and removed.
-    - Legacy intents `DICE_COMMIT`, `DICE_REVEAL`, `CMD_REQUEST_TRUST` are retired.
-    - Host election `HOST_ELECT` is retired; MatchRoom DO is the permanent authority for networked rooms.
-    - Offline pass-and-play and bot matches remain local client authority.
+### 2.3 Server Authority Architecture (`MatchRoom` Durable Object, P0–P6)
+- **Single Execution Context:** Cloudflare Durable Object (`src/room/MatchRoom.ts` / `src/room/MatchRoomCore.ts`) executes the synced engine (`src/room/engine.ts`), owns CSPRNG dice minting, verifies Session v2 seat authority, and commits state transitions atomically.
+- **Atomic Commits (`match_commit_action`):** Incremental state commits and initial S0 seed persistence (`seq = 0`) run through Postgres RPC `match_commit_action` with strict CAS checks on `seq` (returning `STALE_SEQ` + authoritative state on races).
+- **Alarms & Hibernation Recovery:** Authoritative turn clocks live inside DO storage alarms (`28s` human turn, `1.2s` bot turn). Evicted DOs rehydrate seamlessly from `match_states` and resume alarms/AFK strikes without client host intervention.
+- **Retirements (P6):** Legacy Deno Edge Functions (`roll-dice`, `move-auth`, `resolve-bet`), `DICE_COMMIT`/`DICE_REVEAL`, `CMD_REQUEST_TRUST`, and networked `HOST_ELECT` authority switching are retired. Offline pass-and-play and local bot matches continue using local client `processMove`.
+- **Engine Sync Check:** `npm run check:engine` guarantees `lib/engine/core.ts` and `src/room/engine.ts` remain byte-identical (save header banner).
 
 ---
 
 ## 3. Gameplay [The Rules of War]
 
 ### 3.1 Classic & Power Modes
-- **Classic:** Standard Ludo rules with tokens, capture, and bonus turns.
-- **Power:** Inclusion of special power tiles (Shield, Nuke, Teleport, Boost) placed randomly on the board.
+- **Power (Default):** Includes 5 hidden main-track power tiles (`Boost`, `Shield`, `Teleport`, `Nuke`) plus match traps, power inventory clocks, and tactical HUD VFX.
+- **Classic:** Pure Ludo rules (home exit, Force captures, safe stars, exact 57 finish, bonus turns, three-sixes forfeit).
 
-### 3.2 Seating & Turn Order
-- **Seating Axis:** Players are assigned to corners: `Bottom-Left (BL)`, `Bottom-Right (BR)`, `Top-Right (TR)`, or `Top-Left (TL)`.
-- **Turns:** Anti-clockwise rotation.
-- **Diagonal Partnership (2v2):** Partners always sit diagonally opposite (`BL+TR` or `BR+TL`).
-- **Team pairings (single source of truth — `TEAM_PAIRINGS` in `lib/constants.ts`):** **Green+Blue** vs **Red+Yellow**. Seating (`assignCorners2v2`), lobby order (`LOBBY_COLORS['2v2']`, derived not hardcoded), capture truce, trap truce, teammate assist, AI targeting, and win checks all read this table. Never fork a second pairing.
+### 3.2 Seating, Pairings & Seat-Aware Turn Cycle (`TU-6`)
+- **Corners:** `Bottom-Left (BL)`, `Bottom-Right (BR)`, `Top-Right (TR)`, `Top-Left (TL)`, rotating anti-clockwise.
+- **Seating Rules:**
+  - **1v1:** Diagonally opposite (`BL↔TR` or `BR↔TL`), seated via `seatedColorsFor('1v1')` (zero unseated ghost turns inside `getNextPlayer` / `activeColorsForTurns`).
+  - **2v2:** Teammates diagonally opposite (`Green+Blue` vs `Red+Yellow`).
+  - **4P FFA:** All 4 seats (`green`, `red`, `yellow`, `blue`), randomized corner assignment offline or `"C"` collation-assigned server-side.
+- **Single Source of Truth (`TEAM_PAIRINGS` in `lib/constants.ts`):** Seating, `LOBBY_COLORS['2v2']`, `getTeammateColor`, `getTeam`, capture truce, trap truce, teammate assist, AI targeting, and win checks all derive from `TEAM_PAIRINGS`.
 
-### 3.3 Movement & Capture (Force Mechanics)
-- **Home Exit:** Requires a `DICE_MAX` (6) to move from base (`BASE_INDEX: -1`) to start tile (0).
-- **Exact Finish:** Tokens land exactly on `BOARD_FINISH_INDEX` (57); over-roll results in no movement.
-- **The Force System:** Multiple tokens from the same team on one square increase that square's "Force."
-- **Capture Rule:** To capture an opponent, your team's Force on that square must be >= their Force.
-- **Safe Zones:** 8 "Star" squares provide immunity to capture regardless of Force.
-- **Home Lane:** Tokens enter the protected home lane at `HOME_LANE_START_INDEX` (52).
-- **Legality:** Always use `calculateNextPosition` / `getLegalTokenIndices` — never `pos + roll` (that breaks gate crossing into 52–57).
+### 3.3 Movement, Force & Capture
+- **Home Exit:** Requires a `6` to deploy from `BASE_INDEX (-1)` to start index `0`.
+- **Exact Finish:** Must land exactly on `BOARD_FINISH_INDEX (57)`; overshoots are illegal.
+- **Team Force & Capture:** Allied tokens on the same square sum their Force. Capturing requires your team's Force on the destination cell `>=` enemy Force (`checkMultiCapture` evaluates resolved/pre-move state consistently). Teammates never capture or trigger each other's traps (`ENG-12`).
+- **Safe Zones & Home Stretch:** 8 Star squares (`SAFE_POSITIONS`) prevent capture/nuke hits. Home lane spans `52..57`.
+- **Legality:** Always evaluate moves through `calculateNextPosition` / `getLegalTokenIndices` — never `pos + roll`.
 
-### 3.4 2v2 Teammate Assist
-Once a player has finished all 4 of their own tokens, they can move their teammate's tokens during their own turn. 
-- **Victory:** A team wins only when all 8 tokens (4 per player) have reached the Finish square.
-- **Teams:** Green+Blue (team 1) vs Red+Yellow (team 2).
-- **`winners` records every newly-finished color** (both teammates on a team win), and `recordWin` fires per color. Settlement maps `Team N` → both `TEAM_ID`-N seats before `buildPayoutPlan`; a lone winner on a 2v2 pool throws instead of paying 100%.
+### 3.4 2v2 Teammate Assist & Victory
+- Once a player brings all 4 own tokens to `57`, `resolveControllableColor` transparently routes their turns to control their teammate's remaining tokens.
+- A 2v2 team wins only when all 8 team tokens reach `57`. `evaluateVictory` is the **single** win evaluator across both `processMove` and `applyPower`'s Teleport branch (`ENG-03`). Both winning colors are appended to `winners`, and paid `ArenaVault` 2v2 pools split net payout 50/50 across both winning wallets (`5%` protocol rake).
 
-### 3.5 Power System v3 (hidden tiles → timed inventory → targeted spend)
-- **Tiles:** exactly 5 (`POWER_TILES_COUNT`), main track only, never home tiles. Each carries a hidden type (rarity: Boost .4 / Shield .25 / Teleport .2 / Nuke .15). Tiles render NOTHING pre-pickup; landing exactly on one reveals (flash + discovery message), grants to inventory, and spawns a replacement elsewhere. Replacement spawns are deterministic: one LCG stream per pickup seeded by the match-committed `powerTileSeed` (minted at match start, covered by the seed digest) — never wall-clock — so every authority holding the same state spawns the same tile. Traps respect the 2v2 teammate truce and resolve through the shared post-move epilogue (shield cleanup, dice reset).
-- **Inventory:** per-color arrays of `{type, expiresAt}` — counts with clocks (Nuke 3:00, Shield 4:00, Boost/Teleport 5:00). Re-pickup of a held type refreshes its clocks. Expiry sweeps run on every game transition; expired items vanish silently. Bottom-centered badge bar (counts + mm:ss, amber pulse <30s), rendered only when non-empty.
-- **Mechanics:** Shield = all on-board tokens until your next move completes (cleared on move resolution). Nuke = every solo unshielded opponent token within circular `±3` of the SELECTED token goes home (`51 <-> 0` wrap-aware); safe stars, active shields, home lanes/base, and stacked enemy tokens (`>= 2` allied tokens on the same cell, whether 2/3/4 own or a 2v2 teammate pair) hold against the blast. Boost = split two-step move on the next roll: grants a bonus `6` first (usable to deploy from base or advance any eligible token), followed immediately by the rolled die (`1–6`) on any eligible token; Boost's `6` never counts toward the 3-sixes bust, and re-boosting on a bonus roll is allowed (`6 6 6` and `6 6 6 1–5` valid; 3rd *rolled* six forfeits). Teleport = foremost/targeted token to nearest forward star (circular); 49–56 → straight to 57.
-- **Spend rules:** tap badge → Shield/Boost fire immediately; Nuke/Teleport arm targeting (gold rings on that color's tokens, tap token to fire, tap elsewhere/badge to cancel). One power per roll (`powerSpentThisTurn`, cleared on each new roll). No-target spends keep the power + explain why. Powers execute host-side; guests replay via broadcast state.
-- **AI:** Rookie never spends; Pro spends on condition; Master targets Nuke at the densest cluster. All tiers "sense" hidden tiles via the hunt weight.
-- **Effects/sounds:** Nuke = blast-cell red blink (`nukeFlash`, 1.4s) + siren→boom + heavy haptic + kill-feed line. Shield = cyan token rings until consumed. Boost/Teleport/Pickup = sweep/blip/chime. Legacy emoji power badge removed.
+### 3.5 Power System v3 (Split Boost, Stack-Safe Nuke, Shield Dome, Teleport Warp)
+- **Hidden Tiles & Deterministic Respawns:** `5` main-track tiles (`POWER_TILES_COUNT`, never home tiles), weighted rarity: `Boost (0.40)`, `Shield (0.25)`, `Teleport (0.20)`, `Nuke (0.15)`. Tiles stay invisible until stepped on; replacements spawn deterministically from match-committed `powerTileSeed` via LCG. Wire frames strip `type` via `sanitizeGameStateForWire` (`lib/wireSanitize.ts`), while `applyServerState` preserves the owning local client's held inventory.
+- **Timed Inventory:** Per-color slots with expiry clocks (`Nuke 3:00`, `Shield 4:00`, `Boost/Teleport 5:00`); re-collecting refreshes the clock.
+- **Boost (Split Two-Step `6`-then-Roll):**
+  - `resolveRollWithBoost` + `resolveNetworkedMove` (Branch A & B): Arming **Boost** grants a bonus **`6` step first** (`boostPendingDice` stores the rolled `1–6`), followed immediately by moving any eligible token with your **rolled die (`1–6`)**. (`effectiveMoveSteps` is strictly `1–6` — Boost no longer performs a single `6 + dice` leap.)
+  - If no token can legally move `6` (e.g., all tokens in home stretch near `57`), the split step falls through immediately to the rolled die.
+  - **Boost & Streak Independence:** Boost's bonus `6` **never** increments `consecutiveSixes`. Players may re-arm Boost on bonus turns (`6 6 6` and `6 6 6 1–5` remain valid; only a 3rd *rolled* six forfeits). If Step 1 captures or finishes a token, `boostSubMoveBonus` preserves the post-Step-2 bonus turn.
+- **Nuke (Circular `±3` & Stack-Safe):**
+  - Targets any chosen own on-track token and blasts solo unshielded opponent tokens within circular 52-cell track distance (`Math.min(|posA - posB|, 52 - |posA - posB|) <= 3`, seamlessly wrapping across the `51 <-> 0` seam).
+  - **Blast Immunity:** Tokens on safe stars, tokens protected by `activeShields`, tokens in base/home stretch, 2v2 teammates, and **stacked enemy tokens (`getTeamForceAtPoint >= 2`, whether 2–4 own tokens or a 2v2 teammate stack)** survive the blast.
+- **Shield (Aegis Dome):** Protects all on-board track tokens of that color with glowing dome VFX through the caster's current turn (including bonus rolls) and across every opponent's turn until turn control returns to that player (`clearShieldsOnTurnChange`). Individual tokens entering home stretch (`>= 52`) or hitting an enemy trap prune their own shield while remaining track tokens keep protection until the next turn.
+- **Teleport (Forward Star / Instant Finish):** Moves targeted token to the nearest forward safe star (circular), or straight to `57` if on positions `49–56`, invoking `evaluateVictory`.
+- **Spend Rules:** Shield and Boost trigger immediately on dock tap; Nuke and Teleport enter ring-targeting mode (`PowerInventoryDock`). One power spend per roll (`powerSpentThisTurn`). Invalid/no-target spends refund cleanly and explain why.
 
-### 3.6 Valid-move highlighting (UI, not engine)
-- A token is legal iff `calculateNextPosition(pos, dice, color, cc) !== pos`. `BoardTokens.tsx` + `BoardHome.tsx` evaluate this per-token on every `moving` phase and mark legal tokens (double pulsing ring + bounce arrow, bright filter) vs illegal (dimmed to ~38% opacity, desaturated). A dashed ring at `getBoardCoordinate(nextPos)` previews the landing cell (including home-exit to `startIdx` on `6`). Turn with no legal moves passes instantly — see section 5.1.
-- **Three Sixes & Streak Reset:** Rolling three consecutive *rolled* `6`s skips the third roll and passes the turn (Boost's bonus `6` never increments this counter). Capturing an opponent or finishing a token (`57`) resets `consecutiveSixes` to `0`, granting a fresh bonus roll streak.
-- **Bonus Turn:** Received for rolling a `6`, capturing an opponent, or reaching the finish tile (`57`).
+### 3.6 Bonus Turns, Finish & Three-Sixes Streak
+- **Bonus Turn (`bonusRoll`):** Rolling a `6`, capturing an enemy token, **or** landing a token cleanly on `BOARD_FINISH_INDEX (57)` (`finishedToken: true`) awards another roll.
+- **Streak Reset:** Capturing an enemy OR finishing a token on `57` resets `consecutiveSixes` to `0`.
+- **Three Consecutive Sixes:** Rolling 3 consecutive *rolled* `6`s (`checkThreeSixesForMove`) forfeits the 3rd roll and advances the turn immediately.
 
 ---
 
 ## 4. Board Intelligence [Spatial Systems]
-
-### 4.1 Grid & Perimeter 
-- **Grid:** 15x15 pixel-perfect layout.
-- **Pathing System:** Tokens move around a global parity index map (0 to 51). The `getBoardCoordinate(pos, color, colorCorner)` calculates raw row/col rendering coordinates on the fly.
-- **Home Lane System:** Tokens enter their designated colored Home stretch at positions 52 through 57.
-- **Deprecation:** The legacy static `playerPaths` array map has been structurally ripped out in favor of purely mathematical parity calculations, drastically reducing state bloat.
-
-### 4.2 Safe Positioning
-Standardized star positions: `{r:2, c:9}, {r:7, c:2}, {r:9, c:14}, {r:14, c:7}` (and their 4 rotations).
+- **15×15 Parity Coordinate Grid (`lib/boardLayout.ts`):** Tokens traverse a global 52-cell track (`0..51`) and enter color-specific home stretches (`52..57`) mapped mathematically via `getBoardCoordinate(pos, color, colorCorner)`.
+- **Standard Safe Stars:** `SAFE_POSITIONS` rotated across the 4 quadrants.
 
 ---
 
-## 5. Human Integrity [Behavioral Guardrails]
+## 5. Human Integrity, Timers & AI Engine
 
-### 5.1 AFK & Kick System
-- **Turn Timer:** 15 seconds.
-- **Strikes:** Failing to act on time results in a "Strike" and an auto-move.
-- **Expulsion:** 3 strikes total throughout the match results in an immediate kick. The player is replaced by a Bot, and their rewards are forfeited.
-- **Ultimatum:** A 10s "Are you still there?" screen appears after 4 consecutive missed actions.
-- **No-valid-move fast path:** If `gamePhase === 'moving'` and no token satisfies the section 3.5 legality check, the turn hands over with **0ms delay** (was 2s). The dice does a spring toss-in at the next player's corner as the only turn-pass cue. `hooks/useGameActions.ts` also hard-resets `rollingRef` on this path — otherwise the roll guard deadlocks every future roll (see six-loop bug).
+### 5.1 Timers, AFK Strikes & Fast Turn-Pass
+- **Networked Matches (`MatchRoomCore.ts`):** Authoritative DO alarms track turn deadlines (`28s` human, `1.2s` bot), emit auto-play or `turn_passed`, increment `afkStats`/strikes (3 strikes → bot takeover / abandon classification).
+- **Offline / Legacy Countdown (`useGameTimer.ts` & `useAFKManager.ts`):** Computes remaining seconds from absolute `Date.now()` deadlines so background tab throttling cannot freeze AFK detection; re-arms countdown only when `handleRoll` / `moveToken` returns `'applied'`.
+- **0ms No-Legal-Move Fast Path:** If `moving` begins with zero legal tokens (`getLegalTokenIndices.length === 0`), turn advances immediately without artificial delay and resets `rollingRef`.
 
-### 5.2 Bot Heuristics (`aiEngine.ts`)
-Bots prioritize actions via `calculateMoveScore` using configurable `AI_SCORES`:
-1.  **Reach Finish Zone (+150):** Safely bringing a token home (`REACH_FINISH` in `lib/constants.ts`).
-2.  **Power Tile Hunting (+120):** Aggressive targeting of power-up squares.
-3.  **Capture Token (+100):** Aggressive hunting of opponent tokens.
-4.  **Reinforce Ally (+60):** Building Force on a square with an ally.
-5.  **Enter Safe Zone (+50):** Moving to defensive star squares.
-6.  **Exit Base (+40):** Bringing tokens out of the base.
-7.  **Enter Home Lane (+25):** Prioritizing entries to the protected home stretch.
-8.  **Progression (+1x):** Small reward per cell of color-relative distance travelled toward home (0 at own start, 50 at gate, 51–56 home stretch) — never the raw track index, which scored a fresh token of a late-start color above a token six cells from home.
+### 5.2 Bot Heuristics & Difficulty (`lib/aiEngine.ts`, `lib/constants.ts`)
+Evaluates moves inside a Web Worker (`lib/ai/worker.ts`) using `AI_SCORES` and returns `{ color, tokenIndex }` (supporting 2v2 teammate assist):
+1. `REACH_FINISH` (**+150**)
+2. Power tile hunting (**+120**)
+3. Enemy capture (**+100**)
+4. Ally reinforcement (**+60**)
+5. Enter safe star (**+50**)
+6. Exit base (**+40**)
+7. Enter home lane (**+25**)
+8. Color-relative forward progress (**+1×**, `0..56`, never raw parity index)
 
-**Doc accuracy (ENG-16):** item 1 states the `AI_SCORES.REACH_FINISH` value from `lib/constants.ts` (150). It previously read +200 with no constant backing it — the code is the source of truth, so the doc was corrected rather than the constant.
-- **Difficulty tiers (`DIFFICULTY_PARAMS` in `lib/constants.ts`, stored per match as `GameState.botDifficulty`, default `pro` = legacy behavior):**
-    - **Rookie:** ±40% score noise, ignores power tiles (`powerHunt 0`, never spends powers), capture ×0.7, slow clocks (roll 600–2200ms, move 1400ms).
-    - **Pro:** clean baseline weights, standard clocks (roll 150–1900ms, move 900ms).
-    - **Master:** no noise, power ×1.3, capture ×1.5, fast clocks (roll 150–700ms, move 500ms).
-- **Timing:** `lib/constants.ts` — `BOT_ROLL_DELAY_MIN 150ms`, `BOT_ROLL_DELAY_MAX 1900ms` (randomized within 2s), `BOT_MOVE_DELAY 900ms`. Combined with dice tumble 1.2s + move anim 1.3s, a full bot turn is ~4–6s (was ~7–11s).
-
-### 5.3 Authority Logic (`isAuthority`)
-In multiplayer networked matches, turn orchestration (AI moves, AFK detection, state transitions) is strictly limited to the **P2P Host** (or the designated `isComputeHost` if the original host leaves). 
-- **Authority Calculation**: `isHost || isComputeHost` in networked matches; `true` for all local matches.
-- **Conflicts**: Guests explicitly reset `isBotMatch` to `false` upon joining to prevent redundant or conflicting AI turn orchestration in the same match ID.
-- **Start-Game Sync**: The Host broadcasts the definitive `isBotMatch` state and `initialBoardConfig` to all Guests via the `START_GAME` signal.
-
-### 5.4 Strategic Power Usage
-AI evaluates power usage via `getBestPowerUsage` (`aiEngine.ts`) independently of movement:
-- **Shield:** Triggered if any ally token is vulnerable to an opponent within 6 steps.
-- **Nuke:** Triggered when an opponent cluster is within the configured blast radius.
-- **Boost/Teleport:** Used strategically to accelerate finishing or clear dangerous zones. Boost spend is gated: a token within 12 cells of home, or a token on a non-safe square with an opponent ≤6 behind it — otherwise the AI holds it. `getBestMove` returns `{color, tokenIndex}` so 2v2 assist moves address the teammate's token with the teammate's color.
+- **Difficulty Tiers (`DIFFICULTY_PARAMS`):** `rookie` (±40% noise, ignores power tiles, slow clocks), `pro` (baseline weights, 150–1900ms roll / 900ms move), `master` (0% noise, 1.3× power hunt, 1.5× capture, fast 150–700ms roll / 500ms move).
+- **Strategic Power AI (`getBestPowerUsage`):** Rookie never spends; Pro/Master arm Shield when an enemy threatens within 6 cells, Boost when `<= 12` from finish or chased `<= 6` on an unsafe tile, and target Nuke/Teleport for maximum cluster damage or safety.
 
 ---
 
-## 6. UI & UX Aesthetics [Visual Design System]
+## 6. Visuals, Token Kinematics & Audio Stack
 
-### 6.1 Interactive Feedback
-- **Token Pulse / Valid-move cues:** Tokens pulse when it's your turn; legal tokens get a double pulsing ring + bounce arrow and stay bright, illegal ones are dimmed (~38% opacity) — see section 3.5. Destination ring previews the landing cell.
-- **Token art:** the pure-CSS **orb** style is the default via `body.token-style-orb` (`TokenStyleSwitcher.tsx` + `usePreferences.ts:tokenStyle`); `ChessTokens.tsx` pawn pieces (rank via `getTokenRank`) are opt-in and are hidden while the orb class is on. Both share the same movement pipeline. Previews: `/token-preview`, `/token-move-test`. (Changed 2026-10-24 on the owner's instruction — orb was previously the opt-in.)
-- **Movement:** GSAP timeline only (see `BoardTokens.tsx:TokenPiece`): FLIP with layout-measured `offsetWidth` units, **uniform `TOTAL 1.3s`** for any dice (cell hops `LEAP 0.79*cellDur` / `BEAT 0.21*cellDur`, hop `-18px` in screen space via an upright wrapper that cancels board rotation). Stacking offsets on the outer div are instant (`x/y {duration:0}`) to avoid wobble on captures. Capture run-home is a `RunHomeGhost` that sprints the reverse track with `xPercent/yPercent`. Dice pass-in: spring toss + expanding ring; awaiting-roll / awaiting-move blink rings on `LudoDice` / avatar. The former `.ludo-token-pulse` wrapper is required — never animate `transform` on the counter-rotated root itself.
-- **Screen Shake**: Capturing an opponent triggers a subtle board-wide vibration.
-- **Diagonal Seating (1v1 & 2v2):** 
-    - Partners and 1v1 opponents are **physically enforced** to be diagonally opposite (`BL+TR` or `BR+TL`).
-    - Color assignments are secondary to physical position; the engine ensures the two active players are always opposite in the game loop.
-- **Celebration Glow**: The central Finish Zone emits a cyan/purple glow when a player wins.
-- **Match Reveal Overlay**: High-intensity "MATCH!" screen with glassmorphism, rival profile fetching (username/avatar), and match criteria (1v1, mode, wager).
-
-### 6.2 Layout & Navigation
-- **Sandwich Layout:** All panels are vertically centered with fixed top/bottom gutters (`top-64`, `bottom-80`).
-- **Dynamic Design:** Use of glassmorphism, pulse animations, and interactive "Pill" headers.
-- **Edge Diagnostic HUD:** Redesigned bottom-anchored HUD showing `📡 EDGE PRIMARY` or `SUPABASE FALLBACK` status, ensuring users are aware of the connection engine.
-
-### 6.3 Technical Guardrails (UI-Side)
-- **Identity & Naming Guard**: 
-    - **Convention**: Players without a resolved social identity default to **`Guest [Last 6 Uppercase]`** (e.g., `Guest D1F23A`) derived from their wallet address.
-    - **Resolution**: The `ProfileSyncer` component attempts to resolve decentralized profiles via Farcaster Frame SDK, Neynar API, and OnchainKit (Base Names/ENS).
-    - **Sync**: Once resolved, the profile is broadcast via a specialized `SYNC_PROFILE` event in `TeamUpContext.tsx`, updating the lobby's `participants` list in real-time.
-- **Atomic Ticket Purging**: Initiating a new search (`startSearch`) triggers an immediate purge of all stale `searching` records for that player's wallet, preventing "Shadow Matches" with orphaned sessions.
-- **Safe Match Cancellation**: Users can safely exit the "Match Found" screen before the P2P synchronization finishes without losing coins or rating points.
-- **Modular Game Logic**: Core logic is decoupled from hooks. `processMove`, `calculateNextPosition`, and `getBoardCoordinate` handle discrete, testable game rules.
+- **Three Themes + Deployment Palettes:** **3077** (`theme-3077`, flagship default), **Retro-Futurism** (`theme-retro-futurism`, CRT + `RetroArcLight` pill footer), and **Daybreak** (`theme-daybreak`, Warm Studio Porcelain light), all tinted reactively by deployment mode (`quick` / `team` / `offline` in `lib/deployTheme.ts`).
+- **Tokens & 3D Step-Crown Hops (`BoardTokens.tsx`):** `body.token-style-orb` is default (`ChessTokens` opt-in). GSAP FLIP animates multi-cell leaps with screen-space upright `-18px` hops, step-crown rings, and `RunHomeGhost` capture sprints inside `useStableBoardBox`-locked containers.
+- **Board HUD & VFX:** `AnchoredDiceBay` (3-theme corner launch docks + `dice-streak-strip` double-six warning + Boost overdrive wing), `PowerInventoryDock`, `PowerVfxOverlay` (Nuke siren warhead + crimson blast corridor, Shield dome burst, Boost plasma trail, Teleport 3-beat warp), and `BoardTerminalHud`.
+- **Procedural Audio (`lib/audio/`):** Single-`AudioContext` `SoundEngine` (`sfxCatalog.ts`) + `MusicDirector` (3 genre-specific interactive BGM engines across lobby/queue/crunch heartbeat + optional bilateral L/R 14 Hz pulses) with automatic nested-modal ducking.
+- **Reduced Motion Override (`lib/motion.ts`):** 3-way preference (`system` | `full` | `reduced` via `ludo-motion` cookie) controlling `MotionConfig` + CSS + GSAP/confetti guards.
 
 ---
 
-## 7. Technical Guardrails [Quality of Service]
+## 7. Security Contracts, Encryption & Progression
 
-### 7.1 Dice (Edge Function — networked seats)
-All **networked** rolls (humans, host-orchestrated bots, AFK auto-play) call the Supabase Edge Function (`/functions/v1/roll-dice`) for a CSPRNG 1–6 result:
-1. Client broadcasts a `REQUEST_ROLL` intent (`isRolling`, UI spins).
-2. Client queries the `roll-dice` Edge Function.
-3. On success, the host broadcasts `ROLL_DICE` with the fetched value.
-4. **No client RNG fallback in networked matches.** If the Edge call fails, the roll is aborted (UI unlocks). Offline / local-bot matches may use local RNG.
-5. **Anti-Drop Security:** If a host drops a bad roll, the 15s turn timer (`useGameTimer.ts`) applies an AFK strike and forces an auto-move (Edge again when networked).
-6. **A client may request a roll; it may never name a face.** `handleRoll()` takes **no** face parameter at all — the strongest form of the rule, since no caller can pass one even in principle. `REQUEST_ROLL` carries an empty payload and `REQUEST_MOVE` carries no `diceValue`; `isGameIntent` and the wire schema **reject** either key rather than ignoring it, so a forgery is dropped loudly instead of read as acceptance. `LudoDice.onRoll` is `() => void` (it previously called `onRoll(0)`, which was safe only because `0` is falsy).
-7. **Minting is authenticated (SEC-01).** Only the **host** may mint: a guest asks over the intent channel and the host calls in, keeping the betting window and dice order with the host. The caller supplies a `match_sessions` grant or a one-off `personal_sign` — never SIWE. Everything identifying the receipt is derived server-side:
-   - `wallet_address` = the **recovered** signer (the body field is gone, so attribution cannot be forged to another player);
-   - `seat_color` = the seat whose turn it is, taken from `match_states`;
-   - `turn_seq` = the `match_states.seq` the roll was minted at.
-   Bot and AFK seats roll through the host with `seat_color` set to the bot's colour, which is what makes them possible at all — they previously sent a literal `"<color>-bot"` string that could not satisfy the FK to `players`.
-8. **One roll per turn — retry-until-six is impossible.** `match_rolls_match_turn_uniq` on `(match_id, turn_seq)` means a second receipt for a turn cannot be inserted at all. The earlier `(match_id, action_id)` idempotency bound nothing, because `action_id` was caller-chosen. A repeat attempt now **replays** the first face, so a dropped response recovers instead of wedging the turn. The rules live in `_shared/rollReceipt.ts` as pure functions, tested in Node (`scripts/roll-trust.test.ts`) and against real Postgres (`scripts/concurrency.test.ts`: six concurrent retries of one turn, zero accepted).
-9. **Spending a receipt is bound three ways (SEC-01).** `move-auth` `move` and `pass` both require: the receipt's `seat_color` is the seat moving, `turn_seq` still equals the current `seq` (so a roll cannot outlive its turn — server-side, not a client-carried `lastRollId`), and the minter is the host or the seat's own wallet. A receipt with no `seat_color`/`turn_seq` predates migration `202609300011` and is **refused, not guessed at**.
-10. **Server receipts (`match_rolls`) are RLS default-deny** for clients: no insert, no update, no session forgery, no state seeding via PostgREST. Only the Edge service role writes. Host broadcasts `rollId` with `ROLL_DICE` for spectators/audit.
+### 7.1 Wire Schemas & Anti-Cheat Invariants
+- `REQUEST_ROLL` (`Record<string, never>`) and `REQUEST_MOVE` (no `diceValue`) validate strictly via Zod `.strict()` (`lib/protocol/schemas.ts`), rejecting caller-supplied dice values.
+- `resolveRollWithBoost` enforces `checkThreeSixesForMove` before legality; `resolveNetworkedMove` enforces `isValidStepCount(1..6)` and `evaluateVictory`.
+- `npm run test:engine-diff` (1200 deterministic seeded matches comparing `lib/engine/core.ts` vs `lib/gameLogic.ts`), `npm run test:engine-core`, `npm run check:drift` (12 tests), `npm run test:golden` (50/50 terminating corpus), and `npm run test:mp` verify rule consistency in CI.
 
-### 7.1b Server-validated moves (v2)
+### 7.2 Identity, ECDH DMs & Wallet Guard
+- **Auth & Sessions:** Session v2 (`sessions` with SHA-256 hashed tokens, CSRF Origin/Sec-Fetch checks, `seat_color` binding) + `RateLimitDO` / Postgres `rate_limit_hit` across hot routes.
+- **E2EE DMs (`lib/encryption.ts`):** Non-extractable IndexedDB P-256 static keys, public JWK canonicalization (`lib/validation/ecdhJwk.ts`), HKDF-SHA-256 v2 sealed boxes (`16B` salt + static keys in `info`), fail-closed `isSealedBox` door in `POST /api/messages`, and immutable DM columns via `messages_restrict_columns`.
+- **Wallet Guard (`SignWaitModal` / `lib/walletGuard.ts` / `NetworkAutoSwitcher`):** Enforces Base Sepolia (`84532`) alignment, pre-flight dry-run simulation (`lib/txSimulator.ts`), Dual-Modal confirmation banners, and strict separation between CDP in-game passkeys vs native external wallet unlock (`WALLET_SIGNING_POLICY.md`).
 
-Networked matches seed `match_states` on `START_GAME`. Moves go through the `move-auth` Edge Function:
-
-1. Wallet-signed `submit-move` (player seat) or host-signed `host-assist` (bot/AFK only).
-2. Edge binds `rollId` from `match_rolls` (one roll → one move).
-3. Edge runs pure `lib/engine` (`processMove` / `getLegalTokenIndices`).
-4. Optimistic `seq++` on `match_states`; `match_moves` audit; broadcast `ENGINE_STATE`.
-5. `match_states.seq` is display authority (host is animator/relay, not rules).
-6. No legal move → signed `pass-turn`. **Powers (P3):** `submit-move` applies split Boost (`resolveRollWithBoost` + `resolveNetworkedMove` Step 1 `6` → Step 2 `rollValue`) and pickup; signed `submit-power` handles shield/boost/nuke/teleport (`seq++`). Power mode is server-trusted.
-6b. **Input validation (ENG-13).** The face is validated as an integer 1–6 (`isValidDice`) before any legality math; step counts are validated as integers 1–6 (`isValidStepCount`) on normal & split Boost moves. `clampSteps` coerces anything else.
-6c. **Three sixes are authoritative (ENG-05).** `checkThreeSixesForMove` runs before legality in `resolveNetworkedMove`, and `submit-move` is refused with `409 { code: "THREE_SIXES" }`: a third consecutive six **forfeits** the turn, so the client must use `pass-turn`, not `submit-move`. The counter lives in the engine, not in a client-side copy.
-6d. **Victory is one rule (ENG-03).** `evaluateVictory(positions, playerCount, prevWinner, prevStatus)` is the only place a winner is decided, and **`applyPower`'s teleport branch calls it too**. Teleport is the only power that can send a token straight home, so it is the only one that can end a match; skipping the check left a 2v2 team all-home with `winner=null`, `status='playing'` and both colours out of the turn cycle — permanently unrescuable, since nobody could move again.
-6e. **Turn cycle (ENG-04 + TU-6).** Two filters, both in the engine, in this order. First **seating**: `seatedColorsFor(playerCount)` — a 1v1 match seats two colours, and `assignCornersFFA('1v1')` still draws all four into the corner map (so `getBoardCoordinate` stays total) with the unseated two holding four yard tokens, so a token-only test would seat ghosts. Then **tokens**: in 2v2 a colour stays in the cycle while its **teammate** still has tokens, and a finished FFA colour leaves. `getNextPlayer` clamps its corner-walk result to the seated set — inside the function, not at its callers, because `processMove`'s `activeColors?` argument is optional and a stale all-four cycle must not be able to produce a ghost. The all-finished fallback returns the *seated* cycle; returning all four would resurrect unseated colours precisely when the match is over. The rule is single-sourced in the engine; it previously existed as four copies (engine + `useGameActions` + `useGameEngine` + inline in `useProvablyFairDice`), each free to drift.
-7. **P4 display authority:** clients subscribe to `match_states` (realtime). Host `ENGINE_STATE` is a **hint only** — applied iff `payload.seq` is strictly ahead of the known server seq.
-8. **Match session (EIP-712):** after seed, client signs `LudoMatchSession { wallet, matchId, roomCode, expiresAt, nonce }` once. Edge stores `match_sessions`; later `submit-move` / `submit-power` / `pass-turn` send `sessionId` instead of a per-action signature. Smart wallets sign the same typed data once. Per-action signature remains fallback. Settlement (`/api/match/record`) always requires a wallet sign.
-9. **Authoritative action contract:** networked clients treat `match_states` as the rendering cache and never advance rules locally. Each move, pass, or power request is validated against the current `seq` and committed with compare-and-swap semantics. A stale request returns HTTP `409` with `{ code: "STALE_SEQ", seq, state }`, allowing the client to reconcile before attempting another action. Host `ENGINE_STATE` broadcasts are transport hints only; only snapshots tagged `source: "match_states"` can advance a guest's networked rules state.
-10. **Session recovery:** an expired/revoked match session returns `401` with `{ code: "SESSION_EXPIRED" }`. Player move, pass, and power submissions clear the cached grant, request one replacement EIP-712 grant, and retry once; they never loop or silently fall back to an unauthenticated action.
-11. **Terminal actions:** finished snapshots set the client connection state to `ended`. Timers, AFK escalation, bot scheduling, and new move/pass/power requests stop while a match is ended or while an authoritative reconnect refresh is in progress.
-12. **Reconnect and compute-host recovery:** a reconnect pauses local countdown/AFK orchestration until a `match_states` snapshot is applied after the reconnect; the refresh may re-apply the same sequence because its state is authoritative, but a stale local copy never resumes by status alone. Compute-host ordering uses a room-scoped session timestamp and a short client-side election debounce, retaining the current elected wallet while it remains present so transient Realtime churn does not cause authority flapping. The compute host remains a transport/orchestration fallback; wallet signatures and `host_address` remain the server authority for assisted actions.
-
-Shared rules: `lib/engine/core.ts` ↔ `supabase/functions/_shared/engine.ts` (`npm run check:engine`).
-
-**One engine, one table.** `lib/engine/core.ts` is the authority and is copied verbatim into `_shared/engine.ts`. `lib/gameLogic.ts` is the app's original and must agree with it step for step — they once resolved the same capture differently, which is the worst class of bug in a wagering game. Gates:
-
-- `npm run test:engine-diff` — 1200 seeded matches through both, comparing `positions` / `captured` / `winner` / `bonusRoll` / turn rotation. Deterministic mulberry32, so a failure replays from its printed seed. Seating is **pinned**, not shuffled: `assignCornersFFA` uses `Math.random()`, which would make results irreproducible.
-- `npm run test:engine-core` — the authority functions that previously had **zero** coverage: `resolveNetworkedMove`, every `applyPower` branch, `applyPowerPickup`, `activeColorsForTurns`, `effectiveMoveSteps`, `countNukeVictims`, `applyEngineCaptureEvents`, `stripPowerTypesForWire`.
-- `npm run check:drift` — `TEAM_PAIRINGS`, `SHARED_PATH`, `CORNER_SLOTS`, `SAFE_POSITIONS`, coordinates, and `calculateNextPosition` against `lib/constants` + `lib/boardLayout`.
-- `npm run test:golden` — the replay corpus, driven through the authority engine (`lib/engine/core.ts`), not the legacy module. 50/50 matches terminate across 1v1/4P/2v2 (greedy max-progress from on-track starts, seeded seating), including a 2v2 team win; double-run hash-identical.
-
-### 7.1c SIWE app session (chat / profile / settings)
-
-`/api/siwe/verify` + `app_sessions` (7-day TTL). `useAppSession.ensureAppSession()` prompts one SIWE sign. **Never** authorizes match moves or payouts. Dual-chain: SIWE text carries `Chain ID: 84532 | 8453` from the active wallet chain (`lib/chains.ts` allowlist); the server rebuilds the identical text and verifies on that chain's RPC — cross-chain replays fail closed. Match-session EIP-712 domains are likewise per-chain (`buildSessionDomain`); Edge `move-auth` resolves the domain from `body.chainId`.
-
-### 7.2 Chat encryption
-DMs use **ECDH P-256 sealed boxes** (`lib/encryption.ts`): each identity holds a static keypair (opaque non-extractable CryptoKey in IndexedDB; legacy localStorage JWK migrates on load) and publishes the public JWK on `players.ecdh_pubkey` via a fresh wallet `personal_sign` over the key fingerprint. Senders generate an ephemeral pair, derive AES-GCM via real HKDF-SHA-256 (16 random salt bytes + both static keys in `info`, all carried in the v2 box), and store `{v:2, epk, iv, salt, from, content}`. Legacy wallet-hash ciphertext remains decrypt-only via `decryptAnyMessage` fallback. Messages UPDATE is column-locked by trigger (`messages_restrict_columns` in `supabase/migrations/00000000000000_baseline.sql`).
-
-Note: if a recipient has never published `ecdh_pubkey`, new sends fail closed (no plaintext downgrade). `POST /api/messages` enforces the same at the door (CRY-03): `content` must parse as a sealed box via `isSealedBox` — structural, not a length heuristic — so a client that failed to encrypt writes nothing rather than plaintext.
-
-### 7.3 Match recording (signed)
-`/api/match/record` requires a wallet signature over a canonical payload (`lib/matchProof.ts`). The signer must be a listed participant. Coin pots are **not** paid from this route (progression only). Replay is blocked when `matchId` already has a winner.
-
-### 7.4 Player Progression
-- **Level:** `floor(sqrt(lxp / 100)) + 1`.
-- **Rank Tiers:** Bronze (0) -> Silver (301) -> Gold (901) -> Platinum (1801) -> Diamond (3001) -> Arena Master (5001+).
+### 7.3 Match Recording, Settlement & Progression
+- `/api/match/record` verifies Session v2 + signed canonical payload (`lib/matchProof.ts`) against `match_states.state.winner`, prevents duplicate winner replays, credits progression (`Level = floor(sqrt(lxp / 100)) + 1`; Tiers: Bronze `0` → Silver `301` → Gold `901` → Platinum `1801` → Diamond `3001` → Arena Master `5001+`), records `arena_vault_settle_match` (`5%` rake, `50/50` split in `2v2`), invokes `arena_vault_settle_spectator_bets`, and bridges `clan_score_queue` / `finalizeFixtureScore` for Clan Wars + `player_free_matches` for batch `MissionSystem` telemetry sync.
 
 ---
 
-## 8. GambleFi Spectator System [hooks/, supabase/functions/resolve-bet/]
+## 8. ArenaVault Pari-Mutuel Spectator System (`lib/spectatorBetting.ts`)
 
-> Added: 2026-03-23 | Status: Phase 1–3 complete, Phase 4 (UI) in progress
+### 8.1 Zero-Video Sync & Live Arena Directory
+- Spectators subscribe to `MatchRoom` / `useSpectatorSync` room broadcasts (`game-room-${roomCode}`) and snapshot backstops with opaque power-tile types stripped (`sanitizeGameStateForWire`).
+- `/api/live-arena/directory` (`lib/arena/directoryService.ts`, `lib/arena/demoArenas.ts`) surfaces active matches, open lobbies (`Free` through `10M CHIPS` tiers), hydrated pilot dossiers, and functional demo AI exhibitions without exposing join secrets (`live_matches` narrow grants).
 
-### 8.1 Architecture: State-Sync Streaming ("Zero-Video")
-Spectators do **not** watch a video stream. Instead, they subscribe to the same Supabase Realtime Broadcast channel as players (`game-room-${roomCode}`) via the `useSpectatorSync` hook. Their browser receives the same `GameAction` payloads and re-renders `Board.tsx` locally in `spectatorMode`. (Their control channel is a separate `match-states-room-<roomCode>` presence channel, used for bootstrap/join messages — not gameplay event delivery.)
-
-This approach costs zero additional bandwidth per spectator and scales horizontally with Supabase infrastructure.
-
-```
-[Host] → broadcastAction() → Supabase Broadcast Channel → [Players] + [Spectators]
-                                                                          ↓
-                                                             useSpectatorSync() applies
-                                                             game state locally → Board.tsx renders
-```
-
-### 8.2 Betting Window Protocol (V2 Hardened)
-The host broadcasts a `BET_WINDOW_OPEN` event **before** initiating the dice commit. After 3 seconds, the host broadcasts `BET_WINDOW_CLOSED` with an ISO timestamp. **DICE_COMMIT is only sent after BET_WINDOW_CLOSED.** 
-
-**Security V2 (DB-04 audit):** the timing guard lives in `chips_escrow_settle_bets` (`supabase/migrations/202609300005_spectator_bet_escrow.sql`), which requires `window_closed_at` to be set **and** in the past (`BET_WINDOW_STILL_OPEN` otherwise) before any payout. The canonical `settle_match_bets` was frozen by `202609300001` and its stub body raises `LEGACY_COINS_FROZEN` — it carries neither a live guard nor idempotency. Rake is taken from `chips_escrow_config.rake_bps`, and the outcome is cross-checked against `match_states.state` before settlement (SEC-29).
-
-**Security V3 (signed settlement):** `resolve-bet` no longer accepts a free-form `result` from the network. The host wallet-signs `buildBetResolveMessage(...)` (`lib/matchProof.ts`). The Edge Function recovers the signer, requires `live_matches.host_address` to match, refuses an open or already-settled window (`409`), derives `bet_type` from `live_matches.current_bet_type` (a null recorded type fails closed), requires a recorded winner, and only then calls `chips_escrow_settle_bets`. Host address is written on `hostGame` / `START_GAME` (migration `20260914_live_matches_host_address.sql`).
-
-### 8.3 New Database Tables
-| Table | Purpose |
-|-------|---------|
-| `live_matches` | Betting window lifecycle per match (open/closed/resolving) |
-| `spectator_bets` | All spectator wagers with timing guard + idempotency columns |
-
----
-
-## 9. Advanced Synchronization & Multi-Host Resilience
-
-### 9.1 Hybrid Mesh Topology (Cloud + Local)
-The "Live Broadcast" system utilizes a dual-channel sync pipeline to ensure zero-latency gameplay across global regions:
-- **Supabase Realtime (Primary):** Acts as the high-availability "Cloud Relay." All game events (dice, moves, turns) are broadcasted to a dedicated room channel. This bypasses NAT/Firewall issues that often plague P2P.
-- **PeerJS (Secondary):** A low-latency "Local Mesh" for identity-heavy tasks like `validation_token` handshakes and `SYNC_PROFILE` events.
-
-### 9.2 Zero-Trust Action De-duplication
-To handle multiple relay channels without state corruption, every `broadcastAction` is stamped with a unique `actionId`.
-- **Deduplication:** Clients maintain a `processedActionIds` Ref. If an action is received via both P2P and Supabase, the duplicate is ignored instantly based on its ID.
-
-### 9.3 Authority Migration (The "Baton Pass")
-If the original Host disconnects or goes AFK, the system performs an **Authority Migration** via `useGamePresence`:
-- **Election:** A new `isComputeHost` is elected based on active presence priority.
-- **Continuation:** The new authority takes over game engine orchestration (AI moves, turn switching), ensuring the match progresses even if the creator leaves.
-
-### 9.4 Authoritative State Overrides
-`ENGINE_STATE` signals may include a `stateOverride` key for low-latency animation and recovery hints. Guests may apply these hints only when their sequence is behind the payload sequence; the persisted `match_states` row remains authoritative. On a stale action response, the returned `{ seq, state }` snapshot is the preferred reconciliation path.
-
----
-*Created by Antigravity AI for Ludo 3077.*
+### 8.2 Fixed Early-Match Pari-Mutuel Protocol (`202611190001`)
+1. **Window Bounds (`/api/live-matches/window`):** Host/system opens a bounded `winner` betting window clamped strictly to **`30s–180s` (default `90s`)**. Once `now >= window_closed_at` or `finished_at` is set, new bets fail closed (`409 BET_WINDOW_CLOSED`).
+2. **0-Gas Vault Funding (`POST /api/spectator-bets` → `arena_vault_place_spectator_bet`):** Bets (`1`–`10,000,000` CHIPS) debit from `arena_vault_accounts` under an advisory lock with `for update` lock on `live_matches`, blocking self-bets by participants (`SELF_BET_NOT_ALLOWED`) and enforcing idempotency per `(wallet, action_id)`.
+3. **Pari-Mutuel Settlement (`arena_vault_settle_spectator_bets`):**
+   - **Opposed Pool (`winningPool > 0 && losingPool > 0`):** Takes `5%` (`500 bps`) protocol rake capped at `losingPool` so winners never lose principal, and credits proportional payouts to `arena_vault_claims` (`match_prize`, claimable or 0-gas rollable into Vault inside Claim Hub).
+   - **Unopposed Winners (`losingPool === 0`):** `100%` principal refund (`0%` rake) via `match_refund` claim vouchers.
+   - **Unopposed Losers (`winningPool === 0`):** Losing stakes are settled/forfeited to the House Pool.
+   - **2v2 Alignment:** `resolveWinningBetValues` (`lib/spectatorBettingMath.ts`) resolves winner colors, `'Team 1'`/`'Team 2'`, and both teammate wallets consistently from `TEAM_PAIRINGS` / `TEAM_ID`.
