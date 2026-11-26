@@ -4,6 +4,7 @@ import { requireSessionWallet, requireAppSession, serviceDb, ensurePlayerRow } f
 import { loadMissionDef, periodBucketFor } from '@/lib/missionCatalog';
 import { issueMissionVoucher, type IssuedVoucher } from '@/lib/missionVoucherIssue';
 import { reportProgress } from '@/lib/missionOracle';
+import { isBlockedBetween } from '@/lib/moderation';
 
 /**
  * POKE SYSTEM LOGIC
@@ -40,6 +41,9 @@ export async function POST(request: Request) {
 
         // Service role: pokes + players.coins + player_missions are server-only under default-deny.
         const supabase = serviceDb();
+        if (await isBlockedBetween(supabase, s, r)) {
+            return NextResponse.json({ error: 'Cannot poke a blocked player' }, { status: 403 });
+        }
 
         // 0. Enforce Limits (UTC 00:00:00 boundary)
         const now = new Date();

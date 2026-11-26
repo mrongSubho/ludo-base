@@ -10,6 +10,7 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { isDirectImage, resolveAvatarDef } from '@/lib/avatars';
 import { PilotAvatar } from './PilotAvatar';
 import { PilotAvatarFallbackIcon } from './icons';
+import { PROJECTILES, type ProjectileId } from '@/lib/emotes';
 
 export const getDisplayNameHelper = (player: Player) => {
     let baseName = player.name;
@@ -52,19 +53,45 @@ interface PlayerCardProps {
     player: Player;
     isActive: boolean;
     awaitingMove?: boolean;
+    isAutoPlaying?: boolean;
     isKicked?: boolean;
+    canQuickThrow?: boolean;
+    onQuickThrow?: (toColor: PlayerColor, projectileId: ProjectileId) => void;
 }
 
 export function PlayerCard({
     player,
     isActive,
     awaitingMove,
+    isAutoPlaying = false,
     isKicked = false,
+    canQuickThrow = false,
+    onQuickThrow,
 }: PlayerCardProps) {
     const { preferences } = usePreferences();
     const is3077 = preferences.theme === '3077';
     const [levelUp, setLevelUp] = useState(false);
+    const [throwOpen, setThrowOpen] = useState(false);
     const prevLevelRef = useRef(player.level);
+    const cardRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!throwOpen) return;
+        const onDocClick = (ev: MouseEvent) => {
+            if (cardRef.current && !cardRef.current.contains(ev.target as Node)) {
+                setThrowOpen(false);
+            }
+        };
+        const onKey = (ev: KeyboardEvent) => {
+            if (ev.key === 'Escape') setThrowOpen(false);
+        };
+        document.addEventListener('mousedown', onDocClick);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', onDocClick);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [throwOpen]);
 
     useEffect(() => {
         if (player.level > prevLevelRef.current) {
@@ -79,7 +106,7 @@ export function PlayerCard({
     const ringColor = (is3077 ? AWAIT_RING_COLORS_3077 : AWAIT_RING_COLORS)[player.color] || '#00E5FF';
 
     return (
-        <div className={`player-card player-card-corner ${player.position} ${isActive ? 'player-card-active' : ''}`}>
+        <div ref={cardRef} className={`player-card player-card-corner ${player.position} ${isActive ? 'player-card-active' : ''}`}>
             <div className="avatar-circle-wrapper" style={{ position: 'relative' }}>
                 {awaitingMove && ([0, 0.8] as const).map(delay => (
                     <span
@@ -90,8 +117,22 @@ export function PlayerCard({
                     />
                 ))}
                 <div
-                    className={`avatar-circle hud-avatar-frame ${player.color} ${isActive ? 'active-glow' : ''} ${awaitingMove ? 'await-move' : ''}`}
-                    title={getDisplayNameHelper(player)}
+                    className={`avatar-circle hud-avatar-frame ${player.color} ${isActive ? 'active-glow' : ''} ${awaitingMove ? 'await-move' : ''} ${canQuickThrow ? 'cursor-pointer' : ''}`}
+                    title={canQuickThrow ? `${getDisplayNameHelper(player)} · Tap to throw reaction` : getDisplayNameHelper(player)}
+                    role={canQuickThrow ? 'button' : undefined}
+                    tabIndex={canQuickThrow ? 0 : undefined}
+                    aria-expanded={canQuickThrow ? throwOpen : undefined}
+                    onClick={canQuickThrow ? () => setThrowOpen((prev) => !prev) : undefined}
+                    onKeyDown={
+                        canQuickThrow
+                            ? (ev) => {
+                                  if (ev.key === 'Enter' || ev.key === ' ') {
+                                      ev.preventDefault();
+                                      setThrowOpen((prev) => !prev);
+                                  }
+                              }
+                            : undefined
+                    }
                 >
                     {resolveAvatarDef(player.avatar) || isDirectImage(player.avatar) ? (
                         <PilotAvatar
@@ -111,7 +152,41 @@ export function PlayerCard({
                 <div className={`avatar-level-badge ${levelUp ? 'level-up' : ''}`} style={{ background: getTierInfo(player.rxp || 0).tier === 'Arena Master' ? '#ea580c' : getTierInfo(player.rxp || 0).tier === 'Diamond' ? '#0891b2' : getTierInfo(player.rxp || 0).tier === 'Platinum' ? '#2563eb' : getTierInfo(player.rxp || 0).tier === 'Gold' ? '#ca8a04' : getTierInfo(player.rxp || 0).tier === 'Silver' ? '#64748b' : '#b45309' }}>
                     <span className="text-ludo-xs font-extrabold">{player.level}</span>
                 </div>
-                <span className={`player-connection-dot ${isKicked ? 'offline' : player.isAi ? 'ai' : ''}`} title={isKicked ? 'Disconnected' : player.isAi ? 'AI opponent' : 'Connected'} />
+                {player.isAi && (
+                    <span
+                        data-testid="ai-seat-badge"
+                        className="absolute -top-1 -right-1 z-10 px-1.5 py-0.5 rounded-full bg-surface-panel border border-accent/60 text-accent font-mono font-extrabold text-ludo-xs leading-none uppercase tracking-wider shadow-sm"
+                        title="Server AI Bot Seat"
+                    >
+                        AI
+                    </span>
+                )}
+                <span className={`player-connection-dot ${isKicked ? 'offline' : (player.isAi || isAutoPlaying) ? 'ai' : ''}`} title={isKicked ? 'Disconnected' : player.isAi ? 'AI opponent' : isAutoPlaying ? 'Autopilot Active' : 'Connected'} />
+                {canQuickThrow && onQuickThrow && throwOpen && (
+                    <div
+                        role="menu"
+                        aria-label={`Throw reaction at ${getDisplayNameHelper(player)}`}
+                        className="absolute left-1/2 -translate-x-1/2 top-full mt-1.5 z-50 flex items-center gap-1 p-1 rounded-xl bg-surface-panel/95 border border-accent/40 shadow-xl backdrop-blur-md"
+                    >
+                        {PROJECTILES.map((proj) => (
+                            <button
+                                key={proj.id}
+                                type="button"
+                                role="menuitem"
+                                title={proj.label}
+                                onClick={(ev) => {
+                                    ev.stopPropagation();
+                                    onQuickThrow(player.color, proj.id);
+                                    setThrowOpen(false);
+                                }}
+                                className="px-1.5 py-1 rounded-lg bg-surface-recessed hover:bg-accent-soft border border-line-soft text-xs transition-colors"
+                            >
+                                <span aria-hidden="true">{proj.badge}</span>
+                                <span className="sr-only">{proj.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -128,6 +203,7 @@ interface PlayerRowProps {
     myPlayerColor: PlayerColor | undefined;
     bustState?: { color: PlayerColor; key: number } | null;
     turnRolls?: TurnRollEntry[];
+    onQuickThrow?: (toColor: PlayerColor, projectileId: ProjectileId) => void;
 }
 
 export function PlayerRow({
@@ -140,6 +216,7 @@ export function PlayerRow({
     myPlayerColor,
     bustState = null,
     turnRolls = [],
+    onQuickThrow,
 }: PlayerRowProps) {
     const isTop = (corners as any).includes('TL');
     const items = (corners as any as Corner[]).map((corner) => {
@@ -156,21 +233,35 @@ export function PlayerRow({
 
         const isMyTurn = localGameState.currentPlayer === p.color;
         const isMyColor = p.color === myPlayerColor;
-        const isCurrentlyBot = p.isAi || localGameState.afkStats[p.color].isKicked;
+        const afkEntry = localGameState.afkStats?.[p.color];
+        const isAutoPlaying = Boolean(afkEntry?.isAutoPlaying);
+        const isKicked = Boolean(afkEntry?.isKicked);
+        const isCurrentlyBot = p.isAi || isKicked || isAutoPlaying;
         const canRoll = isMyTurn && (isMyColor || spectatorMode) && !isCurrentlyBot && localGameState.gamePhase === 'rolling' && localGameState.diceValue === null && !localGameState.isRolling;
 
         const flexDir = (corner === 'TL' || corner === 'BL') ? 'flex-row' : 'flex-row-reverse';
         const side = (corner === 'TL' || corner === 'BL') ? 'left' : 'right';
         const rowEdge = isTop ? 'top' : 'bottom';
         const consecutiveSixes = Number(localGameState.consecutiveSixes || 0);
+        const canQuickThrow = Boolean(
+            !spectatorMode &&
+                onQuickThrow &&
+                myPlayerColor &&
+                !isMyColor &&
+                localGameState.isStarted &&
+                !localGameState.winner,
+        );
 
         return (
             <div key={p.color} className={`player-wrapper ${isMyTurn ? 'active-turn' : ''} flex ${flexDir} items-center gap-0`}>
                 <PlayerCard
                     player={p}
                     isActive={isMyTurn}
-                    awaitingMove={isMyTurn && localGameState.gamePhase === 'moving' && !p.isAi}
-                    isKicked={isCurrentlyBot && !p.isAi}
+                    awaitingMove={isMyTurn && localGameState.gamePhase === 'moving' && !p.isAi && !isAutoPlaying && !isKicked}
+                    isAutoPlaying={isAutoPlaying && !p.isAi}
+                    isKicked={isKicked && !p.isAi}
+                    canQuickThrow={canQuickThrow}
+                    onQuickThrow={onQuickThrow}
                 />
                 {isMyTurn && !spectatorMode && (
                     <AnchoredDiceBay

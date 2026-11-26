@@ -743,8 +743,8 @@ test('P0-20: SV-02, SV-05A, SV-12, SV-16 — room connection status, useAIBrain 
   );
   assert.match(
     timer,
-    /const turnKey = `\$\{localGameState\.currentPlayer\}\|\$\{localGameState\.gamePhase\}\|\$\{localGameState\.diceValue\}\|\$\{localGameState\.lastUpdate\}`;/,
-    'SV-05A: turnKey must include lastUpdate so bonus rolls and repeated auto-passes re-arm the 15s countdown',
+    /const turnKey = `\$\{localGameState\.currentPlayer\}\|\$\{localGameState\.gamePhase\}\|\$\{localGameState\.diceValue \?\? ''\}\|\$\{localGameState\.turnPhaseKind \?\? ''\}`;/,
+    'SV-05A: turnKey must track phase transitions without resetting on unrelated lastUpdate bumps',
   );
   assert.match(
     ctx,
@@ -768,8 +768,8 @@ test('P0-20: SV-02, SV-05A, SV-12, SV-16 — room connection status, useAIBrain 
   );
   assert.match(
     roomClient,
-    /err\.code = code;/,
-    'SV-16: RoomClient must preserve rejection code on rejected intent Error',
+    /new RoomError\(/,
+    'SV-16: RoomClient must reject intents with typed RoomError',
   );
   assert.match(
     ctx,

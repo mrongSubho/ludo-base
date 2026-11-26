@@ -21,7 +21,7 @@ import { isGameIntent } from '../lib/gameProtocol';
 import { createDedupStore, rememberIntent } from '../lib/netcode/dedup';
 import { withStaleSeqRetry } from '../lib/netcode/staleSeq';
 import { hostActionForIntent } from '../lib/hostIntent';
-import { computeAuthority, shouldApplyGameAction } from '../lib/netcode/authorityGate';
+import { computeAuthority, shouldApplyGameAction, resolveMatchAuthorityMode } from '../lib/netcode/authorityGate';
 
 const roll = (id: string) => ({ type: 'REQUEST_ROLL', payload: {}, intentId: id });
 const move = (id: string, tokenIndex = 0) => ({
@@ -141,5 +141,46 @@ test('(e) two intents arriving in one tick both apply', () => {
         rememberIntent(store, 'tick-a'),
         'dup',
         'but a replay of either is still a dup',
+    );
+});
+
+test('(f) ADR-02: resolveMatchAuthorityMode partitions room, p2p, and offline with sticky room latch', () => {
+    assert.equal(
+        resolveMatchAuthorityMode({
+            roomAuthority: false,
+            hasRoomConnection: false,
+            isNetworkedMatch: false,
+            matchId: 'local',
+        }),
+        'offline',
+    );
+    assert.equal(
+        resolveMatchAuthorityMode({
+            roomAuthority: true,
+            hasRoomConnection: true,
+            isNetworkedMatch: true,
+            matchId: 'match-uuid-1',
+        }),
+        'room',
+    );
+    assert.equal(
+        resolveMatchAuthorityMode({
+            latchedMode: 'room',
+            roomAuthority: false,
+            hasRoomConnection: false,
+            isNetworkedMatch: true,
+            matchId: 'match-uuid-1',
+        }),
+        'room',
+        'transient room drop must keep latched room mode instead of falling back to p2p or offline',
+    );
+    assert.equal(
+        resolveMatchAuthorityMode({
+            roomAuthority: false,
+            hasRoomConnection: false,
+            isNetworkedMatch: true,
+            matchId: 'match-uuid-2',
+        }),
+        'p2p',
     );
 });

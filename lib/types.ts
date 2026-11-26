@@ -22,7 +22,7 @@ export interface MatchCaptureStat {
 }
 export type MatchCaptureStats = Record<PlayerColor, MatchCaptureStat>;
 
-export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'ENGINE_STATE' | 'CMD_REQUEST_TRUST' | 'POWER_HAND' | 'EMOTE' | 'CHAT' | 'REMATCH';
+export type GameActionType = 'ROLL_DICE' | 'MOVE_TOKEN' | 'SYNC_STATE' | 'TURN_SWITCH' | 'SYNC_PROFILE' | 'START_GAME' | 'DICE_COMMIT' | 'DICE_REVEAL' | 'DICE_REVEAL_SIGNAL' | 'BET_WINDOW_OPEN' | 'BET_WINDOW_CLOSED' | 'ENGINE_STATE' | 'CMD_REQUEST_TRUST' | 'POWER_HAND' | 'EMOTE' | 'CHAT' | 'REMATCH' | 'PROJECTILE';
 export type GameIntentType = 'REQUEST_ROLL' | 'REQUEST_MOVE' | 'REQUEST_POWER';
 
 export interface GameIntentPayloads {
@@ -75,6 +75,8 @@ export interface GameActionPayloads {
     CHAT: { text: string; color: PlayerColor; actor?: string; audience?: 'all' | 'team'; t?: number };
     /** Post-match rematch handshake (never mutates active game state). */
     REMATCH: RematchSignalPayload;
+    /** Seat-to-seat social throwable projectile (visual only, never mutates state). */
+    PROJECTILE: { id?: string; projectileId: string; fromColor: PlayerColor; toColor: PlayerColor; actor?: string; t?: number };
 }
 
 export type GameActionPayload<T extends GameActionType> = GameActionPayloads[T];
@@ -145,11 +147,19 @@ export interface GameState {
     timeLeft: number;
     /** Server-authoritative turn deadline epoch timestamp (ms). */
     deadlineAt?: number | null;
+    /** Server-authoritative duration of the active turn phase (ms). */
+    turnDurationMs?: number | null;
+    /** Current server timer phase kind. */
+    turnPhaseKind?: 'cast' | 'move' | 'ai_turn' | null;
+    /** Set when the match room aborts a dead match under the 30s SLO. */
+    abortReason?: string | null;
     strikes: Record<PlayerColor, number>;
     /** Authority keeps `type`; wire/sanitized copies may omit it. */
     powerTiles: (PowerTile | PowerTilePublic)[];
     playerPowers: Record<PlayerColor, PowerItem[]>;
     powerSpentThisTurn: boolean;
+    /** Ruleset mode ('classic' | 'power' | 'quick'). Optional for older snapshots. */
+    gameMode?: 'classic' | 'power' | 'quick';
     /** Active boost owner — next roll plays a bonus 6 first, then the rolled die. */
     activeBoost: PlayerColor | null;
     /** Queued rolled die (1..6) waiting for Boost Step 1 (6) to finish. */
@@ -219,7 +229,7 @@ export interface LobbyState {
     roomCode: string;
     hostId: string;
     matchType: '1v1' | '2v2' | '4P';
-    gameMode: 'classic' | 'power';
+    gameMode: 'classic' | 'power' | 'quick';
     entryFee: number;
     slots: LobbySlot[];
     status: 'forming' | 'ready' | 'quickmatch' | 'starting' | 'playing';
@@ -231,7 +241,7 @@ export interface InvitePayload {
     hostName: string;
     hostAvatar?: string;
     matchType: '1v1' | '2v2' | '4P';
-    gameMode: 'classic' | 'power';
+    gameMode: 'classic' | 'power' | 'quick';
     entryFee: number;
 }
 

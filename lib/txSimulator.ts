@@ -8,13 +8,13 @@
 
 import {
     createPublicClient,
-    http,
     decodeFunctionData,
     formatUnits,
     formatEther,
     type Hex,
 } from 'viem';
 import { baseSepolia } from 'viem/chains';
+import { createFallbackRpcTransport } from './rpcTransport';
 import { MISSION_SYSTEM_ABI, missionSystemAddress } from './missionSystem';
 import {
     CHIPS_ERC20_ABI,
@@ -55,7 +55,7 @@ export interface PreflightTelemetry {
 function getSimulationClient() {
     return createPublicClient({
         chain: baseSepolia,
-        transport: http(),
+        transport: createFallbackRpcTransport(baseSepolia.id),
     });
 }
 

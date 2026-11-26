@@ -5327,21 +5327,36 @@ body.theme-daybreak .chat-emoji-picker button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .power-orb,
-  .power-orb-ring-arc,
-  .power-orb-tooltip,
-  .power-dossier-close,
-  .power-dossier-cta,
-  .power-dossier-anchor,
-  .power-decay-fill {
+  body:not(.motion-force-full) .power-orb,
+  body:not(.motion-force-full) .power-orb-ring-arc,
+  body:not(.motion-force-full) .power-orb-tooltip,
+  body:not(.motion-force-full) .power-dossier-close,
+  body:not(.motion-force-full) .power-dossier-cta,
+  body:not(.motion-force-full) .power-dossier-anchor,
+  body:not(.motion-force-full) .power-decay-fill {
     transition: none !important;
   }
-  .power-orb-armed,
-  .power-orb.is-armed,
-  .power-orb-ring.ring-critical .power-orb-ring-arc,
-  .power-sim-svg.is-animated * {
+  body:not(.motion-force-full) .power-orb-armed,
+  body:not(.motion-force-full) .power-orb.is-armed,
+  body:not(.motion-force-full) .power-orb-ring.ring-critical .power-orb-ring-arc,
+  body:not(.motion-force-full) .power-sim-svg.is-animated * {
     animation: none !important;
   }
+}
+body.motion-force-reduced .power-orb,
+body.motion-force-reduced .power-orb-ring-arc,
+body.motion-force-reduced .power-orb-tooltip,
+body.motion-force-reduced .power-dossier-close,
+body.motion-force-reduced .power-dossier-cta,
+body.motion-force-reduced .power-dossier-anchor,
+body.motion-force-reduced .power-decay-fill {
+  transition: none !important;
+}
+body.motion-force-reduced .power-orb-armed,
+body.motion-force-reduced .power-orb.is-armed,
+body.motion-force-reduced .power-orb-ring.ring-critical .power-orb-ring-arc,
+body.motion-force-reduced .power-sim-svg.is-animated * {
+  animation: none !important;
 }
 
 body.theme-daybreak .board-turn-status {
@@ -6185,13 +6200,20 @@ body.theme-daybreak .emote-float:has(.emote-float-media) {
 .emote-float-wow .emote-float-glyph { background: linear-gradient(135deg, #facc15, #f97316); }
 .emote-float-thanks .emote-float-glyph { background: linear-gradient(135deg, #34d399, #059669); }
 @media (prefers-reduced-motion: reduce) {
-  .emote-float,
-  .emote-float-glyph,
-  .chat-bubble,
-  .chat-bubble-text,
-  .match-chat-composer {
+  body:not(.motion-force-full) .emote-float,
+  body:not(.motion-force-full) .emote-float-glyph,
+  body:not(.motion-force-full) .chat-bubble,
+  body:not(.motion-force-full) .chat-bubble-text,
+  body:not(.motion-force-full) .match-chat-composer {
     animation: none;
   }
+}
+body.motion-force-reduced .emote-float,
+body.motion-force-reduced .emote-float-glyph,
+body.motion-force-reduced .chat-bubble,
+body.motion-force-reduced .chat-bubble-text,
+body.motion-force-reduced .match-chat-composer {
+  animation: none;
 }
 
 /* ─── Landscape guard (rotation failsafe) ───────────────────────────────

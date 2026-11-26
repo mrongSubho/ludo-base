@@ -17,6 +17,37 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { lcg32, getNextPlayer, calculateNextPosition, type ColorCorner, type PlayerColor } from '../src/room/engine';
+import { MatchRoomCore } from '../src/room/MatchRoomCore';
+import { TURN_TIMERS, MAX_AFK_STRIKES } from '../lib/constants';
+import { INITIAL_GAME_STATE } from '../lib/gameLogic';
+import { assignCornersForShape } from '../lib/boardLayout';
+import { hashToken } from '../lib/sessionV2';
+import type { GameState } from '../lib/types';
+
+class LifecycleMockWebSocket {
+  public readyState = 1;
+  public messages: string[] = [];
+  private attachment: unknown = null;
+  send(data: string) {
+    this.messages.push(data);
+  }
+  close() {
+    this.readyState = 3;
+  }
+  serializeAttachment(att: unknown) {
+    this.attachment = att;
+  }
+  deserializeAttachment() {
+    return this.attachment;
+  }
+  getLastMessage(): Record<string, unknown> | null {
+    if (this.messages.length === 0) return null;
+    return JSON.parse(this.messages[this.messages.length - 1]);
+  }
+  getAllMessages(): Array<Record<string, unknown>> {
+    return this.messages.map((m) => JSON.parse(m) as Record<string, unknown>);
+  }
+}
 
 describe('Phase 4 — Match Room Clock, Lifecycle, and Relocation', () => {
   // ── 1. Engine Parity Between App and Room Targets ─────────────────────────
@@ -131,38 +162,293 @@ describe('Phase 4 — Match Room Clock, Lifecycle, and Relocation', () => {
     assert.equal(res3.seq, 2);
   });
 
-  // ── 4. DO Alarm-Driven Turn Deadlines & AFK Strikes ────────────────────────
-  it('P4-4: turn timeout alarm increments strikes and triggers autoplay at 3 strikes', () => {
-    let strikes = 0;
-    let isAutoPlaying = false;
-    let currentPlayer: PlayerColor = 'green';
-    const playerCount = '4P';
+  // ── 4. Wave 2: Phased Turn Clock, Trust, Strikes 1-3 & Dead-Match Refund ───
+  it('P4-4: MatchRoomCore enforces 12s cast / 15s move clocks, bidirectional trust, 3-strike kick, spectator redaction, and 30s abort refund RPC', async (t) => {
+    const matchId = '99999999-4444-3333-2222-111111111111';
+    const walletG = '0x1111111111111111111111111111111111111111';
+    const walletY = '0x2222222222222222222222222222222222222222';
+    const walletSpec = '0x9999999999999999999999999999999999999999';
+    const ticketG = 'wave2-ticket-green';
+    const ticketY = 'wave2-ticket-yellow';
+    const ticketSpec = 'wave2-ticket-spec';
+    const [hashG, hashY, hashSpec] = await Promise.all([
+      hashToken(ticketG),
+      hashToken(ticketY),
+      hashToken(ticketSpec),
+    ]);
 
-    const onTurnTimeout = () => {
-      strikes++;
-      if (strikes >= 3) {
-        isAutoPlaying = true;
+    const refundCalls: string[] = [];
+    const commitEvents: Array<{ eventType: string; payload: Record<string, unknown> }> = [];
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+      if (url.includes('/rest/v1/sessions')) {
+        if (url.includes(hashG)) {
+          return new Response(JSON.stringify([{ wallet_address: walletG, scope: 'match', match_id: matchId, seat_color: 'green', expires_at: null, idle_expires_at: null }]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        if (url.includes(hashY)) {
+          return new Response(JSON.stringify([{ wallet_address: walletY, scope: 'match', match_id: matchId, seat_color: 'yellow', expires_at: null, idle_expires_at: null }]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        if (url.includes(hashSpec)) {
+          return new Response(JSON.stringify([{ wallet_address: walletSpec, scope: 'spectator', match_id: matchId, seat_color: null, expires_at: null, idle_expires_at: null }]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        }
+        return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
       }
-      currentPlayer = getNextPlayer(currentPlayer, playerCount);
+      if (url.includes('/rest/v1/rpc/match_commit_action')) {
+        const body = init?.body ? JSON.parse(String(init.body)) as { p_event_type?: string; p_event_payload?: Record<string, unknown>; p_expected_seq?: number } : {};
+        commitEvents.push({
+          eventType: String(body.p_event_type || 'unknown'),
+          payload: body.p_event_payload || {},
+        });
+        return new Response(JSON.stringify({ ok: true, seq: (body.p_expected_seq ?? 0) + 1 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.includes('/rest/v1/rpc/arena_vault_refund_match')) {
+        const body = init?.body ? JSON.parse(String(init.body)) as { p_match_id?: string } : {};
+        if (body.p_match_id) refundCalls.push(body.p_match_id);
+        return new Response(JSON.stringify({ refunded: true, refunded_count: 2 }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response('Not found', { status: 404 });
     };
 
-    // First timeout
-    onTurnTimeout();
-    assert.equal(strikes, 1);
-    assert.equal(isAutoPlaying, false);
-    assert.equal(currentPlayer, 'red');
+    t.mock.timers.enable({ apis: ['Date'] });
+    t.mock.timers.tick(1_000_000);
 
-    // Second timeout
-    onTurnTimeout();
-    assert.equal(strikes, 2);
-    assert.equal(isAutoPlaying, false);
-    assert.equal(currentPlayer, 'yellow');
+    try {
+      const storageMap = new Map<string, unknown>();
+      let connectedSockets: LifecycleMockWebSocket[] = [];
+      let scheduledAlarmAt: number | null = null;
 
-    // Third timeout -> AFK strikes limit reached -> autoPlay engaged
-    onTurnTimeout();
-    assert.equal(strikes, 3);
-    assert.equal(isAutoPlaying, true);
-    assert.equal(currentPlayer, 'blue');
+      const mockCtx = {
+        storage: {
+          get: async <T = unknown>(k: string) => storageMap.get(k) as T | undefined,
+          put: async (k: string, v: unknown) => { storageMap.set(k, v); },
+          setAlarm: async (ts: number) => { scheduledAlarmAt = ts; },
+          deleteAlarm: async () => { scheduledAlarmAt = null; },
+        },
+        getWebSockets: () => connectedSockets as unknown as WebSocket[],
+        acceptWebSocket: (ws: unknown) => {
+          connectedSockets.push(ws as LifecycleMockWebSocket);
+        },
+      };
+      const mockEnv = {
+        NEXT_PUBLIC_SUPABASE_URL: 'https://test-supabase.mock',
+        SUPABASE_SERVICE_ROLE_KEY: 'test-service-key',
+      };
+
+      const room = new MatchRoomCore(mockCtx as never, mockEnv);
+
+      const connectSock = async (ticket: string) => {
+        const ws = new LifecycleMockWebSocket();
+        (globalThis as unknown as Record<string, unknown>).WebSocketPair = class {
+          0 = new LifecycleMockWebSocket();
+          1 = ws;
+        };
+        await room.fetch(new Request(`https://ludobase.com/api/room/${matchId}/ws?ticket=${ticket}`, { headers: { Upgrade: 'websocket' } }));
+        return ws;
+      };
+
+      const sockG = await connectSock(ticketG);
+      const sockY = await connectSock(ticketY);
+      const sockSpec = await connectSock(ticketSpec);
+
+      const cc1v1 = assignCornersForShape('1v1');
+      const seededBoard: GameState = {
+        ...INITIAL_GAME_STATE,
+        matchId,
+        playerCount: '1v1',
+        currentPlayer: 'green',
+        gamePhase: 'rolling',
+        isStarted: true,
+        status: 'playing',
+        positions: {
+          green: [25, -1, -1, -1],
+          yellow: [38, -1, -1, -1],
+          blue: [-1, -1, -1, -1],
+          red: [-1, -1, -1, -1],
+        },
+        playerPowers: {
+          green: [{ type: 'boost', expiresAt: 9_999_999 }],
+          yellow: [{ type: 'nuke', expiresAt: 9_999_999 }],
+          blue: [],
+          red: [],
+        },
+        initialBoardConfig: {
+          colorCorner: cc1v1,
+          players: [
+            { name: 'GreenSeat', level: 1, avatar: '1', color: 'green', position: 'bottom-left', isAi: false, walletAddress: walletG },
+            { name: 'YellowSeat', level: 1, avatar: '2', color: 'yellow', position: 'top-right', isAi: false, walletAddress: walletY },
+          ],
+        },
+      };
+
+      // 1. Seed & verify 12s cast timer + serverNow + spectator redaction
+      await room.webSocketMessage(
+        sockG as unknown as WebSocket,
+        JSON.stringify({ v: 1, t: 'seed', payload: seededBoard }),
+      );
+      let state = storageMap.get('state') as GameState;
+      assert.equal(state.turnPhaseKind, 'cast');
+      assert.equal(state.turnDurationMs, TURN_TIMERS.castMs);
+      assert.equal(state.deadlineAt, Date.now() + TURN_TIMERS.castMs);
+
+      const lastG = sockG.getLastMessage();
+      assert.equal(typeof lastG?.serverNow, 'number');
+
+      const specStateMsg = sockSpec.getAllMessages().find((m) => m.t === 'state');
+      assert.ok(specStateMsg, 'spectator must receive state frame');
+      const specPowers = (specStateMsg.state as GameState).playerPowers;
+      assert.equal(specPowers.green[0]?.type, undefined, 'spectator must not receive unmasked power type');
+      assert.equal(specPowers.yellow[0]?.type, undefined, 'spectator must not receive unmasked yellow power type');
+
+      await room.webSocketMessage(
+        sockSpec as unknown as WebSocket,
+        JSON.stringify({ v: 1, t: 'intent', kind: 'REQUEST_ROLL', intentId: 'spec-roll-block' }),
+      );
+      assert.equal(sockSpec.getLastMessage()?.code, 'NOT_AUTHORIZED');
+
+      // 2. REQUEST_ROLL transitions cast (12s) -> move (15s)
+      await room.webSocketMessage(
+        sockG as unknown as WebSocket,
+        JSON.stringify({ v: 1, t: 'intent', kind: 'REQUEST_ROLL', intentId: 'roll-phase-check' }),
+      );
+      state = storageMap.get('state') as GameState;
+      assert.equal(state.gamePhase, 'moving');
+      assert.equal(state.turnPhaseKind, 'move');
+      assert.equal(state.turnDurationMs, TURN_TIMERS.moveMs);
+      assert.equal(state.deadlineAt, Date.now() + TURN_TIMERS.moveMs);
+
+      // 3. Bidirectional CMD_REQUEST_TRUST: voluntary autopilot (strikes stay 0) & reclaim
+      await room.webSocketMessage(
+        sockG as unknown as WebSocket,
+        JSON.stringify({ v: 1, t: 'intent', kind: 'CMD_REQUEST_TRUST', intentId: 'trust-engage', payload: { trust: true } }),
+      );
+      state = storageMap.get('state') as GameState;
+      assert.equal(state.afkStats.green.isAutoPlaying, true);
+      assert.equal(state.turnPhaseKind, 'ai_turn');
+      assert.equal(state.turnDurationMs, TURN_TIMERS.aiStepMs);
+      assert.equal(state.strikes.green, 0);
+
+      t.mock.timers.tick(TURN_TIMERS.aiStepMs + 25);
+      await room.alarm();
+      state = storageMap.get('state') as GameState;
+      assert.equal(state.strikes.green, 0, 'voluntary autopilot ai_turn must never add AFK strikes');
+
+      await room.webSocketMessage(
+        sockG as unknown as WebSocket,
+        JSON.stringify({ v: 1, t: 'intent', kind: 'CMD_REQUEST_TRUST', intentId: 'trust-reclaim', payload: { trust: false } }),
+      );
+      state = storageMap.get('state') as GameState;
+      assert.equal(state.afkStats.green.isAutoPlaying, false);
+
+      // Move turns until Yellow is active human caster
+      let safety = 0;
+      while ((storageMap.get('state') as GameState).currentPlayer === 'green' && safety < 8) {
+        safety++;
+        const cur = storageMap.get('state') as GameState;
+        if (cur.gamePhase === 'rolling') {
+          await room.webSocketMessage(sockG as unknown as WebSocket, JSON.stringify({ v: 1, t: 'intent', kind: 'REQUEST_ROLL', intentId: `g-r-${safety}` }));
+        } else {
+          await room.webSocketMessage(sockG as unknown as WebSocket, JSON.stringify({ v: 1, t: 'intent', kind: 'REQUEST_MOVE', intentId: `g-m-${safety}`, payload: { tokenIndex: 0 } }));
+        }
+      }
+      assert.equal((storageMap.get('state') as GameState).currentPlayer, 'yellow');
+
+      // 4. AFK strikes 1 -> 2 -> 3 kick escalation on Yellow
+      t.mock.timers.tick(TURN_TIMERS.castMs + 50);
+      await room.alarm();
+      state = storageMap.get('state') as GameState;
+      assert.equal(state.strikes.yellow, 1, 'strike 1 on turn timeout');
+      assert.equal(state.afkStats.yellow.isAutoPlaying, true);
+      assert.equal(state.afkStats.yellow.isKicked, false);
+      assert.notEqual(state.currentPlayer, 'yellow', 'timed-out turn auto-played and advanced');
+
+      const playGreenUntilYellow = async (tag: string) => {
+        let loops = 0;
+        while ((storageMap.get('state') as GameState).currentPlayer === 'green' && loops < 8) {
+          loops++;
+          const cur = storageMap.get('state') as GameState;
+          if (cur.gamePhase === 'rolling') {
+            await room.webSocketMessage(sockG as unknown as WebSocket, JSON.stringify({ v: 1, t: 'intent', kind: 'REQUEST_ROLL', intentId: `${tag}-r-${loops}` }));
+          } else {
+            await room.webSocketMessage(sockG as unknown as WebSocket, JSON.stringify({ v: 1, t: 'intent', kind: 'REQUEST_MOVE', intentId: `${tag}-m-${loops}`, payload: { tokenIndex: 0 } }));
+          }
+        }
+      };
+
+      // Strike 2 via 1s ai_turn
+      await playGreenUntilYellow('s2');
+      assert.equal((storageMap.get('state') as GameState).currentPlayer, 'yellow');
+      t.mock.timers.tick(TURN_TIMERS.aiStepMs + 50);
+      await room.alarm();
+      state = storageMap.get('state') as GameState;
+      assert.equal(state.strikes.yellow, 2, 'strike 2 on consecutive AFK ai_turn');
+      assert.equal(state.afkStats.yellow.isKicked, false);
+
+      // Strike 3 -> kicked permanently (3 >= MAX_AFK_STRIKES)
+      await playGreenUntilYellow('s3');
+      if ((storageMap.get('state') as GameState).currentPlayer === 'yellow') {
+        t.mock.timers.tick(TURN_TIMERS.aiStepMs + 50);
+        await room.alarm();
+      }
+      state = storageMap.get('state') as GameState;
+      assert.equal(state.strikes.yellow, MAX_AFK_STRIKES);
+      assert.equal(state.afkStats.yellow.isKicked, true);
+
+      await room.webSocketMessage(
+        sockY as unknown as WebSocket,
+        JSON.stringify({ v: 1, t: 'intent', kind: 'CMD_REQUEST_TRUST', intentId: 'reclaim-after-kick', payload: { trust: false } }),
+      );
+      assert.equal(sockY.getLastMessage()?.code, 'NOT_AUTHORIZED', 'kicked seat cannot reclaim trust');
+
+      // 5. 30s dead-match abort SLO + ArenaVault refund RPC
+      await room.webSocketClose(sockY as unknown as WebSocket, 1000, 'bye');
+      connectedSockets = connectedSockets.filter((s) => s !== sockY);
+      // One seat (sockG) remains -> dead_match MUST NOT be armed yet
+      let timers = (storageMap.get('timerHeap') as Array<{ kind: string; deadlineAt: number }>) || [];
+      assert.equal(timers.some((tm) => tm.kind === 'dead_match'), false);
+
+      await room.webSocketClose(sockG as unknown as WebSocket, 1000, 'bye');
+      connectedSockets = connectedSockets.filter((s) => s !== sockG);
+      timers = (storageMap.get('timerHeap') as Array<{ kind: string; deadlineAt: number }>) || [];
+      const deadTimer = timers.find((tm) => tm.kind === 'dead_match');
+      assert.ok(deadTimer, 'last seat close arms 30s dead_match timer');
+      assert.notEqual(
+        (storageMap.get('state') as GameState).deadlineAt,
+        deadTimer.deadlineAt,
+        'dead_match timer never leaks into UI turn deadlineAt',
+      );
+
+      // Seat reconnects -> cancels dead_match
+      const sockG2 = await connectSock(ticketG);
+      timers = (storageMap.get('timerHeap') as Array<{ kind: string; deadlineAt: number }>) || [];
+      assert.equal(timers.some((tm) => tm.kind === 'dead_match'), false, 'seat reconnect cancels dead_match');
+
+      // Disconnect last seat again and expire 30s dead_match SLO
+      await room.webSocketClose(sockG2 as unknown as WebSocket, 1000, 'drop');
+      connectedSockets = connectedSockets.filter((s) => s !== sockG2);
+      t.mock.timers.tick(TURN_TIMERS.maxDullMs + 50);
+      await room.alarm();
+
+      const finalState = storageMap.get('state') as GameState;
+      assert.equal(finalState.winner, 'aborted');
+      assert.equal(finalState.abortReason, 'no_connected_seats_30s');
+      assert.equal(scheduledAlarmAt, null);
+      assert.deepEqual((storageMap.get('timerHeap') as unknown[]) || [], []);
+      assert.deepEqual(refundCalls, [matchId], 'dead_match abort invokes arena_vault_refund_match RPC');
+      assert.ok(commitEvents.some((e) => e.eventType === 'match_aborted'));
+
+      // Reconnecting after abort rejects any mutation with MATCH_FINISHED
+      const sockLate = await connectSock(ticketG);
+      await room.webSocketMessage(
+        sockLate as unknown as WebSocket,
+        JSON.stringify({ v: 1, t: 'intent', kind: 'REQUEST_ROLL', intentId: 'post-abort-roll' }),
+      );
+      assert.equal(sockLate.getLastMessage()?.code, 'MATCH_FINISHED');
+    } finally {
+      t.mock.timers.reset();
+      globalThis.fetch = originalFetch;
+    }
   });
 
   // ── 5. D7 Drill: Host Device Killed Mid-Turn ──────────────────────────────

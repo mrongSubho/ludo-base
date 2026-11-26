@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireSessionWallet, requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
+import { getBlockedWallets, isBlockedBetween } from '@/lib/moderation';
 import { supabase } from '@/lib/supabase';
 
 export async function GET(request: Request) {
@@ -45,11 +46,20 @@ export async function GET(request: Request) {
             current_room_code: null,
         });
 
-        const result = rows.map((row) => ({
-            ...row,
-            requester: profiles.get(String(row.user_address).toLowerCase()) || fallbackProfile(row.user_address),
-            receiver: profiles.get(String(row.friend_address).toLowerCase()) || fallbackProfile(row.friend_address),
-        }));
+        const blockedSet = await getBlockedWallets(db, walletLower);
+        const result = rows
+            .filter((row) => {
+                const other =
+                    String(row.user_address).toLowerCase() === walletLower
+                        ? String(row.friend_address).toLowerCase()
+                        : String(row.user_address).toLowerCase();
+                return !blockedSet.has(other);
+            })
+            .map((row) => ({
+                ...row,
+                requester: profiles.get(String(row.user_address).toLowerCase()) || fallbackProfile(row.user_address),
+                receiver: profiles.get(String(row.friend_address).toLowerCase()) || fallbackProfile(row.friend_address),
+            }));
         return NextResponse.json({
             accepted: result.filter((row) => row.status === 'accepted'),
             incoming: result.filter((row) => row.status === 'pending' && String(row.friend_address).toLowerCase() === walletLower),
@@ -69,6 +79,16 @@ export async function POST(request: Request) {
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
         const db = serviceDb();
         if (action === 'accept') {
+            const { data: pendingRow } = await db
+                .from('friendships')
+                .select('id, user_address')
+                .eq('id', friendshipId)
+                .eq('friend_address', wallet)
+                .eq('status', 'pending')
+                .maybeSingle();
+            if (pendingRow?.user_address && (await isBlockedBetween(db, wallet, String(pendingRow.user_address)))) {
+                return NextResponse.json({ error: 'Cannot accept friend request from a blocked user' }, { status: 403 });
+            }
             const { error } = await db.from('friendships').update({ status: 'accepted' })
                 .eq('id', friendshipId).eq('friend_address', wallet).eq('status', 'pending');
             if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -140,6 +160,9 @@ export async function POST(request: Request) {
             const friend = String(target || '').toLowerCase();
             const senderWallet = wallet.toLowerCase();
             if (!/^0x[a-f0-9]{40}$/.test(friend) || friend === senderWallet) return NextResponse.json({ error: 'Invalid target' }, { status: 400 });
+            if (await isBlockedBetween(db, senderWallet, friend)) {
+                return NextResponse.json({ error: 'Cannot send friend request to a blocked user' }, { status: 403 });
+            }
 
             // Check existing relationship state in both directions
             const [fwd, rev] = await Promise.all([

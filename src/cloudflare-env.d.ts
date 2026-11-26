@@ -9,6 +9,7 @@ interface __BaseEnv_CloudflareEnv {
 	RL_MUT60: RateLimit;
 	RL_MUT120: RateLimit;
 	ASSETS: Fetcher;
+	CONFIG_KV?: KVNamespace;
 	NEXT_PUBLIC_SUPABASE_URL: "https://xvwaqxqyjtlsuijgwozi.supabase.co";
 	NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2d2FxeHF5anRsc3Vpamd3b3ppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk2NjIzOTgsImV4cCI6MjEwNTIzODM5OH0.meIJe2yyRv69d8NGqAGGilm04VZ7gR4wXQqO__LaYd4";
 	NEXT_PUBLIC_CDP_PROJECT_ID: "364b3239-e4ab-4d34-a7c4-81ec35003720";

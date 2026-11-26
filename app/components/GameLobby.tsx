@@ -39,6 +39,8 @@ import { OrbitalCanopyDeck } from './OrbitalCanopyDeck';
 import { OrbitalFeeDock } from './OrbitalFeeDock';
 import { RetroSynthFeeFader } from './RetroSynthFeeFader';
 import { useDeployTheme } from '@/lib/deployTheme';
+import ComplianceGateModal from './ComplianceGateModal';
+import { useComplianceConsent } from '@/hooks/useComplianceConsent';
 
 const RETRO_FEE_PALETTES = {
     quick: { hex: '#5CE1FF', rgb: '92, 225, 255', bright: '#A5F3FC' },
@@ -71,7 +73,7 @@ export function formatEntryFee(val: number): string {
 export interface PendingRematchSearch {
     id: number;
     mode: 'solo' | 'hybrid';
-    gameMode: 'classic' | 'power';
+    gameMode: 'classic' | 'power' | 'quick';
     matchType: '1v1' | '2v2' | '4P';
     wager: number;
     roomCode?: string;
@@ -79,8 +81,8 @@ export interface PendingRematchSearch {
 }
 
 interface GameLobbyProps {
-    gameMode: 'classic' | 'power';
-    setGameMode: (mode: 'classic' | 'power') => void;
+    gameMode: 'classic' | 'power' | 'quick';
+    setGameMode: (mode: 'classic' | 'power' | 'quick') => void;
     matchType: '1v1' | '2v2' | '4P';
     setMatchType: (type: '1v1' | '2v2' | '4P') => void;
     wager: number;
@@ -123,7 +125,6 @@ export default function GameLobby({
         leaveGame,
         allowOpenJoins,
         lowerEntryFee,
-        createProvisionalSession,
     } = useTeamUpContext();
     const { address, profile } = useCurrentUser();
     const coins = profile?.coins ?? 0;
@@ -139,6 +140,7 @@ export default function GameLobby({
     const { guard } = useGuestWall();
     const { ensureAppSession } = useAppSession();
     const toast = useToast();
+    const compliance = useComplianceConsent(address ?? undefined);
     const reservedTeamUpRef = useRef<Set<string>>(new Set());
 
     // Configuration State
@@ -150,7 +152,7 @@ export default function GameLobby({
     const [showTeamUpOptions, setShowTeamUpOptions] = useState(false);
     const [showOfflineOptions, setShowOfflineOptions] = useState(false);
     const [isQuickMatchActive, setIsQuickMatchActive] = useState(false);
-    const [hybridParams, setHybridParams] = useState<{ roomCode: string; slotsNeeded: number; matchType: '1v1' | '2v2' | '4P' } | null>(null);
+    const [hybridParams, setHybridParams] = useState<{ roomCode: string; slotsNeeded: number; matchType: '1v1' | '2v2' | '4P'; partyWallets?: string[] } | null>(null);
     const HUNT_TIMEOUT_S = 40;
     const [embeddedHunt, setEmbeddedHunt] = useState(false);
     const [huntExpired, setHuntExpired] = useState(false);
@@ -290,13 +292,6 @@ export default function GameLobby({
             }
 
             setPendingJoin({ code, since: Date.now() });
-            void createProvisionalSession(`room:${code}`, code, {
-                context: 'teamup',
-                title: 'JOINING PARTY SESSION',
-                statusText: 'Authorizing multiplayer session in your wallet...',
-            }).then(result => {
-                if (!result.ok) console.warn('🔑 [TeamUp] pre-match authorization failed:', result.error);
-            });
             joinGame(code, secret ?? undefined, seat);
             window.setTimeout(() => {
                 if (joinedCodeRef.current !== code) return;
@@ -310,7 +305,7 @@ export default function GameLobby({
                 setJoinError("Couldn’t reach the host. They may be offline, or the room is full or already started.");
             }, JOIN_TIMEOUT_MS);
         });
-    }, [guard, joinGame, isSeatedIn, createProvisionalSession, ensureAppSession, toast]);
+    }, [guard, joinGame, isSeatedIn, ensureAppSession, toast]);
 
     useEffect(() => {
         if (!lobbyState) return;
@@ -341,21 +336,29 @@ export default function GameLobby({
             const roomKey = `room:${lobbyState.roomCode}`;
             if (lobbyState.entryFee > 0 && !reservedTeamUpRef.current.has(roomKey)) {
                 reservedTeamUpRef.current.add(roomKey);
-                void vault
-                    .ensureVaultAndReserve({
-                        matchKey: roomKey,
-                        entryFeeChips: lobbyState.entryFee,
-                    })
-                    .catch((err: unknown) => {
+                void (async () => {
+                    const compliant = await compliance.ensureCompliance();
+                    if (!compliant) {
                         reservedTeamUpRef.current.delete(roomKey);
-                        const msg = err instanceof Error ? err.message : undefined;
-                        toast(msg || 'Match fee approval required to join paid room', 'error');
+                        toast('Age 18+ and Terms confirmation required to join paid room', 'error');
                         leaveGame();
                         setShowTeamUpOptions(false);
+                        return;
+                    }
+                    await vault.ensureVaultAndReserve({
+                        matchKey: roomKey,
+                        entryFeeChips: lobbyState.entryFee,
                     });
+                })().catch((err: unknown) => {
+                    reservedTeamUpRef.current.delete(roomKey);
+                    const msg = err instanceof Error ? err.message : undefined;
+                    toast(msg || 'Match fee approval required to join paid room', 'error');
+                    leaveGame();
+                    setShowTeamUpOptions(false);
+                });
             }
         }
-    }, [lobbyState, address, isHost, vault, leaveGame, toast]);
+    }, [lobbyState, address, isHost, vault, compliance, leaveGame, toast]);
 
     useEffect(() => {
         try {
@@ -371,10 +374,8 @@ export default function GameLobby({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleStartQuickMatch = useCallback((overrideMode?: 'classic' | 'power', overrideMatchType?: '1v1' | '2v2' | '4P', overrideWager?: number) => {
+    const handleStartQuickMatch = useCallback((_overrideMode?: 'classic' | 'power' | 'quick', _overrideMatchType?: '1v1' | '2v2' | '4P', overrideWager?: number) => {
         guard('online-play', async () => {
-            const targetMode = overrideMode || gameMode;
-            const targetType = overrideMatchType || matchType;
             const targetWager = typeof overrideWager === 'number' ? overrideWager : wager;
             const myAddr = address?.toLowerCase();
             if (!myAddr) return;
@@ -385,14 +386,12 @@ export default function GameLobby({
                 return;
             }
 
-            const provKey = `search:${myAddr}:${targetMode}:${targetType}`;
-            const provResult = await createProvisionalSession(provKey, undefined, { context: 'quick-match' });
-            if (!provResult.ok) {
-                toast(provResult.error || 'Matchmaking session authorization rejected. Returning to lobby.', 'error');
-                return;
-            }
-
             if (targetWager > 0) {
+                const compliant = await compliance.ensureCompliance(session);
+                if (!compliant) {
+                    toast('Age 18+ and Terms confirmation required for paid matches.', 'error');
+                    return;
+                }
                 try {
                     await vault.ensureVaultAndReserve({
                         matchKey: `qm:${myAddr}`,
@@ -408,13 +407,13 @@ export default function GameLobby({
             setSearchId(prev => prev + 1);
             setIsQuickMatchActive(true);
         });
-    }, [guard, gameMode, matchType, address, ensureAppSession, createProvisionalSession, toast, wager, vault]);
+    }, [guard, address, ensureAppSession, compliance, toast, wager, vault]);
 
     useEffect(() => {
         const handleJoinPool = (e: Event) => {
             const pool = (e as CustomEvent<{
                 entryFee?: number;
-                mode?: 'classic' | 'power';
+                mode?: 'classic' | 'power' | 'quick';
                 matchType?: '1v1' | '2v2' | '4P';
             }>)?.detail;
             if (pool && pool.mode && pool.matchType) {
@@ -452,9 +451,16 @@ export default function GameLobby({
                 toast('Sign-in cancelled. You must approve the request to access Team Up.', 'error');
                 return;
             }
+            if (wager > 0) {
+                const compliant = await compliance.ensureCompliance(session);
+                if (!compliant) {
+                    toast('Age 18+ and Terms confirmation required for paid matches.', 'error');
+                    return;
+                }
+            }
             setShowTeamUpOptions(true);
         });
-    }, [guard, ensureAppSession, toast]);
+    }, [guard, ensureAppSession, wager, compliance, toast]);
 
     const handleCancelQuickMatch = useCallback(() => {
         clearHuntTimers();
@@ -468,9 +474,12 @@ export default function GameLobby({
         if (!lobbyState || !isHost) return;
         const empty = lobbyState.slots.filter(s => s.status === 'empty').length;
         if (empty === 0) return;
+        const partyWallets = lobbyState.slots
+            .filter(s => s.status === 'joined' && s.playerId)
+            .map(s => String(s.playerId).toLowerCase());
         playSelect();
         allowOpenJoins();
-        setHybridParams({ roomCode: lobbyState.roomCode, slotsNeeded: empty, matchType: lobbyState.matchType });
+        setHybridParams({ roomCode: lobbyState.roomCode, slotsNeeded: empty, matchType: lobbyState.matchType, partyWallets });
         setSearchId(prev => prev + 1);
         setHuntExpired(false);
         setEmbeddedHunt(true);
@@ -1195,6 +1204,12 @@ export default function GameLobby({
                         hybridParams?.slotsNeeded ??
                         lobbyState?.slots.filter(s => s.status === 'empty').length
                     }
+                    partyWallets={
+                        hybridParams?.partyWallets ??
+                        lobbyState?.slots
+                            .filter(s => s.status === 'joined' && s.playerId)
+                            .map(s => String(s.playerId).toLowerCase())
+                    }
                 />
             )}
 
@@ -1211,9 +1226,20 @@ export default function GameLobby({
                         isHybrid
                         roomCode={hybridParams.roomCode}
                         slotsNeeded={hybridParams.slotsNeeded}
+                        partyWallets={hybridParams.partyWallets}
                     />
                 </div>
             )}
+
+            <ComplianceGateModal
+                open={compliance.modalOpen}
+                status={compliance.status}
+                isSubmitting={compliance.isSubmitting}
+                error={compliance.error}
+                onSubmit={compliance.submitConsent}
+                onClose={compliance.closeModal}
+                contextLabel={wager > 0 ? `${wager.toLocaleString()} CHIPS Paid Match` : 'Paid Arena Match'}
+            />
         </div>
     );
 }

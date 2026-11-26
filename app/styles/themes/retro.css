@@ -198,9 +198,12 @@ body.theme-retro-futurism::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body.theme-retro-futurism::before {
+  body.theme-retro-futurism:not(.motion-force-full)::before {
     opacity: 0.08;
   }
+}
+body.theme-retro-futurism.motion-force-reduced::before {
+  opacity: 0.08;
 }
 
 /* ─── Perspective Horizon Grid + Deep Orbital Canopy Backdrop ─── */

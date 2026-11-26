@@ -3,7 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import type { GameState } from '@/lib/types';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
-import { resyncMatch, shouldPauseLocalOrchestration } from '@/lib/netcode/resync';
+import { resyncMatch } from '@/lib/netcode/resync';
 import { reconnectDelayMs } from '@/lib/netcode/counters';
 import { bumpNet } from '@/lib/netcode/counters';
 import { track } from '@/lib/telemetry';
@@ -75,12 +75,12 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq, refres
     useEffect(() => {
         if (!enabled || !matchId || matchId === 'local') return;
         let active = true;
+        let ended = false;
         let attempt = 0;
         let timer: ReturnType<typeof setTimeout> | null = null;
 
         const poll = async () => {
-            if (!active) return;
-            if (shouldPauseLocalOrchestration('ended')) return;
+            if (!active || ended) return;
             // First poll of this match is the initial pull: allowEqual, so a
             // fresh tab renders even when the seq is unchanged.
             const r = await runResync(matchId, attempt === 0);
@@ -88,12 +88,19 @@ export function useMatchStates({ matchId, enabled, onServerState, getSeq, refres
             if (r.status === 'error') {
                 // MATCH_NOT_FOUND is terminal — no ladder for a match that is
                 // gone (resyncMatch already reported 'ended').
-                if (r.code === 'MATCH_NOT_FOUND') return;
+                if (r.code === 'MATCH_NOT_FOUND') {
+                    ended = true;
+                    return;
+                }
                 if (attempt < MAX_SNAPSHOT_RETRIES) {
                     const delay = reconnectDelayMs(attempt);
                     attempt += 1;
                     timer = setTimeout(poll, delay);
                 }
+                return;
+            }
+            if (r.status === 'applied' && (r.state.status === 'finished' || Boolean(r.state.winner))) {
+                ended = true;
                 return;
             }
             // Applied or a stale-but-successful fetch: steady state again.

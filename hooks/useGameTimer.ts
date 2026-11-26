@@ -22,6 +22,7 @@ interface UseGameTimerProps {
     matchConnectionStatus?: MatchConnectionStatus;
     isNetworked?: boolean;
     hasAuthoritativeSnapshot?: boolean;
+    getServerNow?: () => number;
 }
 
 export function useGameTimer({
@@ -29,7 +30,8 @@ export function useGameTimer({
     setLocalGameState,
     matchConnectionStatus = 'offline',
     isNetworked = false,
-    hasAuthoritativeSnapshot = false
+    hasAuthoritativeSnapshot = false,
+    getServerNow,
 }: UseGameTimerProps) {
     // The deadline ref MUST live at hook scope, not inside the effect below.
     // Outside render React installs ContextOnlyDispatcher, where every hook —
@@ -39,37 +41,54 @@ export function useGameTimer({
     // React error #321 at the route boundary. Hoisted, the ref persists per
     // component instance, so the per-turn re-arm below still keys correctly.
     const deadlineRef = useRef<{ key: string; at: number } | null>(null);
+    const lastIdleTickRef = useRef<number>(0);
+    const getServerNowRef = useRef<() => number>(getServerNow ?? Date.now);
+    getServerNowRef.current = getServerNow ?? Date.now;
 
     useEffect(() => {
-        if (localGameState.winner || !shouldRunMatchTimer({
+        if (localGameState.winner || localGameState.abortReason || !shouldRunMatchTimer({
             isNetworked,
             connectionStatus: matchConnectionStatus,
             hasAuthoritativeSnapshot,
-        })) return;
+        })) {
+            deadlineRef.current = null;
+            return;
+        }
 
-        const turnKey = `${localGameState.currentPlayer}|${localGameState.gamePhase}|${localGameState.diceValue}|${localGameState.lastUpdate}`;
-        const authoritativeAt = typeof localGameState.deadlineAt === 'number' && localGameState.deadlineAt > 0
-            ? localGameState.deadlineAt
-            : Date.now() + DEFAULT_TURN_TIMER_SECS * 1000;
+        const nowFn = () => getServerNowRef.current();
+        const hasValidServerDeadline =
+            typeof localGameState.deadlineAt === 'number' && localGameState.deadlineAt > 0;
+
+        // Never invent a local fallback deadline in networked matches: wait for the room's deadlineAt.
+        if (isNetworked && !hasValidServerDeadline) {
+            deadlineRef.current = null;
+            return;
+        }
+
+        const turnKey = `${localGameState.currentPlayer}|${localGameState.gamePhase}|${localGameState.diceValue ?? ''}|${localGameState.turnPhaseKind ?? ''}`;
+        const authoritativeAt = hasValidServerDeadline
+            ? (localGameState.deadlineAt as number)
+            : nowFn() + (localGameState.turnDurationMs ?? DEFAULT_TURN_TIMER_SECS * 1000);
 
         if (!deadlineRef.current || deadlineRef.current.key !== turnKey) {
             deadlineRef.current = {
                 key: turnKey,
                 at: authoritativeAt,
             };
-        } else if (
-            typeof localGameState.deadlineAt === 'number' &&
-            localGameState.deadlineAt > 0 &&
-            deadlineRef.current.at !== localGameState.deadlineAt
-        ) {
-            deadlineRef.current.at = localGameState.deadlineAt;
+        } else if (hasValidServerDeadline && deadlineRef.current.at !== localGameState.deadlineAt) {
+            deadlineRef.current.at = localGameState.deadlineAt as number;
         }
 
-        const interval = setInterval(() => {
+        const tickClock = () => {
+            const nowMs = nowFn();
             setLocalGameState((prev) => {
-                // If the Idle Warning prompt is active, tick its countdown instead
+                // If the Idle Warning prompt is active, throttle decrement to 1/s
                 if (prev.idleWarning) {
-                    if (prev.timeLeft <= 0) {
+                    if (nowMs - lastIdleTickRef.current < 1000) {
+                        return prev;
+                    }
+                    lastIdleTickRef.current = nowMs;
+                    if (prev.idleWarning.timeLeft <= 0) {
                         // 10s ultimatum expired -> Kick the player
                         const kickedPlayer = prev.idleWarning.player;
                         return {
@@ -83,31 +102,30 @@ export function useGameTimer({
                     }
                     return {
                         ...prev,
-                        idleWarning: { ...prev.idleWarning, timeLeft: Math.max(0, prev.timeLeft - 1) }
+                        idleWarning: { ...prev.idleWarning, timeLeft: Math.max(0, prev.idleWarning.timeLeft - 1) }
                     };
                 }
 
-                // Normal Turn Timer — derived from the deadline, so throttling
-                // cannot slow the clock down.
-                const isInteractive = !prev.isRolling && !prev.winner;
+                // Normal Turn Timer — derived from the server-aligned deadline, so throttling
+                // or clock skew cannot drift the countdown.
+                const isInteractive = !prev.isRolling && !prev.winner && !prev.abortReason;
                 if (!isInteractive) return prev;
                 const at = deadlineRef.current?.at;
                 if (at === undefined) return prev;
-                const left = Math.max(0, Math.ceil((at - Date.now()) / 1000));
+                const left = Math.max(0, Math.ceil((at - nowMs) / 1000));
                 if (left === prev.timeLeft) return prev;
                 return { ...prev, timeLeft: left };
             });
-        }, 1000);
+        };
+
+        // Immediate tick so UI snaps at phase start before the 250ms cadence.
+        tickClock();
+        const interval = setInterval(tickClock, 250);
 
         // A tab hidden for a minute must not keep a stale number on screen.
         const resync = () => {
-            const at = deadlineRef.current?.at;
-            if (at === undefined) return;
-            setLocalGameState((prev) => {
-                if (prev.idleWarning || prev.isRolling || prev.winner) return prev;
-                const left = Math.max(0, Math.ceil((at - Date.now()) / 1000));
-                return left === prev.timeLeft ? prev : { ...prev, timeLeft: left };
-            });
+            if (deadlineRef.current?.at === undefined) return;
+            tickClock();
         };
         document.addEventListener('visibilitychange', resync);
 
@@ -115,5 +133,5 @@ export function useGameTimer({
             clearInterval(interval);
             document.removeEventListener('visibilitychange', resync);
         };
-    }, [localGameState.winner, localGameState.currentPlayer, localGameState.gamePhase, localGameState.diceValue, localGameState.lastUpdate, localGameState.deadlineAt, setLocalGameState, matchConnectionStatus, isNetworked, hasAuthoritativeSnapshot]);
+    }, [localGameState.winner, localGameState.abortReason, localGameState.currentPlayer, localGameState.gamePhase, localGameState.diceValue, localGameState.turnPhaseKind, localGameState.turnDurationMs, localGameState.deadlineAt, setLocalGameState, matchConnectionStatus, isNetworked, hasAuthoritativeSnapshot]);
 }

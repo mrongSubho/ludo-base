@@ -94,6 +94,14 @@ export async function POST(request: Request) {
         if (!isOnboardingTrack(track)) {
             return NextResponse.json({ error: 'Unknown track' }, { status: 400 });
         }
+        const SERVER_DERIVED_TRACKS = new Set<string>(['social', 'day2', 'day3', 'friend_dm', 'clan', 'playtime']);
+        if (SERVER_DERIVED_TRACKS.has(track)) {
+            return NextResponse.json({
+                error: 'Track progress is derived server-side',
+                code: 'SERVER_DERIVED_TRACK',
+                track,
+            }, { status: 403 });
+        }
         const def = ONBOARDING_TRACKS[track as OnboardingTrack];
         // Server-side increment only — claim flags are never client-writable.
         const rawDelta = body?.delta;
@@ -103,7 +111,7 @@ export async function POST(request: Request) {
             if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) {
                 return NextResponse.json({ error: 'Invalid delta' }, { status: 400 });
             }
-            delta = Math.min(n, def.target);
+            delta = track === 'tutorial' ? 1 : Math.min(n, def.target);
         }
 
         const err = await ensurePlayerRow(wallet);
@@ -122,7 +130,7 @@ export async function POST(request: Request) {
         const target = existing?.target && existing.target > 0 ? existing.target : def.target;
 
         // P7: Onboarding game-tracks derived from recorded matches, never blind client deltas
-        const GAME_TRACKS: string[] = ['pvp', 'ai_classic', 'ai_power', 'ai_snakes'];
+        const GAME_TRACKS: string[] = ['pvp', 'ai_classic', 'ai_power'];
         if (GAME_TRACKS.includes(track)) {
             let matchQuery = db
                 .from('matches')
@@ -132,8 +140,6 @@ export async function POST(request: Request) {
 
             if (track === 'ai_power') {
                 matchQuery = matchQuery.eq('game_mode', 'power');
-            } else if (track === 'ai_snakes') {
-                matchQuery = matchQuery.eq('game_mode', 'snakes');
             }
             const { count: verifiedMatches, error: matchCountErr } = await matchQuery;
             if (matchCountErr) {

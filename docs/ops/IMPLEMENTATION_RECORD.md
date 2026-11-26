@@ -803,3 +803,26 @@ Coins are frozen (`202609300001`) and CHIPS became the only money. Rewards had b
   - **3D Step-Crown Token Hops (`2dbbbea`, `BoardTokens.tsx`):** `token-style-orb` default orbs + opt-in `ChessTokens`, GSAP FLIP step-crown arcs with `RunHomeGhost` capture sprints and yard progress rings.
 - **Procedural Web Audio Engine (`lib/audio/`, `63a7c49`..`38e71c0`):**
   - Zero static MP3 dependencies for core feedback: single-`AudioContext` `SoundEngine` (`sfxCatalog.ts`) synthesizing theme-aware dice/move/capture/power/UI SFX, `MusicDirector` running 3 interactive theme BGM engines (`lobby` / `queue` / `match_crunch`), bilateral L/R 14 Hz binaural pulse option, and automatic nested-modal ducking.
+
+---
+
+## Part XI — Ludo World Architecture Remediation (Waves 0–5)
+
+### XI.1 AI Unification, Matchmaking Integrity & Quick Turbo Mode (Wave 4)
+- **Single AI Heuristic Core (`lib/aiEngine.ts`, `lib/constants.ts`, `hooks/useAIBrain.ts`, `src/room/MatchRoomCore.ts`, `app/api/live-arena/power4p/route.ts`):**
+  - Replaced three diverging AI move evaluators with one shared pure TypeScript module using relative imports so Next.js routes, Web Workers, and the Cloudflare `MatchRoom` DO execute identical scoring (including shield-aware threat/pursuit checks, trap hazard avoidance, protective-stack break penalties, boost spending from base, and teleport target scoring).
+- **Hybrid Matchmaking & Explicit Free-Only Bot Backfill (`supabase/migrations/202611270001_wave4_matchmaking_and_seat_kind.sql`, `app/api/matchmaking/backfill-bots/route.ts`, `app/components/PlayerInfoRow.tsx`):**
+  - Recreated 9-arg `join_matchmaking_hybrid` (`p_slots_needed`, `p_party_wallets`) with explicit `seat_kind` (`human | bot`), added `expires_at > now()` filtering in `/api/matchmaking/pools`, shipped opt-in server bot backfill strictly restricted to free unranked matches (`403 BOT_BACKFILL_FREE_ONLY` if wagered, ranked, clan war, or backed by active `arena_match_stakes`), and surfaced an `AI` seat badge on every bot seat.
+- **Quick Turbo Mode (`lib/engine/core.ts`, `src/room/engine.ts`):**
+  - Added optional `gameMode: 'quick'` (`GAME_MODE_CODE.quick = 2`), starting each color with two tokens finished (`57`), one deployed (`startIdx`), and one in base (`-1`), while preserving classic and power pools untouched.
+
+### XI.2 Signed Config Registry, Compliance Gate, Social Projectiles, Moderation & Economy (Wave 5)
+- **Signed Config Registry & Fallback RPCs (`lib/configRegistry.ts`, `lib/rpcTransport.ts`, `scripts/sign-config.mjs`, `app/api/config/route.ts`):**
+  - Added versioned ECDSA P-256 signed config buckets (`1001..1005`) backed by optional `CONFIG_KV` with fail-closed fallback to verified defaults and `createFallbackRpcTransport` replacing single-endpoint bare `http()` transports across Wagmi, pool authority, and simulation.
+- **Compliance Gate & Opt-In Telemetry (`supabase/migrations/202611270002_wave5_player_consents.sql`, `lib/compliance.ts`, `lib/complianceClient.ts`, `app/api/compliance/consent/route.ts`, `app/components/ComplianceGateModal.tsx`):**
+  - Required 18+ confirmation, ToS/Privacy acceptance (`v1`), EU/DMA disclosure where applicable, and geo screening before paid deposits/wagers (`vault` entry actions, `matchmaking/join` when `effectiveWager > 0`, `spectator-bets` bet placement, and `clans/war/buyin`), while leaving vault withdrawals, claims, stake releases, and spectator cash-outs unblocked; unticked `WalletConnectCard.tsx` (`useState(false)`) and gated `initTelemetry()` on explicit opt-in consent.
+- **Guest Social Restoration, Projectiles & Moderation (`src/room/MatchRoomCore.ts`, `hooks/TeamUpContext.tsx`, `app/components/BoardProjectileLayer.tsx`, `lib/moderation.ts`, `lib/profanity.ts`):**
+  - Extracted host/guest-agnostic `broadcastSocial` routed through the Durable Object `t: 'social'` frame (seat-only, 10/10s rate limit + 800ms reaction cooldown, server-stamped `color` and profanity filtering) with compositor-only seat-to-seat projectiles (`emp-bomb`, `holo-ghost`, `cryo-balloon`, `plasma-pie`), stripped unowned `pepe`/`uma` packs from `public/emotes/packs.json`, fixed `CyberSticker` ID normalization and reduced-motion gating, enforced bidirectional `user_blocks` with cascade unfriend across DMs, friendships, pokes, invites, and live chat, and added `'messages'` rate limiting (`60/min POST`).
+- **Economy Hydration, Season Claim & Onboarding Polish (`app/api/marketplace/inventory/route.ts`, `lib/inventory.ts`, `app/components/ClaimHubSheet.tsx`, `app/components/TutorialOverlay.tsx`):**
+  - Hydrated `chips_marketplace_purchases` into `MarketplacePanel.tsx` on open, introduced `tokens-orb-prism` (`300 CHIPS`), mounted `useSeasonClaim("1")` inside `ClaimHubSheet.tsx` and retired orphaned `MerkleClaimPanel.tsx`, shipped a 4-step `TutorialOverlay` completing the `tutorial` track, and derived match `playtime` minutes server-side (`1..60`) from match start timestamps.
+

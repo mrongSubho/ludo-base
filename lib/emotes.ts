@@ -235,3 +235,72 @@ export function chatVisibleLength(value: string): number {
 
 /** How long the float stays visible (ms). */
 export const EMOTE_TTL_MS = 2200;
+
+export type ProjectileId = 'emp-bomb' | 'holo-ghost' | 'cryo-balloon' | 'plasma-pie';
+
+export interface ProjectileDef {
+    id: ProjectileId;
+    label: string;
+    badge: string;
+    accent: string;
+    description: string;
+}
+
+export const PROJECTILES: readonly ProjectileDef[] = [
+    { id: 'emp-bomb', label: 'EMP Bomb', badge: '⚡', accent: '#00E5FF', description: 'Shockwave spark across the board' },
+    { id: 'holo-ghost', label: 'Holo-Ghost', badge: '◈', accent: '#A5F3FC', description: 'Phase decoy ping' },
+    { id: 'cryo-balloon', label: 'Cryo Balloon', badge: '❄', accent: '#38BDF8', description: 'Frost splatter burst' },
+    { id: 'plasma-pie', label: 'Plasma Pie', badge: '◉', accent: '#FACC15', description: 'Neon custard splat' },
+];
+
+export const PROJECTILE_TTL_MS = 1600;
+
+export interface ProjectileEvent {
+    id: string;
+    projectileId: ProjectileId;
+    fromColor: string;
+    toColor: string;
+    actor?: string;
+    t: number;
+}
+
+export function isProjectileId(value: unknown): value is ProjectileId {
+    return typeof value === 'string' && PROJECTILES.some((p) => p.id === value);
+}
+
+export function projectileById(id: ProjectileId): ProjectileDef | undefined {
+    return PROJECTILES.find((p) => p.id === id);
+}
+
+export function createProjectileEvent(
+    projectileId: ProjectileId,
+    fromColor: string,
+    toColor: string,
+    actor?: string,
+): ProjectileEvent {
+    return {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        projectileId,
+        fromColor,
+        toColor,
+        actor,
+        t: Date.now(),
+    };
+}
+
+export function parseProjectilePayload(payload: unknown): ProjectileEvent | null {
+    if (!payload || typeof payload !== 'object') return null;
+    const p = payload as Record<string, unknown>;
+    if (!isProjectileId(p.projectileId)) return null;
+    if (typeof p.fromColor !== 'string' || typeof p.toColor !== 'string') return null;
+    if (p.fromColor === p.toColor) return null;
+    if (typeof p.t !== 'number') return null;
+    return {
+        id: typeof p.id === 'string' && p.id ? p.id : `${p.t}-${p.fromColor}-${p.toColor}`,
+        projectileId: p.projectileId,
+        fromColor: p.fromColor,
+        toColor: p.toColor,
+        actor: typeof p.actor === 'string' ? p.actor : undefined,
+        t: p.t,
+    };
+}

@@ -1,4 +1,4 @@
-import { BASE_INDEX, BOARD_FINISH_INDEX } from '@/lib/constants';
+import { BASE_INDEX, BOARD_FINISH_INDEX, HOME_LANE_START_INDEX } from '@/lib/constants';
 import { getTeammateColor } from '@/lib/gameLogic';
 import { seatedColorsFor } from '@/lib/engine/core';
 import type { GameState, PlayerColor, PowerType } from '@/lib/types';
@@ -173,8 +173,17 @@ export function deriveMatchFeedEvent(
             if (p === n) continue;
             if (p >= 0 && p < BOARD_FINISH_INDEX && n === BASE_INDEX) {
                 kicksForColor += 1;
-            } else if (n > p || (p === BASE_INDEX && n >= 0)) {
-                forwardMover = c;
+            } else {
+                const wrappedForward =
+                    p >= 0 &&
+                    p < HOME_LANE_START_INDEX &&
+                    n >= 0 &&
+                    n < HOME_LANE_START_INDEX &&
+                    n !== p &&
+                    ((n - p + HOME_LANE_START_INDEX) % HOME_LANE_START_INDEX) <= 12;
+                if (n > p || (p === BASE_INDEX && n >= 0) || wrappedForward) {
+                    forwardMover = c;
+                }
             }
             if (p < BOARD_FINISH_INDEX && n === BOARD_FINISH_INDEX) {
                 newlyFinishedColor = c;

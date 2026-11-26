@@ -17,6 +17,12 @@
       "service": "ludo-base"
     }
   ],
+  "kv_namespaces": [
+    {
+      "binding": "CONFIG_KV",
+      "id": "6e2f386c94794b009aa3cc2754504d9e"
+    }
+  ],
   "durable_objects":   {
     "bindings": [
       {
@@ -107,7 +113,8 @@
     "NEXT_PUBLIC_MARKETPLACE_ADDRESS": "0x15dF536466Ef58f77e95D7432089DeEBDf276821",
     "NEXT_PUBLIC_CLAN_CLAIM_ADDRESS": "0xF3570340E2A298Bf5424efC9C62E464528DA6df0",
     "NEXT_PUBLIC_ARENA_VAULT_ADDRESS": "0x603754F0Dd62702a6DCd19F4049393151618a713",
-    "NEXT_PUBLIC_TREASURY_WALLET": "0xbcCa5DcBF293D98A627fD3814D5AE8249bB1DFaF"
+    "NEXT_PUBLIC_TREASURY_WALLET": "0xbcCa5DcBF293D98A627fD3814D5AE8249bB1DFaF",
+    "NEXT_PUBLIC_CONFIG_PUBKEY": "{\"key_ops\":[\"verify\"],\"ext\":true,\"kty\":\"EC\",\"x\":\"UA7JEuv9PvEmbRbAWVi6dCjUPjty3GIXAVy5qMBXyP8\",\"y\":\"o1REM1NgZB55w0RL_syYx1WU_CG5hb8AWWoXtjk_cOM\",\"crv\":\"P-256\"}"
   },
   "routes":   [
     {

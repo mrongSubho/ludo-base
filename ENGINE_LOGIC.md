@@ -43,9 +43,10 @@ Match formation prioritizes server-coordinated pairing and deterministic seating
 
 ## 3. Gameplay [The Rules of War]
 
-### 3.1 Classic & Power Modes
+### 3.1 Classic, Power & Quick (Turbo) Modes
 - **Power (Default):** Includes 5 hidden main-track power tiles (`Boost`, `Shield`, `Teleport`, `Nuke`) plus match traps, power inventory clocks, and tactical HUD VFX.
 - **Classic:** Pure Ludo rules (home exit, Force captures, safe stars, exact 57 finish, bonus turns, three-sixes forfeit).
+- **Quick (Turbo, code `2`):** Uses identical 15×15 geometry (`MatchPool.sol` `gameMode <= 2`) with each color starting at `[startIdx, BASE_INDEX, BOARD_FINISH_INDEX, BOARD_FINISH_INDEX]` (1 deployed + 2 already home) for fast 3–5 minute matches.
 
 ### 3.2 Seating, Pairings & Seat-Aware Turn Cycle (`TU-6`)
 - **Corners:** `Bottom-Left (BL)`, `Bottom-Right (BR)`, `Top-Right (TR)`, `Top-Left (TL)`, rotating anti-clockwise.
@@ -101,18 +102,22 @@ Match formation prioritizes server-coordinated pairing and deterministic seating
 - **0ms No-Legal-Move Fast Path:** If `moving` begins with zero legal tokens (`getLegalTokenIndices.length === 0`), turn advances immediately without artificial delay and resets `rollingRef`.
 
 ### 5.2 Bot Heuristics & Difficulty (`lib/aiEngine.ts`, `lib/constants.ts`)
-Evaluates moves inside a Web Worker (`lib/ai/worker.ts`) using `AI_SCORES` and returns `{ color, tokenIndex }` (supporting 2v2 teammate assist):
-1. `REACH_FINISH` (**+150**)
-2. Power tile hunting (**+120**)
-3. Enemy capture (**+100**)
-4. Ally reinforcement (**+60**)
-5. Enter safe star (**+50**)
-6. Exit base (**+40**)
-7. Enter home lane (**+25**)
-8. Color-relative forward progress (**+1×**, `0..56`, never raw parity index)
+Evaluates moves inside a Web Worker (`lib/ai/worker.ts`) and inside `MatchRoomCore` / Live Arena using `AI_SCORES` and returns `{ color, tokenIndex }` (supporting 2v2 teammate assist):
+1. `REACH_FINISH` (**+1500**)
+2. `CAPTURE_TOKEN` (**+1000** × difficulty capture weight)
+3. `THREAT_AVOIDANCE` (**+600** × difficulty capture weight, force- and shield-aware via `calculateNextPosition`)
+4. `ENTER_SAFE_ZONE` (**+400**)
+5. `PURSUIT_POSITION` (**+250**, ignores shielded/unbreakable opponent stacks)
+6. `PROMOTION` (**+150**, entering home stretch)
+7. `POWER_TILE_HUNT` (**+120** × difficulty power weight)
+8. `EXIT_BASE` (**+80**)
+9. `REINFORCE_ALLY` (**+60**)
+10. `ENTER_HOME_LANE` (**+25**)
+11. `PROGRESSION_MULTIPLIER` (**+2×** color-relative travel distance `0..56`, never raw parity index)
+12. Hazards: `AVOID_TRAP` (**-1200**), `BREAK_PROTECTIVE_STACK` (**-300** when splitting a 2-token stack on an unsafe tile)
 
 - **Difficulty Tiers (`DIFFICULTY_PARAMS`):** `rookie` (±40% noise, ignores power tiles, slow clocks), `pro` (baseline weights, 150–1900ms roll / 900ms move), `master` (0% noise, 1.3× power hunt, 1.5× capture, fast 150–700ms roll / 500ms move).
-- **Strategic Power AI (`getBestPowerUsage`):** Rookie never spends; Pro/Master arm Shield when an enemy threatens within 6 cells, Boost when `<= 12` from finish or chased `<= 6` on an unsafe tile, and target Nuke/Teleport for maximum cluster damage or safety.
+- **Strategic Power AI (`getBestPowerUsage`):** Rookie never spends; Pro/Master arm Nuke on densest unshielded solo clusters, Shield when an unshielded non-safe token is within enemy capture force (evaluated with `calculateNextPosition`), Boost when `<= 12` from finish, chased `<= 6` on an unsafe tile, or all remaining tokens are stuck in base, and Teleport only when an eligible on-track/home-stretch token exists (`tokenIdx` selected explicitly, never targeting yard tokens).
 
 ---
 

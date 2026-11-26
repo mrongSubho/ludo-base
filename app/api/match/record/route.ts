@@ -135,10 +135,11 @@ export async function POST(request: Request) {
 
         // Results may only settle a canonical match, and every signed field must
         // agree with its stored identity.
+        let matchCreatedAtIso: string | null = null;
         {
             const { data: existing, error: fetchMatchErr } = await supabase
                 .from('matches')
-                .select('id, winner_address, finished_at, room_code, game_mode, participants, host_proven, room_owner')
+                .select('id, winner_address, finished_at, created_at, room_code, game_mode, participants, host_proven, room_owner')
                 .eq('id', matchId)
                 .maybeSingle();
             if (fetchMatchErr) {
@@ -147,6 +148,7 @@ export async function POST(request: Request) {
             if (!existing) {
                 return NextResponse.json({ error: 'Match not found' }, { status: 404 });
             }
+            matchCreatedAtIso = (existing as { created_at?: string | null }).created_at ?? null;
             const storedParts = (existing.participants || []).map((p: string) => p.toLowerCase()).sort();
             if (existing.room_code !== roomCode || existing.game_mode !== (gameMode || 'classic') ||
                 JSON.stringify(storedParts) !== JSON.stringify([...lowerParts].sort())) {
@@ -497,9 +499,14 @@ export async function POST(request: Request) {
         // settlement, or it always reads "today" and never awards day2/day3.
         try {
             const { recordMatchOnboarding } = await import('@/lib/onboardingProgressWriter');
+            const parsedStartMs = matchCreatedAtIso ? Date.parse(matchCreatedAtIso) : NaN;
+            const durationMinutes = Number.isFinite(parsedStartMs)
+                ? Math.max(1, Math.min(60, Math.round((Date.now() - parsedStartMs) / 60_000)))
+                : 5;
             await recordMatchOnboarding(supabase, {
                 participants: lowerParts,
                 gameMode: gameMode || 'classic',
+                durationMinutes,
                 preUpdatePlayers,
             });
         } catch (onbErr) {

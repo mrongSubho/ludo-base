@@ -5,10 +5,10 @@ import { TEAM_PAIRINGS } from '@/lib/constants';
 import { seatedColorsFor } from '@/lib/engine/core';
 import { onReducedMotionChange, prefersReducedMotion } from '@/lib/motion';
 import { useDeployTheme } from '@/lib/deployTheme';
-import { ClassicGridIcon, OverdriveBoltIcon } from './icons';
+import { ClassicGridIcon, OverdriveBoltIcon, QuickDeployIcon } from './icons';
 import { TerminalTypeText } from './TerminalTypeText';
 
-export type LobbyGameMode = 'classic' | 'power';
+export type LobbyGameMode = 'classic' | 'power' | 'quick';
 export type LobbyMatchType = '1v1' | '2v2' | '4P';
 
 interface LobbyCommandDeckProps {
@@ -33,7 +33,7 @@ const RETRO_DECK_PALETTES: Record<
     offline: { hex: '#34D399', rgb: '52, 211, 153', bright: '#A7F3D0' },
 };
 
-const MODE_ORDER: readonly LobbyGameMode[] = ['power', 'classic'] as const;
+const MODE_ORDER: readonly LobbyGameMode[] = ['power', 'classic', 'quick'] as const;
 const FORMATION_ORDER: readonly LobbyMatchType[] = ['1v1', '2v2', '4P'] as const;
 
 const FORMATION_META: Record<LobbyMatchType, string> = {
@@ -223,9 +223,9 @@ export function LobbyCommandDeck({
 
     const { mode: deployMode, theme: deployTheme } = useDeployTheme();
 
-    // 0 = POWER (top), 1 = CLASSIC (bottom)
-    const activeRatio = dragRatio !== null ? dragRatio : gameMode === 'power' ? 0 : 1;
-    const previewMode: LobbyGameMode = activeRatio < 0.5 ? 'power' : 'classic';
+    // 0 = POWER (top), 0.5 = CLASSIC (mid), 1 = QUICK (bottom)
+    const activeRatio = dragRatio !== null ? dragRatio : gameMode === 'power' ? 0 : gameMode === 'classic' ? 0.5 : 1;
+    const previewMode: LobbyGameMode = activeRatio < 0.25 ? 'power' : activeRatio < 0.75 ? 'classic' : 'quick';
     const activePalette =
         themeVariant === 'retro'
             ? (RETRO_DECK_PALETTES[deployMode] ?? RETRO_DECK_PALETTES.quick)
@@ -260,10 +260,12 @@ export function LobbyCommandDeck({
         const rect = el.getBoundingClientRect();
         if (rect.height <= 0) return null;
         const raw = (clientY - rect.top) / rect.height;
-        // Center of top slot (POWER) = 0.25, center of bottom slot (CLASSIC) = 0.75
-        const mapped = (raw - 0.25) / 0.5;
+        // Center of 3 slots: POWER = 1/6, CLASSIC = 0.5, QUICK = 5/6
+        const mapped = (raw - 1 / 6) / (4 / 6);
         return Math.max(0, Math.min(1, mapped));
     }, []);
+
+    const modeForRatio = (r: number): LobbyGameMode => (r < 0.25 ? 'power' : r < 0.75 ? 'classic' : 'quick');
 
     const handleBreakerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
         e.preventDefault();
@@ -278,10 +280,10 @@ export function LobbyCommandDeck({
         const r = pointerToRatio(e.clientY);
         if (r !== null) {
             setDragRatio(r);
-            const target: LobbyGameMode = r < 0.5 ? 'power' : 'classic';
+            const target: LobbyGameMode = modeForRatio(r);
             if (target !== dragModeRef.current) {
                 dragModeRef.current = target;
-                playDeckClick(target === 'power' ? 760 : 540, target === 'power' ? 175 : 140, sfxEnabled);
+                playDeckClick(target === 'power' ? 760 : target === 'quick' ? 660 : 540, target === 'power' ? 175 : 140, sfxEnabled);
                 triggerDeckHaptic(6, hapticsEnabled);
             }
         }
@@ -292,10 +294,10 @@ export function LobbyCommandDeck({
         const r = pointerToRatio(e.clientY);
         if (r === null) return;
         setDragRatio(r);
-        const target: LobbyGameMode = r < 0.5 ? 'power' : 'classic';
+        const target: LobbyGameMode = modeForRatio(r);
         if (target !== dragModeRef.current) {
             dragModeRef.current = target;
-            playDeckClick(target === 'power' ? 760 : 540, target === 'power' ? 175 : 140, sfxEnabled);
+            playDeckClick(target === 'power' ? 760 : target === 'quick' ? 660 : 540, target === 'power' ? 175 : 140, sfxEnabled);
             triggerDeckHaptic(6, hapticsEnabled);
         }
     };
@@ -310,12 +312,13 @@ export function LobbyCommandDeck({
         } catch {
             /* ignore */
         }
-        const r = pointerToRatio(e.clientY) ?? dragRatio ?? (gameMode === 'power' ? 0 : 1);
-        const target: LobbyGameMode = r < 0.5 ? 'power' : 'classic';
+        const fallbackRatio = gameMode === 'power' ? 0 : gameMode === 'classic' ? 0.5 : 1;
+        const r = pointerToRatio(e.clientY) ?? dragRatio ?? fallbackRatio;
+        const target: LobbyGameMode = modeForRatio(r);
         setDragRatio(null);
         if (target !== gameMode) {
             if (dragModeRef.current !== target) {
-                playDeckClick(target === 'power' ? 760 : 540, target === 'power' ? 175 : 140, sfxEnabled);
+                playDeckClick(target === 'power' ? 760 : target === 'quick' ? 660 : 540, target === 'power' ? 175 : 140, sfxEnabled);
                 triggerDeckHaptic(6, hapticsEnabled);
             }
             onChangeGameMode(target);
@@ -323,15 +326,22 @@ export function LobbyCommandDeck({
     };
 
     const handleBreakerKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-        if (e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'Home') {
+        const curIdx = MODE_ORDER.indexOf(gameMode);
+        if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            commitGameMode(MODE_ORDER[Math.max(0, curIdx - 1)]);
+        } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            commitGameMode(MODE_ORDER[Math.min(MODE_ORDER.length - 1, curIdx + 1)]);
+        } else if (e.key === 'Home') {
             e.preventDefault();
             commitGameMode('power');
-        } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'End') {
+        } else if (e.key === 'End') {
             e.preventDefault();
-            commitGameMode('classic');
+            commitGameMode('quick');
         } else if (e.key === ' ' || e.key === 'Enter') {
             e.preventDefault();
-            commitGameMode(gameMode === 'power' ? 'classic' : 'power');
+            commitGameMode(MODE_ORDER[(curIdx + 1) % MODE_ORDER.length]);
         }
     };
 
@@ -381,7 +391,7 @@ export function LobbyCommandDeck({
                         onPointerMove={handleBreakerPointerMove}
                         onPointerUp={finishBreakerPointer}
                         onPointerCancel={finishBreakerPointer}
-                        className="relative h-[96px] rounded-xl p-1.5 grid grid-rows-2 touch-none select-none cursor-grab active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
+                        className="relative h-[108px] rounded-xl p-1.5 grid grid-rows-3 touch-none select-none cursor-grab active:cursor-grabbing focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
                         style={{
                             background: 'rgba(4, 7, 14, 0.84)',
                             border: `1px solid ${accentHex}2e`,
@@ -391,9 +401,9 @@ export function LobbyCommandDeck({
                         {/* Vertical Sliding Knurled Cartridge (strictly transform-only) */}
                         <div className="pointer-events-none absolute inset-1.5">
                             <div
-                                className="w-full h-1/2 rounded-lg"
+                                className="w-full h-1/3 rounded-lg"
                                 style={{
-                                    transform: `translateY(${activeRatio * 100}%)`,
+                                    transform: `translateY(${activeRatio * 200}%)`,
                                     transition:
                                         dragRatio !== null || reducedMotion
                                             ? 'none'
@@ -430,6 +440,8 @@ export function LobbyCommandDeck({
                                                 className="w-4 h-4 shrink-0"
                                                 active={selected}
                                             />
+                                        ) : mode === 'quick' ? (
+                                            <QuickDeployIcon className="w-4 h-4 shrink-0" />
                                         ) : (
                                             <ClassicGridIcon
                                                 className="w-4 h-4 shrink-0"

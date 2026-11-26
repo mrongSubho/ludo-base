@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { prefersReducedMotion } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import type { Point } from '@/lib/boardLayout';
 import type { PlayerColor } from '@/lib/types';
 import type { PowerVfxEvent } from '@/lib/powerVfx';
@@ -46,8 +46,9 @@ const NUKE_SHARDS = [
  * and Teleport quantum warp beams.
  */
 export function PowerVfxOverlay({ events }: { events: PowerVfxEvent[] }) {
+    // Reactive hook tracking prefersReducedMotion
+    const reduced = useReducedMotion();
     if (!events || events.length === 0) return null;
-    const reduced = prefersReducedMotion();
 
     return (
         <div className="power-vfx-layer" aria-hidden="true">

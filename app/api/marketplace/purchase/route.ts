@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { parseAbiItem, parseEventLogs, type Address } from 'viem';
-import { requireAppSession, serviceDb } from '@/lib/serverAuth';
+import { requireAppSession, requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 import { buildPurchaseIntentMessage } from '@/lib/purchaseIntent';
 import {
@@ -58,7 +58,9 @@ export async function POST(request: Request) {
             signature,
             issuedAt,
         } = await request.json();
-        const wallet = await requireAppSession(walletAddress, sessionId);
+        const wallet =
+            (await requireSessionWallet(request, { scope: 'app', expectedWallet: walletAddress })) ||
+            (await requireAppSession(walletAddress, sessionId));
         if (!wallet) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
         // A session is not a rate limit. `requestId` here is a genuine
@@ -209,15 +211,17 @@ export async function POST(request: Request) {
                 { onConflict: 'chain_id,tx_hash,log_index' },
             );
 
-            await db
+            const { error: purchaseInsertErr } = await db
                 .from('chips_marketplace_purchases')
                 .insert({
                     request_id: id,
                     wallet_address: wallet,
                     item_ids: ids,
                     total_base: totalChips,
-                })
-                .then(() => undefined, () => undefined);
+                });
+            if (purchaseInsertErr && purchaseInsertErr.code !== '23505') {
+                console.error('[marketplace/purchase] ledger insert error:', purchaseInsertErr.message);
+            }
 
             return NextResponse.json({
                 success: true,

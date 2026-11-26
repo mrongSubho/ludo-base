@@ -7,7 +7,9 @@ import assert from 'node:assert/strict';
 import {
     GOLDEN_MATCH_COUNT,
     assertDeterministicCorpus,
+    assertDeterministicQuickCorpus,
     runGoldenCorpus,
+    runGoldenQuickCorpus,
     runGoldenMatch,
     lcg,
 } from './golden-replay';
@@ -57,4 +59,18 @@ test('hashGameState is a 16-hex digest used in corpus', () => {
     assert.equal(m.finalHash.length, 16);
     assert.match(m.finalHash, /^[0-9a-f]+$/);
     assert.equal(hashGameState.length, 1);
+});
+
+test('Quick Turbo mode corpus terminates deterministically in 1v1, 2v2, and 4P', () => {
+    const summary = assertDeterministicQuickCorpus(12);
+    assert.equal(summary.n, 12);
+    assert.ok(summary.uniqueHashes >= 3);
+    for (const mode of ['1v1', '4P', '2v2'] as const) {
+        assert.ok(
+            summary.finishedByMode[mode] >= 1,
+            `need >=1 terminated Quick ${mode} match, got ${summary.finishedByMode[mode]}`,
+        );
+    }
+    const sample = runGoldenQuickCorpus(3);
+    assert.ok(sample.every((r) => r.winner !== null), 'all sampled Quick matches finish cleanly');
 });

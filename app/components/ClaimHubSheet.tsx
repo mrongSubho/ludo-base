@@ -1,14 +1,18 @@
 "use client";
 
 import React, { useState } from "react";
+import { useAccount } from "wagmi";
 import { useClaimAll } from "@/hooks/useChipsPool";
-import { useLegacyClaim } from "@/hooks/useMerkleClaim";
+import { useLegacyClaim, useSeasonClaim } from "@/hooks/useMerkleClaim";
 import { useChipsBalance } from "@/hooks/useChipsBalance";
 import { useClanClaims } from "@/hooks/useClanClaims";
 import { useArenaVault } from "@/hooks/useArenaVault";
+import { usePlayerSigner } from "@/hooks/usePlayerSigner";
+import { useComplianceConsent } from "@/hooks/useComplianceConsent";
 import { shortHex } from "@/lib/chips";
 import Button from "./Button";
 import Chip from "./Chip";
+import ComplianceGateModal from "./ComplianceGateModal";
 import { ThinkingOrb } from "./ThinkingOrb";
 import { getSoundEngine } from "@/lib/audio/SoundEngine";
 
@@ -25,10 +29,14 @@ export default function ClaimHubSheet({
 }: {
     claimablePoolIds?: `0x${string}`[];
 }) {
+    const { address: wagmiAddress } = useAccount();
+    const player = usePlayerSigner();
+    const compliance = useComplianceConsent(player.address ?? wagmiAddress);
     const bal = useChipsBalance();
     const { claimMany, isPending: claimingPools, error: poolClaimError, configured: poolClaimConfigured } =
         useClaimAll();
     const legacy = useLegacyClaim();
+    const season = useSeasonClaim("1");
     const clanClaims = useClanClaims();
     const vault = useArenaVault();
 
@@ -53,6 +61,11 @@ export default function ClaimHubSheet({
         setStatusNote(null);
         try {
             if (vaultMode === "topup") {
+                const compliant = await compliance.ensureCompliance();
+                if (!compliant) {
+                    setVaultErr("Age 18+ and Terms confirmation is required before Match Vault deposits.");
+                    return;
+                }
                 await vault.topUpVault(amt);
                 getSoundEngine().play("coin_chink");
                 setStatusNote(`Topped up ${amt.toLocaleString()} CHIPS into your Match Vault.`);
@@ -447,6 +460,49 @@ export default function ClaimHubSheet({
                 </div>
             </section>
 
+            {/* 4B. Season Rewards Merkle Claim (Epoch 1) */}
+            {season.entry && (
+                <section className="cb-section">
+                    <div className="cb-section-head">
+                        <span>Season 1 Rewards</span>
+                        <Chip size="sm">{season.claimed ? "Claimed" : "Available"}</Chip>
+                    </div>
+                    <div className="cb-card p-3.5 space-y-3 text-left">
+                        <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                                <span className="text-ludo-sm font-bold text-ink-strong leading-tight">
+                                    Epoch 1 Leaderboard Allocation
+                                </span>
+                                <span className="text-ludo-xs font-mono text-ink-faint">
+                                    {shortHex(season.entry.wallet)} · Merkle verified
+                                </span>
+                            </div>
+                            <span className="text-ludo-sm font-mono font-bold text-accent">
+                                {season.humanAmount}
+                            </span>
+                        </div>
+
+                        {!season.claimed && (
+                            <Button
+                                variant="secondary"
+                                size="md"
+                                fullWidth
+                                disabled={!season.canClaim || season.claiming}
+                                onClick={() =>
+                                    void season
+                                        .claim()
+                                        .then(() => getSoundEngine().play("claim_reward_burst"))
+                                        .catch(() => getSoundEngine().play("ui_error"))
+                                }
+                                className="uppercase tracking-widest font-bold label-chrome text-ludo-xs"
+                            >
+                                {season.claiming ? "Claiming Season…" : `Claim ${season.humanAmount}`}
+                            </Button>
+                        )}
+                    </div>
+                </section>
+            )}
+
             {/* 5. Legacy Snapshot Conversion */}
             {legacy.entry && (
                 <section className="cb-section">
@@ -491,11 +547,21 @@ export default function ClaimHubSheet({
             )}
 
             {/* Error or Status message */}
-            {(statusNote || vaultErr || vault.error || clanClaims.error || poolClaimError || legacy.error) && (
+            {(statusNote || vaultErr || vault.error || clanClaims.error || poolClaimError || legacy.error || season.error) && (
                 <div className="p-2.5 rounded-xl bg-surface-recessed border border-line-soft text-ludo-xs font-mono text-ink-muted text-left">
-                    {vaultErr || vault.error || clanClaims.error || statusNote || poolClaimError || legacy.error}
+                    {vaultErr || vault.error || clanClaims.error || statusNote || poolClaimError || legacy.error || season.error}
                 </div>
             )}
+
+            <ComplianceGateModal
+                open={compliance.modalOpen}
+                status={compliance.status}
+                isSubmitting={compliance.isSubmitting}
+                error={compliance.error}
+                onSubmit={compliance.submitConsent}
+                onClose={compliance.closeModal}
+                contextLabel="Match Vault Deposit"
+            />
         </div>
     );
 }

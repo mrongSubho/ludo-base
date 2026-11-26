@@ -46,7 +46,7 @@ interface TeamUpMatchPanelProps {
     huntTimeoutS?: number;
     onCancelHunt?: () => void;
     matchType?: '1v1' | '2v2' | '4P';
-    gameMode?: 'classic' | 'power';
+    gameMode?: 'classic' | 'power' | 'quick';
     entryFee?: number;
 }
 
@@ -427,7 +427,8 @@ export const TeamUpMatchPanel = ({
         total: lobbyState?.slots.length ?? 0,
     };
 
-    const modeLabel = (lobbyState?.gameMode ?? gameMode) === 'power' ? 'Power' : 'Classic';
+    const activeGameMode = lobbyState?.gameMode ?? gameMode;
+    const modeLabel = activeGameMode === 'power' ? 'Power' : activeGameMode === 'quick' ? 'Quick' : 'Classic';
     const fee = lobbyState?.entryFee ?? entryFee;
     const feeLabel = fee > 0 ? fee.toLocaleString() : 'Free';
 

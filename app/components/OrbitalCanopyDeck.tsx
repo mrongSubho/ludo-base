@@ -62,8 +62,9 @@ const RETRO_PALETTES: Record<DeployModeId, CanopyPalette> = {
 };
 
 const CANOPY_MODES: readonly { id: LobbyGameMode; label: string; startDeg: number; endDeg: number }[] = [
-    { id: 'power', label: 'POWER', startDeg: -31.5, endDeg: -0.75 },
-    { id: 'classic', label: 'CLASSIC', startDeg: 0.75, endDeg: 31.5 },
+    { id: 'power', label: 'POWER', startDeg: -31.5, endDeg: -11 },
+    { id: 'classic', label: 'CLASSIC', startDeg: -10, endDeg: 10 },
+    { id: 'quick', label: 'QUICK', startDeg: 11, endDeg: 31.5 },
 ];
 
 const CANOPY_FORMATIONS: readonly { id: LobbyMatchType; label: string; startDeg: number; endDeg: number }[] = [
@@ -213,10 +214,12 @@ export function OrbitalCanopyDeck({
     const innerHousingPath = describeAnnularWedge(CX, CY, INNER_R_IN, INNER_R_OUT, -26.8, 26.8);
 
     const handleModeKeyDown = (idx: number, e: React.KeyboardEvent<SVGGElement>) => {
-        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
             e.preventDefault();
-            const nextIdx = (idx + 1) % CANOPY_MODES.length;
-            selectMode(CANOPY_MODES[nextIdx].id);
+            selectMode(CANOPY_MODES[(idx + 1) % CANOPY_MODES.length].id);
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectMode(CANOPY_MODES[(idx - 1 + CANOPY_MODES.length) % CANOPY_MODES.length].id);
         } else if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             selectMode(CANOPY_MODES[idx].id);
@@ -302,7 +305,7 @@ export function OrbitalCanopyDeck({
                                 key={m.id}
                                 role="radio"
                                 aria-checked={active}
-                                aria-label={m.id === 'classic' ? 'Classic Mode' : 'Power Mode'}
+                                aria-label={m.id === 'classic' ? 'Classic Mode' : m.id === 'quick' ? 'Quick Turbo Mode' : 'Power Mode'}
                                 tabIndex={active ? 0 : -1}
                                 onClick={() => selectMode(m.id)}
                                 onKeyDown={(e) => handleModeKeyDown(idx, e)}
@@ -331,20 +334,20 @@ export function OrbitalCanopyDeck({
                                     pointerEvents="none"
                                 >
                                     {m.id === 'power' ? (
-                                        <g transform="translate(-31, -6)">
+                                        <g transform="translate(-26, -5)">
                                             <path
                                                 d="M5.5 0.8L1.5 6.8H5L4.2 11.2L8.8 5.2H5.2L5.5 0.8Z"
                                                 fill={active ? palette.bright : 'rgba(155, 176, 201, 0.55)'}
                                             />
                                             <text
-                                                x="37"
-                                                y="7.2"
+                                                x="32"
+                                                y="6.8"
                                                 textAnchor="middle"
                                                 dominantBaseline="middle"
                                                 fill={active ? palette.bright : 'rgba(155, 176, 201, 0.62)'}
-                                                fontSize="12"
+                                                fontSize="10.5"
                                                 fontWeight="700"
-                                                letterSpacing="2.2"
+                                                letterSpacing="1.6"
                                                 style={{ fontFamily: 'var(--font-mono)' }}
                                             >
                                                 POWER
@@ -357,9 +360,9 @@ export function OrbitalCanopyDeck({
                                             textAnchor="middle"
                                             dominantBaseline="middle"
                                             fill={active ? palette.bright : 'rgba(155, 176, 201, 0.62)'}
-                                            fontSize="12"
+                                            fontSize="10.5"
                                             fontWeight="700"
-                                            letterSpacing="2.4"
+                                            letterSpacing="1.6"
                                             style={{ fontFamily: 'var(--font-mono)' }}
                                         >
                                             {m.label}

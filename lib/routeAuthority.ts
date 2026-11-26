@@ -74,10 +74,11 @@ export const ROUTE_AUTHORITY_MAP: Record<string, RouteAuthorityEntry> = {
     'missions/claim':         { methods: ['POST'], scope: 'retired', csrf: false, resource: 'none', serviceRole: false },
 
     // ── Matchmaking ───────────────────────────────────────────────────────
-    'matchmaking/join':       { methods: ['POST'], scope: 'app', capability: 'matchmaking', csrf: true, resource: 'self', serviceRole: true },
-    'matchmaking/cancel':     { methods: ['POST'], scope: 'app', capability: 'matchmaking', csrf: true, resource: 'owner', serviceRole: true },
-    'matchmaking/status':     { methods: ['GET'],  scope: 'app', capability: 'matchmaking', csrf: false, resource: 'owner', serviceRole: true },
-    'matchmaking/pools':      { methods: ['GET'],  scope: 'public', csrf: false, resource: 'none', serviceRole: true },
+    'matchmaking/join':          { methods: ['POST'], scope: 'app', capability: 'matchmaking', csrf: true, resource: 'self', serviceRole: true },
+    'matchmaking/cancel':        { methods: ['POST'], scope: 'app', capability: 'matchmaking', csrf: true, resource: 'owner', serviceRole: true },
+    'matchmaking/status':        { methods: ['GET'],  scope: 'app', capability: 'matchmaking', csrf: false, resource: 'owner', serviceRole: true },
+    'matchmaking/pools':         { methods: ['GET'],  scope: 'public', csrf: false, resource: 'none', serviceRole: true },
+    'matchmaking/backfill-bots': { methods: ['POST'], scope: 'app', capability: 'matchmaking', csrf: true, resource: 'self', serviceRole: true },
 
     // ── Live / spectator ──────────────────────────────────────────────────
     'live-matches/window':    { methods: ['POST'], scope: 'app', csrf: true, resource: 'host', serviceRole: true },
@@ -97,8 +98,11 @@ export const ROUTE_AUTHORITY_MAP: Record<string, RouteAuthorityEntry> = {
     'geo':                    { methods: ['GET'],  scope: 'public', csrf: false, resource: 'none', serviceRole: false },
     'siwe/verify':            { methods: ['POST'], scope: 'public', csrf: false, resource: 'none', serviceRole: true },
     'farcaster':              { methods: ['GET'],  scope: 'public', csrf: false, resource: 'none', serviceRole: false },
+    'config':                 { methods: ['GET'],  scope: 'public', csrf: false, resource: 'none', serviceRole: false },
+    'compliance/consent':     { methods: ['GET', 'POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
     'push/subscribe':         { methods: ['POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
     'push/test':              { methods: ['POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
+    'marketplace/inventory':  { methods: ['GET'],  scope: 'app', csrf: false, resource: 'self', serviceRole: true },
     'marketplace/purchase':   { methods: ['POST'], scope: 'app', csrf: true, resource: 'self', serviceRole: true },
 
     // ── Clans & Clan Wars ──────────────────────────────────────────────────

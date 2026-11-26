@@ -6,11 +6,11 @@ import { seatedColorsFor } from '@/lib/engine/core';
 import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import { type DeployModeId, useDeployTheme } from '@/lib/deployTheme';
 import { onReducedMotionChange, prefersReducedMotion } from '@/lib/motion';
-import { ClassicGridIcon, OverdriveBoltIcon } from './icons';
+import { ClassicGridIcon, OverdriveBoltIcon, QuickDeployIcon } from './icons';
 import type { LobbyGameMode, LobbyMatchType } from './LobbyCommandDeck';
 import { TerminalTypeText } from './TerminalTypeText';
 
-export const DAYBREAK_MODE_ORDER: readonly LobbyGameMode[] = ['power', 'classic'] as const;
+export const DAYBREAK_MODE_ORDER: readonly LobbyGameMode[] = ['power', 'classic', 'quick'] as const;
 export const DAYBREAK_FORMATION_ORDER: readonly LobbyMatchType[] = ['1v1', '2v2', '4P'] as const;
 
 export const DAYBREAK_PALETTES: Record<
@@ -198,7 +198,13 @@ export function DaybreakStudioDeck({
                         Ruleset
                     </span>
                     <TerminalTypeText
-                        text={gameMode === 'power' ? '6 Power Tiles · Boosts' : 'Pure Classic Rules'}
+                        text={
+                            gameMode === 'power'
+                                ? '6 Power Tiles · Boosts'
+                                : gameMode === 'quick'
+                                  ? '2-Token Turbo · 3–5 min'
+                                  : 'Pure Classic Rules'
+                        }
                         charMs={20}
                         className="text-ludo-xs font-bold tracking-wide whitespace-nowrap shrink-0"
                         style={{ color: palette.deep }}
@@ -208,7 +214,7 @@ export function DaybreakStudioDeck({
                 <div
                     role="radiogroup"
                     aria-label="Select Game Mode"
-                    className="relative rounded-xl p-1 grid grid-cols-2"
+                    className="relative rounded-xl p-1 grid grid-cols-3"
                     style={{
                         background: '#EAE5DC',
                         boxShadow:
@@ -218,9 +224,9 @@ export function DaybreakStudioDeck({
                     {/* Sliding raised matte-white ceramic keycap */}
                     <div
                         aria-hidden="true"
-                        className="pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-lg border"
+                        className="pointer-events-none absolute top-1 bottom-1 left-1 w-[calc(33.333%-3px)] rounded-lg border"
                         style={{
-                            transform: `translateX(${gameMode === 'power' ? '0%' : '100%'})`,
+                            transform: `translateX(${Math.max(0, DAYBREAK_MODE_ORDER.indexOf(gameMode)) * 100}%)`,
                             transition: reducedMotion
                                 ? 'none'
                                 : 'transform 190ms cubic-bezier(0.22, 1, 0.36, 1)',
@@ -247,6 +253,8 @@ export function DaybreakStudioDeck({
                             >
                                 {mode === 'power' ? (
                                     <OverdriveBoltIcon className="w-3.5 h-3.5 shrink-0" active={selected} />
+                                ) : mode === 'quick' ? (
+                                    <QuickDeployIcon className="w-3.5 h-3.5 shrink-0" />
                                 ) : (
                                     <ClassicGridIcon className="w-3.5 h-3.5 shrink-0" active={selected} />
                                 )}

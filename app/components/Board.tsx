@@ -16,6 +16,10 @@ import { useGameEngine, Player } from '@/hooks/useGameEngine';
 import { useTeamUp } from '@/hooks/useTeamUp';
 import { useElementSize } from '@/hooks/useElementSize';
 import { useStableBoardBox } from '@/hooks/useStableBoardBox';
+import { usePresentedGameState } from '@/hooks/usePresentedGameState';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
+import { usePreferences } from '@/hooks/usePreferences';
+import { resolveDiceThemeId } from '@/lib/diceVisuals';
 
 // Modular Components
 import { HomeBlock } from './BoardHome';
@@ -58,11 +62,18 @@ import { PowerInventoryDock } from './PowerInventoryDock';
 import { EmojiPickerPopover } from './EmojiPicker';
 import { RichChatField } from './RichChatField';
 import { encodeChatDraft, insertDraftEmote, retainChatDraftEmotes, type ChatDraftEmote } from '@/lib/emotes';
-import type { EmoteEvent } from '@/lib/emotes';
+import { BoardProjectileLayer } from './BoardProjectileLayer';
+import {
+    createProjectileEvent,
+    parseProjectilePayload,
+    PROJECTILE_TTL_MS,
+    type EmoteEvent,
+    type ProjectileEvent,
+    type ProjectileId,
+} from '@/lib/emotes';
 import type { ChatEvent } from '@/lib/chat';
 import { parseChatPayload, clampChatText, chatTtlMs } from '@/lib/chat';
 import { EMOTE_TTL_MS } from '@/lib/emotes';
-import type { GameActionPayload } from '@/lib/types';
 import { getHopSamples } from '@/lib/perf/budget';
 import { installPerfDebugHook } from '@/lib/perf/report';
 import { PlayerRow, getDisplayNameHelper } from './PlayerInfoRow';
@@ -71,11 +82,11 @@ import { PlayerRow, getDisplayNameHelper } from './PlayerInfoRow';
 import { useBoardLayout } from '@/hooks/useBoardLayout';
 import { useBoardAudio } from '@/hooks/useBoardAudio';
 import { getSoundEngine } from '@/lib/audio/SoundEngine';
-import { emoteSoundIdFor } from '@/lib/audio/boardAudioState';
+import { computeTransitionLandingDelays, emoteSoundIdFor } from '@/lib/audio/boardAudioState';
 
 export interface RematchResolutionPlan {
     action: 'rematch_all' | 'hybrid_quick_search' | 'solo_quick_search';
-    gameMode: 'classic' | 'power';
+    gameMode: 'classic' | 'power' | 'quick';
     playerCount: '1v1' | '2v2' | '4P';
     wager: number;
     acceptedWallets: string[];
@@ -105,7 +116,7 @@ export default function Board({
     showLeaderboard?: boolean;
     onToggleLeaderboard?: (show: boolean) => void;
     playerCount?: '1v1' | '4P' | '2v2';
-    gameMode?: 'classic' | 'power';
+    gameMode?: 'classic' | 'power' | 'quick';
     isBotMatch?: boolean;
     onOpenProfile?: (address: string) => void;
     initialPlayers?: Player[];
@@ -124,7 +135,10 @@ export default function Board({
 }) {
     // Effective identity (wallet or guest id) so guests resolve as human.
     const { address } = useCurrentUser();
-    const { roomId, participants, broadcastAction, serverSeq } = useTeamUp();
+    const { roomId, participants, broadcastSocial, serverSeq, roomStatus, matchConnectionStatus, retryRoom, roomResyncCount } = useTeamUp();
+    const { preferences } = usePreferences();
+    const themeId = resolveDiceThemeId(preferences?.theme);
+    const reduced = useReducedMotion();
     const {
         claim: claimChips,
         claimable: onchainClaimable,
@@ -134,6 +148,7 @@ export default function Board({
         secondsLeft,
     } = usePoolClaim(poolId);
     const [emoteFloats, setEmoteFloats] = React.useState<EmoteEvent[]>([]);
+    const [projectiles, setProjectiles] = React.useState<ProjectileEvent[]>([]);
     // In-match lobby chat: compact composer + seat bubbles
     const [chatOpen, setChatOpen] = React.useState(false);
     const [chatDraft, setChatDraft] = React.useState('');
@@ -186,6 +201,24 @@ export default function Board({
         }, EMOTE_TTL_MS);
         return () => window.clearTimeout(t);
     }, [emoteFloats]);
+
+    React.useEffect(() => {
+        const onProjectile = (ev: Event) => {
+            const parsed = parseProjectilePayload((ev as CustomEvent).detail);
+            if (!parsed) return;
+            setProjectiles((prev) => [...prev.slice(-7), parsed]);
+        };
+        window.addEventListener('ludo-projectile', onProjectile);
+        return () => window.removeEventListener('ludo-projectile', onProjectile);
+    }, []);
+
+    React.useEffect(() => {
+        if (projectiles.length === 0) return;
+        const t = window.setTimeout(() => {
+            setProjectiles((prev) => prev.filter((p) => Date.now() - p.t < PROJECTILE_TTL_MS));
+        }, PROJECTILE_TTL_MS);
+        return () => window.clearTimeout(t);
+    }, [projectiles]);
 
     const [boardConfig, setBoardConfig] = useState(() => {
         if (initialPlayers && initialColorCorner) {
@@ -252,11 +285,17 @@ export default function Board({
         wager
     });
 
-    const localGameState = (spectatorMode && externalGameState) ? externalGameState : engine.gameState;
-    const { handleRoll, handleTokenClick, handleUsePower, resetGame, cancelAfk, lxpGain } = engine;
-    // Powers execute host-side (guests replay broadcast state); only the
-    // authority seat gets the inventory to avoid local-only desync spends.
-    const canUsePowers = (engine as any).isAuthority !== false;
+    const authoritativeGameState = (spectatorMode && externalGameState) ? externalGameState : engine.gameState;
+    const { presentedState: localGameState, barrier: animationBarrier } = usePresentedGameState({
+        authoritativeState: authoritativeGameState,
+        colorCorner,
+        themeId,
+        resyncVersion: roomResyncCount,
+    });
+    const { handleRoll, handleTokenClick, handleUsePower, resetGame, cancelAfk, toggleAutoPlay, matchAuthorityMode, lxpGain } = engine;
+    // Powers execute host/room-side (guests replay broadcast state); in Room DO mode
+    // every seated player may trigger REQUEST_POWER from their server-held hand.
+    const canUsePowers = matchAuthorityMode === 'room' || (engine as any).isAuthority !== false;
 
     // ─── Power inventory + targeting ─────────────────────────────────────
     // Bottom-centered badge bar for the human turn player's live powers.
@@ -307,10 +346,25 @@ export default function Board({
                 setFeedEvent((cur) => (cur?.id === nextId ? null : cur));
             }, 4600);
 
-            if (nextFeed.tone === 'capture') {
-                setIsShaking(true);
-                const t = window.setTimeout(() => setIsShaking(false), 480);
-                pendingTimeoutsRef.current.push(t);
+            if (nextFeed.tone === 'capture' && !prefersReducedMotion()) {
+                const captureDelay = computeTransitionLandingDelays(
+                    prev,
+                    localGameState,
+                    colorCorner,
+                    themeId,
+                    false,
+                ).captureDelayMs;
+                const triggerShake = () => {
+                    setIsShaking(true);
+                    const t = window.setTimeout(() => setIsShaking(false), 480);
+                    pendingTimeoutsRef.current.push(t);
+                };
+                if (captureDelay <= 0) {
+                    triggerShake();
+                } else {
+                    const startT = window.setTimeout(triggerShake, captureDelay);
+                    pendingTimeoutsRef.current.push(startT);
+                }
             }
             if (nextFeed.tone === 'bust') {
                 setBustState((cur) => ({ color: prev.currentPlayer, key: (cur?.key ?? 0) + 1 }));
@@ -328,22 +382,22 @@ export default function Board({
                 }, ttl);
                 pendingTimeoutsRef.current.push(clearTimer);
 
-                if (ev.kind === 'nuke') {
-                    const impactDelay = prefersReducedMotion() ? 0 : 880;
+                if (ev.kind === 'nuke' && !prefersReducedMotion()) {
                     const startShake = window.setTimeout(() => {
                         setNukeShaking(true);
                         const endShake = window.setTimeout(() => setNukeShaking(false), 540);
                         pendingTimeoutsRef.current.push(endShake);
-                    }, impactDelay);
+                    }, 880);
                     pendingTimeoutsRef.current.push(startShake);
                 }
             });
         }
-    }, [localGameState, players, address, playerCount, colorCorner, spectatorMode]);
+    }, [localGameState, players, address, playerCount, colorCorner, spectatorMode, themeId]);
 
     // Timer Animation Logic
-    const smoothProgress = useMotionValue(localGameState.timeLeft / 15);
-    const prevPlayerRef = useRef(localGameState.currentPlayer);
+    const turnTotalSecs = Math.max(1, Math.round((localGameState.turnDurationMs ?? 15000) / 1000));
+    const smoothProgress = useMotionValue(Math.min(1, Math.max(0, localGameState.timeLeft / turnTotalSecs)));
+    const prevPhaseKeyRef = useRef(`${localGameState.currentPlayer}|${localGameState.turnPhaseKind ?? ''}|${turnTotalSecs}`);
     // REA-21: the rotation hook was called inline in the JSX props below
     // (`pointRotation={useBoardLayoutRotation(...)}`) — legal but fragile (a
     // conditional render path would break hook order) and re-created per
@@ -351,12 +405,13 @@ export default function Board({
     const pointRotation = useBoardLayoutRotation(smoothProgress);
 
     useEffect(() => {
-        if (prevPlayerRef.current !== localGameState.currentPlayer) {
-            smoothProgress.set(1);
-            prevPlayerRef.current = localGameState.currentPlayer;
+        const phaseKey = `${localGameState.currentPlayer}|${localGameState.turnPhaseKind ?? ''}|${turnTotalSecs}`;
+        if (prevPhaseKeyRef.current !== phaseKey) {
+            smoothProgress.set(Math.min(1, Math.max(0, localGameState.timeLeft / turnTotalSecs)));
+            prevPhaseKeyRef.current = phaseKey;
         }
-        animate(smoothProgress, localGameState.timeLeft / 15, { duration: 1, ease: "linear" });
-    }, [localGameState.timeLeft, localGameState.currentPlayer, smoothProgress]);
+        animate(smoothProgress, Math.min(1, Math.max(0, localGameState.timeLeft / turnTotalSecs)), { duration: 1, ease: "linear" });
+    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.turnPhaseKind, turnTotalSecs, smoothProgress]);
 
     const activeColor = {
         green: 'var(--ludo-green)', 
@@ -396,15 +451,35 @@ export default function Board({
         const ev: ChatEvent = { text, color: ownColor, audience: teamChatOnly ? 'team' : 'all', t: Date.now() };
         setChatDraftEmotes([]);
         setChatBubbles((b) => [...b.slice(-3), ev]);
-        broadcastAction('CHAT', {
+        broadcastSocial('CHAT', {
             text,
             color: ownColor,
             audience: teamChatOnly ? 'team' : 'all',
             t: ev.t,
-        } as GameActionPayload<'CHAT'>);
+        });
         setChatDraft('');
         setChatOpen(false);
-    }, [chatDraft, chatDraftEmotes, ownColor, teamChatOnly, broadcastAction]);
+    }, [chatDraft, chatDraftEmotes, ownColor, teamChatOnly, broadcastSocial]);
+
+    const handleThrowProjectile = React.useCallback(
+        (projectileId: ProjectileId, toColor: PlayerColor) => {
+            if (!ownColor || toColor === ownColor) return;
+            const ev = createProjectileEvent(projectileId, ownColor, toColor, address?.toLowerCase());
+            const sent = broadcastSocial('PROJECTILE', ev as unknown as Record<string, unknown>);
+            if (sent) {
+                setProjectiles((prev) => [...prev.slice(-7), ev]);
+            }
+        },
+        [ownColor, address, broadcastSocial],
+    );
+
+    const opponentSeats = React.useMemo(
+        () =>
+            players
+                .filter((p) => Boolean(ownColor) && p.color !== ownColor)
+                .map((p) => ({ color: p.color, name: getDisplayNameHelper(p) })),
+        [players, ownColor],
+    );
     const isMyTurn = !!ownColor && turnColor === ownColor;
     const showInventory = gameMode === 'power' && !spectatorMode && !!ownColor && canUsePowers;
     const liveInventory: PowerItem[] = showInventory
@@ -610,7 +685,7 @@ export default function Board({
         setRematchSecondsLeft(Math.ceil(REMATCH_TIMEOUT_MS / 1000));
         setRematchStatusUI('idle');
         setRematchStatusMsg(null);
-        broadcastAction('REMATCH', {
+        broadcastSocial('REMATCH', {
             kind: 'propose',
             proposalId,
             matchId: localGameState.matchId,
@@ -620,13 +695,13 @@ export default function Board({
             actor,
             t: Date.now(),
         });
-    }, [isOnlineMultiplayer, resetGame, ownColor, rematchProposalId, myPlayer, broadcastAction, localGameState.matchId, roomId, address]);
+    }, [isOnlineMultiplayer, resetGame, ownColor, rematchProposalId, myPlayer, broadcastSocial, localGameState.matchId, roomId, address]);
 
     const handleRespondRematch = React.useCallback(
         (accept: boolean) => {
             if (!rematchProposalId || !ownColor) return;
             setRematchVotes((prev) => ({ ...prev, [ownColor]: accept ? 'accepted' : 'declined' }));
-            broadcastAction('REMATCH', {
+            broadcastSocial('REMATCH', {
                 kind: accept ? 'accept' : 'decline',
                 proposalId: rematchProposalId,
                 matchId: localGameState.matchId,
@@ -637,7 +712,7 @@ export default function Board({
                 t: Date.now(),
             });
         },
-        [rematchProposalId, ownColor, broadcastAction, localGameState.matchId, roomId, address, myPlayer],
+        [rematchProposalId, ownColor, broadcastSocial, localGameState.matchId, roomId, address, myPlayer],
     );
 
     const rematchOverlayState: RematchOverlayState | null = React.useMemo(() => {
@@ -776,6 +851,7 @@ export default function Board({
                 myPlayerColor={myPlayer?.color}
                 bustState={bustState}
                 turnRolls={displayedTurnRolls}
+                onQuickThrow={(toColor, projectileId) => handleThrowProjectile(projectileId, toColor)}
             />
 
             <BoardTerminalHud line1={primaryTurnLine} line2={feedEvent} />
@@ -784,11 +860,13 @@ export default function Board({
                 className={`board-area${stableBox ? ' is-locked' : ''}`}
                 ref={areaRef}
                 animate={
-                    nukeShaking
-                        ? { x: [-5, 5, -4, 4, -2, 2, 0], y: [3, -3, 2, -2, 0] }
-                        : isShaking
-                          ? { x: [-2, 2, -2, 2, 0] }
-                          : {}
+                    reduced
+                        ? {}
+                        : nukeShaking
+                          ? { x: [-5, 5, -4, 4, -2, 2, 0], y: [3, -3, 2, -2, 0] }
+                          : isShaking
+                            ? { x: [-2, 2, -2, 2, 0] }
+                            : {}
                 }
                 transition={{ duration: nukeShaking ? 0.5 : 0.4 }}
                 style={{
@@ -796,11 +874,48 @@ export default function Board({
                     ...(stableBox ? { '--board-area-h': `${stableBox.height}px` } as React.CSSProperties : {}),
                 }}
                 onClick={() => {
-                    if (myPlayer?.color && localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying) {
+                    if (myPlayer?.color && localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying && !localGameState.afkStats?.[myPlayer.color]?.isKicked) {
                         cancelAfk(myPlayer.color);
                     }
                 }}
             >
+                {!spectatorMode && !localGameState.winner && !localGameState.abortReason && myPlayer?.color && localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying && !localGameState.afkStats?.[myPlayer.color]?.isKicked && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            cancelAfk(myPlayer.color);
+                        }}
+                        className="absolute top-2.5 left-1/2 -translate-x-1/2 z-40 px-3.5 py-1.5 rounded-full bg-amber-500/90 hover:bg-amber-400 text-black font-mono text-ludo-xs font-black uppercase tracking-[0.14em] shadow-[0_0_18px_rgba(245,158,11,0.45)] transition-all active:scale-95 whitespace-nowrap"
+                    >
+                        AUTOPILOT ENGAGED — TAP TO RECLAIM
+                    </button>
+                )}
+                {!spectatorMode && !localGameState.winner && !localGameState.abortReason && myPlayer?.color && localGameState.afkStats?.[myPlayer.color]?.isKicked && (
+                    <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-40 px-3.5 py-1.5 rounded-full bg-red-600/90 text-white font-mono text-ludo-xs font-black uppercase tracking-[0.14em] shadow-[0_0_16px_rgba(239,68,68,0.4)] whitespace-nowrap pointer-events-none">
+                        SEAT KICKED — AI IN CONTROL
+                    </div>
+                )}
+                {!spectatorMode && !localGameState.winner && !localGameState.abortReason && matchAuthorityMode === 'room' && (matchConnectionStatus === 'reconnecting' || roomStatus === 'connecting' || roomStatus === 'failed') && (
+                    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 rounded-2xl bg-black/65 backdrop-blur-sm px-4 text-center">
+                        <div className="w-7 h-7 border-[3px] border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+                        <span className="font-mono text-xs font-black uppercase tracking-[0.18em] text-cyan-300">
+                            Reconnecting to Match Room…
+                        </span>
+                        {roomStatus === 'failed' && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    retryRoom();
+                                }}
+                                className="px-4 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-mono text-xs font-black uppercase tracking-[0.16em] transition-all active:scale-95"
+                            >
+                                Retry
+                            </button>
+                        )}
+                    </div>
+                )}
                 <div
                     className="board-wrapper"
                     style={{
@@ -892,6 +1007,7 @@ export default function Board({
                     onTargetToken={spendTargeted}
                     onTokenHover={setHoveredMoveToken}
                     onTransitStatusChange={setTransitStatus}
+                    animationBarrier={animationBarrier}
                 />
             </BoardGrid>
 
@@ -905,6 +1021,12 @@ export default function Board({
                 emoteFloats={emoteFloats}
                 viewerColor={ownColor}
                 playerCount={playerCount}
+            />
+
+            <BoardProjectileLayer
+                projectiles={projectiles}
+                uiSlots={uiSlots}
+                counterRotationDeg={counterRotationDeg}
             />
 
             {lxpGain !== null && (
@@ -971,6 +1093,7 @@ export default function Board({
                 myPlayerColor={myPlayer?.color}
                 bustState={bustState}
                 turnRolls={displayedTurnRolls}
+                onQuickThrow={(toColor, projectileId) => handleThrowProjectile(projectileId, toColor)}
             />
 
             {/* Match footer: social controls, shared by classic and power (hidden while spectating). */}
@@ -1034,17 +1157,21 @@ export default function Board({
                 <div className="match-footer-slot left">
                     {!spectatorMode && myPlayer && (
                         <EmoteTray
-                                    myColor={myPlayer.color}
-                                    onEmote={(event) => {
-                                setEmoteFloats((f) => [...f.slice(-4), event]);
-                                broadcastAction('EMOTE', {
+                            myColor={myPlayer.color}
+                            opponents={opponentSeats}
+                            onThrowProjectile={handleThrowProjectile}
+                            onEmote={(event) => {
+                                const sent = broadcastSocial('EMOTE', {
                                     emoteId: event.emoteId,
                                     color: event.color,
                                     actor: event.actor,
                                     customText: event.customText,
                                     assetUrl: event.assetUrl,
                                     t: event.t,
-                                } as GameActionPayload<'EMOTE'>);
+                                });
+                                if (sent) {
+                                    setEmoteFloats((f) => [...f.slice(-4), event]);
+                                }
                             }}
                         />
                     )}
@@ -1067,7 +1194,17 @@ export default function Board({
                         />
                     )}
                 </div>
-                <div className="match-footer-slot right">
+                <div className="match-footer-slot right flex items-center gap-2">
+                    {!spectatorMode && !localGameState.winner && !localGameState.abortReason && matchAuthorityMode === 'room' && myPlayer?.color && !localGameState.afkStats?.[myPlayer.color]?.isKicked && (
+                        <button
+                            type="button"
+                            className={`match-foot-pill ${localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying ? 'on' : ''}`}
+                            onClick={() => toggleAutoPlay(myPlayer.color)}
+                            aria-pressed={Boolean(localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying)}
+                        >
+                            <span>{localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying ? 'Auto ON' : 'Autopilot'}</span>
+                        </button>
+                    )}
                     <button
                         type="button"
                         className={`match-foot-pill ${chatOpen ? 'on' : ''}`}

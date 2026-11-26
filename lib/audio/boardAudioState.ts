@@ -9,15 +9,20 @@ import {
     CORNER_SLOTS,
     getBoardCoordinate,
     SAFE_POSITIONS,
+    type Point,
 } from '@/lib/boardLayout';
 import { seatedColorsFor } from '@/lib/engine/core';
-import { getTeammateColor } from '@/lib/gameLogic';
+import { getIntermediatePathCoords, getTeammateColor } from '@/lib/gameLogic';
+import { computeHopCadence, DEPLOY_ANIMATION_MS } from '@/lib/tokenMovement';
+import type { DiceThemeId } from '@/lib/diceVisuals';
 import type { GameState, PlayerColor, PowerType } from '@/lib/types';
 import type { MusicScene, SoundId, SoundPlayOptions } from './types';
 
 export interface QueuedSoundEvent {
     id: SoundId;
     opts?: SoundPlayOptions;
+    /** Optional millisecond offset so impact/landing SFX fire at physical touchdown rather than t = 0. */
+    delayMs?: number;
 }
 
 export interface BoardAudioContext {
@@ -26,6 +31,118 @@ export interface BoardAudioContext {
     colorCorner: ColorCorner;
     spectatorMode?: boolean;
     botColors?: ReadonlySet<PlayerColor>;
+    themeId?: DiceThemeId;
+    reducedMotion?: boolean;
+}
+
+export interface TransitionLandingDelays {
+    maxMoverWalkMs: number;
+    captureDelayMs: number;
+    finishDelayMs: number;
+    safeStarDelayMs: number;
+    homeLaneDelayMs: number;
+    stackDelayMs: number;
+}
+
+/**
+ * Compute per-outcome landing timestamps matching BoardTokens/TokenPiece GSAP
+ * kinematics so audio & screen shake align with physical touchdown.
+ */
+export function computeTransitionLandingDelays(
+    prev: GameState,
+    next: GameState,
+    colorCorner: ColorCorner,
+    themeId: DiceThemeId = '3077',
+    reducedMotion = false,
+): TransitionLandingDelays {
+    if (reducedMotion) {
+        return {
+            maxMoverWalkMs: 0,
+            captureDelayMs: 0,
+            finishDelayMs: 0,
+            safeStarDelayMs: 0,
+            homeLaneDelayMs: 0,
+            stackDelayMs: 0,
+        };
+    }
+
+    const msg = next.captureMessage || '';
+    const isTeleport = msg !== prev.captureMessage && /TELEPORT!/i.test(msg);
+    const isNuke =
+        (next.nukeFlash?.length ?? 0) > 0 &&
+        ((prev.nukeFlash?.length ?? 0) === 0 || msg !== prev.captureMessage);
+    const isBoosted = Boolean(next.boostTrail || next.activeBoost || next.boostPendingDice != null);
+
+    const moverLandings: { pt: Point | null; walkMs: number }[] = [];
+    let maxMoverWalkMs = 0;
+    let finishDelayMs = 0;
+    let safeStarDelayMs = 0;
+    let homeLaneDelayMs = 0;
+    let stackDelayMs = 0;
+
+    for (const color of ['green', 'red', 'yellow', 'blue'] as const) {
+        const pArr = prev.positions?.[color] ?? [];
+        const nArr = next.positions?.[color] ?? [];
+        for (let i = 0; i < Math.min(pArr.length, nArr.length); i++) {
+            const p = Number(pArr[i]);
+            const n = Number(nArr[i]);
+            if (p === n || n === BASE_INDEX || n < 0) continue;
+
+            let walkMs = 0;
+            if (p === BASE_INDEX && n >= 0 && n < BOARD_FINISH_INDEX) {
+                walkMs = DEPLOY_ANIMATION_MS;
+            } else if (p >= 0 && p < BOARD_FINISH_INDEX && n <= BOARD_FINISH_INDEX) {
+                const waypoints = isTeleport ? [] : getIntermediatePathCoords(p, n, color, colorCorner);
+                const cadence = computeHopCadence(Math.max(1, waypoints.length), isBoosted, themeId);
+                walkMs = isTeleport ? 560 : cadence.totalWalkMs;
+            }
+
+            const destPt = getBoardCoordinate(n, color, colorCorner);
+            moverLandings.push({ pt: destPt, walkMs });
+            maxMoverWalkMs = Math.max(maxMoverWalkMs, walkMs);
+
+            if (n === BOARD_FINISH_INDEX) {
+                finishDelayMs = Math.max(finishDelayMs, walkMs);
+            } else if (p >= 0 && p < HOME_LANE_START_INDEX && n >= HOME_LANE_START_INDEX) {
+                homeLaneDelayMs = Math.max(homeLaneDelayMs, walkMs);
+            } else if (p >= 0 && n >= 0 && n < HOME_LANE_START_INDEX) {
+                if (destPt && SAFE_POSITIONS.some((s) => s.r === destPt.r && s.c === destPt.c)) {
+                    safeStarDelayMs = Math.max(safeStarDelayMs, walkMs);
+                }
+                stackDelayMs = Math.max(stackDelayMs, walkMs);
+            }
+        }
+    }
+
+    let captureDelayMs = 0;
+    for (const color of ['green', 'red', 'yellow', 'blue'] as const) {
+        const pArr = prev.positions?.[color] ?? [];
+        const nArr = next.positions?.[color] ?? [];
+        for (let i = 0; i < Math.min(pArr.length, nArr.length); i++) {
+            const p = Number(pArr[i]);
+            const n = Number(nArr[i]);
+            if (p >= 0 && p < BOARD_FINISH_INDEX && n === BASE_INDEX) {
+                const victimPt = getBoardCoordinate(p, color, colorCorner);
+                const matchingMover = victimPt
+                    ? moverLandings.find((m) => m.pt && m.pt.r === victimPt.r && m.pt.c === victimPt.c)
+                    : undefined;
+                if (matchingMover) {
+                    captureDelayMs = Math.max(captureDelayMs, Math.max(0, matchingMover.walkMs - 30));
+                } else if (isNuke) {
+                    captureDelayMs = Math.max(captureDelayMs, 880);
+                }
+            }
+        }
+    }
+
+    return {
+        maxMoverWalkMs,
+        captureDelayMs,
+        finishDelayMs,
+        safeStarDelayMs,
+        homeLaneDelayMs,
+        stackDelayMs,
+    };
 }
 
 /**
@@ -171,6 +288,15 @@ export function diffGameStateForAudio(
     const seats = seatedColorsFor(ctx.playerCount);
     const myColor = ctx.myColor;
     const myTeammate = myColor ? getTeammateColor(myColor, ctx.playerCount) : null;
+    const delays = computeTransitionLandingDelays(
+        prev,
+        next,
+        ctx.colorCorner,
+        ctx.themeId ?? '3077',
+        Boolean(ctx.reducedMotion),
+    );
+    const withDelay = (delayMs: number): { delayMs?: number } =>
+        delayMs > 0 ? { delayMs } : {};
 
     // 1. Dice six & three-sixes bust
     const sixSettled =
@@ -184,7 +310,7 @@ export function diffGameStateForAudio(
     }
 
     const bustByMsg =
-        Boolean(next.captureMessage && next.captureMessage !== prev.captureMessage && /three\s*six/i.test(next.captureMessage));
+        Boolean(next.captureMessage && next.captureMessage !== prev.captureMessage && /three\s*(6|six)/i.test(next.captureMessage));
     const bustByStreak =
         prev.consecutiveSixes >= 2 &&
         next.consecutiveSixes === 0 &&
@@ -237,11 +363,14 @@ export function diffGameStateForAudio(
                 enteredHomeLane = true;
             }
 
-            // Safe star landing or ally stack reinforcement on shared track (0..51)
+            // Safe star landing (guard p >= 0 so deploy onto start star does not double-fire)
+            // and ally stack reinforcement on shared track (0..51)
             if (n >= 0 && n < HOME_LANE_START_INDEX) {
-                const pt = getBoardCoordinate(n, color, ctx.colorCorner);
-                if (pt && SAFE_POSITIONS.some((s) => s.r === pt.r && s.c === pt.c)) {
-                    landedSafeStar = true;
+                if (p >= 0) {
+                    const pt = getBoardCoordinate(n, color, ctx.colorCorner);
+                    if (pt && SAFE_POSITIONS.some((s) => s.r === pt.r && s.c === pt.c)) {
+                        landedSafeStar = true;
+                    }
                 }
                 // Check ally stacking on same cell
                 const allyColors = [color];
@@ -260,18 +389,18 @@ export function diffGameStateForAudio(
         }
     }
 
-    if (iGotKicked) events.push({ id: 'capture_got_kicked' });
-    else if (teammateGotKicked) events.push({ id: 'capture_teammate_kicked' });
-    else if (capturedOpponent) events.push({ id: 'capture_kick' });
+    if (iGotKicked) events.push({ id: 'capture_got_kicked', ...withDelay(delays.captureDelayMs) });
+    else if (teammateGotKicked) events.push({ id: 'capture_teammate_kicked', ...withDelay(delays.captureDelayMs) });
+    else if (capturedOpponent) events.push({ id: 'capture_kick', ...withDelay(delays.captureDelayMs) });
 
     if (finishedCountForMover > 0) {
-        events.push({ id: 'token_finish_home', opts: { finishCount: finishedCountForMover } });
+        events.push({ id: 'token_finish_home', opts: { finishCount: finishedCountForMover }, ...withDelay(delays.finishDelayMs) });
     } else if (enteredHomeLane) {
-        events.push({ id: 'token_home_lane' });
+        events.push({ id: 'token_home_lane', ...withDelay(delays.homeLaneDelayMs) });
     } else if (landedSafeStar) {
-        events.push({ id: 'token_safe_star' });
+        events.push({ id: 'token_safe_star', ...withDelay(delays.safeStarDelayMs) });
     } else if (stackedWithAlly) {
-        events.push({ id: 'token_stack_force' });
+        events.push({ id: 'token_stack_force', ...withDelay(delays.stackDelayMs) });
     }
 
     // 2v2 Teammate Assist unlock: myColor just finished its 4th token and partner still has unfinished tokens
@@ -298,7 +427,7 @@ export function diffGameStateForAudio(
         }
     }
     if (pickedPower) {
-        events.push({ id: 'power_pickup', opts: { rarity: pickedPower } });
+        events.push({ id: 'power_pickup', opts: { rarity: pickedPower }, ...withDelay(delays.maxMoverWalkMs) });
     } else if (lostPowerUnspent) {
         events.push({ id: 'power_expired' });
     }
@@ -367,9 +496,9 @@ export function diffGameStateForAudio(
     // 7. Match Winner
     if (next.winner && !prev.winner) {
         const outcome = didMySideWin(next.winner, next.winners ?? [], ctx.spectatorMode ? undefined : myColor, ctx.playerCount);
-        if (outcome === 'victory') events.push({ id: 'match_victory' });
-        else if (outcome === 'runnerup') events.push({ id: 'match_runnerup' });
-        else events.push({ id: 'match_defeat' });
+        if (outcome === 'victory') events.push({ id: 'match_victory', ...withDelay(delays.maxMoverWalkMs) });
+        else if (outcome === 'runnerup') events.push({ id: 'match_runnerup', ...withDelay(delays.maxMoverWalkMs) });
+        else events.push({ id: 'match_defeat', ...withDelay(delays.maxMoverWalkMs) });
     }
 
     return events;

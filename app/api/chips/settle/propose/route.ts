@@ -287,9 +287,28 @@ async function deriveAbandonEvidence(
             .select("seq, updated_at, state")
             .eq("match_id", matchId)
             .maybeSingle();
-        const s = (state?.state ?? {}) as { afkStats?: Record<string, unknown> };
-        const per = (s.afkStats ?? {}) as Record<string, { strikes?: number }>;
-        strikes = Number(per[accused]?.strikes ?? 0);
+        const s = (state?.state ?? {}) as {
+            strikes?: Record<string, unknown>;
+            afkStats?: Record<string, { totalTriggers?: number }>;
+            initialBoardConfig?: { players?: Array<{ color?: string; walletAddress?: string }> };
+        };
+        let accusedColor = s.initialBoardConfig?.players?.find(
+            (p) => String(p.walletAddress || "").toLowerCase() === accused,
+        )?.color;
+        if (!accusedColor) {
+            const { data: seatRow } = await supabase
+                .from("match_seats")
+                .select("color")
+                .eq("match_id", matchId)
+                .ilike("wallet_address", accused)
+                .maybeSingle();
+            if (seatRow?.color) {
+                accusedColor = String(seatRow.color);
+            }
+        }
+        strikes = accusedColor
+            ? Number(s.strikes?.[accusedColor] ?? s.afkStats?.[accusedColor]?.totalTriggers ?? 0)
+            : 0;
         seqAtDisconnect = BigInt(state?.seq ?? 0);
         const updatedAt = state?.updated_at ? new Date(state.updated_at).getTime() : 0;
         // The match must actually be stalled, not merely old.

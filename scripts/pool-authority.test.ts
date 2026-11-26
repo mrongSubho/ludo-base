@@ -223,6 +223,9 @@ test('a split that contradicts the declared shape is rejected', () => {
     );
 });
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 test('an unknown on-chain shape is refused rather than guessed', () => {
     assert.throws(
         () => deriveSettlePlan(summary({ maxSeats: 4, shape: 99 }), [A, B]),
@@ -232,4 +235,11 @@ test('an unknown on-chain shape is refused rather than guessed', () => {
             return true;
         },
     );
+});
+
+test('deriveAbandonEvidence resolves accused wallet to PlayerColor and reads state.strikes[color]', () => {
+    const src = readFileSync(join(import.meta.dirname ?? __dirname, '..', 'app/api/chips/settle/propose/route.ts'), 'utf8');
+    assert.match(src, /initialBoardConfig\?\.players\?\.find/);
+    assert.match(src, /s\.strikes\?\.\[accusedColor\]/);
+    assert.doesNotMatch(src, /per\[accused\]\?\.strikes/);
 });

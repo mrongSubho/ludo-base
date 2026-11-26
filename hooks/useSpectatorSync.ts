@@ -5,15 +5,17 @@ import { supabase } from '@/lib/supabase';
 import { GameState, BetWindowPayload, BetWindowClosedPayload } from '@/lib/types';
 import { parseSpectatorBroadcast, parseBetWindowOpen, parseBetWindowClosed } from '@/lib/protocol';
 import { resyncMatch } from '@/lib/netcode/resync';
+import { RoomClient } from '@/lib/netcode/roomClient';
 import { bumpNet } from '@/lib/netcode/counters';
 import { track } from '@/lib/telemetry';
 
 // ═══════════════════════════════════════════════════════════════════════
-// useSpectatorSync — Spectator-side state synchronization (N6 parity)
+// useSpectatorSync — Spectator-side state synchronization (Wave 2 DO WS)
 //
-// Listen-only on `game-room-${roomCode}` broadcast + snapshot via
-// `resyncMatch` (public GET /api/match/state — world-readable board).
-// Same schema parse-or-drop + net_* counters as the player path.
+// Connects a read-only `RoomClient` (`as: 'spectator'`) directly to the
+// authoritative MatchRoom Durable Object WebSocket once `matchId` resolves,
+// while retaining `game-room-${roomCode}` for bet window events and a fallback
+// `/api/match/state` poll strictly when the room WebSocket is not connected.
 // ═══════════════════════════════════════════════════════════════════════
 
 export interface ActiveBettingWindow {
@@ -29,8 +31,9 @@ interface SpectatorSyncState {
     gameState: GameState | null;
     isConnected: boolean;
     activeBetWindow: ActiveBettingWindow | null;
-    /** Highest match_states.seq applied (N6). */
+    /** Highest authoritative seq applied. */
     seq: number;
+    getServerNow: () => number;
 }
 
 const EMPTY_STATE: SpectatorSyncState = {
@@ -39,11 +42,14 @@ const EMPTY_STATE: SpectatorSyncState = {
     isConnected: false,
     activeBetWindow: null,
     seq: 0,
+    getServerNow: () => Date.now(),
 };
 
 export function useSpectatorSync(roomCode: string | null) {
     const [state, setState] = useState<SpectatorSyncState>(EMPTY_STATE);
     const stateRef = useRef<SpectatorSyncState>(EMPTY_STATE);
+    const roomWsConnectedRef = useRef(false);
+    const roomClientRef = useRef<RoomClient | null>(null);
 
     const updateState = useCallback((patch: Partial<SpectatorSyncState>) => {
         const next = { ...stateRef.current, ...patch };
@@ -62,6 +68,27 @@ export function useSpectatorSync(roomCode: string | null) {
         console.log(`👁️ [Spectator] Subscribing to live room ${roomCode}`);
         let matchId: string | null = null;
         let cancelled = false;
+        roomWsConnectedRef.current = false;
+
+        const applySnapshot = (id: string, snap: GameState, seq: number, allowEqual = false) => {
+            const hasSnap = Boolean(stateRef.current.gameState);
+            if (hasSnap && (allowEqual ? seq < stateRef.current.seq : seq <= stateRef.current.seq)) {
+                return;
+            }
+            const closedNow =
+                (snap.winner || snap.abortReason) &&
+                stateRef.current.activeBetWindow &&
+                !stateRef.current.activeBetWindow.windowClosedAt
+                    ? { ...stateRef.current.activeBetWindow, windowClosedAt: new Date().toISOString() }
+                    : stateRef.current.activeBetWindow;
+            updateState({
+                matchId: id,
+                gameState: { ...snap, lastUpdate: Date.now() },
+                isConnected: true,
+                seq: Math.max(stateRef.current.seq, seq),
+                activeBetWindow: closedNow,
+            });
+        };
 
         const bootstrap = async () => {
             const { data } = await supabase
@@ -89,9 +116,44 @@ export function useSpectatorSync(roomCode: string | null) {
                 },
             });
 
-            // N6 — single resync path (public snapshot; no player session).
+            // Connect read-only RoomClient (`as: 'spectator'`) to the MatchRoom DO.
+            const liveMatchId = matchId;
+            try {
+                const client = new RoomClient({
+                    matchId: liveMatchId,
+                    as: 'spectator',
+                    onState: (snap, seq, _lastIntentId, resync) => {
+                        if (cancelled) return;
+                        applySnapshot(liveMatchId, snap, seq, Boolean(resync) || !stateRef.current.gameState);
+                    },
+                    onStatusChange: (status) => {
+                        if (cancelled) return;
+                        const connected = status === 'connected';
+                        roomWsConnectedRef.current = connected;
+                        if (connected) {
+                            updateState({
+                                isConnected: true,
+                                getServerNow: () => client.getServerNow(),
+                            });
+                        }
+                    },
+                    onError: () => {
+                        roomWsConnectedRef.current = false;
+                    },
+                    onReconnectExhausted: () => {
+                        roomWsConnectedRef.current = false;
+                    },
+                });
+                roomClientRef.current = client;
+                client.connect();
+            } catch (err) {
+                console.warn('👁️ [Spectator] RoomClient init warning:', err);
+                roomWsConnectedRef.current = false;
+            }
+
+            // Initial HTTP snapshot pull for instant first render while WS connects.
             await resyncMatch({
-                matchId,
+                matchId: liveMatchId,
                 currentSeq: stateRef.current.seq,
                 allowEqual: true,
                 fetchSnapshot: async (id) => {
@@ -105,19 +167,12 @@ export function useSpectatorSync(roomCode: string | null) {
                     return { ok: true, seq: Number(body.seq), state: body.state };
                 },
                 apply: (snap, seq) => {
-                    const closedNow = snap.winner && stateRef.current.activeBetWindow && !stateRef.current.activeBetWindow.windowClosedAt
-                        ? { ...stateRef.current.activeBetWindow, windowClosedAt: new Date().toISOString() }
-                        : stateRef.current.activeBetWindow;
-                    updateState({ matchId, gameState: snap, isConnected: true, seq, activeBetWindow: closedNow });
+                    applySnapshot(liveMatchId, snap, seq, true);
                 },
             });
         };
         void bootstrap();
 
-        // NET-10: this hook subscribed to `match-states-room-<code>`, which no
-        // one broadcasts to — the gameplay channel is `game-room-<code>`
-        // (TeamUpContext.broadcastAction). Spectators therefore received
-        // nothing until the initial pull, and then never again.
         const channel = supabase
             .channel(`game-room-${roomCode}`)
             .on('broadcast', { event: 'game-action' }, ({ payload }) => {
@@ -129,6 +184,46 @@ export function useSpectatorSync(roomCode: string | null) {
                 const { type, gameState, actionId } = parsed.value;
                 const rest = (payload as Record<string, unknown>) || {};
                 void actionId;
+
+                if (type === 'BET_WINDOW_OPEN') {
+                    const p = parseBetWindowOpen(rest);
+                    if (!p.ok) {
+                        dropSchema(p.reason);
+                        return;
+                    }
+                    updateState({
+                        activeBetWindow: {
+                            windowId: p.value.windowId,
+                            betType: p.value.betType,
+                            expiresAt: p.value.expiresAt,
+                            openedAt: Date.now(),
+                            windowClosedAt: null,
+                        },
+                    });
+                    console.log(`🎰 [Spectator] Bet window OPEN: ${p.value.betType} (${p.value.windowId})`);
+                    return;
+                }
+
+                if (type === 'BET_WINDOW_CLOSED') {
+                    const p = parseBetWindowClosed(rest);
+                    if (!p.ok) {
+                        dropSchema(p.reason);
+                        return;
+                    }
+                    if (stateRef.current.activeBetWindow?.windowId === p.value.windowId) {
+                        updateState({
+                            activeBetWindow: {
+                                ...stateRef.current.activeBetWindow!,
+                                windowClosedAt: p.value.windowClosedAt,
+                            },
+                        });
+                    }
+                    console.log(`🔒 [Spectator] Bet window CLOSED at ${p.value.windowClosedAt}`);
+                    return;
+                }
+
+                // When DO WebSocket is live, never let legacy room broadcasts overwrite seq-ordered board state.
+                if (roomWsConnectedRef.current) return;
 
                 switch (type) {
                     case 'SYNC_STATE':
@@ -199,43 +294,6 @@ export function useSpectatorSync(roomCode: string | null) {
                         }
                         break;
 
-                    case 'BET_WINDOW_OPEN': {
-                        const p = parseBetWindowOpen(rest);
-                        if (!p.ok) {
-                            dropSchema(p.reason);
-                            return;
-                        }
-                        updateState({
-                            activeBetWindow: {
-                                windowId: p.value.windowId,
-                                betType: p.value.betType,
-                                expiresAt: p.value.expiresAt,
-                                openedAt: Date.now(),
-                                windowClosedAt: null,
-                            },
-                        });
-                        console.log(`🎰 [Spectator] Bet window OPEN: ${p.value.betType} (${p.value.windowId})`);
-                        break;
-                    }
-
-                    case 'BET_WINDOW_CLOSED': {
-                        const p = parseBetWindowClosed(rest);
-                        if (!p.ok) {
-                            dropSchema(p.reason);
-                            return;
-                        }
-                        if (stateRef.current.activeBetWindow?.windowId === p.value.windowId) {
-                            updateState({
-                                activeBetWindow: {
-                                    ...stateRef.current.activeBetWindow!,
-                                    windowClosedAt: p.value.windowClosedAt,
-                                },
-                            });
-                        }
-                        console.log(`🔒 [Spectator] Bet window CLOSED at ${p.value.windowClosedAt}`);
-                        break;
-                    }
-
                     default:
                         dropSchema('unhandled');
                         break;
@@ -248,14 +306,12 @@ export function useSpectatorSync(roomCode: string | null) {
                 }
             });
 
-        // NET-10: a broadcast-only spectator seat goes stale the moment one
-        // packet is lost. The public snapshot endpoint is cheap and already
-        // used for the initial pull, so poll it as a backstop rather than
-        // trusting delivery.
+        // HTTP polling fallback only runs when DO WebSocket is disconnected.
         const poll = setInterval(() => {
-            if (cancelled || !matchId) return;
+            if (cancelled || !matchId || roomWsConnectedRef.current) return;
+            const liveMatchId = matchId;
             void resyncMatch({
-                matchId,
+                matchId: liveMatchId,
                 currentSeq: stateRef.current.seq,
                 fetchSnapshot: async (id) => {
                     const res = await fetch(`/api/match/state?matchId=${encodeURIComponent(id)}`);
@@ -268,10 +324,7 @@ export function useSpectatorSync(roomCode: string | null) {
                     return { ok: true, seq: Number(body.seq), state: body.state };
                 },
                 apply: (snap, seq) => {
-                    const closedNow = snap.winner && stateRef.current.activeBetWindow && !stateRef.current.activeBetWindow.windowClosedAt
-                        ? { ...stateRef.current.activeBetWindow, windowClosedAt: new Date().toISOString() }
-                        : stateRef.current.activeBetWindow;
-                    updateState({ matchId, gameState: snap, isConnected: true, seq, activeBetWindow: closedNow });
+                    applySnapshot(liveMatchId, snap, seq);
                 },
             });
         }, 2500);
@@ -279,6 +332,9 @@ export function useSpectatorSync(roomCode: string | null) {
         return () => {
             cancelled = true;
             clearInterval(poll);
+            roomWsConnectedRef.current = false;
+            roomClientRef.current?.disconnect();
+            roomClientRef.current = null;
             console.log(`🚪 [Spectator] Leaving game-room-${roomCode}`);
             supabase.removeChannel(channel);
             setState(EMPTY_STATE);

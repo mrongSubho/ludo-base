@@ -70,10 +70,23 @@ test('Q7 sampling keeps critical events at 100%', () => {
     for (const e of ALWAYS_SAMPLE_EVENTS) {
         assert.equal(shouldSample(e, 0, () => 0.99), true, e);
     }
+    assert.equal(ALWAYS_SAMPLE_EVENTS.has('room_reconnect_attempt'), true);
+    assert.equal(ALWAYS_SAMPLE_EVENTS.has('room_reconnect_exhausted'), true);
     assert.equal(shouldSample('roll_ok', 0, () => 0.5), false);
     assert.equal(shouldSample('roll_ok', 1, () => 0.99), true);
     assert.equal(shouldSample('move_ok', 0.5, () => 0.4), true);
     assert.equal(shouldSample('move_ok', 0.5, () => 0.6), false);
+
+    const reconnectProps = scrubTelemetryProps({
+        reason: 'HEARTBEAT_TIMEOUT',
+        attempt: 1,
+        matchId: 'match-1',
+        roomInstance: 'abc:1234',
+    });
+    assert.equal(reconnectProps.reason, 'HEARTBEAT_TIMEOUT');
+    assert.equal(reconnectProps.attempt, 1);
+    assert.equal(reconnectProps.matchId, 'match-1');
+    assert.equal(reconnectProps.roomInstance, 'abc:1234');
 });
 
 test('Q7 standing SLO table is complete', () => {

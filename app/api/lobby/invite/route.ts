@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb, ensurePlayerRow } from '@/lib/serverAuth';
+import { isBlockedBetween } from '@/lib/moderation';
 
 /** Host → guest invite insert (service role; wallet RLS cannot do this). Host-session gated. */
 export async function POST(request: Request) {
@@ -15,11 +16,15 @@ export async function POST(request: Request) {
         if (!wallet || wallet !== host) {
             return NextResponse.json({ error: 'Invalid host session' }, { status: 401 });
         }
+        const db = serviceDb();
+        if (await isBlockedBetween(db, host, guest)) {
+            return NextResponse.json({ error: 'Cannot invite a blocked player' }, { status: 403 });
+        }
         // A guest who's never connected has no players row yet — provision
         // before the FK-checked insert, or every first-time invite 500s.
         const provErr = await ensurePlayerRow(guest);
         if (provErr) return NextResponse.json({ error: provErr }, { status: 400 });
-        const { error } = await serviceDb().from('game_invites').insert({
+        const { error } = await db.from('game_invites').insert({
             room_code: roomCode,
             host_address: host,
             guest_address: guest,

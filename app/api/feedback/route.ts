@@ -44,9 +44,6 @@ export async function POST(request: Request) {
             } catch {
                 wallet = null;
             }
-            if (!wallet && /^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
-                wallet = walletAddress.toLowerCase();
-            }
         }
         const db = serviceDb();
         // Same-sender duplicate: identical content within 5 minutes dedups to

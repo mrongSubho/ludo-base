@@ -18,10 +18,53 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { RoomClient } from '../lib/netcode/roomClient';
+import { DisconnectReason, RoomError, isRoomError } from '../lib/roomCodes';
+import { ROOM_RECONNECT_CONFIG } from '../lib/roomProtocol';
+import { bumpNet as _bumpNet, getNetCounters, resetNetCounters } from '../lib/netcode/counters';
 import { computeAuthority } from '../lib/netcode/authorityGate';
 import { resolveRoomVersion } from '../lib/serverAuthority';
 import { hashToken } from '../lib/sessionV2';
 import type { GameState } from '../lib/types';
+
+class FakeClientWebSocket {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+
+  public readyState = FakeClientWebSocket.CONNECTING;
+  public sent: Array<Record<string, unknown>> = [];
+  public closed = false;
+  public onopen: (() => void) | null = null;
+  public onmessage: ((ev: { data: string }) => void) | null = null;
+  public onerror: ((ev: unknown) => void) | null = null;
+  public onclose: (() => void) | null = null;
+
+  constructor(public readonly url: string) {}
+
+  send(data: string) {
+    this.sent.push(JSON.parse(data) as Record<string, unknown>);
+  }
+
+  close() {
+    this.closed = true;
+    this.readyState = FakeClientWebSocket.CLOSED;
+  }
+
+  simulateOpen() {
+    this.readyState = FakeClientWebSocket.OPEN;
+    this.onopen?.();
+  }
+
+  simulateMessage(payload: Record<string, unknown>) {
+    this.onmessage?.({ data: JSON.stringify(payload) });
+  }
+
+  simulateClose() {
+    this.readyState = FakeClientWebSocket.CLOSED;
+    this.onclose?.();
+  }
+}
 
 describe('Phase 3 — Match Room v2 Transport & Ordering', () => {
   // ── 1. Protocol Frame Handling & Serialization ─────────────────────────────
@@ -35,7 +78,7 @@ describe('Phase 3 — Match Room v2 Transport & Ordering', () => {
 
     const url = client.resolveWebSocketUrl();
     assert.ok(url.includes('/api/room/match-p3-test-1/ws'));
-    assert.ok(url.includes('ticket=ticket-xyz-123'));
+    assert.equal(url.includes('ticket='), false, 'WS URL must not leak ticket/session credentials in query params');
     assert.equal(client.getSeq(), 0);
     assert.equal(client.getStatus(), 'disconnected');
   });
@@ -212,5 +255,306 @@ describe('Phase 3 — Match Room v2 Transport & Ordering', () => {
       roomVersion: 2,
     });
     assert.equal(roomAuthority, false);
+  });
+
+  // ── 8. Wave 1: 3s x 10 Reconnect Ladder & Exhaustion Cap ─────────────────
+  it('P3-8: RoomClient enforces 3s x 10 bounded reconnect ladder and halts on exhaustion', (t) => {
+    assert.equal(ROOM_RECONNECT_CONFIG.baseDelayMs, 3000);
+    assert.equal(ROOM_RECONNECT_CONFIG.maxAttempts, 10);
+    assert.equal(ROOM_RECONNECT_CONFIG.pongTimeoutMs, 60000);
+
+    const origWs = globalThis.WebSocket;
+    resetNetCounters();
+    t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+    const sockets: FakeClientWebSocket[] = [];
+    (globalThis as unknown as { WebSocket: unknown }).WebSocket = class extends FakeClientWebSocket {
+      constructor(url: string) {
+        super(url);
+        sockets.push(this);
+      }
+    };
+
+    const attempts: Array<{ reason: DisconnectReason; attempt: number; delayMs: number }> = [];
+    let exhausted: { reason: DisconnectReason; attempts: number } | null = null;
+    const client = new RoomClient({
+      matchId: 'match-reconnect-ladder',
+      inBandToken: 'token-123',
+      onState: () => {},
+      onReconnectAttempt: (info) => {
+        attempts.push({ reason: info.reason, attempt: info.attempt, delayMs: info.delayMs });
+      },
+      onReconnectExhausted: (info) => {
+        exhausted = { reason: info.reason, attempts: info.attempts };
+      },
+    });
+
+    try {
+      client.connect();
+      assert.equal(sockets.length, 1);
+
+      for (let i = 0; i < 10; i++) {
+        sockets[sockets.length - 1].simulateClose();
+        assert.equal(attempts.length, i + 1);
+        assert.equal(attempts[i].reason, DisconnectReason.SERVER_CLOSED);
+        assert.equal(attempts[i].attempt, i + 1);
+        assert.ok(attempts[i].delayMs >= 3000);
+        t.mock.timers.tick(ROOM_RECONNECT_CONFIG.maxDelayMs + 500);
+        assert.equal(sockets.length, i + 2);
+      }
+
+      // 11th close hits maxAttempts = 10 -> exhausted, no more sockets spawned.
+      sockets[sockets.length - 1].simulateClose();
+      assert.deepEqual(exhausted, { reason: DisconnectReason.SERVER_CLOSED, attempts: 10 });
+      assert.equal(getNetCounters().net_reconnect_attempt, 10);
+
+      t.mock.timers.tick(30_000);
+      assert.equal(sockets.length, 11, 'no 11th reconnect socket after exhaustion');
+    } finally {
+      client.disconnect();
+      t.mock.timers.reset();
+      resetNetCounters();
+      globalThis.WebSocket = origWs;
+    }
+  });
+
+  // ── 9. Wave 1: 60s Pong Watchdog -> HEARTBEAT_TIMEOUT ───────────────────
+  it('P3-9: 60s silent heartbeat fires DisconnectReason.HEARTBEAT_TIMEOUT and net_heartbeat_timeout', (t) => {
+    const origWs = globalThis.WebSocket;
+    resetNetCounters();
+    t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+    const sockets: FakeClientWebSocket[] = [];
+    (globalThis as unknown as { WebSocket: unknown }).WebSocket = class extends FakeClientWebSocket {
+      constructor(url: string) {
+        super(url);
+        sockets.push(this);
+      }
+    };
+
+    const attempts: Array<{ reason: DisconnectReason; roomInstance: string | null }> = [];
+    const client = new RoomClient({
+      matchId: 'match-pong-watchdog',
+      inBandToken: 'token-pong',
+      onState: () => {},
+      onReconnectAttempt: (info) => {
+        attempts.push({ reason: info.reason, roomInstance: info.roomInstance });
+      },
+    });
+
+    try {
+      client.connect();
+      sockets[0].simulateOpen();
+      assert.equal(sockets[0].sent[0]?.v, 1);
+      assert.equal(sockets[0].sent[0]?.t, 'join');
+      assert.equal(sockets[0].sent[0]?.as, 'seat');
+
+      sockets[0].simulateMessage({
+        v: 1,
+        roomInstance: 'do999:boot1',
+        t: 'joined',
+        role: 'seat',
+        seat: 'green',
+        seq: 0,
+      });
+      assert.equal(client.getStatus(), 'connected');
+      assert.equal(client.getRoomInstance(), 'do999:boot1');
+
+      // 25s -> ping 1; 50s -> ping 2; 75s (>= 60s without pong) -> HEARTBEAT_TIMEOUT
+      t.mock.timers.tick(25_000);
+      t.mock.timers.tick(25_000);
+      assert.equal(getNetCounters().net_heartbeat_timeout, 0);
+      t.mock.timers.tick(25_000);
+
+      assert.equal(getNetCounters().net_heartbeat_timeout, 1);
+      assert.equal(sockets[0].closed, true);
+      assert.equal(attempts[0]?.reason, DisconnectReason.HEARTBEAT_TIMEOUT);
+      assert.equal(attempts[0]?.roomInstance, 'do999:boot1');
+    } finally {
+      client.disconnect();
+      t.mock.timers.reset();
+      resetNetCounters();
+      globalThis.WebSocket = origWs;
+    }
+  });
+
+  // ── 10. Wave 1: lastIntentId Resolution & Typed RoomError Rejection ──────
+  it('P3-10: pendingIntents resolves on state.lastIntentId and rejects with typed RoomError', async () => {
+    const origWs = globalThis.WebSocket;
+    resetNetCounters();
+    const sockets: FakeClientWebSocket[] = [];
+    (globalThis as unknown as { WebSocket: unknown }).WebSocket = class extends FakeClientWebSocket {
+      constructor(url: string) {
+        super(url);
+        sockets.push(this);
+      }
+    };
+
+    const client = new RoomClient({
+      matchId: 'match-intents',
+      inBandToken: 'token-int',
+      onState: () => {},
+    });
+
+    try {
+      client.connect();
+      sockets[0].simulateOpen();
+      sockets[0].simulateMessage({ v: 1, roomInstance: 'do1:aa', t: 'joined', role: 'seat', seat: 'green', seq: 0 });
+
+      // A) Resolve via state.lastIntentId when intent_ack is absent
+      const p1 = client.sendIntent('REQUEST_ROLL', {});
+      const sent1 = sockets[0].sent[sockets[0].sent.length - 1];
+      assert.equal(sent1.v, 1);
+      sockets[0].simulateMessage({
+        v: 1,
+        roomInstance: 'do1:aa',
+        t: 'state',
+        seq: 1,
+        lastIntentId: sent1.intentId,
+        state: { currentPlayer: 'green', winner: null },
+      });
+      const res1 = await p1;
+      assert.equal(res1.ok, true);
+      assert.equal(getNetCounters().net_intent_ok, 1);
+
+      // B) Rejected frame -> RoomError with code POWER_ARMED
+      const p2 = client.sendIntent('REQUEST_POWER', { power: 'nuke' });
+      const sent2 = sockets[0].sent[sockets[0].sent.length - 1];
+      sockets[0].simulateMessage({
+        v: 1,
+        roomInstance: 'do1:aa',
+        t: 'rejected',
+        intentId: sent2.intentId,
+        code: 'POWER_ARMED',
+        error: 'Tap a token',
+        seq: 1,
+      });
+      await assert.rejects(p2, (err: unknown) => {
+        assert.equal(isRoomError(err), true);
+        assert.equal((err as RoomError).code, 'POWER_ARMED');
+        assert.equal((err as RoomError).reason, 'Tap a token');
+        assert.equal((err as RoomError).roomInstance, 'do1:aa');
+        return true;
+      });
+    } finally {
+      client.disconnect();
+      resetNetCounters();
+      globalThis.WebSocket = origWs;
+    }
+  });
+
+  // ── 11. Wave 1: Auth & Protocol Mismatch Halt Reconnect ──────────────────
+  it('P3-11: SESSION_EXPIRED and PROTOCOL_MISMATCH halt automatic reconnects', (t) => {
+    const origWs = globalThis.WebSocket;
+    t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+    const sockets: FakeClientWebSocket[] = [];
+    (globalThis as unknown as { WebSocket: unknown }).WebSocket = class extends FakeClientWebSocket {
+      constructor(url: string) {
+        super(url);
+        sockets.push(this);
+      }
+    };
+
+    const expiredCodes: string[] = [];
+    const errors: unknown[] = [];
+    let attempts = 0;
+
+    const c1 = new RoomClient({
+      matchId: 'match-auth-halt',
+      inBandToken: 'expired',
+      as: 'seat',
+      onState: () => {},
+      onAuthExpired: (err) => expiredCodes.push(err.code),
+      onReconnectAttempt: () => { attempts++; },
+    });
+
+    const c2 = new RoomClient({
+      matchId: 'match-proto-halt',
+      inBandToken: 'ok',
+      onState: () => {},
+      onError: (err) => errors.push(err),
+      onReconnectAttempt: () => { attempts++; },
+    });
+
+    try {
+      c1.connect();
+      sockets[0].simulateOpen();
+      sockets[0].simulateMessage({ v: 1, t: 'rejected', code: 'SESSION_EXPIRED', error: 'Expired' });
+      assert.deepEqual(expiredCodes, ['SESSION_EXPIRED']);
+
+      c2.connect();
+      sockets[1].simulateOpen();
+      sockets[1].simulateMessage({ v: 1, t: 'rejected', code: 'PROTOCOL_MISMATCH', error: 'Mismatch' });
+      assert.equal(errors.length, 1);
+      assert.equal((errors[0] as RoomError).code, 'PROTOCOL_MISMATCH');
+
+      t.mock.timers.tick(30_000);
+      assert.equal(attempts, 0, 'fatal auth/protocol rejection must not trigger reconnect retries');
+      assert.equal(sockets.length, 2);
+    } finally {
+      c1.disconnect();
+      c2.disconnect();
+      t.mock.timers.reset();
+      globalThis.WebSocket = origWs;
+    }
+  });
+
+  // ── 12. Wave 2: EWMA Server Clock Skew Compensation ─────────────────────
+  it('P3-12: RoomClient EWMA calibrates clockOffsetMs and getServerNow across serverNow + RTT pong frames', (t) => {
+    const origWs = globalThis.WebSocket;
+    t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] });
+    const sockets: FakeClientWebSocket[] = [];
+    (globalThis as unknown as { WebSocket: unknown }).WebSocket = class extends FakeClientWebSocket {
+      constructor(url: string) {
+        super(url);
+        sockets.push(this);
+      }
+    };
+
+    const client = new RoomClient({
+      matchId: 'match-clock-skew',
+      inBandToken: 'token-clock',
+      as: 'seat',
+      pingIntervalMs: 1000,
+      pongTimeoutMs: 5000,
+      onState: () => {},
+    });
+
+    try {
+      t.mock.timers.tick(10_000); // client clock at 10_000ms
+      client.connect();
+      sockets[0].simulateOpen();
+
+      // Server clock is +5000ms ahead of client (`serverNow = 15_000` at client `10_000`).
+      sockets[0].simulateMessage({
+        v: 1,
+        t: 'joined',
+        role: 'seat',
+        seat: 'green',
+        seq: 0,
+        serverNow: 15_000,
+      });
+      assert.equal(client.getClockOffsetMs(), 5000);
+      assert.equal(client.getServerNow(), 15_000);
+
+      // Advance to ping (1000ms later: client clock 11_000, sends ping ts=11_000),
+      // then receive pong 200ms later (`rtt = 200`, `rtt/2 = 100`) at client `11_200` with `serverNow = 16_300`.
+      // Expected sample offset = 16_300 + 100 - 11_200 = +5_200; EWMA(0.35) => 5000*0.65 + 5200*0.35 = 5070.
+      t.mock.timers.tick(1000);
+      const pingSent = sockets[0].sent.find((m) => m.t === 'ping');
+      assert.ok(pingSent && typeof pingSent.ts === 'number');
+      t.mock.timers.tick(200);
+      sockets[0].simulateMessage({
+        v: 1,
+        t: 'pong',
+        ts: 16_300,
+        clientTs: pingSent.ts,
+        serverNow: 16_300,
+      });
+      assert.equal(client.getClockOffsetMs(), 5070);
+      assert.equal(client.getServerNow(), 11_200 + 5070);
+    } finally {
+      client.disconnect();
+      t.mock.timers.reset();
+      globalThis.WebSocket = origWs;
+    }
   });
 });

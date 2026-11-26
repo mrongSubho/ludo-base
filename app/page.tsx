@@ -70,6 +70,7 @@ import { useScreenWakeLock } from '@/hooks/useScreenWakeLock';
 import { getDemoExhibitionByRoomCode } from '@/lib/arena/demoArenas';
 import type { ArenaDirectoryRoom } from '@/lib/arena/types';
 import { buildStreamMessage } from '@/lib/matchProof';
+import { useToast } from './components/Toast';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
 
@@ -321,7 +322,8 @@ export default function Page() {
     prevUnreadRef.current = totalUnreadCount;
   }, [totalUnreadCount]);
   const { notifCount } = useNotifications();
-  const { gameState, broadcastAction, broadcastLobbyAction, updateGameState, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot, connectRoom, allowOpenJoins, roomAuthority } = useTeamUp();
+  const toast = useToast();
+  const { gameState, broadcastAction, broadcastSocial, broadcastLobbyAction, updateGameState, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot, connectRoom, allowOpenJoins, roomAuthority, roomStatus } = useTeamUp();
 
   // NET-07: the HOST_ELECT handshake's authority layer. The panel asks this to
   // elect; the answer must be a seat that can prove it holds the current
@@ -344,7 +346,7 @@ export default function Page() {
   const _finalAvatar = profile?.avatar_url || null;
 
   // Match Configuration State (Synced with GameLobby)
-  const [selectedMode, setSelectedMode] = useState<'classic' | 'power'>('power');
+  const [selectedMode, setSelectedMode] = useState<'classic' | 'power' | 'quick'>('power');
   const [playerCount, setPlayerCount] = useState<'1v1' | '2v2' | '4P'>('1v1');
   const [betAmount, setBetAmount] = useState<number>(0);
   const [isBotMatch, setIsBotMatch] = useState(false);
@@ -648,10 +650,20 @@ export default function Page() {
           broadcastLobbyAction('LOBBY_SYNC', {
             lobbyState: { ...lobbyState, status: 'playing', matchId: resolvedMatchId },
           });
+        } else {
+          toast((data as { error?: string })?.error || 'Could not start networked match room. Please retry.', 'error');
+          return;
         }
       } catch (err) {
         console.error('❌ [Page] Custom lobby /api/match/start failed:', err);
+        toast('Could not start networked match room. Please retry.', 'error');
+        return;
       }
+    }
+
+    if (!effectiveIsBotMatch && isLobbyConnected && (!resolvedMatchId || resolvedMatchId === 'local' || resolvedMatchId.startsWith('local-'))) {
+      toast('Waiting for authoritative networked match ID — please retry.', 'error');
+      return;
     }
 
     const currentMatchId = resolvedMatchId;
@@ -696,7 +708,7 @@ export default function Page() {
       setAppState('game');
     }
     connectRoom(currentMatchId);
-  }, [isBotMatch, gameState?.matchId, gameState?.initialBoardConfig, isLobbyConnected, isHost, lobbyState, roomId, selectedMode, playerCount, address, peekAppSession, ensureAppSession, updateGameState, broadcastLobbyAction, broadcastAction, participants, finalName, setBoardSeed, setAppState, connectRoom]);
+  }, [isBotMatch, gameState?.matchId, gameState?.initialBoardConfig, isLobbyConnected, isHost, lobbyState, roomId, selectedMode, playerCount, address, peekAppSession, ensureAppSession, updateGameState, broadcastLobbyAction, broadcastAction, participants, finalName, setBoardSeed, setAppState, connectRoom, toast]);
 
   const handleBackToSubMenu = useCallback(async () => {
     // Host leaving a live stream should drop the Live Arena row.
@@ -812,7 +824,7 @@ export default function Page() {
               gameState?.initialBoardConfig?.players?.find(
                 (p) => p.walletAddress?.toLowerCase() === myWallet,
               )?.color || 'green';
-            broadcastAction('REMATCH', {
+            broadcastSocial('REMATCH', {
               kind: 'started',
               proposalId: plan.proposalId,
               matchId: gameState?.matchId,
@@ -878,7 +890,7 @@ export default function Page() {
     gameState?.initialBoardConfig,
     peekAppSession,
     ensureAppSession,
-    broadcastAction,
+    broadcastSocial,
     updateGameState,
     connectRoom,
     allowOpenJoins,
@@ -1251,7 +1263,7 @@ export default function Page() {
                 onRevealMatchStatus={() => setMatchStatusReveal(value => value + 1)}
               />
               <MatchStatusStrip
-                modeLabel={`${selectedMode === 'power' ? 'Power' : 'Classic'} · ${playerCount} · ${betAmount === 0 ? 'Free' : betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
+                modeLabel={`${selectedMode === 'power' ? 'Power' : selectedMode === 'quick' ? 'Quick' : 'Classic'} · ${playerCount} · ${betAmount === 0 ? 'Free' : betAmount >= 1000 ? `${parseFloat((betAmount / 1000).toFixed(1))}k` : betAmount}`}
                 spectators={liveSpectators}
                 matchConnectionStatus={matchConnectionStatus}
                 revealToken={matchStatusReveal}
@@ -1353,7 +1365,7 @@ export default function Page() {
                    appears when NOTHING authoritative is connected: the room is live
                    (no host to migrate — the room *is* the authority), or the room is
                    down and the P2P fallback genuinely has no host. */}
-              {!isHost && !isLobbyConnected && !roomAuthority && gameState?.isStarted && !gameState?.winner && (
+              {!isHost && !isLobbyConnected && !roomAuthority && roomStatus === 'idle' && gameState?.isStarted && !gameState?.winner && (
                 <HostMigrationPanel onQuit={() => leaveGame()} onElect={handleHostElect} />
               )}
             </>

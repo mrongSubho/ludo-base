@@ -6,6 +6,7 @@ import { getGridCellInfo, getBoardCoordinate, PathCell, ColorCorner, Corner, COR
 import { PlayerColor } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
 import { usePreferences } from '@/hooks/usePreferences';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { ProximityMineIcon } from './icons';
 import { HudCornerTicks } from './HudPrimitives';
 import { PowerVfxOverlay } from './PowerVfxOverlay';
@@ -107,6 +108,7 @@ export function BoardGrid({
 }: BoardGridProps) {
     const { preferences } = usePreferences();
     const is3077 = preferences.theme === '3077';
+    const reduced = useReducedMotion();
     const activeColor = localGameState?.currentPlayer || propActiveColor;
     const hasActiveNukeVfx = powerVfxEvents.some((ev) => ev.kind === 'nuke');
     
@@ -257,9 +259,9 @@ export function BoardGrid({
                 {/* 1. Ambient Backdrop Pulse (Layer 1) */}
                 <motion.div 
                     animate={{ 
-                        opacity: activeColor ? [0.4, 0.8, 0.4] : 0 
+                        opacity: !activeColor ? 0 : reduced ? 0.55 : [0.4, 0.8, 0.4]
                     }}
-                    transition={{ repeat: Infinity, duration: 3 }}
+                    transition={reduced ? { duration: 0.01 } : { repeat: Infinity, duration: 3 }}
                     style={{
                         position: 'absolute',
                         width: '140%',
@@ -294,7 +296,7 @@ export function BoardGrid({
                     overflow: 'hidden'
                 }}>
                     {/* 4. Rotating Neon Energy Arc (Layer 4) */}
-                    {activeColor && (
+                    {activeColor && !reduced && (
                         <motion.div
                             animate={{ rotate: 360 }}
                             transition={{ repeat: Infinity, duration: 4, ease: 'linear' }}

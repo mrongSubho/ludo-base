@@ -494,6 +494,58 @@ test('diffGameStateForAudio: distinguishes kick vs got-kicked, sixes, bust, home
     assert.equal(emoteSoundIdFor('nice'), 'emote_preset');
 });
 
+test('diffGameStateForAudio: Wave 3 landing delays, deploy-onto-start safe-star guard, and three-6s regex', () => {
+    const ctx = {
+        myColor: 'green' as const,
+        playerCount: '4P' as const,
+        colorCorner: TEST_CC,
+        themeId: '3077' as const,
+    };
+
+    // 1. Capture & win SFX carry physical landing delayMs in normal motion, 0 delay under reducedMotion
+    const preCap = cloneState({
+        playerCount: '4P',
+        positions: { green: [36, -1, -1, -1], red: [40, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+    });
+    const postCap = cloneState({
+        playerCount: '4P',
+        positions: { green: [40, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+    });
+    const capEvents = diffGameStateForAudio(preCap, postCap, ctx);
+    const kickEv = capEvents.find((e) => e.id === 'capture_kick');
+    assert.ok(kickEv && typeof kickEv.delayMs === 'number' && kickEv.delayMs > 400, 'capture_kick waits for mover landing');
+
+    const capReduced = diffGameStateForAudio(preCap, postCap, { ...ctx, reducedMotion: true });
+    const kickReduced = capReduced.find((e) => e.id === 'capture_kick');
+    assert.ok(kickReduced && kickReduced.delayMs === undefined, 'reducedMotion plays capture immediately with 0 delay');
+
+    // 2. Deploying (-1 -> startIdx 34) lands on start square without firing token_safe_star double-SFX
+    const preDeploy = cloneState({ playerCount: '4P' });
+    const postDeploy = cloneState({
+        playerCount: '4P',
+        positions: { green: [34, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+    });
+    const deployEv = diffGameStateForAudio(preDeploy, postDeploy, ctx);
+    assert.equal(deployEv.some((e) => e.id === 'token_safe_star'), false, 'yard deploy must not fire token_safe_star');
+
+    // Moving on track onto a safe star (40 -> 42) DOES fire token_safe_star with walk delayMs
+    const preStarMove = cloneState({
+        playerCount: '4P',
+        positions: { green: [40, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+    });
+    const postStarMove = cloneState({
+        playerCount: '4P',
+        positions: { green: [42, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+    });
+    const starMoveEv = diffGameStateForAudio(preStarMove, postStarMove, ctx).find((e) => e.id === 'token_safe_star');
+    assert.ok(starMoveEv && typeof starMoveEv.delayMs === 'number' && starMoveEv.delayMs > 250);
+
+    // 3. "Three 6s! Turn forfeited." triggers dice_three_sixes_bust
+    const b0 = cloneState({ captureMessage: null, consecutiveSixes: 0 });
+    const b1 = cloneState({ captureMessage: 'Three 6s! Turn forfeited.', consecutiveSixes: 0 });
+    assert.ok(diffGameStateForAudio(b0, b1, ctx).some((e) => e.id === 'dice_three_sixes_bust'));
+});
+
 test('Audio wiring invariants: volume sliders, shared engine, and zero rogue AudioContext in EntryFeeKnob', () => {
     const read = (rel: string) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8');
 

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMatchmaking } from '@/hooks/useMatchmaking';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppSession } from '@/hooks/useAppSession';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import { TeamUpWrapper } from './TeamUp/TeamUpWrapper';
@@ -60,7 +61,7 @@ const QuickTile = () => (
 );
 
 interface QuickMatchPanelProps {
-    gameMode: 'classic' | 'power';
+    gameMode: 'classic' | 'power' | 'quick';
     matchType: '1v1' | '2v2' | '4P';
     wager: number;
     onStartGame: (isBotMatch?: boolean) => void;
@@ -68,6 +69,7 @@ interface QuickMatchPanelProps {
     isHybrid?: boolean;
     roomCode?: string;
     slotsNeeded?: number;
+    partyWallets?: string[];
 }
 
 export const QuickMatchPanel = ({
@@ -79,8 +81,10 @@ export const QuickMatchPanel = ({
     isHybrid = false,
     roomCode,
     slotsNeeded = 1,
+    partyWallets,
 }: QuickMatchPanelProps) => {
     const { address, profile, displayName: finalName } = useCurrentUser();
+    const { ensureAppSession } = useAppSession();
     const normalizedAddress = address?.toLowerCase() || '';
     const vault = useArenaVault();
     const toast = useToast();
@@ -115,8 +119,8 @@ export const QuickMatchPanel = ({
         isHost: p2pHost,
         roomStatus,
         roomError,
+        retryRoom,
         gameState,
-        createProvisionalSession,
     } = useTeamUpContext();
     const [tipIndex, setTipIndex] = useState(0);
     const [_hasExpanded, setHasExpanded] = useState(false);
@@ -138,7 +142,8 @@ export const QuickMatchPanel = ({
     const [_expectedOpponent, setExpectedOpponent] = useState<string | null>(null);
 
     const [isStalled, setIsStalled] = useState(false);
-    const preAuthStartedRef = useRef(false);
+    const [isBackfillingBots, setIsBackfillingBots] = useState(false);
+    const [backfillMatchId, setBackfillMatchId] = useState<string | null>(null);
     const matchedSoundFiredRef = useRef(false);
 
     // Queueing BGM tension stem + Match Found reveal stinger
@@ -188,11 +193,11 @@ export const QuickMatchPanel = ({
 
     // ─── Phase S4: Server-owned match start transition ───
     useEffect(() => {
-        if (status === 'matched' && gameState?.isStarted) {
+        if ((status === 'matched' || (backfillMatchId && gameState?.matchId === backfillMatchId)) && gameState?.isStarted) {
             console.log('🏁 [QuickMatch] Server room state received. Synchronizing UI to board...');
             onStartGame(false);
         }
-    }, [status, gameState?.isStarted, onStartGame]);
+    }, [status, backfillMatchId, gameState?.matchId, gameState?.isStarted, onStartGame]);
 
     const activeRoomCode = hookRoomCode || roomCode;
 
@@ -276,36 +281,62 @@ export const QuickMatchPanel = ({
     useEffect(() => {
         if (!normalizedAddress) return;
 
-        let cancelled = false;
-        void (async () => {
-            console.log('🏁 [QuickMatch] Triggering search initialization...');
-            if (!isHybrid && !preAuthStartedRef.current) {
-                preAuthStartedRef.current = true;
-                const key = `search:${normalizedAddress}:${gameMode}:${matchType}`;
-                const result = await createProvisionalSession(key, undefined, { context: 'quick-match' });
-                if (!result.ok) {
-                    preAuthStartedRef.current = false;
-                    console.warn('🔑 [QuickMatch] pre-match authorization failed:', result.error);
-                    handleBackToLobby();
-                    return;
-                }
-            }
-            if (cancelled) return;
-            if (isHybrid && roomCode) {
-                startHybridSearch(roomCode, slotsNeeded, matchType);
-            } else {
-                startSearch(wagerRange?.min, wagerRange?.max);
-            }
-        })();
-        return () => { cancelled = true; };
+        if (isHybrid && roomCode) {
+            startHybridSearch(roomCode, slotsNeeded, matchType, undefined, undefined, false, partyWallets);
+        } else {
+            startSearch(wagerRange?.min, wagerRange?.max);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [normalizedAddress, isHybrid, roomCode, slotsNeeded, matchType, gameMode, createProvisionalSession, startSearch, startHybridSearch]);
+    }, [normalizedAddress, isHybrid, roomCode, slotsNeeded, partyWallets, matchType, gameMode, startSearch, startHybridSearch]);
 
     const handleForceBotMatch = () => {
         releaseVaultIfSearching();
         leaveGame();
         cancelSearch();
         onStartGame(true);
+    };
+
+    const handleServerBotBackfill = async () => {
+        if (activeWager > 0 || isBackfillingBots || !normalizedAddress) return;
+        setIsBackfillingBots(true);
+        try {
+            const sessionId = await ensureAppSession();
+            if (!sessionId) {
+                toast('Wallet session required to launch free server AI match.', 'error');
+                return;
+            }
+            const res = await fetch('/api/matchmaking/backfill-bots', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-session-id': sessionId,
+                    Authorization: `Bearer ${sessionId}`,
+                },
+                body: JSON.stringify({
+                    playerId: normalizedAddress,
+                    sessionId,
+                    gameMode,
+                    matchType,
+                    wager: 0,
+                    roomCode,
+                    partyWallets,
+                    botDifficulty: 'pro',
+                }),
+            });
+            const data = (await res.json().catch(() => ({}))) as { matchId?: string; error?: string };
+            if (!res.ok || !data.matchId) {
+                toast(data.error || 'Could not launch server AI table.', 'error');
+                return;
+            }
+            cancelSearch();
+            setBackfillMatchId(data.matchId);
+            connectRoom(data.matchId);
+            toast('Launched free unranked match with [AI] seats.', 'info');
+        } catch (err: unknown) {
+            toast((err as Error)?.message || 'Failed to launch server AI match.', 'error');
+        } finally {
+            setIsBackfillingBots(false);
+        }
     };
 
     const handleCancelAndClose = () => {
@@ -730,6 +761,22 @@ export const QuickMatchPanel = ({
                                     Retry {matchType} · {feeLabel(activeWager)}
                                 </Button>
 
+                                {activeWager === 0 && (
+                                    <div className="p-3.5 rounded-2xl bg-accent-soft/45 border border-accent/35 flex flex-col gap-2">
+                                        <p className="text-ludo-xs text-ink-muted font-medium uppercase tracking-widest leading-relaxed">
+                                            Unranked Online · Empty seats filled by clearly marked <span className="text-accent font-bold">[AI]</span> bots.
+                                        </p>
+                                        <Button
+                                            variant="primary"
+                                            fullWidth
+                                            disabled={isBackfillingBots}
+                                            onClick={() => void handleServerBotBackfill()}
+                                        >
+                                            {isBackfillingBots ? 'Launching [AI] Table…' : 'Fill with [AI] (Free Online)'}
+                                        </Button>
+                                    </div>
+                                )}
+
                                 <div className="p-4 rounded-2xl bg-accent-soft/40 border border-accent/25 flex flex-col gap-3">
                                     <p className="text-ludo-xs text-ink-muted font-medium uppercase tracking-widest leading-relaxed">
                                         Strongly advise practicing in <span className="text-accent font-bold">Offline Mode</span> to sharpen your strategy and skills.
@@ -754,22 +801,35 @@ export const QuickMatchPanel = ({
 
                 {/* Bottom Actions */}
                 <div className="mt-auto px-5 pb-5 pt-3 border-t border-line-soft bg-surface-recessed/70 backdrop-blur-sm relative z-10 shrink-0">
-                    <div className="w-full flex gap-2">
-                        <Button
-                            variant="secondary"
-                            onClick={handleBackToLobby}
-                            leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>}
-                            className="flex-1 justify-center uppercase tracking-[0.2em]"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            onClick={handleForceBotMatch}
-                            className="flex-1 uppercase tracking-[0.2em]"
-                        >
-                            Play with AI
-                        </Button>
+                    <div className="w-full flex flex-col gap-2">
+                        <div className="w-full flex gap-2">
+                            <Button
+                                variant="secondary"
+                                onClick={handleBackToLobby}
+                                leftIcon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-md"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>}
+                                className="flex-1 justify-center uppercase tracking-[0.2em]"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="secondary"
+                                onClick={handleForceBotMatch}
+                                className="flex-1 uppercase tracking-[0.2em]"
+                            >
+                                Play with AI
+                            </Button>
+                        </div>
+                        {activeWager === 0 && isSearching && (
+                            <Button
+                                variant="primary"
+                                fullWidth
+                                disabled={isBackfillingBots}
+                                onClick={() => void handleServerBotBackfill()}
+                                className="uppercase tracking-[0.18em]"
+                            >
+                                {isBackfillingBots ? 'Launching [AI] Table…' : 'Fill with [AI] (Free Online · Unranked)'}
+                            </Button>
+                        )}
                     </div>
                 </div>
 
@@ -884,7 +944,7 @@ export const QuickMatchPanel = ({
 
                             {/* Connection Status Subtext */}
                             <div className="mt-2 flex flex-col items-center gap-3">
-                                {isStalled && (
+                                {(isStalled || (roomStatus === 'failed' && (roomError === 'auth-expired' || roomError === 'protocol-mismatch'))) && (
                                     <motion.div
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
@@ -893,7 +953,11 @@ export const QuickMatchPanel = ({
                                         {roomStatus === 'failed'
                                             ? roomError === 'not-deployed'
                                                 ? 'Game room unavailable on this deployment'
-                                                : 'Unable to connect to game room — retrying…'
+                                                : roomError === 'auth-expired'
+                                                    ? 'Session expired — sign in to reconnect'
+                                                    : roomError === 'protocol-mismatch'
+                                                        ? 'App update required — reload to reconnect'
+                                                        : 'Unable to connect to game room — retrying…'
                                             : p2pHost
                                                 ? 'Opponent hasn’t linked yet…'
                                                 : 'Still linking both players…'}
@@ -919,8 +983,31 @@ export const QuickMatchPanel = ({
                                     </span>
                                 </div>
 
+                                {roomStatus === 'failed' && roomError === 'auth-expired' && (
+                                    <div className="flex w-full max-w-[280px] flex-col gap-2">
+                                        <Button
+                                            variant="primary"
+                                            fullWidth
+                                            onClick={() => retryRoom()}
+                                            className="uppercase tracking-[0.2em]"
+                                        >
+                                            Reconnect / Sign In
+                                        </Button>
+                                    </div>
+                                )}
+
                                 {isStalled && (
                                     <div className="flex w-full max-w-[280px] flex-col gap-2">
+                                        {roomStatus === 'failed' && roomError === 'unreachable' && (
+                                            <Button
+                                                variant="secondary"
+                                                fullWidth
+                                                onClick={() => retryRoom()}
+                                                className="uppercase tracking-[0.2em]"
+                                            >
+                                                Retry Room
+                                            </Button>
+                                        )}
                                         <Button
                                             variant="primary"
                                             fullWidth

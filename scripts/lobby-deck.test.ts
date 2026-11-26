@@ -20,7 +20,7 @@ describe('3077 Tactical Command Console & Deployment-Mode Theme', () => {
 
     it('places POWER mode first on the armed slide-breaker, supports Retro palette, and uses TerminalTypeText', () => {
         const deck = read('app/components/LobbyCommandDeck.tsx');
-        assert.match(deck, /const MODE_ORDER:\s*readonly LobbyGameMode\[\]\s*=\s*\['power',\s*'classic'\]/);
+        assert.match(deck, /const MODE_ORDER:\s*readonly LobbyGameMode\[\]\s*=\s*\['power',\s*'classic',\s*'quick'\]/);
         assert.match(deck, /useDeployTheme\(/);
         assert.match(deck, /themeVariant\s*=\s*'retro'/);
         assert.match(deck, /RETRO_DECK_PALETTES/);
@@ -61,17 +61,17 @@ describe('3077 Tactical Command Console & Deployment-Mode Theme', () => {
 
     it('defaults lobby boot to Power + 1v1 + Quick Match and syncs full HUD colors to ActionDice mode', () => {
         const page = read('app/page.tsx');
-        assert.match(page, /useState<'classic' \| 'power'>\('power'\)/);
+        assert.match(page, /useState<'classic' \| 'power' \| 'quick'>\('power'\)/);
         assert.match(page, /useState<'1v1' \| '2v2' \| '4P'>\('1v1'\)/);
 
         const canopy = read('app/components/OrbitalCanopyDeck.tsx');
-        assert.match(canopy, /CANOPY_MODES[\s\S]*id:\s*'power'[\s\S]*id:\s*'classic'/);
+        assert.match(canopy, /CANOPY_MODES[\s\S]*id:\s*'power'[\s\S]*id:\s*'classic'[\s\S]*id:\s*'quick'/);
 
         const lobby = read('app/components/GameLobby.tsx');
         assert.match(lobby, /<DaybreakStudioDeck/);
 
         const studioDeck = read('app/components/DaybreakStudioDeck.tsx');
-        assert.match(studioDeck, /DAYBREAK_MODE_ORDER:\s*readonly LobbyGameMode\[\]\s*=\s*\['power',\s*'classic'\]/);
+        assert.match(studioDeck, /DAYBREAK_MODE_ORDER:\s*readonly LobbyGameMode\[\]\s*=\s*\['power',\s*'classic',\s*'quick'\]/);
 
         const dice = read('app/components/ActionDice.tsx');
         assert.match(dice, /setDeployModeTheme\(/);

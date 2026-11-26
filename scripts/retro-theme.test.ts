@@ -46,7 +46,8 @@ describe('Retro Theme Redesign & Swapped Lobby Setup Decks', () => {
         assert.match(canopy, /aria-label="Match Type"/);
         assert.match(canopy, /POWER/);
         assert.match(canopy, /CLASSIC/);
-        assert.match(canopy, /CANOPY_MODES[\s\S]*id:\s*'power'[\s\S]*startDeg:\s*-31\.5[\s\S]*id:\s*'classic'[\s\S]*startDeg:\s*0\.75/);
+        assert.match(canopy, /QUICK/);
+        assert.match(canopy, /CANOPY_MODES[\s\S]*id:\s*'power'[\s\S]*startDeg:\s*-31\.5[\s\S]*id:\s*'classic'[\s\S]*startDeg:\s*-10[\s\S]*id:\s*'quick'[\s\S]*startDeg:\s*11/);
         assert.match(canopy, /prefersReducedMotion/);
         assert.doesNotMatch(canopy, /rgba\(0,\s*229,\s*255/);
         assert.doesNotMatch(canopy, /rgba\(34,\s*211,\s*238/);

@@ -49,12 +49,14 @@ export const RATE_LIMITS: Record<string, LimitRule> = {
     'presence/online': { limit: 120, windowMs: 60_000, methods: ['GET'] },
     'presence': { limit: 120, windowMs: 60_000, methods: ['POST'] },
     'live-chat': { limit: 60, windowMs: 60_000, methods: ['POST'] },
+    messages: { limit: 60, windowMs: 60_000, methods: ['POST'] },
 
     // ── Matchmaking: creates and consumes queue rows ──────────────────────
     'matchmaking/join': { limit: 10, windowMs: 60_000, methods: ['POST'] },
     'matchmaking/cancel': { limit: 20, windowMs: 60_000, methods: ['POST'] },
     'matchmaking/pools': { limit: 30, windowMs: 60_000, methods: ['GET'] },
     'matchmaking/status': { limit: 60, windowMs: 60_000, methods: ['GET'] },
+    'matchmaking/backfill-bots': { limit: 10, windowMs: 60_000, methods: ['POST'] },
 
     // ── The AI arena claims authority by heartbeat from any spectator ──────
     // SEC-07: the claim itself is still unauthenticated. This bounds the
@@ -69,6 +71,9 @@ export const RATE_LIMITS: Record<string, LimitRule> = {
 
     // ── Public reads that are cheap but not free ──────────────────────────
     geo: { limit: 60, windowMs: 60_000, methods: ['GET'] },
+    config: { limit: 60, windowMs: 60_000, methods: ['GET'] },
+    'compliance/consent': { limit: 20, windowMs: 60_000, methods: ['POST'] },
+    'spectator-bets': { limit: 30, windowMs: 60_000, methods: ['POST'] },
     notices: { limit: 60, windowMs: 60_000, methods: ['GET'] },
     'profile/public': { limit: 60, windowMs: 60_000, methods: ['GET'] },
     'missions/list': { limit: 60, windowMs: 60_000, methods: ['GET'] },
@@ -79,6 +84,7 @@ export const RATE_LIMITS: Record<string, LimitRule> = {
     'missions/daily-bonus': { limit: 10, windowMs: 60_000, methods: ['POST'] },
     'onboarding/progress': { limit: 60, windowMs: 60_000 },
     'lobby/invites': { limit: 60, windowMs: 60_000, methods: ['GET'] },
+    'marketplace/inventory': { limit: 60, windowMs: 60_000, methods: ['GET'] },
     'chips/settle/relay': { limit: 10, windowMs: 60_000, methods: ['POST'] },
     'matches/history': { limit: 60, windowMs: 60_000, methods: ['GET'] },
     'matches/sync-confirm': { limit: 20, windowMs: 60_000, methods: ['POST'] },
@@ -143,6 +149,7 @@ export const SESSION_GATED = new Set([
     'clans/war/buyin',
     'clans/war/fixture',
     'clans/war/notice',
+    'compliance/consent',
     'feedback',
     'friendships',
     'galxe/callback',
@@ -150,12 +157,14 @@ export const SESSION_GATED = new Set([
     'lobby/invite',
     'lobby/join',
     'lobby/policy',
+    'marketplace/inventory',
     'marketplace/purchase',
     'match/record',
     'match/start',
     'matches/history',
     'matches/sync-confirm',
     'matches/unsynced',
+    'matchmaking/backfill-bots',
     'matchmaking/cancel',
     'matchmaking/join',
     'matchmaking/status',

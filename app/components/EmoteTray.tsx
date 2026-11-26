@@ -6,15 +6,19 @@ import type { PlayerColor } from '@/lib/types';
 import { EmojiPackGrid, useEmojiPacks } from './EmojiPicker';
 import {
     PRESET_EMOTES,
+    PROJECTILES,
     createEmoteEvent,
     isEmoteId,
     type EmoteEvent,
     type EmoteId,
+    type ProjectileId,
 } from '@/lib/emotes';
 
 interface EmoteTrayProps {
     myColor: PlayerColor;
     onEmote: (event: EmoteEvent) => void;
+    opponents?: { color: PlayerColor; name: string }[];
+    onThrowProjectile?: (projectileId: ProjectileId, toColor: PlayerColor) => void;
     disabled?: boolean;
 }
 
@@ -22,9 +26,10 @@ interface EmoteTrayProps {
  * G5 — preset emote tray + floating phrases over seats.
  * No voice. No free-text (keeps moderation trivial).
  */
-export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
+export function EmoteTray({ myColor, onEmote, opponents = [], onThrowProjectile, disabled }: EmoteTrayProps) {
     const [open, setOpen] = useState(false);
-    const [tab, setTab] = useState<'text' | string>('text');
+    const [tab, setTab] = useState<'text' | 'throw' | string>('text');
+    const [targetColor, setTargetColor] = useState<PlayerColor | null>(null);
     const packs = useEmojiPacks();
     const [custom, setCustom] = useState(['', '']);
     const [editingSlot, setEditingSlot] = useState<number | null>(null);
@@ -87,13 +92,66 @@ export function EmoteTray({ myColor, onEmote, disabled }: EmoteTrayProps) {
                         </div>
                         <div className="emote-tabs" role="tablist">
                             <button className={tab === 'text' ? 'active' : ''} onClick={() => setTab('text')} role="tab">Text</button>
+                            {opponents.length > 0 && onThrowProjectile && (
+                                <button className={tab === 'throw' ? 'active' : ''} onClick={() => setTab('throw')} role="tab">Throw</button>
+                            )}
                             <div className="emote-pack-tabs-inline">
                                 {packs.map((pack) => (
                                     <button key={pack.id} className={tab === pack.id ? 'active' : ''} onClick={() => setTab(pack.id)} role="tab" aria-label={pack.name}>{pack.tabGlyph}</button>
                                 ))}
                             </div>
                         </div>
-                        {tab === 'text' ? <div className="emote-sheet-grid">
+                        {tab === 'throw' && opponents.length > 0 && onThrowProjectile ? (
+                            <div className="space-y-2 p-2">
+                                {opponents.length > 1 && (
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {opponents.map((opp) => {
+                                            const selectedColor =
+                                                targetColor && opponents.some((o) => o.color === targetColor)
+                                                    ? targetColor
+                                                    : opponents[0].color;
+                                            const active = selectedColor === opp.color;
+                                            return (
+                                                <button
+                                                    key={opp.color}
+                                                    type="button"
+                                                    onClick={() => setTargetColor(opp.color)}
+                                                    className={`px-2 py-1 rounded-lg text-ludo-xs font-mono font-bold border transition-colors ${
+                                                        active
+                                                            ? 'bg-accent-soft border-accent text-accent'
+                                                            : 'bg-surface-recessed border-line-soft text-ink-muted hover:text-ink-strong'
+                                                    }`}
+                                                >
+                                                    {opp.name}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                <div className="emote-sheet-grid">
+                                    {PROJECTILES.map((proj) => {
+                                        const effectiveTarget =
+                                            targetColor && opponents.some((o) => o.color === targetColor)
+                                                ? targetColor
+                                                : opponents[0].color;
+                                        return (
+                                            <button
+                                                key={proj.id}
+                                                type="button"
+                                                className="emote-sheet-option"
+                                                onClick={() => {
+                                                    onThrowProjectile(proj.id, effectiveTarget);
+                                                    setOpen(false);
+                                                }}
+                                            >
+                                                <span className="emote-option-glyph" aria-hidden="true">{proj.badge}</span>
+                                                <span>{proj.label}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        ) : tab === 'text' ? <div className="emote-sheet-grid">
                         {PRESET_EMOTES.map((e) => (
                             <button
                                 key={e.id}

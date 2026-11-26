@@ -74,7 +74,7 @@ export function useAIBrain({
         }
 
         // Action Key: prevent double-scheduling the same turn state
-        const actionKey = `${color}-${phase}-${diceValue}-${isRolling}-${localGameState.boostPendingDice ?? 'none'}`;
+        const actionKey = `${color}-${phase}-${diceValue}-${isRolling}-${localGameState.boostPendingDice ?? 'none'}-${localGameState.powerSpentThisTurn ? '1' : '0'}`;
         if (lastActionRef.current === actionKey) return;
 
         // 🔧 FIX 1: When the actionKey changes, clear any stale timers from the
@@ -167,6 +167,7 @@ export function useAIBrain({
         initialPlayers, 
         localGameState.afkStats, 
         localGameState.playerPowers, 
+        localGameState.powerSpentThisTurn,
         localGameState.positions,
         // 🔧 FIX 1: handleRoll, moveToken, handleUsePower REMOVED from deps.
         // They are accessed via refs, so their identity changes don't re-run this effect.

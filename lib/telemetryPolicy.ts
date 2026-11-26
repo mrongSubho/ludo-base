@@ -61,6 +61,8 @@ export const ALWAYS_SAMPLE_EVENTS = new Set([
     'net_degraded',
     'schema_drop',
     'match_end',
+    'room_reconnect_attempt',
+    'room_reconnect_exhausted',
 ]);
 
 /** Deny-list prefixes — beforeSend must never emit these. */

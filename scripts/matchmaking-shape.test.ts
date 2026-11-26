@@ -25,7 +25,7 @@ test('MM-4: /api/matchmaking/join enforces runtime whitelist boundary on mode an
     const routeSrc = read('app/api/matchmaking/join/route.ts');
     
     // Asserts route defines ALLOWED_MODES and ALLOWED_TYPES sets
-    assert.match(routeSrc, /const\s+ALLOWED_MODES\s*=\s*new\s+Set\(\['classic',\s*'power'\]\)/);
+    assert.match(routeSrc, /const\s+ALLOWED_MODES\s*=\s*new\s+Set\(\['classic',\s*'power',\s*'quick'\]\)/);
     assert.match(routeSrc, /const\s+ALLOWED_TYPES\s*=\s*new\s+Set\(\['1v1',\s*'2v2',\s*'4P'\]\)/);
     // Asserts that invalid modes/types are rejected with 400
     assert.match(routeSrc, /if\s*\(!ALLOWED_MODES\.has\(gameMode\)\s*\|\|\s*!ALLOWED_TYPES\.has\(matchType\)\)/);
@@ -86,12 +86,13 @@ test('MM-8: hybrid matchmaking migration advertises party ticket and hunts waite
     assert.match(sql, /array\[p_player_id,\s*v_opponent_id\]/);
 });
 
-test('MM-9: TeamUpContext.startQuickMatch passes session and resolves host deterministically', () => {
+test('MM-9: TeamUpContext exposes room-owned matchmaking transport cleanly without dead startQuickMatch/useMoveAuth', () => {
     const contextSrc = read('hooks/TeamUpContext.tsx');
 
-    assert.match(contextSrc, /const\s+sessionId\s*=\s*await\s+ensureAppSession\(\)/);
-    assert.match(contextSrc, /sessionId,/);
-    assert.match(contextSrc, /hash\(match_id\)|charCodeAt/);
+    assert.doesNotMatch(contextSrc, /\bstartQuickMatch\b/);
+    assert.doesNotMatch(contextSrc, /\buseMoveAuth\b/);
+    assert.match(contextSrc, /\bconnectRoom\b/);
+    assert.match(contextSrc, /\bgetRoomServerNow\b/);
 });
 
 test('MM-10: status route takes the session from a header only, and the hook never puts it in a URL', () => {
@@ -307,12 +308,15 @@ test('D2: connectRoom surfaces a failed room instead of reverting to host author
     assert.match(ctx, /roomStatus: 'idle' \| 'connecting' \| 'connected' \| 'failed'/);
 });
 
-test('D2: the room retries with backoff and gives up visibly', () => {
+test('D2: the room retries with bounded RoomClient ladder and gives up visibly', () => {
     const ctx = read('hooks/TeamUpContext.tsx');
-    assert.match(ctx, /const retryRoom = useCallback/, 'a retry entry point must exist');
+    const client = read('lib/netcode/roomClient.ts');
+    const proto = read('lib/roomProtocol.ts');
+    assert.match(ctx, /const retryRoom = useCallback/, 'a manual retry entry point must exist');
     assert.match(ctx, /roomClientRef\.current\?\.disconnect\(\)/, 'a failed client must be torn down before retrying');
-    assert.match(ctx, /roomAttemptsRef\.current >= 5/, 'retries must be bounded');
-    assert.match(ctx, /giving up after 5 attempts/);
+    assert.doesNotMatch(ctx, /roomAttemptsRef/, 'TeamUpContext must not run a competing outer retry loop');
+    assert.match(proto, /maxAttempts:\s*10/, 'RoomClient reconnect ladder must be bounded at 10 attempts');
+    assert.match(client, /onReconnectExhausted/, 'RoomClient must surface reconnect exhaustion');
 });
 
 test('D2: the panel shows the room error, not a generic wait', () => {

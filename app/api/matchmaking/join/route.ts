@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { requireAppSession, serviceDb } from '@/lib/serverAuth';
 import { rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 import { checkRateLimitShared } from '@/lib/rateLimitShared';
+import { complianceErrorResponse, requirePaidPlayCompliance } from '@/lib/compliance';
 
 /**
  * Attach the caller's ticket validation_token to a direct-match response.
@@ -72,15 +73,16 @@ export async function POST(request: Request) {
             wagerMax: number;
             roomCode: string;
             slotsNeeded: number;
+            partyWallets?: string[];
             isHybrid: boolean;
         };
         let playerId = body.playerId;
-        const { sessionId, gameMode, matchType, wager, wagerMin, wagerMax, roomCode, slotsNeeded, isHybrid } = body;
+        const { sessionId, gameMode, matchType, wager, wagerMin, wagerMax, roomCode, slotsNeeded, partyWallets, isHybrid } = body;
 
         if (!playerId || !gameMode || !matchType) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
-        const ALLOWED_MODES = new Set(['classic', 'power']);
+        const ALLOWED_MODES = new Set(['classic', 'power', 'quick']);
         const ALLOWED_TYPES = new Set(['1v1', '2v2', '4P']);
         if (!ALLOWED_MODES.has(gameMode) || !ALLOWED_TYPES.has(matchType)) {
             return NextResponse.json({ error: 'Invalid gameMode or matchType' }, { status: 400 });
@@ -100,11 +102,35 @@ export async function POST(request: Request) {
             );
         }
 
+        const effectiveWager = Math.max(
+            0,
+            ...[wager, wagerMin, wagerMax].map((v) => Number(v || 0)).filter((n) => Number.isFinite(n)),
+        );
+        if (effectiveWager > 0) {
+            const compliance = await requirePaidPlayCompliance(request, wallet, 'paidPools');
+            if (!compliance.ok) {
+                return complianceErrorResponse(compliance);
+            }
+        }
+
         console.log('📡 [Matchmaking] Player joining queue...', { playerId, gameMode, matchType, wager, wagerMin, wagerMax, roomCode, isHybrid });
 
         // Hybrid party fill: host advertises a room, guests match straight into it.
         // slotsNeeded is host-side bookkeeping only (the host tracks its seats).
         if (isHybrid) {
+            const cleanPartyWallets = Array.isArray(partyWallets)
+                ? Array.from(
+                      new Set(
+                          partyWallets
+                              .map((w) => String(w || '').trim().toLowerCase())
+                              .filter((w) => /^0x[0-9a-f]{40}$/.test(w)),
+                      ),
+                  )
+                : [];
+            const normalizedSlotsNeeded =
+                typeof slotsNeeded === 'number' && Number.isFinite(slotsNeeded) && slotsNeeded > 0
+                    ? Math.floor(slotsNeeded)
+                    : undefined;
             const { data, error } = await supabase.rpc('join_matchmaking_hybrid', {
                 p_player_id: playerId,
                 p_game_mode: gameMode,
@@ -112,7 +138,9 @@ export async function POST(request: Request) {
                 p_wager: wager || 0,
                 p_wager_min: wagerMin ?? undefined,
                 p_wager_max: wagerMax ?? undefined,
-                p_room_code: roomCode || undefined
+                p_room_code: roomCode || undefined,
+                ...(normalizedSlotsNeeded !== undefined ? { p_slots_needed: normalizedSlotsNeeded } : {}),
+                ...(cleanPartyWallets.length > 0 ? { p_party_wallets: cleanPartyWallets } : {}),
             });
 
             if (error) {

@@ -5,8 +5,10 @@ import { gsap } from 'gsap';
 import { PlayerColor } from '@/lib/types';
 import { Point, ColorCorner } from '@/lib/boardLayout';
 import { prefersReducedMotion } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import { computeReverseTrackCoords } from '@/lib/tokenMovement';
+import type { AnimationBarrier } from '@/lib/animationBarrier';
 import { ChessRank, ChessPiece, RANK_ORDER, shade } from '../ChessTokens';
 
 function alphaHex(hex: string, a: number): string {
@@ -21,6 +23,8 @@ const colorMapSafe = (color: string): string => {
 
 /* ── Promotion FX: expanding glow ring + flash + radial sparkles ── */
 const PromoFX = ({ color }: { color: string }) => {
+    const reduced = useReducedMotion();
+    if (reduced) return null;
     const light = shade(colorMapSafe(color), 55);
     return (
         <>
@@ -100,11 +104,12 @@ export function Token({
 }: TokenProps) {
     const prevRef = useRef<{ rank: ChessRank; pos: number } | null>(null);
     const [showPromoFX, setShowPromoFX] = React.useState(false);
+    const reduced = useReducedMotion();
 
     React.useEffect(() => {
         const prev = prevRef.current;
         prevRef.current = { rank, pos };
-        if (!prev) return;
+        if (!prev || prefersReducedMotion()) return;
         if (RANK_ORDER[rank] > RANK_ORDER[prev.rank as ChessRank]) {
             setShowPromoFX(true);
             const t = setTimeout(() => setShowPromoFX(false), 750);
@@ -251,8 +256,8 @@ export function Token({
             {showValid && (
                 <div className="token-valid-arrow" style={{ color: factionHex }}>
                     <motion.div
-                        animate={{ y: [0, -6, 0] }}
-                        transition={{ duration: 0.85, repeat: Infinity, ease: 'easeInOut' }}
+                        animate={reduced ? { y: 0 } : { y: [0, -6, 0] }}
+                        transition={reduced ? { duration: 0.01 } : { duration: 0.85, repeat: Infinity, ease: 'easeInOut' }}
                     >
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                             <path d="M7 12.5 L3 8.5 L4.2 7.3 L6.2 9.3 L6.2 1.5 L7.8 1.5 L7.8 9.3 L9.8 7.3 L11 8.5 Z" fill="currentColor" />
@@ -267,6 +272,8 @@ export function Token({
 
 /* ── Capture shatter: impact flash + expanding ring + flying shards ── */
 const ShatterFX = ({ pt, color }: { pt: Point; color: PlayerColor }) => {
+    const reduced = useReducedMotion();
+    if (reduced) return null;
     const base = colorMapSafe(color);
     const light = shade(base, 48);
     const shards = [
@@ -326,6 +333,8 @@ const FinishFX = ({
     color: PlayerColor;
     counterRotationDeg?: number;
 }) => {
+    const reduced = useReducedMotion();
+    if (reduced) return null;
     const base = colorMapSafe(color);
     const light = shade(base, 52);
     const confettiColors = [light, '#fbbf24', '#38bdf8', '#ffffff'];
@@ -418,6 +427,7 @@ const RunHomeGhost = ({
     tokenIndex = 0,
     cc,
     counterRotationDeg,
+    animationBarrier,
     onDone,
 }: {
     color: PlayerColor;
@@ -425,12 +435,15 @@ const RunHomeGhost = ({
     tokenIndex?: number;
     cc: ColorCorner;
     counterRotationDeg: number;
+    animationBarrier?: AnimationBarrier;
     onDone: () => void;
 }) => {
     const travelRef = React.useRef<HTMLDivElement | null>(null);
     const hopRef = React.useRef<HTMLDivElement | null>(null);
     const doneRef = React.useRef(onDone);
     doneRef.current = onDone;
+    const barrierRef = React.useRef(animationBarrier);
+    barrierRef.current = animationBarrier;
 
     const anchorPt = React.useMemo(() => {
         const coords = computeReverseTrackCoords(fromPos, color, tokenIndex, cc);
@@ -459,7 +472,21 @@ const RunHomeGhost = ({
             return () => {};
         }
 
-        const tl = gsap.timeline({ onComplete: () => doneRef.current() });
+        const lockName = `rewind:${color}-${tokenIndex}`;
+        barrierRef.current?.acquireLock(lockName, Math.round(m * step * 1000) + 140);
+        let finished = false;
+        const releaseLock = () => {
+            if (finished) return;
+            finished = true;
+            barrierRef.current?.releaseLock(lockName);
+        };
+
+        const tl = gsap.timeline({
+            onComplete: () => {
+                releaseLock();
+                doneRef.current();
+            },
+        });
         getSoundEngine().play('run_home_sprint');
         for (let i = 0; i < m; i++) {
             const t0 = i * step;
@@ -470,6 +497,7 @@ const RunHomeGhost = ({
         tl.to(hopRef.current, { opacity: 0, scale: 0.35, duration: 0.14, ease: 'power2.in' }, '>-=0.04');
         return () => {
             tl.kill();
+            releaseLock();
         };
     }, [color, fromPos, tokenIndex, cc]);
 

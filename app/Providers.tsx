@@ -9,7 +9,9 @@
 // third-party requests Cloudflare flagged as the top opportunity. Re-add this
 // import if an OnchainKit component is ever rendered.
 import { OnchainKitProvider } from "@coinbase/onchainkit";
-import { WagmiProvider, createConfig, http } from "wagmi";
+import { WagmiProvider, createConfig } from "wagmi";
+import { createFallbackRpcTransport } from "@/lib/rpcTransport";
+import { hasAnalyticsConsent, onAnalyticsConsentChange } from "@/lib/complianceClient";
 import { baseSepolia } from "wagmi/chains";
 import { baseAccount, coinbaseWallet, injected, walletConnect, metaMask, safe } from "wagmi/connectors";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
@@ -59,7 +61,7 @@ const config = createConfig({
         safe(),
     ],
     transports: {
-        [baseSepolia.id]: http(),
+        [baseSepolia.id]: createFallbackRpcTransport(baseSepolia.id),
     },
     ssr: true,
     // ERC-8021 Builder Code attribution on every tx (see lib/builderCode.ts).
@@ -82,10 +84,20 @@ export function Providers({ children }: { children: ReactNode }) {
               : 'user';
 
     useEffect(() => {
-        initTelemetry();
+        if (hasAnalyticsConsent()) {
+            initTelemetry();
+        }
+        const unsubscribeConsent = onAnalyticsConsentChange((enabled) => {
+            if (enabled) {
+                initTelemetry();
+            }
+        });
         installBrowserWindowGuard();
         // Warm Base SIWE nonce so "Continue with Base" can open the popup on click.
         prefetchSiweNonce();
+        return () => {
+            unsubscribeConsent();
+        };
     }, []);
     return (
         // CSS_LAYOUT_ANIMATION_PLAN §3.4: the CSS reduced-motion kill-switch does

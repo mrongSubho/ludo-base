@@ -1,8 +1,8 @@
 import { useCallback, useRef, useEffect } from 'react';
 import { PlayerColor, PowerType, PowerItem, GameState, GameStateSetter, BetType, GameActionType, GameIntentType, GameIntentPayloads, GameActionPayload } from '@/lib/types';
-import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, nearestStarAhead, getLegalTokenIndices } from '@/lib/gameLogic';
+import { processMove, getTeammateColor, handleThreeSixes, getNextPlayer as getNextPlayerCore, getLegalTokenIndices, getIntermediatePathCoords } from '@/lib/gameLogic';
 import { activeColorsForTurns } from '@/lib/engine';
-import { applyPowerPickup, clearShieldsOnTurnChange, resolveControllableColor, sweepExpiredPowers } from '@/lib/engine/core';
+import { applyPower, applyPowerPickup, clearShieldsOnTurnChange, CORNER_SLOTS, liveInventory, resolveControllableColor, sweepExpiredPowers, type EngineGameState } from '@/lib/engine/core';
 import { countNukeVictims } from '@/lib/aiEngine';
 import { Player } from './useGameEngine';
 import { ColorCorner } from '@/lib/boardLayout';
@@ -13,7 +13,10 @@ import {
     HOME_LANE_START_INDEX,
 } from '@/lib/constants';
 import { computeMoveSettleBufferMs } from '@/lib/tokenMovement';
-import type { MatchActionErrorCode } from '@/lib/matchProtocol';
+import { prefersReducedMotion } from '@/lib/motion';
+import type { RoomIntentResult } from '@/lib/roomCodes';
+import type { MatchAuthorityMode } from '@/lib/netcode/authorityGate';
+import { friendlyError } from '@/lib/errorCopy';
 
 /**
  * NET-19: outcome of a token move, for callers that act on confirmation.
@@ -38,7 +41,7 @@ interface UseGameActionsProps {
     playerCount: '1v1' | '4P' | '2v2';
     colorCorner: ColorCorner;
     activeColorsArr: PlayerColor[];
-    audio: {
+    audio?: {
         playMove: () => void;
         playCapture: () => void;
         playWin: () => void;
@@ -56,54 +59,29 @@ interface UseGameActionsProps {
      *
      * Supplied by `TeamUpContext` from the room socket state — true only while
      * `/api/room/:matchId/ws` is open and connected. When true this hook sends
-     * intents and renders the room's broadcast; when false the P2P host is the
-     * authority (degraded mode) and guests ask it via `sendIntent`.
+     * intents and renders the room's broadcast; when false and in `'p2p'` mode,
+     * the P2P host is the authority and guests ask it via `sendIntent`.
      */
     roomAuthority: boolean;
+    /** ADR-02 strict mode partition: 'room' | 'p2p' | 'offline'. */
+    matchAuthorityMode?: MatchAuthorityMode;
     /** Send an intent to the room. Rejects when no room socket is open. */
-    sendRoomIntent: (kind: string, payload?: unknown) => Promise<{ ok: boolean; data?: unknown }>;
-    /** @deprecated Edge move-auth path — only reachable when `roomAuthority` is false. */
-    moveAuth?: {
-        submitMove: (p: {
-            matchId: string;
-            color: PlayerColor;
-            tokenIndex: number;
-            rollId: string;
-            expectedSeq: number;
-            source?: 'player' | 'host-assist';
-            actorOverride?: string;
-        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; captured?: boolean; bonusRoll?: boolean; error?: string; code?: MatchActionErrorCode }>;
-        passTurn: (p: {
-            matchId: string;
-            rollId: string;
-            expectedSeq: number;
-            source?: 'player' | 'host-assist';
-            /** Removed (SEC-18): the engine derives pass legality server-side. */
-        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string; code?: MatchActionErrorCode }>;
-        submitPower: (p: {
-            matchId: string;
-            color: PlayerColor;
-            power: PowerType;
-            tokenIndex?: number | null;
-            expectedSeq: number;
-            source?: 'player' | 'host-assist';
-        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string; code?: MatchActionErrorCode; message?: string; armed?: string; kept?: boolean }>;
-        /** Authoritative snapshot fetch — recovery path when a write is refused. */
-        getMatchState?: (matchId: string) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string }>;
-        /**
-         * SEC-01: mint a dice receipt through the match session. No face
-         * parameter exists on purpose — the Edge function is the only source.
-         */
-        requestRoll?: (p: { matchId: string; seatColor: PlayerColor; roomCode?: string }) => Promise<{ ok: boolean; result?: number; rollId?: string | null; error?: string }>;
-    };
-    /** Latest server seq (match_states). */
-    serverSeqRef: React.MutableRefObject<number>;
-    /** Last Edge roll receipt id for the current turn. */
+    sendRoomIntent: (kind: string, payload?: unknown) => Promise<RoomIntentResult>;
+    /** Last roll receipt id for the current turn. */
     lastRollIdRef: React.MutableRefObject<string | null>;
-    /** P4: push Edge results into TeamUpContext match_states cache. */
-    applyServerState?: (state: GameState, seq: number) => void;
 }
 
+
+const NOOP_GAME_AUDIO = {
+    playMove: () => {},
+    playCapture: () => {},
+    playWin: () => {},
+    playNuke: () => {},
+    playShield: () => {},
+    playBoost: () => {},
+    playTeleport: () => {},
+    playPickup: () => {},
+};
 
 export function useGameActions({
     localGameState,
@@ -112,21 +90,19 @@ export function useGameActions({
     address,
     isLobbyConnected,
     roomAuthority,
+    matchAuthorityMode = 'offline',
     sendRoomIntent,
     broadcastAction,
     sendIntent,
     playerCount,
     colorCorner,
     activeColorsArr,
-    audio,
+    audio = NOOP_GAME_AUDIO,
     triggerWinConfetti,
     recordWin,
     autoMoveTimeoutRef,
     startBettingWindow,
-    moveAuth,
-    serverSeqRef,
     lastRollIdRef,
-    applyServerState,
 }: UseGameActionsProps) {
 
 
@@ -134,6 +110,8 @@ export function useGameActions({
     const rollingRef = useRef<boolean>(false);
     const serverActionPendingRef = useRef(false);
     const roomAutoMoveKeyRef = useRef<string>('');
+    const prevRoomPositionsRef = useRef<GameState['positions'] | null>(null);
+    const prevRoomDiceRef = useRef<number | null>(localGameState.diceValue ?? null);
     const stateRef = useRef(localGameState);
     const moveTokenRef = useRef<(color: PlayerColor, tokenIndex: number, steps: number, isRemote?: boolean) => Promise<MoveTokenOutcome>>(async () => 'failed');
 
@@ -169,11 +147,14 @@ export function useGameActions({
         const currentState0 = stateRef.current;
         if (currentState0.status === 'finished' || currentState0.winner) return 'failed';
         const _matchId = currentState0.matchId;
-        // ── Room authority (TU-4) ────────────────────────────────────────
+        // ── Room authority (TU-4 / ADR-02) ───────────────────────────────
         // The MatchRoom resolves the move, commits it atomically and fans the new
         // state out to every socket. This client sends an intent and renders the
-        // broadcast — it does not merge a response into its own board, so there is
-        // no second copy of the rules to drift from the authority.
+        // broadcast — and when in room mode it must NEVER fall through to local
+        // processMove if the socket is momentarily disconnected.
+        if (matchAuthorityMode === 'room' && !roomAuthority && !isRemote) {
+            return 'failed';
+        }
         if (roomAuthority && !isRemote) {
             if (serverActionPendingRef.current) return 'failed';
             if (autoMoveTimeoutRef.current) {
@@ -187,9 +168,9 @@ export function useGameActions({
                     tokenIndex,
                     steps,
                 });
-                const code = (res.data as { code?: string } | undefined)?.code;
-                if (!res.ok && code !== 'POWER_ARMED') {
-                    console.warn('🏟️ [Room] move rejected:', code);
+                if (!res.ok) {
+                    const info = friendlyError(res.code);
+                    console.warn('🏟️ [Room] move rejected:', res.code, info.copy);
                     return 'failed';
                 }
                 lastRollIdRef.current = null;
@@ -270,11 +251,6 @@ export function useGameActions({
                 setLocalGameState((latest) => latest.boostTrail === color ? { ...latest, boostTrail: null, lastUpdate: Date.now() } : latest);
             }, 1600);
         }
-        // Shields stay active through this turn (including bonus rolls) and expire
-        // when turn control returns to the owner (`processMove` handles turn handoffs).
-        if (pendingBoostDice !== null) {
-            finalState.activeShields = currentState.activeShields || [];
-        }
 
         // ── Power pickup: landing exactly on a hidden tile reveals + grants.
         const landedPos = newState.positions[color][tokenIndex];
@@ -295,7 +271,6 @@ export function useGameActions({
                     finalState.captureMessage = captureNotice
                         ? `${captureNotice} ${foundMsg}`.trim()
                         : foundMsg;
-                    audio.playPickup();
                 }
             }
         }
@@ -318,10 +293,7 @@ export function useGameActions({
             broadcastAction('ENGINE_STATE', {}, finalState);
         }
 
-        if (newState.positions[color][tokenIndex] !== currentState.positions[color][tokenIndex]) audio.playMove();
-        if (captured) audio.playCapture();
         if (newState.winner && !currentState.winner) {
-            audio.playWin();
             triggerWinConfetti();
             recordWin(color);
             const mate = getTeammateColor(color, playerCount);
@@ -338,11 +310,16 @@ export function useGameActions({
             );
             const isYardDeploy = Number(currentState.positions[color][tokenIndex]) === BASE_INDEX;
             const settleSteps = isYardDeploy
-                ? DICE_ROLL_SIX
+                ? 1
                 : movedDelta > 0 && movedDelta <= 6
                   ? movedDelta
                   : steps;
-            const settleBufferMs = computeMoveSettleBufferMs(settleSteps, pendingBoostDice !== null);
+            const settleBufferMs = computeMoveSettleBufferMs(
+                settleSteps,
+                pendingBoostDice !== null,
+                '3077',
+                isYardDeploy,
+            );
             autoMoveTimeoutRef.current = setTimeout(() => {
                 rollingRef.current = false;
                 if (pendingBoostDice !== null) {
@@ -415,38 +392,12 @@ export function useGameActions({
             }, settleBufferMs);
         }
         return 'applied';
-    }, [isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, moveAuth, serverSeqRef, lastRollIdRef, address, initialPlayers, applyServerState, getNextPlayer]);
+    }, [isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, audio, playerCount, activeColorsArr, colorCorner, setLocalGameState, autoMoveTimeoutRef, triggerWinConfetti, recordWin, lastRollIdRef, address, initialPlayers, getNextPlayer, matchAuthorityMode]);
 
     moveTokenRef.current = moveToken;
 
-    /**
-     * Pull the authoritative snapshot after a refused write (403 wrong turn,
-     * 409 seq race, transport failure) so a single divergence cannot leave the
-     * board showing a turn the server has already moved past.
-     */
-    const resyncFromServer = useCallback(async (matchId: string) => {
-        if (!moveAuth?.getMatchState) return;
-        try {
-            const snap = await moveAuth.getMatchState(matchId);
-            if (!snap.ok || !snap.state) return;
-            serverSeqRef.current = snap.seq ?? serverSeqRef.current;
-            lastRollIdRef.current = null;
-            rollingRef.current = false;
-            applyServerState?.(snap.state, snap.seq ?? serverSeqRef.current);
-            setLocalGameState(prev => ({
-                ...prev,
-                ...snap.state!,
-                isRolling: false,
-                timeLeft: 15,
-                lastUpdate: Date.now(),
-            }));
-        } catch (err) {
-            console.warn('🔄 [Engine] resync failed', err);
-        }
-    }, [moveAuth, serverSeqRef, lastRollIdRef, applyServerState, setLocalGameState]);
-
     // No `value` parameter, by design. A roll face is never an input to this
-    // function: it comes from Edge `roll-dice` for a networked seat, or local
+    // function: it comes from the MatchRoom DO for a networked seat, or local
     // RNG for an offline one. Previously callers could pass a face and it was
     // used verbatim, which let a seated guest choose their own dice.
     //
@@ -463,18 +414,25 @@ export function useGameActions({
         rollingRef.current = true;
 
         const matchId = stateRef.current.matchId;
+        void matchId;
         const color = localGameState.currentPlayer;
         const currentPlayerInfo = initialPlayers.find(p => p.color === color);
-        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.afkStats?.[color]?.isKicked;
+        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.afkStats?.[color]?.isKicked || localGameState.afkStats?.[color]?.isAutoPlaying;
         
-        // In a networked match, bots are rolled by the server room DO.
-        if (!isRemote && isLobbyConnected && isCurrentlyBot) {
+        // In a networked match, bots and autopiloting seats are rolled by the server room DO.
+        if (!isRemote && (isLobbyConnected || matchAuthorityMode === 'room') && isCurrentlyBot) {
             rollingRef.current = false;
             return 'failed';
         }
 
-        // Degraded fallback intent when server room DO is not yet open
-        if (isLobbyConnected && !roomAuthority && !isRemote) {
+        // Strict ADR-02 partition: room-mode matches must never downgrade to P2P or local dice on transient drops.
+        if (matchAuthorityMode === 'room' && !roomAuthority) {
+            rollingRef.current = false;
+            return 'failed';
+        }
+
+        // Degraded fallback intent only in pure P2P mode when server room DO is not used.
+        if (matchAuthorityMode === 'p2p' && isLobbyConnected && !roomAuthority && !isRemote) {
             sendIntent('REQUEST_ROLL', {});
             rollingRef.current = false;
             return 'failed';
@@ -497,7 +455,13 @@ export function useGameActions({
             const res = await sendRoomIntent('REQUEST_ROLL', { seatColor: color });
             rollingRef.current = false;
             if (!res.ok) {
-                setLocalGameState((prev) => ({ ...prev, isRolling: false, diceValue: null }));
+                const showMsg = res.code === 'RATE_LIMITED' || res.code === 'SESSION_EXPIRED';
+                setLocalGameState((prev) => ({
+                    ...prev,
+                    isRolling: false,
+                    diceValue: null,
+                    ...(showMsg ? { captureMessage: friendlyError(res.code).copy } : {}),
+                }));
                 return 'failed';
             }
             return 'deferred';
@@ -512,6 +476,12 @@ export function useGameActions({
             setLocalGameState((prev) => ({ ...prev, isRolling: false, diceValue: null }));
             rollingRef.current = false;
             console.error('❌ [Engine] networked roll with no server authority — aborting (no client fallback)');
+            return 'failed';
+        }
+        if (matchAuthorityMode !== 'offline') {
+            await tumblePromise;
+            setLocalGameState((prev) => ({ ...prev, isRolling: false, diceValue: null }));
+            rollingRef.current = false;
             return 'failed';
         }
 
@@ -660,53 +630,7 @@ export function useGameActions({
         }
 
         if (pDelayedAction === 'turnSwitch') {
-            // Networked matches are server-authoritative: the turn must also
-            // advance in match_states, or every later move is rejected with
-            // 403 'Not this color turn' and the match wedges permanently.
-            const passRollId = lastRollIdRef.current;
-            const networkedPass = isLobbyConnected && !!moveAuth && !!matchId && matchId !== 'local' && !!passRollId;
-            if (networkedPass) {
-                // Bot/AFK seats are advanced by the host; humans pass for themselves.
-                const passSeat = initialPlayers.find(p => p.color === pTargetColor);
-                const passIsBot = passSeat?.isAi || !!stateRef.current.afkStats?.[pTargetColor]?.isKicked;
-                const passSource: 'player' | 'host-assist' =
-                    passIsBot ? 'host-assist' : 'player';
-                serverActionPendingRef.current = true;
-                try {
-                    const pass = await moveAuth!.passTurn({
-                        matchId: matchId!,
-                        rollId: passRollId!,
-                        expectedSeq: serverSeqRef.current,
-                        source: passSource,
-                    });
-                    if (pass.ok && pass.state) {
-                        // NET-02: applyServerState owns the ref; no local write.
-                        lastRollIdRef.current = null;
-                        rollingRef.current = false;
-                        applyServerState?.(pass.state, pass.seq ?? serverSeqRef.current);
-                        setLocalGameState((latest) => ({
-                            ...latest,
-                            ...pass.state!,
-                            diceValue: null,
-                            gamePhase: 'rolling',
-                            timeLeft: 15,
-                            lastUpdate: Date.now(),
-                        }));
-                        if (broadcastAction) broadcastAction('ENGINE_STATE', {}, pass.state!);
-                    } else {
-                        // Server refused the pass (usually a seq race). Recover
-                        // from the authoritative snapshot instead of wedging.
-                        await resyncFromServer(matchId!);
-                    }
-                } catch (err) {
-                    console.warn('🎲 [Engine] networked pass failed, resyncing', err);
-                    await resyncFromServer(matchId!);
-                } finally {
-                    serverActionPendingRef.current = false;
-                }
-                return 'failed';
-            }
-            // Instant pass: no dead time when nobody can move
+            // Instant pass in local/offline mode (Room DO resolves passes authoritatively on roll).
             setLocalGameState((latest) => {
                 const targetNext = pNextPlayer ?? latest.currentPlayer;
                 const switchState: GameState = {
@@ -738,13 +662,17 @@ export function useGameActions({
             }, 160);
         }
         return 'applied';
-    }, [isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address, moveAuth, serverSeqRef, lastRollIdRef, applyServerState, resyncFromServer]);
+    }, [isLobbyConnected, roomAuthority, sendRoomIntent, sendIntent, broadcastAction, setLocalGameState, initialPlayers, localGameState.winner, localGameState.isRolling, localGameState.diceValue, localGameState.currentPlayer, localGameState.afkStats, startBettingWindow, playerCount, getNextPlayer, moveToken, address, matchAuthorityMode]);
 
     const handleUsePower = useCallback(async (color: PlayerColor, type?: PowerType, tokenIdx?: number) => {
         const prev = stateRef.current;
         if (prev.status === 'finished' || prev.winner) return;
         if (!prev || prev.currentPlayer !== color || prev.gamePhase !== 'rolling') return;
         if (prev.powerSpentThisTurn) return;
+
+        // Strict ADR-02 partition: room-mode powers must never execute locally while disconnected.
+        if (matchAuthorityMode === 'room' && !roomAuthority) return;
+
         // ── Room authority (PW-3) ────────────────────────────────────────
         // The room owns the inventory, so it decides whether this seat holds the
         // power, whether the turn budget is spent, and what the effect is. The
@@ -765,9 +693,8 @@ export function useGameActions({
                     power: type,
                     tokenIndex: tokenIdx,
                 });
-                const code = (res.data as { code?: string } | undefined)?.code;
                 if (!res.ok) {
-                    if (code === 'POWER_ARMED') {
+                    if (res.code === 'POWER_ARMED') {
                         setLocalGameState(s => ({
                             ...s,
                             captureMessage: type === 'nuke'
@@ -775,7 +702,14 @@ export function useGameActions({
                                 : 'Teleport armed — tap one of your tokens.',
                         }));
                     } else {
-                        console.warn('🏟️ [Room] power rejected:', code);
+                        const info = friendlyError(res.code);
+                        console.warn('🏟️ [Room] power rejected:', res.code, info.copy);
+                        if (res.code === 'RATE_LIMITED' || res.code === 'SESSION_EXPIRED' || res.code === 'POWER_REFUSED') {
+                            setLocalGameState(s => ({
+                                ...s,
+                                captureMessage: info.copy,
+                            }));
+                        }
                     }
                 }
             } finally {
@@ -787,151 +721,71 @@ export function useGameActions({
         // ── Offline / legacy local path ──────────────────────────────────
         const now = Date.now();
         const myColor = color as PlayerColor;
-        // Sweep expired + read live inventory.
-        const liveInv: PowerItem[] = (prev.playerPowers[myColor] || []).filter((p: PowerItem) => p.expiresAt > now);
+        const liveInv: PowerItem[] = liveInventory(prev as unknown as EngineGameState, myColor, now);
         const pick: PowerType | undefined = type ?? (['nuke', 'shield', 'boost', 'teleport'] as PowerType[]).find(t => liveInv.some(p => p.type === t));
         if (!pick || !liveInv.some(p => p.type === pick)) return;
 
-        const consume = (inv: PowerItem[], t: PowerType) => {
-            const i = inv.findIndex(p => p.type === t);
-            if (i >= 0) inv.splice(i, 1);
-            return inv;
-        };
-        const nextState = { ...prev };
-        let sound: 'nuke' | 'shield' | 'boost' | 'teleport' | null = null;
-        let flash: { r: number, c: number }[] | null = null;
-
-        if (pick === 'shield') {
-            const tokensOnBoard = prev.positions[myColor]
-                .map((pos: number, idx: number) => (pos >= 0 && pos < HOME_LANE_START_INDEX) ? idx : -1)
-                .filter((idx: number) => idx !== -1);
-
-            const newShields = [...prev.activeShields];
-            tokensOnBoard.forEach((idx: number) => {
-                if (!newShields.some((s) => s.color === myColor && s.tokenIdx === idx)) {
-                    newShields.push({ color: myColor, tokenIdx: idx });
+        let idx = tokenIdx;
+        if (idx === undefined && pick === 'nuke') {
+            // Auto-pick densest cluster (AI path).
+            let best = -1;
+            let bestCount = 0;
+            prev.positions[myColor].forEach((myPos: number, i: number) => {
+                if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return;
+                const { victims } = countNukeVictims(prev, myColor, i, colorCorner, playerCount);
+                if (victims.length > bestCount) {
+                    bestCount = victims.length;
+                    best = i;
                 }
             });
-            nextState.activeShields = newShields;
-            nextState.captureMessage = `Shield up! Protected until your next turn.`;
-            sound = 'shield';
-        }
-        else if (pick === 'nuke') {
-            let idx = tokenIdx;
-            if (idx === undefined) {
-                // Auto-pick densest cluster (AI path).
-                let best = -1;
-                let bestCount = 0;
-                prev.positions[myColor].forEach((myPos: number, i: number) => {
-                    if (myPos < 0 || myPos >= HOME_LANE_START_INDEX) return;
-                    const { victims } = countNukeVictims(prev, myColor, i, colorCorner, playerCount);
-                    if (victims.length > bestCount) {
-                        bestCount = victims.length;
-                        best = i;
-                    }
-                });
-                if (best >= 0) idx = best;
-            }
-            if (idx === undefined) {
-                nextState.captureMessage = `Nuke armed — tap one of your tokens to target.`;
-                setLocalGameState({ ...nextState, lastUpdate: Date.now() });
-                return;
-            }
-            const { victims, cells } = countNukeVictims(prev, myColor, idx, colorCorner, playerCount);
-            if (victims.length === 0) {
-                nextState.captureMessage = `No targets in blast range — nuke kept.`;
-                setLocalGameState({ ...nextState, lastUpdate: Date.now() });
-                return;
-            }
-            const newPositions = { ...prev.positions };
-            const prevStats = prev.matchStats ?? {
-                green: { kicks: 0, gotKicked: 0 },
-                red: { kicks: 0, gotKicked: 0 },
-                yellow: { kicks: 0, gotKicked: 0 },
-                blue: { kicks: 0, gotKicked: 0 },
-            };
-            const nextStats = {
-                green: { ...prevStats.green },
-                red: { ...prevStats.red },
-                yellow: { ...prevStats.yellow },
-                blue: { ...prevStats.blue },
-            };
-            victims.forEach(v => {
-                newPositions[v.color] = [...newPositions[v.color]];
-                newPositions[v.color][v.idx] = BASE_INDEX;
-                nextStats[myColor].kicks += 1;
-                nextStats[v.color].gotKicked += 1;
+            if (best >= 0) idx = best;
+        } else if (idx === undefined && pick === 'teleport') {
+            // Foremost on-board token by travel distance.
+            const startIdx = CORNER_SLOTS[colorCorner[myColor]].startIdx;
+            let bestDist = -1;
+            prev.positions[myColor].forEach((p: number, i: number) => {
+                if (p < 0 || p >= BOARD_FINISH_INDEX) return;
+                const dist = p >= HOME_LANE_START_INDEX ? p : (p - startIdx + 52) % 52;
+                if (dist > bestDist) {
+                    bestDist = dist;
+                    idx = i;
+                }
             });
-            nextState.positions = newPositions;
-            nextState.matchStats = nextStats;
-            nextState.nukeFlash = cells;
-            nextState.captureMessage = `NUKE! ${victims.length} token${victims.length === 1 ? '' : 's'} vaporized!`;
-            sound = 'nuke';
-            flash = cells;
-        }
-        else if (pick === 'boost') {
-            nextState.activeBoost = myColor;
-            nextState.captureMessage = 'BOOST! Next roll grants an extra 6 first, then your roll.';
-            sound = 'boost';
-        }
-        else if (pick === 'teleport') {
-            let idx = tokenIdx;
-            if (idx === undefined) {
-                // Foremost on-board token.
-                let bestPos = -1;
-                prev.positions[myColor].forEach((p: number, i: number) => {
-                    if (p >= 0 && p < BOARD_FINISH_INDEX && p > bestPos) {
-                        bestPos = p;
-                        idx = i;
-                    }
-                });
-            }
-            if (idx === undefined) {
-                nextState.captureMessage = `Teleport armed — tap one of your tokens.`;
-                setLocalGameState({ ...nextState, lastUpdate: Date.now() });
-                return;
-            }
-            const from = prev.positions[myColor][idx];
-            let dest = -1;
-            if (from >= 49 && from <= 56) {
-                dest = BOARD_FINISH_INDEX;
-            } else if (from >= 0 && from < HOME_LANE_START_INDEX) {
-                dest = nearestStarAhead(from, myColor, colorCorner);
-            }
-            if (dest < 0) {
-                nextState.captureMessage = `Nowhere to blink — teleport kept.`;
-                setLocalGameState({ ...nextState, lastUpdate: Date.now() });
-                return;
-            }
-            const newPos = { ...prev.positions };
-            newPos[myColor] = [...newPos[myColor]];
-            newPos[myColor][idx] = dest;
-            nextState.positions = newPos;
-            nextState.captureMessage = dest === BOARD_FINISH_INDEX ? `TELEPORT! Straight home!` : `TELEPORT! Blinked to safety.`;
-            sound = 'teleport';
         }
 
-        // Spend: consume one item, lock the turn's power budget.
-        nextState.playerPowers = {
-            ...prev.playerPowers,
-            [myColor]: consume([...liveInv], pick)
+        const res = applyPower(
+            prev as unknown as EngineGameState,
+            myColor,
+            pick,
+            idx,
+            colorCorner,
+            playerCount,
+            now,
+        );
+
+        if (!res.ok) {
+            setLocalGameState((latest) => ({
+                ...latest,
+                captureMessage: res.error,
+                lastUpdate: Date.now(),
+            }));
+            return;
+        }
+
+        const nextState: GameState = {
+            ...(res.state as unknown as GameState),
+            captureMessage: res.message,
+            lastUpdate: Date.now(),
         };
-        nextState.powerSpentThisTurn = true;
-        nextState.lastUpdate = Date.now();
         setLocalGameState(nextState);
 
-        if (sound === 'nuke') audio.playNuke();
-        else if (sound === 'shield') audio.playShield();
-        else if (sound === 'boost') audio.playBoost();
-        else if (sound === 'teleport') audio.playTeleport();
-
         // Clear the blast flash after the drama lands.
-        if (flash) {
+        if (res.nukeFlash && res.nukeFlash.length > 0) {
             setTimeout(() => {
                 setLocalGameState((latest) => ({ ...latest, nukeFlash: [], lastUpdate: Date.now() }));
             }, 1400);
         }
-    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, roomAuthority, sendRoomIntent, moveAuth, serverSeqRef, address, initialPlayers, applyServerState, lastRollIdRef, resyncFromServer, sendIntent]);
+    }, [playerCount, colorCorner, audio, setLocalGameState, isLobbyConnected, roomAuthority, sendRoomIntent, matchAuthorityMode]);
 
     const handleTokenClick = useCallback((color: PlayerColor, tokenIndex: number) => {
         if (localGameState.gamePhase !== 'moving' || localGameState.diceValue === null) return;
@@ -942,7 +796,10 @@ export function useGameActions({
             initialPlayers.find(p => !p.isAi);
         const myColor = myPlayer?.color;
         const isMyTurn = actingPlayerColor === myColor;
-        const isCurrentlyBot = initialPlayers.find(p => p.color === actingPlayerColor)?.isAi;
+        const afkStat = localGameState.afkStats?.[actingPlayerColor];
+        const isCurrentlyBot =
+            initialPlayers.find(p => p.color === actingPlayerColor)?.isAi ||
+            Boolean(afkStat?.isAutoPlaying || afkStat?.isKicked);
 
         const teammateColor = getTeammateColor(myColor as PlayerColor, playerCount);
         const allMyTokensFinished = myColor ? localGameState.positions[myColor].every((pos: number) => pos === BOARD_FINISH_INDEX) : false;
@@ -952,18 +809,33 @@ export function useGameActions({
         if (isCurrentlyBot) return;
         if (color !== myColor && !isTeammateAssist) return;
 
-        if (isLobbyConnected && !roomAuthority) {
+        if (matchAuthorityMode === 'room') {
+            if (!roomAuthority) return;
+            moveToken(color, tokenIndex, localGameState.diceValue);
+            return;
+        }
+
+        if (matchAuthorityMode === 'p2p' && isLobbyConnected && !roomAuthority) {
             sendIntent('REQUEST_MOVE', { color, tokenIndex });
             return;
         }
 
         moveToken(color, tokenIndex, localGameState.diceValue);
-    }, [localGameState.gamePhase, localGameState.diceValue, localGameState.currentPlayer, localGameState.positions, playerCount, isLobbyConnected, roomAuthority, sendIntent, moveToken, address, initialPlayers]);
+    }, [localGameState.gamePhase, localGameState.diceValue, localGameState.currentPlayer, localGameState.positions, localGameState.afkStats, playerCount, isLobbyConnected, roomAuthority, sendIntent, moveToken, address, initialPlayers, matchAuthorityMode]);
 
     // Immediate auto-move for room-authoritative seats when only 1 legal move exists
-    // (covering normal rolls as well as Boost Step 1 and Step 2).
+    // (covering normal rolls as well as Boost Step 1 and Step 2), deferred until
+    // visual dice landing or Boost Step 1 hop settles so tokens never snap mid-hop.
     useEffect(() => {
-        if (!roomAuthority) return;
+        const prevPos = prevRoomPositionsRef.current;
+        const prevDice = prevRoomDiceRef.current;
+        prevRoomPositionsRef.current = localGameState.positions;
+        prevRoomDiceRef.current = localGameState.diceValue ?? null;
+
+        if (!roomAuthority) {
+            roomAutoMoveKeyRef.current = '';
+            return;
+        }
         if (
             localGameState.status === 'finished' ||
             localGameState.winner ||
@@ -981,7 +853,10 @@ export function useGameActions({
             initialPlayers.find((p) => !p.isAi);
         const myColor = myPlayer?.color;
         if (!myColor || actingColor !== myColor) return;
-        const isBot = initialPlayers.find((p) => p.color === actingColor)?.isAi || localGameState.afkStats?.[actingColor]?.isKicked;
+        const isBot =
+            initialPlayers.find((p) => p.color === actingColor)?.isAi ||
+            localGameState.afkStats?.[actingColor]?.isKicked ||
+            localGameState.afkStats?.[actingColor]?.isAutoPlaying;
         if (isBot) return;
 
         const targetColor = resolveControllableColor(localGameState.positions, myColor, playerCount);
@@ -998,10 +873,51 @@ export function useGameActions({
         if (roomAutoMoveKeyRef.current === key) return;
         roomAutoMoveKeyRef.current = key;
 
+        let delayMs = 180;
+        if (!prefersReducedMotion()) {
+            let movedSteps = 0;
+            let isDeployTransition = false;
+            if (prevPos) {
+                for (const c of ['green', 'red', 'yellow', 'blue'] as PlayerColor[]) {
+                    const pArr = prevPos[c] || [];
+                    const nArr = localGameState.positions[c] || [];
+                    for (let i = 0; i < Math.min(pArr.length, nArr.length); i++) {
+                        const oldP = Number(pArr[i]);
+                        const newP = Number(nArr[i]);
+                        if (oldP === newP) continue;
+                        if (oldP === BASE_INDEX && newP >= 0) {
+                            isDeployTransition = true;
+                            movedSteps = Math.max(movedSteps, 1);
+                        } else if (oldP >= 0 && newP >= 0 && newP <= BOARD_FINISH_INDEX) {
+                            const hops = getIntermediatePathCoords(oldP, newP, c, colorCorner).length;
+                            movedSteps = Math.max(movedSteps, hops || 1);
+                        }
+                    }
+                }
+            }
+            if (isDeployTransition || movedSteps > 0) {
+                delayMs = computeMoveSettleBufferMs(
+                    Math.max(1, movedSteps),
+                    true,
+                    '3077',
+                    isDeployTransition && movedSteps <= 1,
+                );
+            } else if (prevDice == null && diceVal != null) {
+                delayMs = 360;
+            }
+        }
+
+        let fired = false;
         const timer = setTimeout(() => {
+            fired = true;
             void moveTokenRef.current(targetColor, legal[0], diceVal);
-        }, 180);
-        return () => clearTimeout(timer);
+        }, delayMs);
+        return () => {
+            clearTimeout(timer);
+            if (!fired && roomAutoMoveKeyRef.current === key) {
+                roomAutoMoveKeyRef.current = '';
+            }
+        };
     }, [
         roomAuthority,
         localGameState.status,

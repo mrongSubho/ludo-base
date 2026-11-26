@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { requireAppSession, requireSession } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
+import { complianceErrorResponse, requirePaidPlayCompliance } from '@/lib/compliance';
 import { issueVaultVoucher } from '@/lib/arenaVaultVoucher';
 import {
     ArenaVaultError,
@@ -55,6 +56,13 @@ export async function POST(request: Request) {
         }
 
         const { action } = body;
+
+        if (action === 'deposit' || action === 'reserve' || action === 'roll_prize') {
+            const compliance = await requirePaidPlayCompliance(request, authed, 'arenaVaultDeposits');
+            if (!compliance.ok) {
+                return complianceErrorResponse(compliance);
+            }
+        }
 
         if (action === 'deposit') {
             const { txHash, amountChips } = body;

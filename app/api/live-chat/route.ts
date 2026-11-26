@@ -4,6 +4,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { requireSessionWallet, requireAppSession, ensurePlayerRow } from '@/lib/serverAuth';
 import { MAX_CHAT_LEN } from '@/lib/constants';
+import { filterProfanity, getBlockedWallets } from '@/lib/moderation';
 import { sendError, classifyWriteError, SEND_ERROR_STATUS } from '@/lib/sendErrors';
 
 const LIMIT = 20;
@@ -51,7 +52,19 @@ export async function GET(request: Request) {
             error = retry.error;
         }
         if (error) throw error;
-        return NextResponse.json([...(data || [])].reverse());
+        let rows = [...(data || [])].reverse();
+        try {
+            const viewer = await requireSessionWallet(request, { scope: 'app' });
+            if (viewer) {
+                const blocked = await getBlockedWallets(svc(), viewer);
+                if (blocked.size > 0) {
+                    rows = rows.filter((row: any) => !blocked.has(String(row?.sender_id || '').toLowerCase()));
+                }
+            }
+        } catch {
+            /* unauthenticated viewers still see public feed */
+        }
+        return NextResponse.json(rows);
     } catch (err) {
         console.error('[live-chat] GET failed:', err);
         return NextResponse.json(sendError('db_read'), { status: 500 });
@@ -69,7 +82,7 @@ export async function POST(request: Request) {
         const rawWallet = (body.wallet || '').toLowerCase();
         // DB-16: the route cap is the shared constant, equal to the
         // `live_chat.content` DB CHECK — one constant, not two numbers.
-        const content = (body.content || '').slice(0, MAX_CHAT_LEN).trim();
+        const content = filterProfanity((body.content || '').slice(0, MAX_CHAT_LEN).trim());
         const roomCode = typeof body.roomCode === 'string' && /^[A-Z0-9]{6}$/i.test(body.roomCode.trim())
             ? body.roomCode.trim().toUpperCase()
             : null;
@@ -135,8 +148,12 @@ export async function POST(request: Request) {
                 ? `Guest ${wallet.slice(-4).toUpperCase()}`
                 : `User ${wallet.slice(0, 6).toUpperCase()}`;
 
-        // Country from the edge (Vercel). 'XX' = unknown (local dev included).
-        const country = (request.headers.get('x-vercel-ip-country') || 'XX').toUpperCase().slice(0, 2);
+        // Country from the edge (Cloudflare / Vercel). 'XX' = unknown (local dev included).
+        const country = (
+            request.headers.get('cf-ipcountry') ||
+            request.headers.get('x-vercel-ip-country') ||
+            'XX'
+        ).toUpperCase().slice(0, 2);
 
         const FULL_COLS = 'id, sender_id, username, avatar_url, content, country, created_at, room_code, room_open';
 

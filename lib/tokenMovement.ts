@@ -1,8 +1,12 @@
 import type { ColorCorner, Corner, PlayerColor } from './types';
-import { BASE_INDEX, BOARD_FINISH_INDEX, DICE_ROLL_SIX, HOME_LANE_START_INDEX } from './constants';
+import { BASE_INDEX, BOARD_FINISH_INDEX, HOME_LANE_START_INDEX } from './constants';
 import { CORNER_SLOTS, getBoardCoordinate, type Point } from './boardLayout';
 import { getIntermediatePathCoords } from './gameLogic';
 import type { DiceThemeId } from './diceVisuals';
+
+export const DEPLOY_ANIMATION_MS = 420;
+export const SETTLE_TAIL_BUFFER_MS = 190;
+export const DEPLOY_SETTLE_BUFFER_MS = DEPLOY_ANIMATION_MS + SETTLE_TAIL_BUFFER_MS;
 
 export interface HopCadence {
     cellDur: number;
@@ -142,9 +146,13 @@ export function computeMoveSettleBufferMs(
     steps: number,
     boosted: boolean,
     themeId: DiceThemeId = 'retro',
+    isDeploy = false,
 ): number {
+    if (isDeploy) {
+        return DEPLOY_SETTLE_BUFFER_MS;
+    }
     const cadence = computeHopCadence(steps, boosted, themeId);
-    return Math.min(1420, Math.max(400, cadence.totalWalkMs + 190));
+    return Math.min(1420, Math.max(400, cadence.totalWalkMs + SETTLE_TAIL_BUFFER_MS));
 }
 
 /**
@@ -193,7 +201,7 @@ export function classifyTokenTransition(params: {
         }
         return {
             kind: 'deploy',
-            steps: DICE_ROLL_SIX,
+            steps: 1,
             targetPt,
             yardPt: computeYardSlotCoord(corner, tokenIndex),
         };

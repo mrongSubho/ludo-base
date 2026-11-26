@@ -342,3 +342,23 @@ export async function settleArenaMatchPayouts(params: {
     }
     return { settled: Boolean(data?.settled) };
 }
+
+export async function refundMatchVaultStakes(matchId: string): Promise<{
+    refunded: boolean;
+    refundedCount: number;
+    refundedTotal: number;
+}> {
+    const db = serviceDb() as any;
+    const { data, error } = await db.rpc('arena_vault_refund_match', {
+        p_match_id: matchId,
+    });
+    if (error) {
+        console.warn('[arenaVaultService:refundMatchVaultStakes]', error.message);
+        return { refunded: false, refundedCount: 0, refundedTotal: 0 };
+    }
+    return {
+        refunded: Boolean(data?.refunded),
+        refundedCount: Number(data?.refunded_count || 0),
+        refundedTotal: Number(data?.refunded_total || 0),
+    };
+}

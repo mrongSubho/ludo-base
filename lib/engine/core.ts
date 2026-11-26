@@ -8,6 +8,7 @@ export type PlayerColor = 'green' | 'red' | 'yellow' | 'blue';
 export type Corner = 'BL' | 'BR' | 'TR' | 'TL';
 export type ColorCorner = Record<PlayerColor, Corner>;
 export type Point = { r: number; c: number };
+export type EngineGameMode = 'classic' | 'power' | 'quick';
 
 export const BOARD_FINISH_INDEX = 57;
 export const HOME_LANE_START_INDEX = 52;
@@ -248,6 +249,28 @@ export function getLegalTokenIndices(
         if (next !== pos) legal.push(idx);
     });
     return legal;
+}
+
+/**
+ * Create starting token positions for each color based on gameMode.
+ * Quick (Turbo) mode launches with 1 token deployed on the corner's start
+ * square, 1 token in yard, and 2 tokens already finished (57).
+ */
+export function createInitialPositions(
+    cc: ColorCorner,
+    gameMode: EngineGameMode = 'classic',
+): Record<PlayerColor, number[]> {
+    const colors: PlayerColor[] = ['green', 'red', 'yellow', 'blue'];
+    const positions = {} as Record<PlayerColor, number[]>;
+    for (const c of colors) {
+        if (gameMode === 'quick') {
+            const startIdx = CORNER_SLOTS[cc[c]].startIdx;
+            positions[c] = [startIdx, BASE_INDEX, BOARD_FINISH_INDEX, BOARD_FINISH_INDEX];
+        } else {
+            positions[c] = [BASE_INDEX, BASE_INDEX, BASE_INDEX, BASE_INDEX];
+        }
+    }
+    return positions;
 }
 
 /**
@@ -730,9 +753,15 @@ export function pickPersistedState(state: unknown): Record<string, unknown> {
 export function stripPowerTypesForWire<T extends {
     powerTiles?: { r: number; c: number; type?: unknown }[];
     playerPowers?: Partial<Record<string, { type?: unknown; expiresAt?: number }[]>>;
+    powerTileSeed?: unknown;
 }>(state: T, viewerColor?: string): T {
     if (!state) return state;
     let res = state;
+    if ('powerTileSeed' in res && res.powerTileSeed !== undefined) {
+        const withoutSeed = { ...(res as Record<string, unknown>) };
+        delete withoutSeed.powerTileSeed;
+        res = withoutSeed as T;
+    }
     if (state.powerTiles?.length) {
         res = { ...res, powerTiles: state.powerTiles.map(t => ({ r: t.r, c: t.c })) };
     }
@@ -758,27 +787,41 @@ export function isValidDice(value: unknown): value is number {
 }
 
 /**
- * ENG-13: a step count must be a whole number of cells within the widest legal
- * move. Deliberately wider than `isValidDice`: a boosted move is `dice + 6`.
+ * Unbiased uniform 1..6 die draw using CSPRNG rejection sampling (252 = 42 * 6).
+ * Avoids the 2.38% modulo bias of `Uint8Array(1)[0] % 6` on 256 values.
+ */
+export function rollUnbiasedDie(
+    getRandomValues: (arr: Uint8Array) => Uint8Array = (arr) => crypto.getRandomValues(arr),
+): number {
+    const buf = new Uint8Array(1);
+    let b = 252;
+    do {
+        getRandomValues(buf);
+        b = buf[0];
+    } while (b >= 252);
+    return (b % 6) + 1;
+}
+
+/**
+ * ENG-13: a step count must be a whole number of cells within a single
+ * legal move (`1..DICE_MAX`, since Boost splits into a bonus 6 then die roll).
  */
 export function isValidStepCount(steps: unknown): steps is number {
     return (
         typeof steps === 'number'
         && Number.isInteger(steps)
         && steps >= 1
-        && steps <= DICE_MAX + DICE_MAX
+        && steps <= DICE_MAX
     );
 }
 
 /**
- * ENG-13: coerce anything into a legal step count. A boosted move is `dice + 6`,
- * which exceeds a single die; `DICE_MAX + DICE_MAX` is the widest legitimate
- * step, so that is the ceiling.
+ * ENG-13: coerce anything into a legal single-step move ceiling (`0..DICE_MAX`).
  */
 export function clampSteps(steps: unknown): number {
     if (typeof steps !== 'number' || !Number.isFinite(steps)) return 0;
     const rounded = Math.trunc(steps);
-    return Math.max(0, Math.min(rounded, DICE_MAX + DICE_MAX));
+    return Math.max(0, Math.min(rounded, DICE_MAX));
 }
 
 export const DICE_MAX = 6;
@@ -999,14 +1042,26 @@ export function applyPower(
     if (idx < 0 || idx > 3) return { ok: false, error: 'Bad token index' };
     const from = state.positions[color][idx];
     let dest = -1;
-    if (from >= 49 && from <= 56) dest = BOARD_FINISH_INDEX;
-    else if (from >= 0 && from < HOME_LANE_START_INDEX) dest = nearestStarAhead(from, color, cc);
+    if (from >= HOME_LANE_START_INDEX && from <= 56) {
+        dest = BOARD_FINISH_INDEX;
+    } else if (from >= 0 && from < HOME_LANE_START_INDEX) {
+        const corner = cc[color];
+        const startIdx = corner ? CORNER_SLOTS[corner].startIdx : 0;
+        const dist = (from - startIdx + 52) % 52;
+        // Last safe star is at relative distance 47; distances 48..50 have no star before home gate.
+        dest = dist >= 48 ? BOARD_FINISH_INDEX : nearestStarAhead(from, color, cc);
+    }
     if (dest < 0) return { ok: false, error: 'Nowhere to blink — teleport kept.', kept: true };
 
     const newPos = { ...state.positions };
     newPos[color] = [...newPos[color]];
     newPos[color][idx] = dest;
     next.positions = newPos;
+    if (dest >= HOME_LANE_START_INDEX && next.activeShields?.length) {
+        next.activeShields = next.activeShields.filter(
+            s => !(s.color === color && s.tokenIdx === idx)
+        );
+    }
     message = dest === BOARD_FINISH_INDEX ? 'TELEPORT! Straight home!' : 'TELEPORT! Blinked to safety.';
     next.playerPowers = { ...next.playerPowers, [color]: consumeOne(inv, 'teleport') };
     next.powerSpentThisTurn = true;

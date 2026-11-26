@@ -24,7 +24,7 @@ const DIFFICULTY_THREAT: Record<BotDifficulty, number> = {
 };
 
 interface OfflineMatchPanelProps {
-    gameMode: 'classic' | 'power';
+    gameMode: 'classic' | 'power' | 'quick';
     matchType: '1v1' | '2v2' | '4P';
     onClose: () => void;
     onStartOfflineGame: (difficulty: BotDifficulty) => void;

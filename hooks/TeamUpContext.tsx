@@ -9,18 +9,17 @@ import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import { useGameData } from '@/hooks/GameDataContext';
 import { useLobbyManager } from '@/hooks/useLobbyManager';
 import { useSupabaseRelay } from '@/hooks/useSupabaseRelay';
-import { useProvablyFairDice } from '@/hooks/useProvablyFairDice';
 import { useGamePresence } from '@/hooks/useGamePresence';
 import { useBettingController } from '@/hooks/useBettingController';
-import { useSignedResolveBet } from '@/hooks/useSignedResolveBet';
-import { useMoveAuth, clearAllMoveSessions } from '@/hooks/useMoveAuth';
 import { useAppSession } from '@/hooks/useAppSession';
 import { useMatchStates } from '@/hooks/useMatchStates';
 import { sanitizeGameStateForWire } from '@/lib/wireSanitize';
 import { createPeerInstance } from '@/lib/peerFactory';
 import { RoomClient } from '@/lib/netcode/roomClient';
+import { isRoomError, type RoomErrorCode, type RoomIntentResult } from '@/lib/roomCodes';
 import { INITIAL_GAME_STATE as ENGINE_INIT, calculateNextPosition } from '@/lib/gameLogic';
 import { clearShieldsOnTurnChange } from '@/lib/engine/core';
+import { filterProfanity } from '@/lib/profanity';
 import {
     GameState,
     PlayerColor,
@@ -73,27 +72,17 @@ export interface TeamUpContextType {
     /** SEC-12: the third arg declares the lobby's join door. */
     hostGame: (roomId?: string, expectedValidationToken?: string, joinPolicy?: 'matchmaking' | 'invite' | 'open') => void;
     joinGame: (roomId: string, token?: string, desiredSeat?: number) => void;
-    initQuickLobby: (roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => void;
-    hostQuickLobby: (matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power', entryFee?: number) => string;
+    initQuickLobby: (roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power' | 'quick', entryFee?: number) => void;
+    hostQuickLobby: (matchType: '1v1' | '2v2' | '4P', gameMode?: 'classic' | 'power' | 'quick', entryFee?: number) => string;
     sendIntent: <T extends GameIntentType>(type: T, payload: GameIntentPayloads[T]) => void;
     broadcastAction: <T extends GameActionType>(type: T, payload?: GameActionPayload<T>, fullState?: GameState) => void;
+    broadcastSocial: (type: 'EMOTE' | 'CHAT' | 'REMATCH' | 'PROJECTILE', payload?: Record<string, unknown>) => boolean;
     broadcastLobbyAction: (type: LobbyActionType, payload?: Record<string, unknown>) => void;
     swapPlayers: (fromIdx: number, toIdx: number) => void;
     kickPlayer: (slotIdx: number) => void;
     sendInvite: (friendId: string, friendName?: string, role?: 'teammate' | 'opponent') => void;
     acceptInvite: () => void;
     rejectInvite: () => void;
-    startQuickMatch: (opts?: {
-        gameMode?: 'classic' | 'power';
-        matchType?: '1v1' | '2v2' | '4P';
-        wager?: number;
-    }) => Promise<void>;
-    createProvisionalSession: (
-        authorizationKey: string,
-        roomCode?: string,
-        opts?: { context?: import('@/hooks/useAuthPrompt').AuthPromptContext; title?: string; statusText?: string }
-    ) => Promise<{ ok: boolean; provisionalId?: string; error?: string }>;
-    bindProvisionalSession: (provisionalId: string, matchId: string, roomCode?: string) => Promise<{ ok: boolean; sessionId?: string; error?: string }>;
     myAddress: string | undefined;
     updateGameState: (state: Partial<GameState>) => void;
     participants: Record<string, { address: string; username?: string; avatar_url?: string; color?: PlayerColor; lxp?: number; rxp?: number }>;
@@ -160,12 +149,17 @@ export interface TeamUpContextType {
     /** D2: room socket state — 'failed' means the room is unreachable, not merely absent. */
     roomStatus: 'idle' | 'connecting' | 'connected' | 'failed';
     /** D2: why it failed — 'not-deployed' needs a Cloudflare Workers deploy. */
-    roomError: 'none' | 'not-deployed' | 'unreachable';
+    roomError: 'none' | 'not-deployed' | 'unreachable' | 'auth-expired' | 'protocol-mismatch';
+    roomInstance: string | null;
+    /** Increments whenever the room socket applies an authoritative resync snapshot. */
+    roomResyncCount: number;
     retryRoom: () => void;
     /** Send an intent to the room. Rejects when no room socket is open. */
-    sendRoomIntent: (kind: string, payload?: unknown) => Promise<{ ok: boolean; data?: unknown }>;
+    sendRoomIntent: (kind: string, payload?: unknown) => Promise<RoomIntentResult>;
     /** Connect to the match room DO. */
     connectRoom: (matchId: string, seedPayload?: unknown) => void;
+    /** Server-aligned wall clock estimate (`Date.now() + clockOffsetMs`). */
+    getRoomServerNow: () => number;
 }
 
 const TeamUpContext = createContext<TeamUpContextType | undefined>(undefined);
@@ -194,19 +188,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const { signTypedDataAsync } = useSignTypedData();
     const { sessionId: appSessionId, ensureAppSession, peekAppSession } = useAppSession();
     const { myProfile } = useGameData();
-    const moveAuth = useMoveAuth({
-        myAddress,
-        signMessageAsync: player.signMessageAsync,
-        signTypedDataAsync: player.signTypedDataAsync,
-        chainId,
-    });
-    const createProvisionalSession = useCallback((
-        authorizationKey: string,
-        roomCode?: string,
-        opts?: { context?: import('@/hooks/useAuthPrompt').AuthPromptContext; title?: string; statusText?: string }
-    ) => moveAuth.createProvisionalSession({ authorizationKey, roomCode, ...opts }), [moveAuth]);
-    const bindProvisionalSession = useCallback((provisionalId: string, matchId: string, roomCode?: string) =>
-        moveAuth.bindProvisionalSession({ provisionalId, matchId, roomCode }), [moveAuth]);
     // NET-04: intents queue. The single-slot version dropped every intent
     // that arrived while the host was busy, so a fast guest's second roll or
     // move vanished with no ACK and no retry.
@@ -332,15 +313,17 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const [roomStatus, setRoomStatus] = useState<'idle' | 'connecting' | 'connected' | 'failed'>('idle');
     /**
      * D2: WHY the room failed. A bare 'failed' still leaves the player guessing, and
-     * the two real causes need different fixes by different people:
-     *   'not-deployed'  /api/room/:id/ws returned 404 — this host has no room endpoint.
-     *                    Only `src/worker.ts` serves it, so a plain Next host (dev,
-     *                    Vercel) can never work. Fix: deploy to Cloudflare Workers.
-     *   'unreachable'   network-level failure or no 426 — Worker missing/unroutable.
-     * Fix: deployment / connectivity.
+     * the causes need different fixes:
+     *   'not-deployed'      /api/room/:id/ws returned 404 — Workers deploy needed.
+     *   'unreachable'       network-level failure or reconnect ladder exhausted.
+     *   'auth-expired'      match/app session expired — explicit user sign-in needed.
+     *   'protocol-mismatch' wire protocol v1 mismatch — client reload needed.
      */
-    const [roomError, setRoomError] = useState<'none' | 'not-deployed' | 'unreachable'>('none');
-    const roomAttemptsRef = useRef(0);
+    const [roomError, setRoomError] = useState<'none' | 'not-deployed' | 'unreachable' | 'auth-expired' | 'protocol-mismatch'>('none');
+    const roomErrorRef = useRef(roomError);
+    useEffect(() => { roomErrorRef.current = roomError; }, [roomError]);
+    const [roomInstance, setRoomInstance] = useState<string | null>(null);
+    const [roomResyncCount, setRoomResyncCount] = useState(0);
     const lastRoomMatchIdRef = useRef<string | null>(null);
     /**
      * TU-4: the board the host owns at the moment the room becomes reachable. A
@@ -353,7 +336,11 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         roomClientRef.current?.disconnect();
         roomClientRef.current = null;
         pendingRoomSeedRef.current = null;
+        lastRoomMatchIdRef.current = null;
         setRoomAuthority(false);
+        setRoomInstance(null);
+        setRoomStatus('idle');
+        setRoomError('none');
         setMatchConnectionStatus('offline');
         setHasAuthoritativeSnapshot(false);
         hasAuthoritativeSnapshotRef.current = false;
@@ -369,6 +356,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         if (lastRoomMatchIdRef.current !== matchId) {
             serverSeqRef.current = 0;
             setServerSeq(0);
+            setRoomInstance(null);
             setHasAuthoritativeSnapshot(false);
             hasAuthoritativeSnapshotRef.current = false;
         }
@@ -390,19 +378,27 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     setRoomStatus('failed');
                     return;
                 }
+                const probeInstance = probe.headers.get('X-Room-Instance');
+                if (probeInstance) setRoomInstance(probeInstance);
                 setRoomError('none');
             } catch (e) {
                 // Network-level failure. Let the socket attempt report it too.
                 console.warn('🏟️ [Room] preflight could not reach the room endpoint:', e);
                 setRoomError('unreachable');
             }
+            if (lastRoomMatchIdRef.current !== matchId) return;
 
-            let ticket: string | undefined;
+            // Two-tier identity check: never trigger background ensureAppSession().
+            // If no active app session exists or /api/auth/match returns 401, surface
+            // 'auth-expired' so the player explicitly taps Reconnect / Sign In.
+            let inBandToken: string | undefined;
+            const sid = appSessionId || peekAppSession();
+            if (!sid && myAddress) {
+                setRoomError('auth-expired');
+                setRoomStatus('failed');
+                return;
+            }
             try {
-                let sid = appSessionId || peekAppSession();
-                if (!sid && myAddress) {
-                    sid = await ensureAppSession();
-                }
                 const headers: Record<string, string> = { 'Content-Type': 'application/json' };
                 if (sid) headers['authorization'] = `Bearer ${sid}`;
                 const res = await fetch('/api/auth/match', {
@@ -410,36 +406,102 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                     headers,
                     body: JSON.stringify({ matchId, as: 'match' }),
                 });
+                if (res.status === 401) {
+                    setRoomError('auth-expired');
+                    setRoomStatus('failed');
+                    return;
+                }
                 if (res.ok) {
                     const data = await res.json();
-                    ticket = data.ticket;
+                    inBandToken = data.token;
                 }
             } catch (e) {
-                console.warn('[Room] Could not pre-fetch match ticket:', e);
+                console.warn('[Room] Could not pre-fetch match token:', e);
             }
+            if (lastRoomMatchIdRef.current !== matchId) return;
 
             try {
                 const client = new RoomClient({
                     matchId,
-                    ticket,
-                    onState: (state, seq) => {
+                    inBandToken,
+                    as: 'seat',
+                    onState: (state, seq, _lastIntentId, resync) => {
+                        if (resync) {
+                            setRoomResyncCount((n) => n + 1);
+                        }
                         // The room's fan-out is the authority stream; seq-gate it like any
                         // other snapshot so a late frame cannot rewind the board.
-                        applyServerState(state, seq);
+                        applyServerState(state, seq, Boolean(resync));
+                    },
+                    onSocial: (msg) => {
+                        if (typeof window === 'undefined') return;
+                        const raw = msg.payload || {};
+                        if (msg.socialType === 'EMOTE') {
+                            const customText =
+                                typeof raw.customText === 'string'
+                                    ? filterProfanity(raw.customText)
+                                    : undefined;
+                            window.dispatchEvent(
+                                new CustomEvent('ludo-emote', {
+                                    detail: {
+                                        ...raw,
+                                        ...(msg.fromColor ? { color: msg.fromColor } : {}),
+                                        ...(msg.wallet ? { actor: msg.wallet } : {}),
+                                        ...(customText !== undefined ? { customText } : {}),
+                                    },
+                                }),
+                            );
+                            return;
+                        }
+                        if (msg.socialType === 'CHAT') {
+                            const text = typeof raw.text === 'string' ? filterProfanity(raw.text) : '';
+                            if (!text) return;
+                            window.dispatchEvent(
+                                new CustomEvent('ludo-chat', {
+                                    detail: {
+                                        ...raw,
+                                        text,
+                                        ...(msg.fromColor ? { color: msg.fromColor } : {}),
+                                    },
+                                }),
+                            );
+                            return;
+                        }
+                        if (msg.socialType === 'REMATCH') {
+                            window.dispatchEvent(
+                                new CustomEvent('ludo-rematch', {
+                                    detail: {
+                                        ...raw,
+                                        ...(msg.fromColor ? { color: msg.fromColor } : {}),
+                                        ...(msg.wallet ? { wallet: msg.wallet } : {}),
+                                    },
+                                }),
+                            );
+                            return;
+                        }
+                        if (msg.socialType === 'PROJECTILE') {
+                            window.dispatchEvent(
+                                new CustomEvent('ludo-projectile', {
+                                    detail: {
+                                        ...raw,
+                                        ...(msg.fromColor ? { fromColor: msg.fromColor } : {}),
+                                    },
+                                }),
+                            );
+                        }
+                    },
+                    onRoomInstance: (inst) => {
+                        setRoomInstance(inst);
                     },
                     onStatusChange: (status) => {
                         const connected = status === 'connected';
                         setRoomAuthority(connected);
                         if (connected) {
-                            roomAttemptsRef.current = 0;
+                            setRoomError('none');
                             setRoomStatus('connected');
                             setMatchConnectionStatus('connected');
                         } else if (status === 'disconnected') {
-                            setRoomError((prev) => (prev === 'none' ? 'unreachable' : prev));
-                            // D2: a room that drops is a failure to surface, not a
-                            // reason to quietly hand authority back to a P2P host.
-                            setRoomStatus('failed');
-                            setMatchConnectionStatus('offline');
+                            setMatchConnectionStatus(roomClientRef.current ? 'reconnecting' : 'offline');
                         } else if (status === 'connecting' || status === 'resyncing') {
                             if (status === 'connecting') setRoomStatus('connecting');
                             setMatchConnectionStatus('reconnecting');
@@ -453,13 +515,34 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                             pendingRoomSeedRef.current = null;
                         }
                     },
+                    onReconnectAttempt: () => {
+                        setRoomError((prev) => (prev === 'none' ? 'unreachable' : prev));
+                        setRoomStatus('failed');
+                        setMatchConnectionStatus('reconnecting');
+                    },
+                    onReconnectExhausted: () => {
+                        setRoomAuthority(false);
+                        setRoomError((prev) => (prev === 'none' ? 'unreachable' : prev));
+                        setRoomStatus('failed');
+                        setMatchConnectionStatus('offline');
+                    },
+                    onAuthExpired: () => {
+                        setRoomAuthority(false);
+                        setRoomError('auth-expired');
+                        setRoomStatus('failed');
+                        setMatchConnectionStatus('offline');
+                    },
                     onRejected: (err) => {
-                        console.warn('🏟️ [Room] intent rejected:', err.code, err.error);
+                        console.warn('🏟️ [Room] intent rejected:', err.code, err.reason);
                     },
                     onError: (err) => {
                         console.warn('🏟️ [Room] transport error:', err);
                         setRoomStatus('failed');
-                        setRoomError((prev) => (prev === 'none' ? 'unreachable' : prev));
+                        if (isRoomError(err) && err.code === 'PROTOCOL_MISMATCH') {
+                            setRoomError('protocol-mismatch');
+                        } else {
+                            setRoomError((prev) => (prev === 'none' ? 'unreachable' : prev));
+                        }
                     },
                 });
                 roomClientRef.current = client;
@@ -476,15 +559,13 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         };
 
         void doConnect();
-    }, [applyServerState, isHost, appSessionId, peekAppSession, ensureAppSession, myAddress]);
+    }, [applyServerState, isHost, appSessionId, peekAppSession, myAddress]);
+
+    const getRoomServerNow = useCallback(() => roomClientRef.current?.getServerNow() ?? Date.now(), []);
 
     /**
-     * D2: retry the room socket with backoff.
-     *
-     * `connectRoom` short-circuits when a client already exists, so a failed
-     * client has to be torn down first. Bounded at 5 attempts — beyond that the
-     * UI keeps showing the error and the player can leave, rather than the app
-     * silently retrying forever.
+     * Explicit user-gesture room reconnect (or session refresh on auth-expired).
+     * Automatic socket reconnects are owned exclusively by RoomClient's 3s x 10 ladder.
      */
     const retryRoom = useCallback(() => {
         const id = lastRoomMatchIdRef.current;
@@ -492,37 +573,60 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         try { roomClientRef.current?.disconnect(); } catch { /* already gone */ }
         roomClientRef.current = null;
         setRoomAuthority(false);
-        connectRoom(id);
-    }, [connectRoom]);
-
-    useEffect(() => {
-        if (roomStatus !== 'failed') return;
-        if (!lastRoomMatchIdRef.current) return;
-        if (roomAttemptsRef.current >= 5) {
-            console.error('🏟️ [Room] giving up after 5 attempts — the room endpoint is unreachable');
+        if (roomErrorRef.current === 'auth-expired') {
+            void ensureAppSession()
+                .catch(() => null)
+                .finally(() => {
+                    setRoomError('none');
+                    connectRoom(id);
+                });
             return;
         }
-        const delay = Math.min(1500 * 2 ** roomAttemptsRef.current, 12000);
-        const t = setTimeout(() => {
-            roomAttemptsRef.current += 1;
-            retryRoom();
-        }, delay);
-        return () => clearTimeout(t);
-    }, [roomStatus, retryRoom]);
+        setRoomError('none');
+        connectRoom(id);
+    }, [connectRoom, ensureAppSession]);
 
-    const sendRoomIntent = useCallback(async (kind: string, payload?: unknown) => {
+    const sendRoomIntent = useCallback(async (kind: string, payload?: unknown): Promise<RoomIntentResult> => {
         const client = roomClientRef.current;
-        if (!client) return { ok: false, data: { code: 'NO_ROOM' } };
-        try {
-            return await client.sendIntent(kind, payload ?? {});
-        } catch (err) {
-            const rejected = err as Error & { code?: string; reason?: string; seq?: number };
+        if (!client) {
             return {
                 ok: false,
+                code: 'NO_ROOM',
+                error: 'Room is not connected',
+                data: {
+                    code: 'NO_ROOM',
+                    error: 'Room is not connected',
+                },
+            };
+        }
+        try {
+            const res = await client.sendIntent(kind, payload ?? {});
+            return {
+                ok: true,
+                data: res.data,
+                roomInstance: client.getRoomInstance() ?? undefined,
+            };
+        } catch (err) {
+            const rejected = err as Error & {
+                code?: RoomErrorCode;
+                reason?: string;
+                seq?: number;
+                roomInstance?: string;
+            };
+            const code: RoomErrorCode = rejected.code || 'ROOM_INTENT_FAILED';
+            const error = rejected.reason || rejected.message || 'Room intent failed';
+            const roomInst = rejected.roomInstance ?? client.getRoomInstance() ?? undefined;
+            return {
+                ok: false,
+                code,
+                error,
+                seq: rejected.seq,
+                roomInstance: roomInst,
                 data: {
                     code: rejected.code || 'ROOM_INTENT_FAILED',
-                    error: rejected.reason || rejected.message,
+                    error,
                     seq: rejected.seq,
+                    roomInstance: roomInst,
                 },
             };
         }
@@ -563,7 +667,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             }
         },
         onStatus: (status) => {
-            if (roomAuthority && status === 'syncing') return;
+            if (roomAuthority || roomClientRef.current) return;
             setMatchConnectionStatus(status);
         },
         // NET-05: a client that already holds a snapshot must not be paused by
@@ -687,16 +791,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         
         // Only the original P2P Host handles START_GAME logic
         if (type === 'START_GAME' && isHost) {
-            // 🚀 Escrow Pre-Warm logic for Zero-Trust RNG
-            fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/roll-dice`, {
-                method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
-                },
-                body: JSON.stringify({ isPreWarm: true })
-            }).catch(err => console.error('Failed to pre-warm roll-dice function', err));
-
             // Always persist matchId on the host game state. /api/match/start
             // may fail; without an id every roll/move falls back to 'local'
             // and never hits move-auth.
@@ -729,70 +823,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             resetNetCounters();
             sendMatchEvent({ type: 'ALL_SEATED' });
             sendMatchEvent({ type: 'START' });
-
-            // Seed server-authoritative match_states (v2 move validation)
-            if (myAddress && startPayload.initialBoardConfig) {
-                const seats: Record<string, { kind: 'human' | 'bot' | 'afk'; wallet?: string }> = {};
-                (startPayload.initialBoardConfig.players as { color: string; isAi?: boolean; walletAddress?: string }[] || [])
-                    .forEach(p => {
-                        seats[p.color] = p.isAi
-                            ? { kind: 'bot' }
-                            : { kind: 'human', wallet: p.walletAddress };
-                    });
-                const initialState = {
-                    ...ENGINE_INIT,
-                    matchId,
-                    playerCount: startPayload.playerCount || '4P',
-                    currentPlayer: startPayload.initialBoardConfig.players?.[0]?.color || 'green',
-                    isStarted: true,
-                    status: 'playing' as const,
-                    powerTiles: gameStateRef.current.powerTiles || [],
-                    // ENG-11: commit the host's respawn seed so the Edge
-                    // authority and every guest spawn identical tiles.
-                    powerTileSeed: gameStateRef.current.powerTileSeed
-                        ?? ((Math.random() * 0x100000000) >>> 0),
-                    playerPowers: gameStateRef.current.playerPowers || ENGINE_INIT.playerPowers,
-                    powerSpentThisTurn: false,
-                    activeBoost: null,
-                    activeShields: [],
-                    activeTraps: [],
-                    consecutiveSixes: 0,
-                };
-                moveAuth.seedMatch({
-                    matchId,
-                    roomCode: currentRoomCode || roomId || '',
-                    colorCorner: startPayload.initialBoardConfig.colorCorner,
-                    playerSeats: seats,
-                    initialState,
-                }).then(async (r) => {
-                    if (!r.ok) {
-                        console.error('🌱 [MoveAuth] seed failed', (r as { data?: unknown; error?: string }).data || (r as { error?: string }).error);
-                        return;
-                    }
-                    console.log('🌱 [MoveAuth] seeded match_states', (r as { data?: { seq?: number } }).data?.seq);
-                    serverSeqRef.current = 0;
-                    setServerSeq(0);
-                    setMatchConnectionStatus('offline');
-                    try {
-                        const provisionalKey = `room:${currentRoomCode || roomId || ''}`;
-                        const provisionalId = sessionStorage.getItem(`ludo-provisional:${provisionalKey}`);
-                        const sess = provisionalId
-                            ? await moveAuth.bindProvisionalSession({
-                                provisionalId,
-                                matchId,
-                                roomCode: currentRoomCode || roomId || '',
-                            })
-                            : await moveAuth.createMatchSession({
-                                matchId,
-                                roomCode: currentRoomCode || roomId || '',
-                            });
-                        if (!sess.ok) console.error('🔑 [MoveAuth] session failed', sess.error);
-                        else console.log('🔑 [MoveAuth] session ready', sess.sessionId);
-                    } catch (err) {
-                        console.error('🔑 [MoveAuth] session error', err);
-                    }
-                }).catch(err => console.error('🌱 [MoveAuth] seed error', err));
-            }
 
             setLobbyState((prev: LobbyState | null) => {
                 if (!prev) return prev;
@@ -878,34 +908,50 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         relayViaSupabase('lobby-action', actionData, lobbyStateRef);
     }, [isHost, broadcastToAll, relayViaSupabase, lobbyStateRef]);
 
+    const lastSocialAtRef = useRef<Record<string, number>>({});
+    /**
+     * Broadcasts ephemeral social actions (EMOTE / CHAT / REMATCH / PROJECTILE)
+     * from ANY seated participant (both host and guest — never blocked by `!isHost`).
+     */
+    const broadcastSocial = useCallback(
+        (type: 'EMOTE' | 'CHAT' | 'REMATCH' | 'PROJECTILE', payload: Record<string, unknown> = {}): boolean => {
+            const now = Date.now();
+            const bucket = type === 'EMOTE' || type === 'PROJECTILE' ? 'reaction' : type;
+            const cooldownMs = bucket === 'reaction' ? 800 : type === 'CHAT' ? 600 : 300;
+            const prevAt = lastSocialAtRef.current[bucket] ?? 0;
+            if (now - prevAt < cooldownMs) {
+                return false;
+            }
+            lastSocialAtRef.current[bucket] = now;
+
+            const stamped: Record<string, unknown> = {
+                ...payload,
+                actor: payload.actor ?? myAddress,
+                t: typeof payload.t === 'number' ? payload.t : now,
+            };
+            if (type === 'CHAT' && typeof stamped.text === 'string') {
+                stamped.text = filterProfanity(stamped.text);
+            }
+            if (type === 'EMOTE' && typeof stamped.customText === 'string') {
+                stamped.customText = filterProfanity(stamped.customText);
+            }
+
+            if (roomClientRef.current && roomClientRef.current.sendSocial(type, stamped)) {
+                return true;
+            }
+
+            broadcastToAll({ type, ...stamped });
+            relayViaSupabase('game-action', { type, ...stamped }, lobbyStateRef);
+            return true;
+        },
+        [myAddress, broadcastToAll, relayViaSupabase, lobbyStateRef],
+    );
+
     // 4. Betting Window Controller (extracted)
     const { activeBetWindow, startBettingWindow } = useBettingController({
         isHost,
         matchId: gameState.matchId,
         broadcastAction,
-    });
-
-    // 5. Provably Fair Dice
-    // 5. Provably Fair Dice + signed bet resolution
-    const resolveBet = useSignedResolveBet({
-        isHost,
-        myAddress,
-        signMessageAsync: (args) => player.signMessageAsync(args),
-    });
-
-    const {
-        initiateDiceRoll,
-        handleCommitReceived,
-        handleRevealReceived
-    } = useProvablyFairDice({
-        gameState,
-        setGameState,
-        isHost,
-        myAddress,
-        connection: connections.values().next().value || null,
-        broadcastAction,
-        broadcastToAll,
-        resolveBet,
     });
 
     // 6. Game Engine Action Processor
@@ -949,7 +995,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         if (room === null) return;
         processedActionIds.current.clear();
         processedIntentIds.current.clear();
-        clearAllMoveSessions();
         intentAckTimers.current.forEach(t => clearTimeout(t));
         intentAckTimers.current.clear();
         clearRetryLadders();
@@ -1040,7 +1085,10 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
         // G5 — preset emote float (lightweight; not a DM)
         if (type === 'EMOTE') {
-            const payload = (data.payload ?? data.action ?? data) as Record<string, unknown>;
+            const payload = { ...((data.payload ?? data.action ?? data) as Record<string, unknown>) };
+            if (typeof payload.customText === 'string') {
+                payload.customText = filterProfanity(payload.customText);
+            }
             if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('ludo-emote', { detail: payload }));
             }
@@ -1049,7 +1097,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
         // In-match lobby chat (seat bubbles; not a DM)
         if (type === 'CHAT') {
-            const payload = (data.payload ?? data.action ?? data) as Record<string, unknown>;
+            const payload = { ...((data.payload ?? data.action ?? data) as Record<string, unknown>) };
+            if (typeof payload.text === 'string') {
+                const cleanText = filterProfanity(payload.text);
+                if (!cleanText.trim()) return;
+                payload.text = cleanText;
+            }
             if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('ludo-chat', { detail: payload }));
             }
@@ -1061,6 +1114,15 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
             const payload = (data.payload ?? data.action ?? data) as Record<string, unknown>;
             if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('ludo-rematch', { detail: payload }));
+            }
+            return;
+        }
+
+        // Seat-to-seat throwable social projectile (visual only)
+        if (type === 'PROJECTILE') {
+            const payload = (data.payload ?? data.action ?? data) as Record<string, unknown>;
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('ludo-projectile', { detail: payload }));
             }
             return;
         }
@@ -1278,12 +1340,8 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 lastUpdate: Date.now(),
                 lastAction: { type: 'TURN_SWITCH', payload: data }
             }));
-        } else if (type === 'DICE_COMMIT') {
-            handleCommitReceived(String(data.sender || ''), String(data.hash || ''), lobbyStateRef);
-        } else if (type === 'DICE_REVEAL') {
-            handleRevealReceived(String(data.sender || ''), String(data.nonce || ''), lobbyStateRef);
         }
-    }, [processedActionIds, processedIntentIds, handleCommitReceived, handleRevealReceived, setGameState, setLobbyState, setIsLobbyConnected, isHost, isComputeHost, myAddress, currentRoomCode, roomId, applyServerState, connectRoom]);
+    }, [processedActionIds, processedIntentIds, setGameState, setLobbyState, setIsLobbyConnected, isHost, isComputeHost, myAddress, currentRoomCode, roomId, applyServerState, connectRoom]);
 
     // 🔄 Sync Profile to peers when local profile updates
     useEffect(() => {
@@ -1332,8 +1390,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
                 setIntentQueue(q => [...q, data.action]);
                 sendIntentAck(data.action.intentId);
             }
-        } else if (data.type === 'DICE_COMMIT' || data.type === 'DICE_REVEAL') {
-            processGameAction(data, 'peer');
         }
     }, [processGameAction, isHost, setLobbyState]);
 
@@ -1533,7 +1589,7 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     // Seats self in slot 0 and publishes immediately so the guest sees a
     // forming lobby even before P2P connects. Bypasses broadcastLobbyAction's
     // isHost gate (setIsHost may not have flushed yet) by sending directly.
-    const initQuickLobby = useCallback((roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power' = 'power', entryFee: number = 0) => {
+    const initQuickLobby = useCallback((roomCode: string, matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power' | 'quick' = 'power', entryFee: number = 0) => {
         const slots = createLobbySlots(matchType);
         slots[0] = {
             ...slots[0],
@@ -1564,22 +1620,12 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
     // One-call room hosting for manual lobbies (Team Up panel, invites):
     // generates a code, spins up PeerJS hosting, AND creates lobby state.
     // Returns the room code synchronously so invite links work immediately.
-    const hostQuickLobby = useCallback((matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power' = 'power', entryFee: number = 0) => {
+    const hostQuickLobby = useCallback((matchType: '1v1' | '2v2' | '4P', gameMode: 'classic' | 'power' | 'quick' = 'power', entryFee: number = 0) => {
         const code = generateRoomCode();
-        // SEC-17: the key includes the wallet, so two wallets that happen to
-        // collide on a room code get separate provisional grants rather than
-        // overwriting each other.
-        void createProvisionalSession(`room:${code}:${(myAddress || '').toLowerCase()}`, code, {
-            context: 'teamup',
-            title: 'HOSTING PARTY SESSION',
-            statusText: 'Authorizing multiplayer room in your wallet...',
-        }).then(result => {
-            if (!result.ok) console.warn('🔑 [TeamUp] pre-match authorization failed:', result.error);
-        });
         hostGame(code);
         initQuickLobby(code, matchType, gameMode, entryFee);
         return code;
-    }, [hostGame, initQuickLobby, createProvisionalSession, myAddress]);
+    }, [hostGame, initQuickLobby]);
 
     /** Public-pool fill: matchmaking already paired guests — do not require room secret. */
     const allowOpenJoins = useCallback(() => {
@@ -1635,11 +1681,9 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
         hasAuthoritativeSnapshotRef.current = false;
         // NET-08: clear all three dedup stores here and on room change, or a
         // second match in one session inherits the previous match's id space
-        // and drops every action as a "duplicate". Also drops the move-session
-        // map (keyed by matchId) so a stale grant cannot act on a new match.
+        // and drops every action as a "duplicate".
         processedActionIds.current.clear();
         processedIntentIds.current.clear();
-        clearAllMoveSessions();
         intentAckTimers.current.forEach(t => clearTimeout(t));
         intentAckTimers.current.clear();
         clearRetryLadders();
@@ -1657,68 +1701,6 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const acceptInvite = useCallback(() => { if (pendingInvite) { joinGame(pendingInvite.roomCode); setPendingInvite(null); } }, [pendingInvite, joinGame, setPendingInvite]);
     const rejectInvite = useCallback(() => setPendingInvite(null), [setPendingInvite]);
-    /**
-     * Public-pool quick match (non-hybrid). Hosts a room when we win the
-     * pair race as host, otherwise joins the returned room as guest.
-     * Hybrid party fill stays in QuickMatchPanel via useMatchmaking.
-     */
-    const startQuickMatch = useCallback(async (opts?: {
-        gameMode?: 'classic' | 'power';
-        matchType?: '1v1' | '2v2' | '4P';
-        wager?: number;
-    }) => {
-        if (!myAddress) {
-            console.warn('startQuickMatch requires a wallet');
-            return;
-        }
-        const gameMode = opts?.gameMode ?? 'power';
-        const matchType = opts?.matchType ?? '1v1';
-        const wager = opts?.wager ?? 0;
-        try {
-            const sessionId = await ensureAppSession().catch(() => null);
-            if (!sessionId) {
-                console.warn('startQuickMatch requires an active session');
-                return;
-            }
-            const res = await fetch('/api/matchmaking/join', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    playerId: myAddress.toLowerCase(),
-                    sessionId,
-                    gameMode,
-                    matchType,
-                    wager,
-                }),
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                console.error('startQuickMatch join failed', data);
-                return;
-            }
-            if (data.status === 'matched' && data.room_code) {
-                const token = data.validation_token as string | undefined;
-                const matchId = String(data.match_id || '');
-                connectRoom(matchId);
-                // Deterministic host pick from participants roster, matching useMatchmaking
-                const players = ((data.participants || []) as string[]).map(p => String(p).toLowerCase());
-                const sorted = [...new Set(players)].sort();
-                let h = 0;
-                for (let i = 0; i < matchId.length; i++) h = (h * 31 + matchId.charCodeAt(i)) >>> 0;
-                const weAreHost = sorted.length > 0 ? sorted[h % sorted.length] === myAddress.toLowerCase() : false;
-                if (weAreHost) {
-                    hostGame(data.room_code, token);
-                    initQuickLobby(data.room_code, matchType, gameMode, wager);
-                } else {
-                    joinGame(data.room_code, token);
-                }
-            } else {
-                console.log('startQuickMatch queued', data);
-            }
-        } catch (err) {
-            console.error('startQuickMatch failed', err);
-        }
-    }, [myAddress, ensureAppSession, hostGame, joinGame, initQuickLobby]);
     const updateGameState = useCallback((s: Partial<GameState>) => setGameState(p => ({ ...p, ...s, lastUpdate: Date.now() })), [setGameState]);
     
     /**
@@ -1803,21 +1785,21 @@ const TeamUpProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const value = useMemo(() => ({
         roomId, connection: connections.values().next().value || null, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState,
-        pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby, sendIntent, broadcastAction, broadcastLobbyAction,
-        swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, startQuickMatch, myAddress, updateGameState,
+        pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby, sendIntent, broadcastAction, broadcastSocial, broadcastLobbyAction,
+        swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite, myAddress, updateGameState,
         participants, intentQueue, lastIntent: intentQueue[0] ?? null, clearIntent, sendIntentAck, leaveGame, validationToken,
         recordDisconnect, clearDisconnect, classifyAndRecordAbandon, abandonGraceFor,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot,
-        matchPhase, matchFsmIllegal, roomAuthority, roomStatus, roomError, retryRoom, sendRoomIntent, connectRoom,
-        activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
+        matchPhase, matchFsmIllegal, roomAuthority, roomStatus, roomError, retryRoom, roomInstance, sendRoomIntent, connectRoom, getRoomServerNow,
+        activeBetWindow, startBettingWindow, roomResyncCount
     }), [
         roomId, connections, isLobbyConnected, isHost, isComputeHost, activePlayers, gameState, lobbyState, pendingInvite, hostGame, joinGame, initQuickLobby, hostQuickLobby,
-        sendIntent, broadcastAction, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
-        startQuickMatch, myAddress, updateGameState, participants, intentQueue, clearIntent, sendIntentAck, leaveGame, validationToken,
+        sendIntent, broadcastAction, broadcastSocial, broadcastLobbyAction, swapPlayers, kickPlayer, sendInvite, acceptInvite, rejectInvite,
+        myAddress, updateGameState, participants, intentQueue, clearIntent, sendIntentAck, leaveGame, validationToken,
         recordDisconnect, clearDisconnect, classifyAndRecordAbandon, abandonGraceFor,
         roomSecret, allowOpenJoins, lowerEntryFee, serverSeq, serverSeqRef, applyServerState, matchConnectionStatus, hasAuthoritativeSnapshot, matchPhase, matchFsmIllegal,
-        roomAuthority, roomStatus, roomError, retryRoom, sendRoomIntent, connectRoom,
-        activeBetWindow, startBettingWindow, createProvisionalSession, bindProvisionalSession
+        roomAuthority, roomStatus, roomError, retryRoom, roomInstance, sendRoomIntent, connectRoom, getRoomServerNow,
+        activeBetWindow, startBettingWindow, roomResyncCount
     ]);
 
     return (

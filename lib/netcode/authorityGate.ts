@@ -70,3 +70,36 @@ export function shouldApplyGameAction(args: {
     // Lobby/intent/ack traffic is not rules state.
     return { apply: false, via: 'lobby' };
 }
+
+export type MatchAuthorityMode = 'room' | 'p2p' | 'offline';
+
+/**
+ * ADR-02 Strict Mode Partitioning.
+ *
+ * A match belongs to exactly one authority regime for its lifetime:
+ * - `'room'` when Durable Object authority is active or already latched for this matchId
+ * - `'offline'` for local / bot matches
+ * - `'p2p'` only for pure un-roomed P2P lobbies
+ *
+ * Once a matchId enters `'room'` mode, transient disconnects MUST keep it
+ * partitioned in `'room'` (never downgrade to `'p2p'` or `'offline'`).
+ */
+export function resolveMatchAuthorityMode(args: {
+    latchedMode?: MatchAuthorityMode | null;
+    roomAuthority: boolean;
+    hasRoomConnection?: boolean;
+    isNetworkedMatch: boolean;
+    matchId?: string | null;
+}): MatchAuthorityMode {
+    const isExplicitLocalId = args.matchId === 'local' || (args.matchId?.startsWith('local-') ?? false);
+    if (!args.isNetworkedMatch || isExplicitLocalId) {
+        return 'offline';
+    }
+    if (args.latchedMode === 'room' || args.roomAuthority || args.hasRoomConnection) {
+        return 'room';
+    }
+    if (!args.matchId) {
+        return 'offline';
+    }
+    return 'p2p';
+}

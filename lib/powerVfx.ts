@@ -224,8 +224,18 @@ export function derivePowerVfxEvents(
         for (let i = 0; i < Math.min(pArr.length, nArr.length); i++) {
             const oldPos = Number(pArr[i]);
             const newPos = Number(nArr[i]);
-            if (oldPos !== newPos && newPos > oldPos && newPos <= BOARD_FINISH_INDEX) {
-                const startPt = oldPos >= 0 ? getBoardCoordinate(oldPos, bColor, cc) : null;
+            const wrapDist =
+                oldPos >= 0 && oldPos < HOME_LANE_START_INDEX && newPos >= 0 && newPos < HOME_LANE_START_INDEX
+                    ? (newPos - oldPos + HOME_LANE_START_INDEX) % HOME_LANE_START_INDEX
+                    : 0;
+            const movedForward =
+                oldPos !== newPos &&
+                oldPos >= 0 &&
+                newPos >= 0 &&
+                newPos <= BOARD_FINISH_INDEX &&
+                (newPos > oldPos || (wrapDist > 0 && wrapDist <= 12));
+            if (movedForward) {
+                const startPt = getBoardCoordinate(oldPos, bColor, cc);
                 if (startPt) trailCells.push(startPt);
                 const path = getIntermediatePathCoords(oldPos, newPos, bColor, cc);
                 trailCells.push(...path);

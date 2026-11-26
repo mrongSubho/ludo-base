@@ -11,7 +11,7 @@ import {
     type TurnRollEntry,
 } from '@/lib/diceVisuals';
 import { usePreferences } from '@/hooks/usePreferences';
-import { prefersReducedMotion } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import LudoDice from './LudoDice';
 
 interface AnchoredDiceBayProps {
@@ -53,7 +53,7 @@ export function AnchoredDiceBay({
     const { preferences } = usePreferences();
     const themeId = resolveDiceThemeId(preferences.theme);
     const [isAirborne, setIsAirborne] = useState(false);
-    const reduced = prefersReducedMotion();
+    const reduced = useReducedMotion();
     const hasQueuedBoostFace =
         boostPendingDice !== null &&
         boostPendingDice !== undefined &&

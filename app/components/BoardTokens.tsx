@@ -5,11 +5,14 @@ import { PlayerColor, GameState } from '@/lib/types';
 import { Player } from '@/hooks/useGameEngine';
 import { Point, ColorCorner, getBoardCoordinate } from '@/lib/boardLayout';
 import { getTeammateColor, calculateNextPosition, getIntermediatePathCoords } from '@/lib/gameLogic';
+import { resolveControllableColor } from '@/lib/engine/core';
 import { BASE_INDEX, BOARD_FINISH_INDEX } from '@/lib/constants';
 import { usePreferences } from '@/hooks/usePreferences';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { resolveDiceThemeId } from '@/lib/diceVisuals';
-import { prefersReducedMotion } from '@/lib/motion';
-import { computeHopCadence } from '@/lib/tokenMovement';
+import { computeHopCadence, DEPLOY_ANIMATION_MS } from '@/lib/tokenMovement';
+import { computeStackPlacement } from '@/lib/stackLayout';
+import type { AnimationBarrier } from '@/lib/animationBarrier';
 import { Token, ShatterFX, FinishFX, RunHomeGhost, colorMapSafe } from './board/TokenVisual';
 import { TokenPiece } from './board/TokenPiece';
 
@@ -32,6 +35,7 @@ interface BoardTokensProps {
     onTargetToken?: (color: PlayerColor, tokenIndex: number) => void;
     onTokenHover?: (token: { color: PlayerColor; index: number } | null) => void;
     onTransitStatusChange?: (status: BoardTransitStatus) => void;
+    animationBarrier?: AnimationBarrier;
 }
 
 interface VictimHoldEntry {
@@ -68,16 +72,25 @@ interface PendingFinishEvent {
     landMs: number;
 }
 
+interface PendingArrivalRelease {
+    key: string;
+    holdMs: number;
+}
+
 interface TrackedTransitionState {
     signature: string;
     positions: Record<PlayerColor, number[]>;
     seq: number;
+    arrivalSeq: number;
+    arrivalOrder: Record<string, number>;
     deployedKeys: Record<string, boolean>;
     teleportKeys: Record<string, boolean>;
     finishingKeys: Record<string, boolean>;
     finishingHomeHoldKeys: Record<string, boolean>;
     returningYardKeys: Record<string, boolean>;
+    inFlightArrivalKeys: Record<string, number>;
     victimHolds: Record<string, VictimHoldEntry>;
+    pendingArrivalReleases: PendingArrivalRelease[];
     pendingCaptures: PendingCaptureEvent[];
     pendingFinishes: PendingFinishEvent[];
     pendingRipples: StepRippleEntry[];
@@ -110,10 +123,11 @@ export function BoardTokens({
     onTargetToken,
     onTokenHover,
     onTransitStatusChange,
+    animationBarrier,
 }: BoardTokensProps) {
     const { preferences } = usePreferences();
     const themeId = resolveDiceThemeId(preferences?.theme);
-    const reduced = prefersReducedMotion();
+    const reduced = useReducedMotion();
 
     const myPlayer =
         players.find((p) => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) ||
@@ -122,20 +136,36 @@ export function BoardTokens({
 
     const currentSignature = positionSignature(localGameState.positions);
 
-    const [tracked, setTracked] = React.useState<TrackedTransitionState>(() => ({
-        signature: currentSignature,
-        positions: clonePositions(localGameState.positions),
-        seq: 0,
-        deployedKeys: {},
-        teleportKeys: {},
-        finishingKeys: {},
-        finishingHomeHoldKeys: {},
-        returningYardKeys: {},
-        victimHolds: {},
-        pendingCaptures: [],
-        pendingFinishes: [],
-        pendingRipples: [],
-    }));
+    const [tracked, setTracked] = React.useState<TrackedTransitionState>(() => {
+        const initPositions = clonePositions(localGameState.positions);
+        const initArrival: Record<string, number> = {};
+        let initSeq = 0;
+        ALL_COLORS.forEach((c) => {
+            (initPositions[c] || []).forEach((p, idx) => {
+                if (p >= 0 && p < BOARD_FINISH_INDEX) {
+                    initArrival[`${c}-${idx}`] = ++initSeq;
+                }
+            });
+        });
+        return {
+            signature: currentSignature,
+            positions: initPositions,
+            seq: 0,
+            arrivalSeq: initSeq,
+            arrivalOrder: initArrival,
+            deployedKeys: {},
+            teleportKeys: {},
+            finishingKeys: {},
+            finishingHomeHoldKeys: {},
+            returningYardKeys: {},
+            inFlightArrivalKeys: {},
+            victimHolds: {},
+            pendingArrivalReleases: [],
+            pendingCaptures: [],
+            pendingFinishes: [],
+            pendingRipples: [],
+        };
+    });
 
     // Synchronously classify position diffs BEFORE DOM commit so finishing tokens
     // stay mounted for their center hop, deployed tokens know their Yard slot on
@@ -143,6 +173,8 @@ export function BoardTokens({
     if (currentSignature !== tracked.signature) {
         const nextPositions = clonePositions(localGameState.positions);
         const nextSeq = tracked.seq + 1;
+        let nextArrivalSeq = tracked.arrivalSeq;
+        const nextArrivalOrder = { ...tracked.arrivalOrder };
         const msg = localGameState.captureMessage || '';
         const isTeleportMsg = /TELEPORT!/i.test(msg);
         const isNukeMsg = (localGameState.nukeFlash?.length ?? 0) > 0 || /NUKE!/i.test(msg);
@@ -153,9 +185,11 @@ export function BoardTokens({
         const nextFinishing = { ...tracked.finishingKeys };
         const nextFinishingHomeHold = { ...tracked.finishingHomeHoldKeys };
         const nextReturningYard = { ...tracked.returningYardKeys };
+        const nextInFlightArrival = { ...tracked.inFlightArrivalKeys };
         const nextVictimHolds = { ...tracked.victimHolds };
 
         const moverLandings: { key: string; pt: Point | null; walkMs: number }[] = [];
+        const newArrivalReleases: PendingArrivalRelease[] = [];
         const newPendingFinishes: PendingFinishEvent[] = [];
         const newRipples: StepRippleEntry[] = [];
 
@@ -170,11 +204,27 @@ export function BoardTokens({
                 if (newPos === undefined || oldPos === newPos) return;
                 const key = `${color}-${idx}`;
 
+                // Any forward deployment/hop clears stale capture holds before moving.
+                if (newPos >= 0) {
+                    delete nextVictimHolds[key];
+                    delete nextReturningYard[key];
+                }
+
+                if (newPos >= 0 && newPos < BOARD_FINISH_INDEX) {
+                    nextArrivalOrder[key] = ++nextArrivalSeq;
+                } else {
+                    delete nextArrivalOrder[key];
+                }
+
                 if (oldPos === BASE_INDEX && newPos >= 0 && newPos < BOARD_FINISH_INDEX) {
                     nextDeployed[key] = true;
                     const landPt = getBoardCoordinate(newPos, color, colorCorner);
-                    const walkMs = reduced ? 0 : 420;
+                    const walkMs = reduced ? 0 : DEPLOY_ANIMATION_MS;
                     moverLandings.push({ key, pt: landPt, walkMs });
+                    if (!reduced && walkMs > 80) {
+                        nextInFlightArrival[key] = nextSeq;
+                        newArrivalReleases.push({ key, holdMs: walkMs - 80 });
+                    }
                     return;
                 }
 
@@ -190,6 +240,13 @@ export function BoardTokens({
 
                     if (destPt) {
                         moverLandings.push({ key, pt: destPt, walkMs });
+                    }
+
+                    if (!reduced && !isTeleportMsg && walkMs > 80 && newPos < BOARD_FINISH_INDEX) {
+                        nextInFlightArrival[key] = nextSeq;
+                        newArrivalReleases.push({ key, holdMs: walkMs - 80 });
+                    } else {
+                        delete nextInFlightArrival[key];
                     }
 
                     if (!reduced && !isTeleportMsg && waypoints.length > 0) {
@@ -234,6 +291,7 @@ export function BoardTokens({
                     const pt = getBoardCoordinate(oldPos, color, colorCorner);
                     if (!pt) return;
                     const key = `${color}-${idx}`;
+                    delete nextInFlightArrival[key];
                     const matchingMover = moverLandings.find((m) => m.pt && m.pt.r === pt.r && m.pt.c === pt.c);
                     const arrivalMs = reduced
                         ? 0
@@ -265,12 +323,16 @@ export function BoardTokens({
             signature: currentSignature,
             positions: nextPositions,
             seq: nextSeq,
+            arrivalSeq: nextArrivalSeq,
+            arrivalOrder: nextArrivalOrder,
             deployedKeys: nextDeployed,
             teleportKeys: nextTeleport,
             finishingKeys: nextFinishing,
             finishingHomeHoldKeys: nextFinishingHomeHold,
             returningYardKeys: nextReturningYard,
+            inFlightArrivalKeys: nextInFlightArrival,
             victimHolds: nextVictimHolds,
+            pendingArrivalReleases: newArrivalReleases,
             pendingCaptures: newPendingCaptures,
             pendingFinishes: newPendingFinishes,
             pendingRipples: newRipples,
@@ -284,6 +346,8 @@ export function BoardTokens({
 
     const lastProcessedSeqRef = React.useRef(0);
     const timersRef = React.useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+    const latestPositionsRef = React.useRef(tracked.positions);
+    latestPositionsRef.current = tracked.positions;
 
     const scheduleTimer = React.useCallback((fn: () => void, ms: number) => {
         const id = setTimeout(() => {
@@ -314,12 +378,26 @@ export function BoardTokens({
         onTransitStatusChange({ finishingKeys, returningYardKeys });
     }, [tracked.finishingHomeHoldKeys, tracked.returningYardKeys, onTransitStatusChange]);
 
-    // Schedule synchronized landing VFX, step ripples, and delayed capture runs per transition seq
+    // Schedule synchronized landing VFX, step ripples, arrival restacking & delayed capture runs per transition seq
     React.useEffect(() => {
         if (tracked.seq === 0 || tracked.seq === lastProcessedSeqRef.current) return;
-        lastProcessedSeqRef.current = tracked.seq;
+        const batchSeq = tracked.seq;
+        lastProcessedSeqRef.current = batchSeq;
 
-        if (tracked.pendingRipples.length > 0) {
+        if (tracked.pendingArrivalReleases.length > 0) {
+            tracked.pendingArrivalReleases.forEach((rel) => {
+                scheduleTimer(() => {
+                    setTracked((cur) => {
+                        if (cur.inFlightArrivalKeys[rel.key] !== batchSeq) return cur;
+                        const nextArrivals = { ...cur.inFlightArrivalKeys };
+                        delete nextArrivals[rel.key];
+                        return { ...cur, inFlightArrivalKeys: nextArrivals };
+                    });
+                }, rel.holdMs);
+            });
+        }
+
+        if (tracked.pendingRipples.length > 0 && !reduced) {
             const batchIds = new Set(tracked.pendingRipples.map((r) => r.id));
             const maxDelay = Math.max(...tracked.pendingRipples.map((r) => r.delayMs));
             setStepRipples((cur) => [...cur, ...tracked.pendingRipples]);
@@ -341,15 +419,17 @@ export function BoardTokens({
 
         tracked.pendingFinishes.forEach((fin) => {
             scheduleTimer(() => {
-                setFinishBursts((cur) => [...cur, { id: fin.id, pt: fin.pt, color: fin.color }]);
+                if (!reduced) {
+                    setFinishBursts((cur) => [...cur, { id: fin.id, pt: fin.pt, color: fin.color }]);
+                    scheduleTimer(() => {
+                        setFinishBursts((cur) => cur.filter((x) => x.id !== fin.id));
+                    }, 840);
+                }
                 setTracked((cur) => {
                     const nextHomeHold = { ...cur.finishingHomeHoldKeys };
                     delete nextHomeHold[fin.key];
                     return { ...cur, finishingHomeHoldKeys: nextHomeHold };
                 });
-                scheduleTimer(() => {
-                    setFinishBursts((cur) => cur.filter((x) => x.id !== fin.id));
-                }, 840);
             }, fin.landMs);
 
             scheduleTimer(() => {
@@ -358,17 +438,31 @@ export function BoardTokens({
                     delete nextFinishing[fin.key];
                     return { ...cur, finishingKeys: nextFinishing };
                 });
-            }, fin.landMs + 280);
+            }, fin.landMs + (reduced ? 0 : 280));
         });
 
         tracked.pendingCaptures.forEach((cap) => {
             scheduleTimer(() => {
+                const livePos = Number(latestPositionsRef.current[cap.color]?.[cap.index]);
+                if (livePos !== BASE_INDEX) {
+                    // Token already re-deployed before delayed impact completed; abort stale hold/ghost.
+                    setTracked((cur) => {
+                        if (!cur.victimHolds[cap.key] && !cur.returningYardKeys[cap.key]) return cur;
+                        const nextHolds = { ...cur.victimHolds };
+                        const nextRet = { ...cur.returningYardKeys };
+                        delete nextHolds[cap.key];
+                        delete nextRet[cap.key];
+                        return { ...cur, victimHolds: nextHolds, returningYardKeys: nextRet };
+                    });
+                    return;
+                }
+
                 setTracked((cur) => {
                     const nextHolds = { ...cur.victimHolds };
                     delete nextHolds[cap.key];
                     return { ...cur, victimHolds: nextHolds };
                 });
-                if (!cap.isNuke) {
+                if (!cap.isNuke && !reduced) {
                     setCaptureBursts((cur) => [...cur, { id: cap.id, pt: cap.pt, color: cap.color }]);
                     scheduleTimer(() => {
                         setCaptureBursts((cur) => cur.filter((x) => x.id !== cap.id));
@@ -389,9 +483,10 @@ export function BoardTokens({
                 }, 650);
             }, cap.arrivalMs);
         });
-    }, [tracked, scheduleTimer]);
+    }, [tracked, scheduleTimer, reduced]);
 
-    // 1. Build occupancy map for stacking + vault-over-obstacle awareness
+    // 1. Build occupancy map for stacking + vault-over-obstacle awareness.
+    // Exclude in-flight movers until `walkMs - 80` so destination occupants wait until right before touchdown.
     const occupancy: Record<string, { color: PlayerColor; index: number }[]> = {};
     const occupiedKeys = new Set<string>();
 
@@ -399,15 +494,19 @@ export function BoardTokens({
         if (!players.some((p) => p.color === color)) return;
         const colorPositions = localGameState.positions[color] || [];
         colorPositions.forEach((pos: number, index: number) => {
-            const hold = tracked.victimHolds[`${color}-${index}`];
+            const keyStr = `${color}-${index}`;
+            const hold = tracked.victimHolds[keyStr];
             const numericPos = hold ? hold.pos : Number(pos);
             if (numericPos >= 0 && numericPos < BOARD_FINISH_INDEX) {
                 const pt = getBoardCoordinate(numericPos, color, colorCorner);
                 if (pt) {
-                    const key = `${pt.r}-${pt.c}`;
-                    occupiedKeys.add(key);
-                    if (!occupancy[key]) occupancy[key] = [];
-                    occupancy[key].push({ color, index });
+                    const cellKey = `${pt.r}-${pt.c}`;
+                    occupiedKeys.add(cellKey);
+                    if (!hold && tracked.inFlightArrivalKeys[keyStr]) {
+                        return;
+                    }
+                    if (!occupancy[cellKey]) occupancy[cellKey] = [];
+                    occupancy[cellKey].push({ color, index });
                 }
             }
         });
@@ -450,51 +549,61 @@ export function BoardTokens({
             );
     });
 
-    const sortedTokens = [...activeTokens].sort((a, b) => (a.color === myColor ? 1 : 0) - (b.color === myColor ? 1 : 0));
+    const controllableColor = myColor
+        ? resolveControllableColor(localGameState.positions, myColor, playerCount)
+        : undefined;
+
+    const arrivalOrderMap = React.useMemo(
+        () => new Map<string, number>(Object.entries(tracked.arrivalOrder)),
+        [tracked.arrivalOrder],
+    );
+
+    const sortedTokens = [...activeTokens].sort(
+        (a, b) => (a.color === (controllableColor ?? myColor) ? 1 : 0) - (b.color === (controllableColor ?? myColor) ? 1 : 0),
+    );
 
     return (
         <AnimatePresence>
-            {stepRipples.map((rp) => (
-                <div
-                    key={`ripple-${rp.id}`}
-                    className={`token-step-ripple ${rp.isFinal ? 'is-final' : ''}`}
-                    style={
-                        {
-                            gridRow: rp.r,
-                            gridColumn: rp.c,
-                            animationDelay: `${rp.delayMs}ms`,
-                            '--ripple-color': rp.hex,
-                        } as React.CSSProperties
-                    }
-                    aria-hidden="true"
-                />
-            ))}
+            {!reduced &&
+                stepRipples.map((rp) => (
+                    <div
+                        key={`ripple-${rp.id}`}
+                        className={`token-step-ripple ${rp.isFinal ? 'is-final' : ''}`}
+                        style={
+                            {
+                                gridRow: rp.r,
+                                gridColumn: rp.c,
+                                animationDelay: `${rp.delayMs}ms`,
+                                '--ripple-color': rp.hex,
+                            } as React.CSSProperties
+                        }
+                        aria-hidden="true"
+                    />
+                ))}
             {sortedTokens.map(({ color, index, pos, finishing, justDeployed, isTeleport }) => {
                 const targetPt = getBoardCoordinate(pos, color, colorCorner);
+                const keyStr = `${color}-${index}`;
+                const isMovingArrival = Boolean(tracked.inFlightArrivalKeys[keyStr]);
 
-                let offset = { x: 0, y: 0 };
+                let offset = { xPct: 0, yPct: 0 };
                 let stackScale = 1;
                 let stackZ = 0;
-                if (targetPt && !finishing) {
-                    const key = `${targetPt.r}-${targetPt.c}`;
-                    const stack = occupancy[key] || [];
+                if (targetPt && !finishing && !isMovingArrival) {
+                    const cellKey = `${targetPt.r}-${targetPt.c}`;
+                    const stack = occupancy[cellKey] || [];
                     if (stack.length > 1) {
-                        const sorted = [...stack].sort((a, b) => (a.color === myColor ? 1 : 0) - (b.color === myColor ? 1 : 0));
-                        const myStackIdx = sorted.findIndex((s) => s.color === color && s.index === index);
-                        stackZ = Math.max(0, myStackIdx);
-                        stackScale = sorted.length === 2 ? 0.6 : sorted.length === 3 ? 0.5 : 0.45;
-                        const grids: Record<number, { x: number; y: number }[]> = {
-                            2: [{ x: -12, y: -6 }, { x: 12, y: 6 }],
-                            3: [{ x: -12, y: 8 }, { x: 12, y: 8 }, { x: 0, y: -10 }],
-                            4: [{ x: -12, y: -9 }, { x: 12, y: -9 }, { x: -12, y: 9 }, { x: 12, y: 9 }],
-                        };
-                        const pts =
-                            grids[sorted.length] ||
-                            sorted.map((_, i) => {
-                                const ang = (i * (360 / sorted.length)) * (Math.PI / 180);
-                                return { x: Math.cos(ang) * 12, y: Math.sin(ang) * 12 };
-                            });
-                        offset = pts[myStackIdx] || { x: 0, y: 0 };
+                        const placement = computeStackPlacement(
+                            stack,
+                            { color, index },
+                            {
+                                controllableColor: controllableColor ?? myColor ?? null,
+                                arrivalOrder: arrivalOrderMap,
+                                counterRotationDeg,
+                            },
+                        );
+                        offset = placement.offset;
+                        stackScale = placement.scale;
+                        stackZ = placement.zIndex;
                     }
                 }
 
@@ -550,17 +659,20 @@ export function BoardTokens({
                         isTeleport={isTeleport}
                         isFinishing={finishing}
                         occupiedKeys={occupiedKeys}
+                        animationBarrier={animationBarrier}
                         onHoverChange={(hovering) => onTokenHover?.(hovering ? { color, index } : null)}
                         onClick={() => (targetable && onTargetToken ? onTargetToken(color, index) : handleTokenClick(color, index))}
                     />
                 );
             })}
-            {captureBursts.map((b) => (
-                <ShatterFX key={`burst-${b.id}`} pt={b.pt} color={b.color} />
-            ))}
-            {finishBursts.map((b) => (
-                <FinishFX key={`finish-${b.id}`} pt={b.pt} color={b.color} counterRotationDeg={counterRotationDeg} />
-            ))}
+            {!reduced &&
+                captureBursts.map((b) => (
+                    <ShatterFX key={`burst-${b.id}`} pt={b.pt} color={b.color} />
+                ))}
+            {!reduced &&
+                finishBursts.map((b) => (
+                    <FinishFX key={`finish-${b.id}`} pt={b.pt} color={b.color} counterRotationDeg={counterRotationDeg} />
+                ))}
             {runHomeGhosts.map((g) => (
                 <RunHomeGhost
                     key={`ghost-${g.id}`}
@@ -569,6 +681,7 @@ export function BoardTokens({
                     tokenIndex={g.index}
                     cc={colorCorner}
                     counterRotationDeg={counterRotationDeg}
+                    animationBarrier={animationBarrier}
                     onDone={() => {
                         setRunHomeGhosts((cur) => cur.filter((x) => x.id !== g.id));
                         const key = `${g.color}-${g.index}`;

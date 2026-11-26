@@ -27,6 +27,8 @@ import {
 } from '@/lib/spectatorBettingMath';
 import { useToast } from './Toast';
 import { getSoundEngine } from '@/lib/audio/SoundEngine';
+import ComplianceGateModal from './ComplianceGateModal';
+import { useComplianceConsent } from '@/hooks/useComplianceConsent';
 
 // ─────────────────────────────────────────────────────────────
 // SpectatorHUD — Solid, height-adjustable Watch & Bet overlay
@@ -154,6 +156,7 @@ export const SpectatorHUD = ({
     const vault = useArenaVault();
     const chipsBal = useChipsBalance();
     const toast = useToast();
+    const compliance = useComplianceConsent(address);
 
     const [betAmount, setBetAmount] = useState<number>(500);
     const [customMode, setCustomMode] = useState<boolean>(false);
@@ -464,6 +467,14 @@ export const SpectatorHUD = ({
             const sessionId = await ensureAppSession({ context: 'betting' });
             if (!sessionId) throw new Error('Sign-in required to place bets');
 
+            const compliant = await compliance.ensureCompliance(sessionId);
+            if (!compliant) {
+                setIsBetting(false);
+                setBetStatusStep(null);
+                toast('Age 18+ and Terms confirmation required before placing bets.', 'error');
+                return;
+            }
+
             // 1. Ensure Vault has enough balance; if short, SignWaitModal requests CHIPS approval + deficit deposit.
             if (vault.availableChips < cleanAmount) {
                 setBetStatusStep('Approve CHIPS deposit to Match Vault…');
@@ -533,6 +544,7 @@ export const SpectatorHUD = ({
         walletChips,
         vault,
         ensureAppSession,
+        compliance,
         fetchBetSummary,
         chipsBal,
         toast,
@@ -1056,6 +1068,15 @@ export const SpectatorHUD = ({
                     </div>
                 </>
             )}
+            <ComplianceGateModal
+                open={compliance.modalOpen}
+                status={compliance.status}
+                isSubmitting={compliance.isSubmitting}
+                error={compliance.error}
+                onSubmit={compliance.submitConsent}
+                onClose={compliance.closeModal}
+                contextLabel="Spectator Prediction Pool"
+            />
         </motion.div>
     );
 };

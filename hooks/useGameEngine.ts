@@ -4,11 +4,11 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useChainId } from 'wagmi';
 import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import confetti from 'canvas-confetti';
+import { prefersReducedMotion } from '@/lib/motion';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
 import { PlayerColor, PowerType, BotDifficulty, GameState, GameIntent } from '@/lib/types';
 import { Point, PathCell, ColorCorner, assignCornersForShape, shufflePlayers } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
-import { useAudio } from '../app/hooks/useAudio';
 import {
     INITIAL_GAME_STATE,
     getTeammateColor,
@@ -21,10 +21,10 @@ import {
     POWER_TILES_COUNT 
 } from '@/lib/constants';
 import { activeColorsForTurns } from '@/lib/engine';
-import { clearShieldsOnTurnChange } from '@/lib/engine/core';
+import { clearShieldsOnTurnChange, createInitialPositions } from '@/lib/engine/core';
 import { resetNetCounters } from '@/lib/netcode/counters';
 import { shouldFlushServerState } from '@/lib/netcode/flushGate';
-import { computeAuthority } from '@/lib/netcode/authorityGate';
+import { computeAuthority, resolveMatchAuthorityMode, type MatchAuthorityMode } from '@/lib/netcode/authorityGate';
 import { hostActionForIntent } from '@/lib/hostIntent';
 
 // Specialized Hooks
@@ -32,7 +32,6 @@ import { useGameActions } from './useGameActions';
 import { useGameTimer } from './useGameTimer';
 import { useAFKManager } from './useAFKManager';
 import { useAIBrain } from './useAIBrain';
-import { useMoveAuth } from './useMoveAuth';
 
 export interface Player {
     name: string;
@@ -51,7 +50,7 @@ export interface Player {
 interface UseGameEngineProps {
     initialPlayers: Player[];
     playerCount: '1v1' | '4P' | '2v2';
-    gameMode: 'classic' | 'power';
+    gameMode: 'classic' | 'power' | 'quick';
     isBotMatch: boolean;
     botDifficulty?: BotDifficulty;
     colorCorner: ColorCorner;
@@ -75,7 +74,6 @@ export function useGameEngine({
     wager = 0,
 }: UseGameEngineProps) {
     const [lxpGain, setLxpGain] = useState<number | null>(null);
-    const { playMove, playCapture, playWin, playTurn, playNuke, playShield, playBoost, playTeleport, playPickup } = useAudio();
     // Effective identity (wallet or guest id) — guests must resolve as the
     // human seat, never as bots.
     const { address, isGuest } = useCurrentUser();
@@ -113,30 +111,15 @@ export function useGameEngine({
         clearDisconnect,
         abandonGraceFor,
         roomAuthority,
-        sendRoomIntent
+        roomStatus,
+        sendRoomIntent,
+        getRoomServerNow,
     } = useTeamUpContext();
-    
-    // 3. Authority Logic (Determines who orchestrates AI and AFK turns)
-    // In multiplayer, authority rests with the P2P Host (or Compute Host if P2P Host leaves).
-    // In offline matches, the local player always has authority.
-    const isNetworkedMatch = isLobbyConnected
-        || isComputeHost
-        || Boolean(networkGameState?.matchId && networkGameState.matchId !== 'local');
-    // NET-07: a compute host orchestrates only when it can PROVE it knows the
-    // current board. A snapshot-less election would otherwise let a client
-    // that merely joined the presence channel drive AI/AFK turns from an empty
-    // state — which is how a match gets wedged rather than saved. Executed by
-    // `test:netcode` through `computeAuthority`, not re-derived here.
-    const isAuthority = computeAuthority({
-        isNetworkedMatch,
-        isHost: false,
-        isComputeHost,
-        connectionStatus: matchConnectionStatus,
-        hasAuthoritativeSnapshot,
-    });
 
     const [localGameState, setLocalGameState] = useState<GameState>({
         ...INITIAL_GAME_STATE,
+        positions: createInitialPositions(colorCorner, gameMode),
+        gameMode,
         botDifficulty,
         currentPlayer: (initialPlayers[0]?.color as PlayerColor) || 'green',
         // ENG-11: mint the respawn seed once per match; it commits via the
@@ -148,6 +131,52 @@ export function useGameEngine({
             .slice(0, POWER_TILES_COUNT)
             .map(c => ({ r: c.row, c: c.col, type: rollPowerType() })) : []),
         lastUpdate: Date.now()
+    });
+
+    // 3. Authority Logic & ADR-02 Strict Mode Partitioning ('room' | 'p2p' | 'offline')
+    const effectiveMatchId = networkGameState?.matchId || localGameState.matchId || null;
+    const isLocalMatchId = !effectiveMatchId || effectiveMatchId === 'local' || effectiveMatchId.startsWith('local-');
+    const latchedAuthorityRef = useRef<{ matchId: string; mode: MatchAuthorityMode } | null>(null);
+    const roomSignalId =
+        !isBotMatch &&
+        (roomAuthority || (roomStatus !== 'idle' && Boolean(effectiveMatchId || roomId || networkGameState?.isStarted)))
+            ? (!isLocalMatchId && effectiveMatchId ? effectiveMatchId : '__room_pending__')
+            : null;
+    if (roomSignalId) {
+        if (!latchedAuthorityRef.current || latchedAuthorityRef.current.matchId !== roomSignalId) {
+            latchedAuthorityRef.current = { matchId: roomSignalId, mode: 'room' };
+        }
+    }
+    const latchedMode: MatchAuthorityMode | null =
+        latchedAuthorityRef.current &&
+        !isBotMatch &&
+        !isLocalMatchId &&
+        (latchedAuthorityRef.current.matchId === effectiveMatchId || latchedAuthorityRef.current.matchId === '__room_pending__')
+            ? latchedAuthorityRef.current.mode
+            : null;
+
+    const isNetworkedMatch = isLobbyConnected
+        || isComputeHost
+        || roomAuthority
+        || latchedMode === 'room'
+        || (!isBotMatch && roomStatus !== 'idle')
+        || (!isBotMatch && !isLocalMatchId);
+
+    const matchAuthorityMode = resolveMatchAuthorityMode({
+        latchedMode,
+        roomAuthority,
+        hasRoomConnection: !isBotMatch && roomStatus !== 'idle',
+        isNetworkedMatch,
+        matchId: effectiveMatchId,
+    });
+
+    const isAuthority = computeAuthority({
+        isNetworkedMatch,
+        isHost: false,
+        isComputeHost,
+        connectionStatus: matchConnectionStatus,
+        hasAuthoritativeSnapshot,
+        roomVersion: matchAuthorityMode === 'room' ? 2 : 1,
     });
 
     const getNextPlayer = useCallback((current: PlayerColor): PlayerColor => {
@@ -235,6 +264,7 @@ export function useGameEngine({
     }, [initialPlayers, address, isGuest, roomId, gameMode, localGameState.afkStats, localGameState.matchStats, localGameState.matchId, wager, isBotMatch, signMessageAsync, signAccount]);
 
     const triggerWinConfetti = useCallback(() => {
+        if (prefersReducedMotion()) return;
         const duration = 5 * 1000;
         const animationEnd = Date.now() + duration;
         const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0, colors: ['#A8E6CF', '#FFD3B6', '#D4F1F4', '#FFEFBA'] };
@@ -243,7 +273,7 @@ export function useGameEngine({
 
         const interval = setInterval(function () {
             const timeLeft = animationEnd - Date.now();
-            if (timeLeft <= 0) return clearInterval(interval);
+            if (timeLeft <= 0 || prefersReducedMotion()) return clearInterval(interval);
 
             const particleCount = 50 * (timeLeft / duration);
             confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
@@ -252,8 +282,6 @@ export function useGameEngine({
     }, []);
 
     const lastRollIdRef = useRef<string | null>(null);
-    const chainId = useChainId();
-    const moveAuth = useMoveAuth({ myAddress: player.address ?? address, signMessageAsync, signTypedDataAsync, chainId });
 
     const {
         moveToken,
@@ -267,46 +295,28 @@ export function useGameEngine({
         address,
         isLobbyConnected,
         roomAuthority,
+        matchAuthorityMode,
         sendRoomIntent,
         broadcastAction,
         sendIntent,
         playerCount,
         colorCorner,
         activeColorsArr,
-        // Board-state audio (hops, captures, wins, powers, turns) is driven
-        // reactively by `useBoardAudio` inside Board.tsx + GSAP hop callbacks
-        // in TokenPiece.tsx so offline, P2P, and MatchRoom DO never double-play.
-        audio: useMemo(() => ({
-            playMove: () => {},
-            playCapture: () => {},
-            playWin: () => {},
-            playNuke: () => {},
-            playShield: () => {},
-            playBoost: () => {},
-            playTeleport: () => {},
-            playPickup: () => {},
-        }), []),
         triggerWinConfetti,
         recordWin,
         autoMoveTimeoutRef,
         startBettingWindow,
-        moveAuth,
-        serverSeqRef,
         lastRollIdRef,
-        applyServerState,
     });
 
     useGameTimer({
         localGameState,
         setLocalGameState,
         matchConnectionStatus,
-        // A quick match never opens a P2P lobby, so `isLobbyConnected` is false
-        // by design while the Durable Object is the authority. Passing it alone
-        // told the timer this was an OFFLINE match, so it drove the local turn
-        // clock and advanced phases on a board the server had never moved —
-        // the second half of the "stalls after the first die" divergence.
-        isNetworked: isLobbyConnected || roomAuthority,
+        // Server-owned countdown + skew-adjusted clock across both Room DO and P2P modes.
+        isNetworked: isLobbyConnected || roomAuthority || matchAuthorityMode !== 'offline',
         hasAuthoritativeSnapshot,
+        getServerNow: getRoomServerNow,
     });
 
     useAFKManager({
@@ -319,11 +329,7 @@ export function useGameEngine({
         broadcastAction,
         colorCorner,
         matchConnectionStatus,
-        moveAuth,
-        serverSeqRef,
-        lastRollIdRef,
-        applyServerState,
-        isLobbyConnected,
+        matchAuthorityMode,
         // NET-07: the kick IS the abandon signal — classify and record it from
         // the context's single classifier (grace clock + dual-sign policy).
         onAbandon: ({ seat, matchEnded }) => {
@@ -344,7 +350,7 @@ export function useGameEngine({
         handleUsePower,
         colorCorner,
         playerCount,
-        isLobbyConnected: isLobbyConnected || roomAuthority,
+        isLobbyConnected: isLobbyConnected || roomAuthority || matchAuthorityMode === 'room',
         matchConnectionStatus
     });
 
@@ -378,27 +384,9 @@ export function useGameEngine({
         return () => clearTimeout(safetyTimer);
     }, [localGameState.gamePhase, localGameState.winner, getNextPlayer, setLocalGameState, isNetworkedMatch]);
 
-    // NET-12: the blanket guest sync above (setLocalGameState(networkGameState)
-    // with no seq/timestamp guard) was deleted. It fired on the same commit as
-    // the seq-advance effect below, so this one ran first and made that one
-    // unreachable — while also clobbering the host-only local fields the
-    // careful merge below preserves (powerTiles types, matchId, UI state).
-    //
-    // ── But the replacement never arrived ──────────────────────────────────
-    //
-    // Deleting it left this hook the ONLY copy of the board, while the room's
-    // fan-out was merged into the CONTEXT's `gameState`. So the two diverged
-    // permanently: QuickMatchPanel read the context and opened the board, while
-    // `Board` rendered this hook's `INITIAL_GAME_STATE` forever — every token at
-    // home, "ROLL TO START", and a roll that resolved against a board the server
-    // had never seen. The match stalled after the first die.
-    //
-    // The careful merge is already done for us: `applyServerState` (NET-24/PW-2)
-    // re-attaches powerTiles types and playerPowers types before writing the
-    // context, so `networkGameState` is safe to adopt wholesale. Only genuinely
-    // local fields are preserved.
+    // Room-mode state synchronization: keep rendering latest server-authoritative snapshot.
     useEffect(() => {
-        if (!roomAuthority || !networkGameState) return;
+        if ((!roomAuthority && matchAuthorityMode !== 'room') || !networkGameState) return;
         setLocalGameState(prev => ({
             ...prev,
             ...networkGameState,
@@ -407,43 +395,14 @@ export function useGameEngine({
             powerTileSeed: prev.powerTileSeed ?? networkGameState.powerTileSeed,
             lastUpdate: Date.now(),
         }));
-    }, [roomAuthority, networkGameState]);
-
-    // Authorize the player's whole match as soon as the host publishes the
-    // authoritative match id. This keeps the wallet prompt in the pre-match
-    // transition instead of surprising the player on their first action.
-    useEffect(() => {
-        const matchId = networkGameState?.matchId;
-        if (!isLobbyConnected || !networkGameState?.isStarted || !matchId || matchId === 'local') return;
-        if (preAuthMatchRef.current === matchId) return;
-        preAuthMatchRef.current = matchId;
-        const provisionalKeys = [
-            `room:${roomId}`,
-            `search:${address?.toLowerCase()}:${gameMode}:${playerCount}`,
-        ];
-        const provisionalId = provisionalKeys
-            .map(key => sessionStorage.getItem(`ludo-provisional:${key}`))
-            .find(Boolean);
-        if (provisionalId) {
-            void moveAuth.bindProvisionalSession({ provisionalId, matchId, roomCode: roomId }).then(result => {
-                if (!result.ok) console.warn('🔑 [MoveAuth] provisional binding failed:', result.error);
-            });
-            return;
-        }
-        void moveAuth.createMatchSession({
-            matchId,
-            roomCode: roomId || matchId,
-        }).then(result => {
-            if (!result.ok) {
-                console.warn('🔑 [MoveAuth] pre-match session was not created:', result.error);
-                preAuthMatchRef.current = null;
-            }
-        });
-    }, [isLobbyConnected, networkGameState?.isStarted, networkGameState?.matchId, roomId, moveAuth]);
+    }, [roomAuthority, matchAuthorityMode, networkGameState]);
 
     const cancelAfk = useCallback((color: PlayerColor) => {
-        if (roomAuthority) {
-            void sendRoomIntent('CMD_REQUEST_TRUST', { color });
+        if (matchAuthorityMode === 'room') {
+            if (roomAuthority) {
+                void sendRoomIntent('CMD_REQUEST_TRUST', { trust: false, color });
+            }
+            return;
         }
         setLocalGameState((prev) => ({
             ...prev,
@@ -458,9 +417,16 @@ export function useGameEngine({
             },
             idleWarning: prev.idleWarning?.player === color ? null : prev.idleWarning
         }));
-    }, [roomAuthority, sendRoomIntent]);
+    }, [matchAuthorityMode, roomAuthority, sendRoomIntent]);
 
     const toggleAutoPlay = useCallback((color: PlayerColor, forceTrust: boolean = false) => {
+        if (matchAuthorityMode === 'room') {
+            if (!roomAuthority) return;
+            const currentAuto = Boolean(localGameState.afkStats?.[color]?.isAutoPlaying);
+            const nextTrust = forceTrust ? true : !currentAuto;
+            void sendRoomIntent('CMD_REQUEST_TRUST', { trust: nextTrust, color });
+            return;
+        }
         setLocalGameState((prev) => {
             const nextState = {
                 ...prev,
@@ -478,7 +444,7 @@ export function useGameEngine({
             }
             return nextState;
         });
-    }, [isLobbyConnected, broadcastAction]);
+    }, [matchAuthorityMode, roomAuthority, sendRoomIntent, localGameState.afkStats, isLobbyConnected, broadcastAction]);
 
     // 📬 Listen for Guest Intents (Host only)
     useEffect(() => {
@@ -516,6 +482,7 @@ export function useGameEngine({
     }, [isAuthority, lastIntent, handleRoll, moveToken, handleUsePower, toggleAutoPlay, clearIntent, localGameState.diceValue]);
 
     const resetGame = useCallback(() => {
+        latchedAuthorityRef.current = null;
         // One seating rule for every shape, same as the room's self-seed — a
         // rematch must not seat differently from the match it replaces.
         const newCC = assignCornersForShape(playerCount);
@@ -609,7 +576,7 @@ export function useGameEngine({
             });
             // Move hop & land audio is handled by TokenPiece + useBoardAudio.
         }
-    }, [isLobbyConnected, networkGameState, localGameState.lastUpdate, playMove, initialPlayers, address]);
+    }, [isLobbyConnected, networkGameState, localGameState.lastUpdate, initialPlayers, address]);
 
     // Host: pull matchId from TeamUpContext (seeded on START_GAME) so Edge
     // rolls/moves are not stuck on match_id='local'.
@@ -630,6 +597,7 @@ export function useGameEngine({
         toggleAutoPlay,
         resetGame,
         getNextPlayer,
-        isAuthority
+        isAuthority,
+        matchAuthorityMode,
     };
 }

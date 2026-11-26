@@ -27,6 +27,7 @@ export async function GET(request: Request) {
             .from('matchmaking_queue')
             .select('wager, player_id')
             .eq('status', 'searching')
+            .gt('expires_at', new Date().toISOString())
             .eq('game_mode', gameMode)
             .eq('match_type', matchType)
             .limit(200);

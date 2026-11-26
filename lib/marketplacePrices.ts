@@ -8,7 +8,7 @@
  */
 export const MARKETPLACE_PRICES: Record<string, number> = {
     'theme-daybreak': 500, 'dice-midnight': 300, 'dice-gold': 800,
-    'tokens-orb': 300, s1: 180, s2: 300, s3: 2000, s4: 100, s5: 240, s6: 60,
+    'tokens-orb-prism': 300, s1: 180, s2: 300, s3: 2000, s4: 100, s5: 240, s6: 60,
 };
 
 export type MarketCurrency = 'CHIPS' | 'USDC' | 'ETH';

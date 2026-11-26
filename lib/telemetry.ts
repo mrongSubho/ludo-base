@@ -18,7 +18,9 @@ export type PlayFunnelEvent =
     | 'match_end'
     | 'resync_ok'
     | 'net_degraded'
-    | 'schema_drop';
+    | 'schema_drop'
+    | 'room_reconnect_attempt'
+    | 'room_reconnect_exhausted';
 
 export type TelemetryProps = Record<string, string | number | boolean | null | undefined>;
 
@@ -59,18 +61,28 @@ export function initTelemetry(opts?: { dsn?: string; sampleRate?: number }): voi
     const envDsn = opts?.dsn
         || (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN : undefined);
     if (envDsn) {
+        if (transport !== consoleTransport) {
+            track('session_start', { env: process.env.NODE_ENV ?? 'unknown' });
+            return;
+        }
         void import('./telemetrySentry')
             .then((mod) => {
                 try {
-                    setTelemetryTransport(mod.createSentryTransport({ dsn: envDsn }));
-                    console.info('[telemetry] Sentry transport bound');
+                    if (transport === consoleTransport) {
+                        setTelemetryTransport(mod.createSentryTransport({ dsn: envDsn }));
+                        console.info('[telemetry] Sentry transport bound');
+                    }
                 } catch (err) {
                     console.warn('[telemetry] invalid Sentry DSN — staying on console', err);
                 }
             })
             .catch(() => {
                 /* stay on console */
+            })
+            .finally(() => {
+                track('session_start', { env: process.env.NODE_ENV ?? 'unknown' });
             });
+        return;
     }
     track('session_start', { env: process.env.NODE_ENV ?? 'unknown' });
 }

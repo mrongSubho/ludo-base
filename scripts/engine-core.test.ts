@@ -101,10 +101,10 @@ test('ENG-13: only integer faces 1..6 are accepted', () => {
     }
 });
 
-test('ENG-13: steps are clamped to a legal range', () => {
+test('ENG-13: steps are clamped to a single-move legal range (1..6)', () => {
     assert.equal(clampSteps(6), 6);
-    assert.equal(clampSteps(12), 12, 'a boosted move is dice + 6');
-    assert.equal(clampSteps(13), 12, 'and nothing wider than that is legal');
+    assert.equal(clampSteps(7), 6, 'split boost keeps each step within 1..6');
+    assert.equal(clampSteps(12), 6);
     assert.equal(clampSteps(-4), 0);
     assert.equal(clampSteps(3.9), 3);
     assert.equal(clampSteps('x'), 0);
@@ -114,17 +114,15 @@ test('ENG-13: steps are clamped to a legal range', () => {
 
 test('ENG-13: processMove refuses a malformed step count', () => {
     const s = st({ positions: { green: [0, -1, -1, -1], red: [-1, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] } });
-    // 1..12 is the legal band: a boosted move is dice + 6. Beyond that, or
-    // fractional, or negative, or NaN, is refused.
-    for (const bad of [0, -1, 13, 99, 2.5, NaN, Infinity]) {
+    // 1..6 is the legal band (boost splits into two separate 1..6 steps).
+    for (const bad of [0, -1, 7, 12, 13, 99, 2.5, NaN, Infinity]) {
         const r = processMove(s, 'green', 0, bad, '4P', CC4P);
         assert.equal(r.applied, false, `steps=${bad} must be refused`);
         assert.deepEqual(r.newState.positions.green, [0, -1, -1, -1], 'state must be untouched');
     }
-    // A boosted 12 must NOT be refused by the validator.
-    assert.equal(isValidStepCount(12), true);
     assert.equal(isValidStepCount(6), true);
-    assert.equal(isValidStepCount(13), false);
+    assert.equal(isValidStepCount(7), false);
+    assert.equal(isValidStepCount(12), false);
     assert.equal(isValidStepCount(0), false);
 });
 
@@ -235,7 +233,7 @@ test('ENG-03: a 2v2 team going all-home by teleport ends the match', () => {
     const done = [BOARD_FINISH_INDEX, BOARD_FINISH_INDEX, BOARD_FINISH_INDEX, BOARD_FINISH_INDEX];
     const base = st({
         positions: {
-            green: [50, done[0], done[1], done[2]], // token 0 at 50: teleport sends it home
+            green: [32, done[0], done[1], done[2]], // token 0 at BL distance 50 (right before home gate): teleport sends it home
             blue: [done[0], done[1], done[2], done[3]],
             red: [-1, -1, -1, -1],
             yellow: [-1, -1, -1, -1],
@@ -244,11 +242,45 @@ test('ENG-03: a 2v2 team going all-home by teleport ends the match', () => {
         playerPowers: { green: [{ type: 'teleport', expiresAt: 2_000_000 }] } as never,
     });
     const r = applyPower(base, 'green', 'teleport', 0, CC2V2, '2v2', 1_000_000);
-    assert.equal(r.ok, true, 'teleport from 50 lands home');
+    assert.equal(r.ok, true, 'teleport from BL distance 50 lands home');
     assert.equal(r.state!.positions.green[0], BOARD_FINISH_INDEX);
     assert.equal(r.state!.winner, 'Team 1', 'the match must be won, not wedged');
     assert.equal(r.state!.status, 'finished');
     assert.ok(r.state!.winners.includes('green'), 'the finishing colour is recorded');
+});
+
+test('Teleport uses color-relative travel distance (TL at pos 49 blinks to star, TL at pos 45 finishes & prunes shield)', () => {
+    // Blue is TL (startIdx=47). pos 49 is only distance 2 out of yard — must NOT finish!
+    const early = st({
+        positions: {
+            green: [-1, -1, -1, -1],
+            red: [-1, -1, -1, -1],
+            yellow: [-1, -1, -1, -1],
+            blue: [49, -1, -1, -1],
+        },
+        currentPlayer: 'blue',
+        playerPowers: { blue: [{ type: 'teleport', expiresAt: 2_000_000 }] } as never,
+    });
+    const earlyRes = applyPower(early, 'blue', 'teleport', 0, CC4P, '4P', 1_000_000);
+    assert.equal(earlyRes.ok, true);
+    assert.equal(earlyRes.state!.positions.blue[0], 3, 'TL pos 49 (dist 2) blinks to next safe star (3), not Finish');
+
+    // TL at pos 45 has relative distance 50 (>= 48) -> finishes at 57 and prunes active shield.
+    const late = st({
+        positions: {
+            green: [5, -1, -1, -1],
+            red: [-1, -1, -1, -1],
+            yellow: [-1, -1, -1, -1],
+            blue: [45, -1, -1, -1],
+        },
+        currentPlayer: 'blue',
+        activeShields: [{ color: 'blue', tokenIdx: 0 }, { color: 'green', tokenIdx: 0 }],
+        playerPowers: { blue: [{ type: 'teleport', expiresAt: 2_000_000 }] } as never,
+    });
+    const lateRes = applyPower(late, 'blue', 'teleport', 0, CC4P, '4P', 1_000_000);
+    assert.equal(lateRes.ok, true);
+    assert.equal(lateRes.state!.positions.blue[0], BOARD_FINISH_INDEX);
+    assert.deepEqual(lateRes.state!.activeShields, [{ color: 'green', tokenIdx: 0 }], 'finish via teleport prunes own token shield');
 });
 
 test('ENG-03: teleport that does not finish anything leaves the match playing', () => {
@@ -896,9 +928,9 @@ test('getLegalTokenIndices offers only tokens that change position', () => {
 test('Shield activated before roll stays active after caster moves and blocks captures & nukes until next turn', () => {
     const start = st({
         positions: {
-            green: [5, 10, -1, -1],
-            red: [4, -1, -1, -1],     // 4 + 4 = 8 -> lands right on green token 0 after green moves 5->8
-            yellow: [6, -1, -1, -1],  // within ±3 of green token 0/1 for nuke
+            green: [4, 9, -1, -1],
+            red: [3, -1, -1, -1],     // 3 + 4 = 7 -> unsafe cell, lands right on green token 0 after green moves 4->7
+            yellow: [6, -1, -1, -1],  // within NUKE_RADIUS (3) of green tokens at 7 and 9
             blue: [20, -1, -1, -1],
         },
         playerCount: '4P',
@@ -915,7 +947,7 @@ test('Shield activated before roll stays active after caster moves and blocks ca
         { color: 'green', tokenIdx: 1 },
     ]);
 
-    // 2. Green rolls 3 and moves token 0 (5 -> 8). Turn passes to Red.
+    // 2. Green rolls 3 and moves token 0 (4 -> 7, unsafe square). Turn passes to Red.
     //    Green's Shield MUST remain active!
     const rollG = resolveRollWithBoost({
         state: shielded.state!,
@@ -936,10 +968,29 @@ test('Shield activated before roll stays active after caster moves and blocks ca
         now: 1_000_002,
     });
     assert.equal(moveG.ok, true);
+    assert.equal(moveG.state!.positions.green[0], 7);
     assert.equal(moveG.state!.currentPlayer, 'red');
     assert.equal(moveG.state!.activeShields.length, 2, 'Green shield stays up after Green moves');
 
-    // 3. Red rolls 4 and moves onto Green's shielded token at index 8 -> NO capture!
+    // Negative control: without activeShields, Red captures Green[0] on unsafe cell 7 and Yellow at 6 nukes both Green tokens (7 and 9).
+    const unshieldedCapture = resolveNetworkedMove({
+        state: { ...moveG.state!, activeShields: [], diceValue: 4, gamePhase: 'moving' },
+        color: 'red',
+        tokenIndex: 0,
+        dice: 4,
+        cc: CC4P,
+        playerCount: '4P',
+        now: 1_000_003,
+    });
+    assert.equal(unshieldedCapture.captured, true, 'negative control: capture succeeds on unsafe cell 7 without shield');
+
+    const unshieldedNuke = countNukeVictims({ ...moveG.state!, activeShields: [] }, 'yellow', 0, CC4P, '4P');
+    assert.equal(unshieldedNuke.victims.length, 2, 'negative control: nuke hits both Green tokens (7 & 9) inside radius 3 without shield');
+
+    const shieldedNukeAfterMoveG = countNukeVictims(moveG.state!, 'yellow', 0, CC4P, '4P');
+    assert.equal(shieldedNukeAfterMoveG.victims.length, 0, 'Shield blocks Yellow nuke against Green tokens on moveG state');
+
+    // 3. Red rolls 4 and moves onto Green's shielded token at unsafe index 7 -> NO capture!
     const moveR = resolveNetworkedMove({
         state: { ...moveG.state!, diceValue: 4, gamePhase: 'moving' },
         color: 'red',
@@ -950,14 +1001,18 @@ test('Shield activated before roll stays active after caster moves and blocks ca
         now: 1_000_003,
     });
     assert.equal(moveR.ok, true);
-    assert.equal(moveR.captured, false, 'Shield blocks opponent capture on opponent turn');
-    assert.equal(moveR.state!.positions.green[0], 8);
+    assert.equal(moveR.captured, false, 'Shield blocks opponent capture on unsafe cell 7');
+    assert.equal(moveR.state!.positions.green[0], 7);
     assert.equal(moveR.state!.currentPlayer, 'yellow');
     assert.equal(moveR.state!.activeShields.length, 2, 'Green shield stays up through Red turn');
 
-    // 4. Yellow checks Nuke near Green's tokens -> 0 victims because Green is shielded!
+    // 4. Yellow checks Nuke near Green's tokens -> 0 Green victims because Green is still shielded!
     const nukeCheck = countNukeVictims(moveR.state!, 'yellow', 0, CC4P, '4P');
-    assert.equal(nukeCheck.victims.length, 0, 'Shield blocks opponent nuke on opponent turn');
+    assert.equal(
+        nukeCheck.victims.filter((v) => v.color === 'green').length,
+        0,
+        'Shield blocks opponent nuke on opponent turn',
+    );
 
     const moveY = resolveNetworkedMove({
         state: { ...moveR.state!, diceValue: 1, gamePhase: 'moving' },

@@ -19,9 +19,9 @@ export default function WalletConnectCard({ onGuest }: WalletConnectCardProps) {
     const [mounted, setMounted] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [docTab, setDocTab] = useState<ArenaDocTab | null>(null);
-    // ToS + Privacy consent: pre-ticked so new players can launch cleanly;
+    // ToS + Privacy consent: must be explicitly ticked by the player;
     // unchecking locks both sign-in and guest entrance.
-    const [agreed, setAgreed] = useState(true);
+    const [agreed, setAgreed] = useState(false);
 
     useEffect(() => {
         setMounted(true);

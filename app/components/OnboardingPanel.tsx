@@ -16,6 +16,7 @@ import { ClaimingOverlay } from './ClaimingOverlay';
 import { showTxPrompt, updateAuthPromptStatus } from '@/hooks/useAuthPrompt';
 import { HudCornerTicks, HudProgressGauge, HudSectionLabel } from './HudPrimitives';
 import { CheckGlyphIcon, ChipsHexIcon } from './icons';
+import { TutorialOverlay } from './TutorialOverlay';
 
 interface TrackRow {
     track: string;
@@ -94,6 +95,7 @@ export const OnboardingPanel = () => {
     }, [tracks]);
 
     const [welcomeClaimed, setWelcomeClaimed] = useState(false);
+    const [tutorialOpen, setTutorialOpen] = useState(false);
     const [referral, setReferral] = useState<ReferralResponse | null>(null);
     const [locked, setLocked] = useState(false);
     const [claimingId, setClaimingId] = useState<string | null>(null);
@@ -337,7 +339,6 @@ export const OnboardingPanel = () => {
             tutorial: { badge: 'bg-accent-soft text-accent border-accent/35', icon: target },
             ai_classic: { badge: 'bg-accent-soft text-accent border-accent/35', icon: dice },
             ai_power: { badge: 'bg-warn/15 text-warn border-warn/35', icon: flame },
-            ai_snakes: { badge: 'bg-positive/15 text-positive border-positive/35', icon: dice },
             pvp: { badge: 'bg-negative/15 text-negative border-negative/35', icon: trophy },
             playtime: { badge: 'bg-warn/15 text-warn border-warn/35', icon: clock },
             social: { badge: 'bg-accent-soft text-accent border-accent/35', icon: users },
@@ -422,11 +423,17 @@ export const OnboardingPanel = () => {
                         </div>
 
                         <Button
-                            variant={claimable ? 'primary' : 'secondary'}
+                            variant={claimable || (x.track === 'tutorial' && !isCompleted) ? 'primary' : 'secondary'}
                             size="sm"
                             loading={claimingId === x.track}
-                            disabled={isClaimed || !claimable}
-                            onClick={claimable ? () => void handleClaim(x.track) : undefined}
+                            disabled={isClaimed || (!claimable && x.track !== 'tutorial')}
+                            onClick={() => {
+                                if (claimable) {
+                                    void handleClaim(x.track);
+                                } else if (x.track === 'tutorial' && !isCompleted) {
+                                    setTutorialOpen(true);
+                                }
+                            }}
                             className={`min-w-[74px] rounded-xl shrink-0 ${
                                 isClaimed
                                     ? 'opacity-60 cursor-not-allowed'
@@ -442,6 +449,8 @@ export const OnboardingPanel = () => {
                                 </span>
                             ) : claimable ? (
                                 'CLAIM'
+                            ) : x.track === 'tutorial' && !isCompleted ? (
+                                'START'
                             ) : (
                                 'GO'
                             )}
@@ -647,6 +656,16 @@ export const OnboardingPanel = () => {
                     {bindState && <div className="text-ludo-xs font-mono text-accent">{bindState}</div>}
                 </div>
             </div>
+
+            <TutorialOverlay
+                open={tutorialOpen}
+                walletAddress={address}
+                ensureAppSession={ensureAppSession}
+                onClose={() => setTutorialOpen(false)}
+                onComplete={() => {
+                    void load();
+                }}
+            />
         </div>
     );
 };

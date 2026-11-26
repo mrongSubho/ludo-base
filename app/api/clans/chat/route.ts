@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { requireSession, requireAppSession, serviceDb } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
+import { filterProfanity } from '@/lib/moderation';
 import type { ClanChatMessage } from '@/lib/clan/types';
 
 export async function GET(request: Request) {
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'clanId and content string required' }, { status: 400 });
         }
 
-        const text = content.trim();
+        const text = filterProfanity(content.trim());
         if (text.length === 0 || text.length > 280) {
             return NextResponse.json({ error: 'Message must be between 1 and 280 characters' }, { status: 400 });
         }

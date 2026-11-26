@@ -25,9 +25,10 @@
  * from the request body. The `chips_*` tables are an indexer cache and may lag
  * or be empty, so they are only ever used for non-authoritative enrichment.
  */
-import { createPublicClient, http, getAddress, type Address, type Hex } from "viem";
+import { createPublicClient, getAddress, type Address, type Hex } from "viem";
 import { base, baseSepolia } from "viem/chains";
 import { MATCH_POOL_ABI, matchPoolAddress } from "@/lib/chips";
+import { createFallbackRpcTransport } from "@/lib/rpcTransport";
 import { parseRequestedChainId } from "@/lib/chipsSettle";
 import type { PayoutEntry } from "@/lib/chipsSettle";
 
@@ -89,7 +90,7 @@ function clientFor(chainId: number) {
     // Chain is pinned so viem cannot silently read a different network than the
     // one the digest is bound to; the caller already validated chainId.
     const chain = chainId === 8453 ? base : baseSepolia;
-    return createPublicClient({ chain, transport: http() });
+    return createPublicClient({ chain, transport: createFallbackRpcTransport(chainId) });
 }
 
 /** Read the on-chain pool. Throws PoolAuthorityError if the pool is unknown. */

@@ -7,8 +7,9 @@ import { stripPowerTypesForWire } from '../lib/engine/core';
 const root = join(import.meta.dirname ?? __dirname, '..');
 const read = (p: string) => readFileSync(join(root, p), 'utf8');
 
-test('PW-1: stripPowerTypesForWire masks opponent power types', () => {
+test('PW-1: stripPowerTypesForWire masks opponent power types and powerTileSeed', () => {
     const rawState = {
+        powerTileSeed: 424242,
         powerTiles: [{ r: 1, c: 2, type: 'nuke' }],
         playerPowers: {
             green: [{ type: 'boost', expiresAt: 1700001000 }],
@@ -16,15 +17,23 @@ test('PW-1: stripPowerTypesForWire masks opponent power types', () => {
         },
     };
 
-    // Viewer is green: green retains 'boost', red is redacted (undefined)
+    // Viewer is green: green retains 'boost', red is redacted (undefined), seed stripped
     const sanitizedForGreen = stripPowerTypesForWire(rawState, 'green');
+    assert.equal('powerTileSeed' in sanitizedForGreen, false);
     assert.equal(sanitizedForGreen.playerPowers.green[0].type, 'boost');
     assert.equal(sanitizedForGreen.playerPowers.red[0].type, undefined);
 
     // Spectator (no viewerColor): all colors redacted
     const sanitizedForSpectator = stripPowerTypesForWire(rawState);
+    assert.equal('powerTileSeed' in sanitizedForSpectator, false);
     assert.equal(sanitizedForSpectator.playerPowers.green[0].type, undefined);
     assert.equal(sanitizedForSpectator.playerPowers.red[0].type, undefined);
+});
+
+test('PW-1: MatchRoomCore sanitizes outbound WS state per socket', () => {
+    const core = read('src/room/MatchRoomCore.ts');
+    assert.match(core, /stripPowerTypesForWire/);
+    assert.match(core, /sanitizeForSocket\(/);
 });
 
 test('PW-1: /api/match/state resolves viewer session and redacts opponent power inventory', () => {

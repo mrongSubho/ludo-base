@@ -21,6 +21,7 @@ import {
 } from '@/lib/chips';
 import { verifyErc20TransferLog, waitForConfirmedReceipt } from '@/lib/onchainReceipt';
 import { recordSocialOnboarding } from '@/lib/onboardingProgressWriter';
+import { filterProfanity } from '@/lib/moderation';
 import type {
     Clan,
     ClanMember,
@@ -374,7 +375,7 @@ export async function createClan(params: {
 }): Promise<{ clanId: string }> {
     const db = serviceDb();
     const leader = params.leaderWallet.toLowerCase();
-    const name = params.name.trim();
+    const name = filterProfanity(params.name.trim()).trim();
     const tag = params.tag.trim().toUpperCase();
 
     if (name.length < 3 || name.length > 24) {
@@ -907,7 +908,7 @@ export async function updateClanSettings(
     }
 
     const payload: Record<string, unknown> = {};
-    if (typeof updates.bio === 'string') payload.bio = updates.bio.trim().slice(0, 200);
+    if (typeof updates.bio === 'string') payload.bio = filterProfanity(updates.bio.trim()).slice(0, 200);
     if (updates.join_policy) payload.join_policy = updates.join_policy;
     if (typeof updates.min_rxp === 'number') payload.min_rxp = Math.max(0, updates.min_rxp);
     if (typeof updates.min_level === 'number') payload.min_level = Math.max(1, updates.min_level);
@@ -1331,7 +1332,7 @@ export async function renameClan(params: {
     }
 
     const nextName = typeof params.newName === 'string' && params.newName.trim()
-        ? params.newName.trim()
+        ? filterProfanity(params.newName.trim()).trim()
         : String(clan.name);
     const nextTag = typeof params.newTag === 'string' && params.newTag.trim()
         ? params.newTag.trim().toUpperCase()

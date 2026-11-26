@@ -73,6 +73,13 @@ export async function POST(request: Request) {
                     { onConflict: 'blocker_address,blocked_address', ignoreDuplicates: true }
                 );
                 if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+                // Cascade unfriend on block so blocked users cannot DM, poke, or remain in friends list.
+                await Promise.all([
+                    db.from('friendships').delete().eq('user_address', wallet).eq('friend_address', targetWallet),
+                    db.from('friendships').delete().eq('user_address', targetWallet).eq('friend_address', wallet),
+                ]).catch((err) => {
+                    console.warn('[moderation] cascade unfriend warning:', err);
+                });
             } else {
                 const { error } = await db.from('user_blocks').delete()
                     .eq('blocker_address', wallet).eq('blocked_address', targetWallet);

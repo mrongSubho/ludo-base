@@ -4,6 +4,7 @@ import { requireSession, requireAppSession } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 import { buyInWarCall, startWarSearch } from '@/lib/clan/clanWarService';
 import { ClanServiceError } from '@/lib/clan/clanService';
+import { complianceErrorResponse, requirePaidPlayCompliance } from '@/lib/compliance';
 
 export async function POST(request: Request) {
     try {
@@ -22,6 +23,11 @@ export async function POST(request: Request) {
                 { error: 'Too many war buy-in requests', retryAfter: limit.retryAfterSec },
                 { status: 429, headers: rateLimitHeaders(limit) },
             );
+        }
+
+        const compliance = await requirePaidPlayCompliance(request, authed, 'clanWars');
+        if (!compliance.ok) {
+            return complianceErrorResponse(compliance);
         }
 
         const { clanId, action, stakeAmount, txHash } = body;

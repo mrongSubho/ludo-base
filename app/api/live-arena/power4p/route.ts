@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { INITIAL_GAME_STATE, getLegalTokenIndices } from '@/lib/gameLogic';
-import { clearShieldsOnTurnChange, lcg32, rollPowerTypeLcg, resolveNetworkedMove, seatedColorsFor } from '@/lib/engine/core';
+import { applyPower, clearShieldsOnTurnChange, lcg32, rollPowerTypeLcg, rollUnbiasedDie, resolveControllableColor, resolveNetworkedMove, seatedColorsFor, type EngineGameState } from '@/lib/engine/core';
 import { assignCornersForShape, BOT_TEMPLATES, CORNER_TO_POSITION, getBoardCoordinate } from '@/lib/boardLayout';
 import { POWER_TILES_COUNT } from '@/lib/constants';
 import { calculateLevel } from '@/lib/progression';
-import { getBestMove } from '@/lib/aiEngine';
+import { getBestMove, getBestPowerUsage } from '@/lib/aiEngine';
 import { requireAppSession, requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 import { checkRateLimit, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 import { getDemoExhibitionByKey } from '@/lib/arena/demoArenas';
@@ -308,30 +308,64 @@ export async function PATCH(request: Request) {
     const cc = row.data.color_corner as unknown as ColorCorner;
     const seq = Number(row.data.seq);
 
-    const rollRand = lcg32(((state.powerTileSeed ?? 0) >>> 0) + seq * 7919);
-    const roll = Math.floor(rollRand() * 6) + 1;
+    let workingState = state;
+    if (ex.gameMode === 'power' && workingState.gamePhase === 'rolling' && !workingState.powerSpentThisTurn) {
+      const powerPick = getBestPowerUsage(workingState, color, cc, ex.matchShape, 'pro');
+      if (powerPick) {
+        const applied = applyPower(
+          workingState as unknown as EngineGameState,
+          color,
+          powerPick.type,
+          powerPick.tokenIdx,
+          cc,
+          ex.matchShape,
+          Date.now(),
+        );
+        if (applied.ok) {
+          workingState = applied.state as unknown as GameState;
+        }
+      }
+    }
 
-    const legal = getLegalTokenIndices(state.positions, color, roll, cc);
     let next: GameState;
-    if (legal.length) {
-      const choice = getBestMove(state.positions, color, roll, cc, ex.matchShape, state.powerTiles, state, 'pro')?.tokenIndex ?? legal[0];
-      const resolved = resolveNetworkedMove({
-        state: state as unknown as Parameters<typeof resolveNetworkedMove>[0]['state'],
-        color,
-        tokenIndex: choice,
-        dice: roll,
-        cc,
-        playerCount: ex.matchShape,
-        activeColors,
-        now: Date.now(),
-      });
-      const fallbackNext = activeColors[(activeColors.indexOf(color) + 1) % activeColors.length];
-      next = resolved.ok && resolved.state
-        ? (resolved.state as unknown as GameState)
-        : { ...state, currentPlayer: fallbackNext, activeShields: clearShieldsOnTurnChange(state.activeShields, color, fallbackNext), diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
+    if (workingState.winner) {
+      next = workingState;
     } else {
-      const passNext = activeColors[(activeColors.indexOf(color) + 1) % activeColors.length];
-      next = { ...state, currentPlayer: passNext, activeShields: clearShieldsOnTurnChange(state.activeShields, color, passNext), diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
+      const roll = rollUnbiasedDie();
+      const targetColor = resolveControllableColor(workingState.positions, color, ex.matchShape);
+      const legal = getLegalTokenIndices(workingState.positions, targetColor, roll, cc);
+      if (legal.length) {
+        const picked = getBestMove(
+          workingState.positions,
+          color,
+          roll,
+          cc,
+          ex.matchShape,
+          workingState.powerTiles as { r: number; c: number }[],
+          workingState,
+          'pro',
+        );
+        const choice = picked && picked.color === targetColor && legal.includes(picked.tokenIndex)
+          ? picked.tokenIndex
+          : legal[0];
+        const resolved = resolveNetworkedMove({
+          state: workingState as unknown as EngineGameState,
+          color,
+          tokenIndex: choice,
+          dice: roll,
+          cc,
+          playerCount: ex.matchShape,
+          activeColors,
+          now: Date.now(),
+        });
+        const fallbackNext = activeColors[(activeColors.indexOf(color) + 1) % activeColors.length];
+        next = resolved.ok && resolved.state
+          ? (resolved.state as unknown as GameState)
+          : { ...workingState, currentPlayer: fallbackNext, activeShields: clearShieldsOnTurnChange(workingState.activeShields, color, fallbackNext), diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
+      } else {
+        const passNext = activeColors[(activeColors.indexOf(color) + 1) % activeColors.length];
+        next = { ...workingState, currentPlayer: passNext, activeShields: clearShieldsOnTurnChange(workingState.activeShields, color, passNext), diceValue: null, gamePhase: 'rolling', lastUpdate: Date.now() };
+      }
     }
 
     const updated = await sb

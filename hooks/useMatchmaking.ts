@@ -589,14 +589,25 @@ export function useMatchmaking(props: UseMatchmakingProps) {
         };
     }, [wager, startSearch]);
 
-    const startHybridSearch = useCallback(async (roomCode: string, slotsNeeded: number, lobbyMatchType: string, wagerMin?: number, wagerMax?: number, skipPurge: boolean = false) => {
+    const startHybridSearch = useCallback(async (
+        roomCode: string,
+        slotsNeeded: number,
+        lobbyMatchType: string,
+        wagerMin?: number,
+        wagerMax?: number,
+        skipPurge: boolean = false,
+        partyWallets?: string[],
+    ) => {
         if (isStartingRef.current) {
             console.log('📡 [Matchmaking] Hybrid search already starting, ignoring duplicate call.');
             return;
         }
 
         const _normalizedPlayerId = playerId.toLowerCase();
-        const criteria = `hybrid-${roomCode}-${slotsNeeded}-${lobbyMatchType}-${wager}-${wagerMin}-${wagerMax}`;
+        const normalizedParty = Array.isArray(partyWallets)
+            ? Array.from(new Set(partyWallets.map((w) => String(w || '').trim().toLowerCase()).filter(Boolean)))
+            : [];
+        const criteria = `hybrid-${roomCode}-${slotsNeeded}-${lobbyMatchType}-${wager}-${wagerMin}-${wagerMax}-${normalizedParty.join(',')}`;
         
         if (!skipPurge && statusRef.current === 'searching' && lastSearchRef.current === criteria) {
             console.log('📡 [Matchmaking] Already in hybrid search with same criteria. Ignoring call.');
@@ -631,6 +642,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                     wagerMax,
                     roomCode,
                     slotsNeeded,
+                    partyWallets: normalizedParty.length > 0 ? normalizedParty : undefined,
                     isHybrid: true
                 })
             });
@@ -653,7 +665,7 @@ export function useMatchmaking(props: UseMatchmakingProps) {
                 if (!skipPurge) {
                     if (pollingRef.current) clearInterval(pollingRef.current);
                     pollingRef.current = setInterval(() => {
-                        void startHybridSearch(roomCode, slotsNeeded, lobbyMatchType, wagerMin, wagerMax, true);
+                        void startHybridSearch(roomCode, slotsNeeded, lobbyMatchType, wagerMin, wagerMax, true, normalizedParty);
                     }, 5000);
                 }
             }

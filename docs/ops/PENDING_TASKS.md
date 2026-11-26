@@ -218,3 +218,10 @@ npm run drill:live                                     # live netcode drills (ne
 - UI detail and per-group statuses: `docs/ops/UI_AUDIT_TRACKER.md`; both audits' own checkboxes are stale (item V-6).
 
 *When an item closes: record the closure in `IMPLEMENTATION_RECORD.md` (prose — that file is gate-protected against checkbox syntax), then strike it here.*
+
+---
+
+## Wave 0–5 Status Note (Closed 2026-11-27)
+
+- **Wave 4–5 Architecture Teardown Closures (archived in `IMPLEMENTATION_RECORD.md` Part XI):** Shared AI heuristic brain (`lib/aiEngine.ts`), 9-arg `join_matchmaking_hybrid` + free-only server bot backfill + `[AI]` badge, optional `quick` Turbo mode, ECDSA P-256 signed Config Registry (`GET /api/config`) + multi-endpoint `createFallbackRpcTransport`, `player_consents` 18+/ToS/geo compliance gate + opt-in telemetry, DO-routed guest/host `broadcastSocial` + compositor-only `BoardProjectileLayer`, bidirectional `user_blocks` + profanity moderation, `/api/marketplace/inventory` hydration + `tokens-orb-prism`, `useSeasonClaim("1")` inside `ClaimHubSheet`, and 4-step `TutorialOverlay` + server-derived playtime.
+- Spectator prediction pool betting (`spectatorBetting.ts`), onboarding Welcome Grant (`/api/onboarding/claim`), and EIP-8021 Builder Code attribution (`lib/builderCode.ts` env-gated) remain documented as live code capabilities in `IMPLEMENTATION_RECORD.md`.

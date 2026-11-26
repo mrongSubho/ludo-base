@@ -48,6 +48,8 @@ import {
     type CrestEmblem,
 } from "./ClanCrestBadge";
 import type { Clan, ClanJoinPolicy, ClanWarFixture } from "@/lib/clan/types";
+import ComplianceGateModal from "./ComplianceGateModal";
+import { useComplianceConsent } from "@/hooks/useComplianceConsent";
 import { ClanDossierContent } from "./clan/ClanDossierContent";
 import ClanProfileModal from "./ClanProfileModal";
 import { MissionCard } from "./MissionCard";
@@ -132,6 +134,7 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
     } = useClanClaims();
 
     const { address } = useAccount();
+    const compliance = useComplianceConsent(address);
     const { hostGame, joinGame, initQuickLobby } = useTeamUpContext();
 
     const [activeTab, setActiveTab] = useState<ClanTab>("profile");
@@ -364,6 +367,11 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
 
     const handleJoinWarRoster = async () => {
         if (!warCall || buyInSubmitting) return;
+        const compliant = await compliance.ensureCompliance();
+        if (!compliant) {
+            setBuyInError("Age 18+ and Terms confirmation required before Clan War buy-in.");
+            return;
+        }
         setBuyInSubmitting(true);
         setBuyInError(null);
         try {
@@ -2338,6 +2346,16 @@ export function ClanPanel({ isOpen, onClose, onOpenProfile }: ClanPanelProps) {
                 onClose={() => setScoutClanTarget(null)}
                 onJoined={() => void refreshClan()}
                 onInspectMember={onOpenProfile}
+            />
+
+            <ComplianceGateModal
+                open={compliance.modalOpen}
+                status={compliance.status}
+                isSubmitting={compliance.isSubmitting}
+                error={compliance.error}
+                onSubmit={compliance.submitConsent}
+                onClose={compliance.closeModal}
+                contextLabel="Clan War Stake Buy-In"
             />
         </>
     );

@@ -60,11 +60,10 @@ export async function bumpOnboardingProgress(
     }
 }
 
-/** Map classic/power/snakes to onboarding core tracks (first completion counts). */
+/** Map classic/power to onboarding core tracks (first completion counts; snakes retired). */
 export function aiTrackForGameMode(gameMode: string | null | undefined): OnboardingTrack | null {
     const mode = String(gameMode || '').toLowerCase();
     if (mode === 'power') return 'ai_power';
-    if (mode === 'snakes') return 'ai_snakes';
     if (mode === 'classic') return 'ai_classic';
     return null;
 }
@@ -84,8 +83,8 @@ export type OnboardingPlayerSnapshot = {
 };
 
 /**
- * After a recorded online match: pvp + return-day tracks for every participant.
- * AI / tutorial / playtime stay client-driven (offline path) via /api/onboarding/progress.
+ * After a recorded online match: pvp + playtime + return-day tracks for every participant.
+ * AI / tutorial stay driven via /api/onboarding/progress (recorded matches / tutorial completion).
  *
  * Batched deliberately: this runs on the match-settlement path, where the old
  * per-wallet shape cost 3–7 round trips each (a select + upsert per track, plus
@@ -99,6 +98,8 @@ export async function recordMatchOnboarding(
         gameMode?: string | null;
         /** True when the human finished a bot/offline board that the client reports. */
         versusAi?: boolean;
+        /** Match duration in whole minutes (clamped 1..60, defaults to 5) for playtime tracking. */
+        durationMinutes?: number;
         /**
          * `players` rows as they were BEFORE the caller wrote progression.
          * `recordReturnVisit` needs the pre-match `last_played_at`; when the
@@ -114,13 +115,16 @@ export async function recordMatchOnboarding(
 
     const now = new Date();
     const aiTrack = args.versusAi ? aiTrackForGameMode(args.gameMode) : null;
+    const rawMins = Number(args.durationMinutes);
+    const playtimeDelta = Number.isFinite(rawMins) && rawMins >= 1 ? Math.min(60, Math.floor(rawMins)) : 5;
 
     // 1. What each wallet earns from *this* match.
-    const earned = new Map<string, Set<OnboardingTrack>>();
+    const earned = new Map<string, Map<OnboardingTrack, number>>();
     for (const wallet of parts) {
-        const tracks = new Set<OnboardingTrack>();
-        if (aiTrack) tracks.add(aiTrack);
-        else if (parts.length >= 2) tracks.add('pvp');
+        const tracks = new Map<OnboardingTrack, number>();
+        if (aiTrack) tracks.set(aiTrack, 1);
+        else if (parts.length >= 2) tracks.set('pvp', 1);
+        tracks.set('playtime', playtimeDelta);
         earned.set(wallet, tracks);
     }
 
@@ -153,12 +157,12 @@ export async function recordMatchOnboarding(
         if (lastDay != null && lastDay >= today) continue;
         const dayNumber = today - createdDay + 1; // 1-based day of life
         const tracks = earned.get(wallet)!;
-        if (dayNumber >= 2) tracks.add('day2');
-        if (dayNumber >= 3) tracks.add('day3');
+        if (dayNumber >= 2) tracks.set('day2', 1);
+        if (dayNumber >= 3) tracks.set('day3', 1);
     }
 
     const pairs = [...earned.entries()].flatMap(([wallet, tracks]) =>
-        [...tracks].map((track) => ({ wallet, track })),
+        [...tracks.entries()].map(([track, step]) => ({ wallet, track, step })),
     );
     if (pairs.length === 0) return;
 
@@ -191,15 +195,15 @@ export async function recordMatchOnboarding(
         is_claimed: boolean;
         updated_at: string;
     }> = [];
-    for (const { wallet, track } of pairs) {
+    for (const { wallet, track, step } of pairs) {
         const def = ONBOARDING_TRACKS[track];
         const prior = existingByKey.get(`${wallet}:${track}`);
         const prev = prior?.progress ?? 0;
         const target = prior?.target && prior.target > 0 ? prior.target : def.target;
-        const progress = Math.min(prev + 1, target);
+        const progress = Math.min(prev + step, target);
         if (progress === prev) continue;
         // On-chain mirror: same delta as the DB row (no-op until configured).
-        void reportProgress(wallet, String(track), 1);
+        void reportProgress(wallet, String(track), step);
         rows.push({
             wallet_address: wallet,
             track,

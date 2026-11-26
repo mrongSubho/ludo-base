@@ -29,6 +29,12 @@ export const TEAM_ID = {
 
 // --- Game Rules ---
 export const DEFAULT_TURN_TIMER_SECS = 15;
+export const TURN_TIMERS = {
+    castMs: 12_000,
+    moveMs: 15_000,
+    maxDullMs: 30_000,
+    aiStepMs: 1_000,
+} as const;
 export const IDLE_WARNING_TIMER_SECS = 10;
 export const MAX_CONSECUTIVE_SIXES = 3;
 export const POWER_TILES_COUNT = 5;
@@ -75,6 +81,8 @@ export const AI_SCORES = {
   REINFORCE_ALLY: 60,
   ENTER_HOME_LANE: 25,
   PROGRESSION_MULTIPLIER: 2, // Stage 5: getBestMoveIndex (Points per step forward)
+  AVOID_TRAP: -1200, // Avoid known active enemy trap cells
+  BREAK_PROTECTIVE_STACK: -300, // Prefer keeping a 2-token protective stack intact
 };
 
 // --- Animations & Delays ---
@@ -118,9 +126,12 @@ export const JOINER_SYNC_DELAY = 1500; // ms wait for Host PeerJS ID
  *
  * `matches.game_mode_code` (migration 202609300009) persists this at match start.
  */
+export type GameMode = 'classic' | 'power' | 'quick';
+
 export const GAME_MODE_CODE: Record<string, number> = {
     classic: 0,
     power: 1,
+    quick: 2,
 };
 
 /** Declared pool shape -> MatchPool.PoolShape. Must match contracts/src/MatchPool.sol. */

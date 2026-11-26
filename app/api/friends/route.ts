@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { requireSessionWallet, serviceDb } from '@/lib/serverAuth';
 import { isWalletAddress, normalizeWallet } from '@/lib/validation/wallet';
+import { getBlockedWallets } from '@/lib/moderation';
 import { checkRateLimit, clientIp, rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 
 // Accepted game friendships for a wallet (both directions), lowercase.
@@ -27,11 +28,12 @@ async function fetchAcceptedFriends(walletLower: string): Promise<string[]> {
     const error = asUser.error || asFriend.error;
     if (error) throw error;
     const rows = [...(asUser.data || []), ...(asFriend.data || [])];
+    const blocked = await getBlockedWallets(db, walletLower);
     return [...new Set(rows.map((r: any) =>
         (r.user_address || '').toLowerCase() === walletLower
             ? (r.friend_address || '').toLowerCase()
             : (r.user_address || '').toLowerCase()
-    ).filter(Boolean))];
+    ).filter((addr) => Boolean(addr) && !blocked.has(addr)))];
 }
 
 // Self-Healing Status Logic: If 'Online' but last_played_at > 5 mins ago, force 'Offline'
@@ -114,16 +116,22 @@ export async function GET(request: Request) {
 
         if (!userProfile?.fid) {
             // No connected Farcaster account, but we can still fetch Game Friends
-            const { data: gameFriends } = await supabase
-                .from('players')
-                .select('wallet_address, username, avatar_url, total_wins, status, last_played_at')
-                .neq('wallet_address', wallet)
-                .order('last_played_at', { ascending: false, nullsFirst: false })
-                .order('created_at', { ascending: false })
-                .limit(20);
+            const [{ data: gameFriends }, acceptedFriends, blocked] = await Promise.all([
+                supabase
+                    .from('players')
+                    .select('wallet_address, username, avatar_url, total_wins, status, last_played_at')
+                    .neq('wallet_address', wallet)
+                    .order('last_played_at', { ascending: false, nullsFirst: false })
+                    .order('created_at', { ascending: false })
+                    .limit(20),
+                fetchAcceptedFriends(wallet),
+                getBlockedWallets(serviceDb(), wallet),
+            ]);
 
-            const acceptedFriends = await fetchAcceptedFriends(wallet);
-            return NextResponse.json({ onchainFriends: [], gameFriends: healStatus(gameFriends || []), acceptedFriends });
+            const filteredGameFriends = (gameFriends || []).filter(
+                (p: any) => !blocked.has(String(p?.wallet_address || '').toLowerCase()),
+            );
+            return NextResponse.json({ onchainFriends: [], gameFriends: healStatus(filteredGameFriends), acceptedFriends });
         }
 
         const fid = userProfile.fid;
@@ -180,9 +188,17 @@ export async function GET(request: Request) {
             console.error("Supabase Game Friends Fetch Error:", gameError);
         }
 
+        const blocked = await getBlockedWallets(serviceDb(), wallet);
+        const visibleOnchain = onchainFriends.filter(
+            (p: any) => !blocked.has(String(p?.wallet_address || '').toLowerCase()),
+        );
+        const visibleGame = (gameFriends || []).filter(
+            (p: any) => !blocked.has(String(p?.wallet_address || '').toLowerCase()),
+        );
+
         return NextResponse.json({
-            onchainFriends: healStatus(onchainFriends),
-            gameFriends: healStatus(gameFriends || []),
+            onchainFriends: healStatus(visibleOnchain),
+            gameFriends: healStatus(visibleGame),
             acceptedFriends: await fetchAcceptedFriends(wallet),
         });
     } catch (error) {

@@ -5,6 +5,7 @@ import { getLegalTokenIndices } from '@/lib/gameLogic';
 import { clearShieldsOnTurnChange } from '@/lib/engine/core';
 import { ColorCorner } from '@/lib/boardLayout';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
+import type { MatchAuthorityMode } from '@/lib/netcode/authorityGate';
 import type { RollOutcome, MoveTokenOutcome } from './useGameActions';
 
 interface UseAFKManagerProps {
@@ -17,21 +18,7 @@ interface UseAFKManagerProps {
     broadcastAction?: <T extends GameActionType>(type: T, payload?: GameActionPayload<T>, stateOverride?: GameState) => void;
     colorCorner?: ColorCorner;
     matchConnectionStatus?: MatchConnectionStatus;
-    /** Networked authority handles for AFK auto-play (host drives bot seats). */
-    moveAuth?: {
-        passTurn: (p: {
-            matchId: string;
-            rollId: string;
-            expectedSeq: number;
-            source?: 'player' | 'host-assist';
-            reason?: string;
-        }) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string }>;
-        getMatchState?: (matchId: string) => Promise<{ ok: boolean; seq?: number; state?: GameState; error?: string }>;
-    };
-    serverSeqRef?: React.MutableRefObject<number>;
-    lastRollIdRef?: React.MutableRefObject<string | null>;
-    applyServerState?: (state: GameState, seq: number) => void;
-    isLobbyConnected?: boolean;
+    matchAuthorityMode?: MatchAuthorityMode;
     /** NET-07: called with the kicked seat so the abandon is classified. */
     onAbandon?: (args: { seat: string; matchEnded: boolean }) => void;
 }
@@ -46,16 +33,13 @@ export function useAFKManager({
     broadcastAction,
     colorCorner,
     matchConnectionStatus = 'offline',
-    moveAuth,
-    serverSeqRef,
-    lastRollIdRef,
-    applyServerState,
-    isLobbyConnected,
+    matchAuthorityMode = 'offline',
     /** NET-07: records the abandon evidence when a seat is kicked. */
     onAbandon,
 }: UseAFKManagerProps) {
     useEffect(() => {
-        if (localGameState.winner || localGameState.idleWarning ||
+        if (matchAuthorityMode === 'room' ||
+            localGameState.winner || localGameState.idleWarning ||
             matchConnectionStatus === 'ended' || matchConnectionStatus === 'reconnecting' ||
             matchConnectionStatus === 'syncing' || matchConnectionStatus === 'connected') return;
 
@@ -98,11 +82,12 @@ export function useAFKManager({
                 };
             });
         }
-    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.winner, localGameState.idleWarning, initialPlayers, setLocalGameState, matchConnectionStatus]);
+    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.winner, localGameState.idleWarning, initialPlayers, setLocalGameState, matchConnectionStatus, matchAuthorityMode, onAbandon]);
 
     // Handle the Side-Effects of AFK Timeouts
     useEffect(() => {
-        if (localGameState.winner || localGameState.idleWarning ||
+        if (matchAuthorityMode === 'room' ||
+            localGameState.winner || localGameState.idleWarning ||
             matchConnectionStatus === 'ended' || matchConnectionStatus === 'reconnecting' ||
             matchConnectionStatus === 'syncing' || matchConnectionStatus === 'connected') return;
 
@@ -112,15 +97,9 @@ export function useAFKManager({
         const isKicked = localGameState.afkStats[color].isKicked;
         const isCurrentlyBot = isOriginalBot || isKicked;
 
-        // Striking & auto-play actions in offline matches when 'timeLeft' is 0.
+        // Striking & auto-play actions in offline/P2P matches when 'timeLeft' is 0.
         if (!isCurrentlyBot && localGameState.afkStats[color].isAutoPlaying && localGameState.timeLeft <= 0) {
             if (localGameState.gamePhase === 'rolling') {
-                // No pre-rolled face: handleRoll uses Edge RNG in networked
-                // matches and local RNG only offline (see useGameActions).
-                // NET-19: the clock is reset by the roll path itself once a
-                // face is committed. Resetting here (before any confirmation)
-                // re-armed the timer on an aborted Edge roll, so the AFK
-                // escalation could never reach the 3rd strike/kick.
                 void Promise.resolve(handleRoll()).then((applied) => {
                     if (applied !== 'applied') return; // refused/deferred — let timeLeft run out again
                     setLocalGameState((s) => ({ ...s, timeLeft: 15 }));
@@ -135,36 +114,6 @@ export function useAFKManager({
                 const options = getLegalTokenIndices(localGameState.positions, color, diceValue, colorCorner);
 
                 if (options.length === 0) {
-                    // Server-authoritative matches must advance match_states,
-                    // otherwise the next player's move is refused 403 and the
-                    // match stalls for everyone.
-                    const matchId = localGameState.matchId;
-                    const rollId = lastRollIdRef?.current;
-                    if (isLobbyConnected && moveAuth?.passTurn && matchId && matchId !== 'local' && rollId && serverSeqRef) {
-                        void moveAuth.passTurn({
-                            matchId,
-                            rollId,
-                            expectedSeq: serverSeqRef.current,
-                            source: 'host-assist',
-                        }).then(async (pass) => {
-                            if (pass.ok && pass.state) {
-                                serverSeqRef.current = pass.seq ?? serverSeqRef.current;
-                                if (lastRollIdRef) lastRollIdRef.current = null;
-                                applyServerState?.(pass.state, pass.seq ?? serverSeqRef.current);
-                                setLocalGameState(s => ({ ...s, ...pass.state!, diceValue: null, gamePhase: 'rolling', timeLeft: 15, lastUpdate: Date.now() }));
-                                if (broadcastAction) broadcastAction('ENGINE_STATE', {}, pass.state);
-                                return;
-                            }
-                            const snap = await moveAuth.getMatchState?.(matchId);
-                            if (snap?.ok && snap.state) {
-                                serverSeqRef.current = snap.seq ?? serverSeqRef.current;
-                                if (lastRollIdRef) lastRollIdRef.current = null;
-                                applyServerState?.(snap.state, snap.seq ?? serverSeqRef.current);
-                                setLocalGameState(s => ({ ...s, ...snap.state!, isRolling: false, timeLeft: 15, lastUpdate: Date.now() }));
-                            }
-                        }).catch(err => console.warn('[AFK] networked pass failed', err));
-                        return;
-                    }
                     setLocalGameState((s) => {
                         const nextPlayer = getNextPlayer(s.currentPlayer);
                         const switchState: GameState = {
@@ -183,10 +132,6 @@ export function useAFKManager({
                     });
                 } else {
                     const randomIdx = options[Math.floor(Math.random() * options.length)];
-                    // NET-19: reset only after a confirmed apply. `moveToken`
-                    // resolves with a status so this hook can tell "moved" from
-                    // "refused / still in flight"; an unconfirmed reset re-armed
-                    // the timer forever and the kick was unreachable.
                     void Promise.resolve(moveToken(color, randomIdx, diceValue)).then((status) => {
                         if (status === 'failed') return;
                         setLocalGameState((s) => ({ ...s, timeLeft: 15 }));
@@ -194,5 +139,5 @@ export function useAFKManager({
                 }
             }
         }
-    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.gamePhase, localGameState.winner, localGameState.diceValue, localGameState.afkStats, localGameState.idleWarning, handleRoll, moveToken, initialPlayers, getNextPlayer, setLocalGameState, broadcastAction, colorCorner, matchConnectionStatus]);
+    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.gamePhase, localGameState.winner, localGameState.diceValue, localGameState.afkStats, localGameState.idleWarning, handleRoll, moveToken, initialPlayers, getNextPlayer, setLocalGameState, broadcastAction, colorCorner, matchConnectionStatus, matchAuthorityMode]);
 }

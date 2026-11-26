@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import { computeMatchAudioMood, diffGameStateForAudio } from '@/lib/audio/boardAudioState';
+import { resolveDiceThemeId } from '@/lib/diceVisuals';
+import { prefersReducedMotion } from '@/lib/motion';
+import { usePreferences } from '@/hooks/usePreferences';
 import type { ColorCorner } from '@/lib/boardLayout';
 import type { Player } from './useGameEngine';
 import type { GameState, PlayerColor } from '@/lib/types';
@@ -19,10 +22,10 @@ export interface UseBoardAudioProps {
 /**
  * Reactive board audio coordinator.
  *
- * Watches authoritative GameState transitions (works equally for offline,
- * P2P fallback, MatchRoom DO `roomAuthority`, and Spectator mode), fires
- * non-duplicated gameplay SFX, drives adaptive match BGM + final-moments
- * Heartbeat tension, and warns when a held power item drops below 30s.
+ * Watches GameState transitions (works equally for offline, P2P fallback,
+ * MatchRoom DO `roomAuthority`, and Spectator mode), schedules impact/landing
+ * SFX on physical touchdown rather than `t = 0`, drives adaptive match BGM +
+ * final-moments Heartbeat tension, and warns when a held power drops below 30s.
  */
 export function useBoardAudio({
     gameState,
@@ -32,8 +35,11 @@ export function useBoardAudio({
     colorCorner,
     spectatorMode = false,
 }: UseBoardAudioProps): void {
+    const { preferences } = usePreferences();
+    const themeId = resolveDiceThemeId(preferences?.theme);
     const prevStateRef = useRef<GameState | null>(null);
     const warnedPowerKeysRef = useRef<Set<string>>(new Set());
+    const delayedPlayTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
     const botColors = useMemo(() => {
         const s = new Set<PlayerColor>();
@@ -43,24 +49,36 @@ export function useBoardAudio({
         return s;
     }, [players]);
 
-    // 1. State-diff event emitter
+    // 1. State-diff event emitter (immediate or delayed until physical landing)
     useEffect(() => {
         const prev = prevStateRef.current;
         prevStateRef.current = gameState;
         if (!prev) return;
 
+        const reducedMotion = prefersReducedMotion();
         const events = diffGameStateForAudio(prev, gameState, {
             myColor,
             playerCount,
             colorCorner,
             spectatorMode,
             botColors,
+            themeId,
+            reducedMotion,
         });
         const engine = getSoundEngine();
         for (const ev of events) {
-            engine.play(ev.id, ev.opts);
+            const delayMs = !reducedMotion && ev.delayMs && ev.delayMs > 0 ? ev.delayMs : 0;
+            if (delayMs === 0) {
+                engine.play(ev.id, ev.opts);
+            } else {
+                const tid = setTimeout(() => {
+                    delayedPlayTimersRef.current.delete(tid);
+                    engine.play(ev.id, ev.opts);
+                }, delayMs);
+                delayedPlayTimersRef.current.add(tid);
+            }
         }
-    }, [gameState, myColor, playerCount, colorCorner, spectatorMode, botColors]);
+    }, [gameState, myColor, playerCount, colorCorner, spectatorMode, botColors, themeId]);
 
     // 2. Adaptive BGM intensity + Final-moments Heartbeat mood
     useEffect(() => {
@@ -68,10 +86,13 @@ export function useBoardAudio({
         getSoundEngine().setMatchMood(mood.scene, mood.urgency);
     }, [gameState.positions, gameState.winner, gameState.status, gameState.isRolling, gameState.matchStats, playerCount, colorCorner, gameState]);
 
-    // Reset mood cleanly when leaving the board
+    // Reset mood and cancel any queued impact sounds cleanly when leaving the board
     useEffect(() => {
         const warned = warnedPowerKeysRef.current;
+        const timers = delayedPlayTimersRef.current;
         return () => {
+            timers.forEach((tid) => clearTimeout(tid));
+            timers.clear();
             getSoundEngine().setMatchMood('lobby', 0);
             warned.clear();
         };

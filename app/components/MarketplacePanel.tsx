@@ -5,7 +5,7 @@ import { encodeFunctionData, formatUnits, type Address } from 'viem';
 import { useAccount, useSendTransaction, useSwitchChain, useWriteContract } from 'wagmi';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePreferences } from '@/hooks/usePreferences';
-import { getOwned, addOwned } from '@/lib/inventory';
+import { getOwned, addOwned, hydrateOwned } from '@/lib/inventory';
 import { useAppSession } from '@/hooks/useAppSession';
 import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import { useCdpUserOp } from '@/hooks/useCdpUserOp';
@@ -362,13 +362,13 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
             previewIcon: <img loading="lazy" decoding="async" src="/tokens/king.png" alt="Chess" width={44} height={44} style={{ width: 44, height: 44, objectFit: 'contain' }} />,
         },
         {
-            id: 'tokens-orb', type: 'tokens', kind: 'tokens', equipValue: 'orb',
-            name: 'Orb Discs',
-            description: 'Glossy element orbs with team-colored glow.',
-            lore: 'Polished spheres humming with arena energy. Clean, fast, unmistakable.',
+            id: 'tokens-orb-prism', type: 'tokens', kind: 'tokens', equipValue: 'orb',
+            name: 'Prism Orbs',
+            description: 'Refractive holographic orbs with prismatic arena luminescence.',
+            lore: 'Precision-cut crystalline spheres tuned to resonate across the 3077 grid.',
             price: 300, owned: false, rarity: 'rare', collection: 'Elemental', creator: 'Vulcan',
             collectionStats: { floor: 260, volume: 4800, owners: 1140 },
-            stats: [{ label: 'Finish', value: 'Gloss' }, { label: 'Applies', value: 'Instant' }],
+            stats: [{ label: 'Finish', value: 'Prism' }, { label: 'Applies', value: 'Instant' }],
             traits: [{ trait_type: 'Core', value: 'Arcane', rarity_percent: 25 }],
             activity: [{ event: 'Created', from: 'System', to: 'Market', date: 'Genesis' }],
             chainInfo: { address: '0x777...888', standard: 'ERC-1155', network: 'Base Sepolia' },
@@ -520,10 +520,29 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
     }, [isOpen, wallet]);
 
     useEffect(() => {
-        if (isOpen) {
-            setOwnedIds(getOwned(wallet));
-            setShowcasedId(getShowcased(wallet));
-        }
+        if (!isOpen) return;
+        setOwnedIds(getOwned(wallet));
+        setShowcasedId(getShowcased(wallet));
+        if (!wallet) return;
+        let cancelled = false;
+        void (async () => {
+            try {
+                const res = await fetch(
+                    `/api/marketplace/inventory?walletAddress=${encodeURIComponent(wallet)}`,
+                    { credentials: 'same-origin' },
+                );
+                if (!res.ok || cancelled) return;
+                const data = (await res.json()) as { owned?: string[] };
+                if (!cancelled && Array.isArray(data.owned)) {
+                    setOwnedIds(hydrateOwned(wallet, data.owned));
+                }
+            } catch {
+                /* keep local inventory cache on offline / unauthenticated preview */
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
     }, [isOpen, wallet]);
 
     const isOwnedId = (id: string) => ownedIds.includes(id);
@@ -850,7 +869,9 @@ export default function MarketplacePanel({ isOpen, onClose }: MarketplacePanelPr
                 </div>
             );
         }
-        if (item.type === 'tokens' && item.id === 'tokens-orb') return <OrbPreview size={px} />;
+        if (item.type === 'tokens' && (item.id === 'tokens-orb' || item.id === 'tokens-orb-prism')) {
+            return <OrbPreview size={px} />;
+        }
         if (item.type === 'tokens') {
             return (
                 <img

@@ -59,12 +59,30 @@ test('P6: live-chat binds sender identity to session wallet and rejects unauthen
 });
 
 // ─── P7: Onboarding game tracks derived from recorded matches ─────────────────
-test('P7: onboarding/progress verifies completed matches on server for game tracks', () => {
+test('P7: onboarding/progress verifies completed matches on server for game tracks and blocks server-derived tracks', () => {
     const src = read('app/api/onboarding/progress/route.ts');
-    assert.match(src, /const GAME_TRACKS: string\[\] = \['pvp', 'ai_classic', 'ai_power', 'ai_snakes'\]/);
+    assert.match(src, /const GAME_TRACKS: string\[\] = \['pvp', 'ai_classic', 'ai_power'\]/);
+    assert.match(src, /SERVER_DERIVED_TRACKS/);
+    assert.match(src, /SERVER_DERIVED_TRACK/);
     assert.match(src, /\.from\('matches'\)/);
     assert.match(src, /\.contains\('participants', \[wallet\.toLowerCase\(\)\]\)/);
     assert.match(src, /RECORDED_MATCH_REQUIRED/);
+});
+
+// ─── Wave 0 API hardening pins ───────────────────────────────────────────────
+test('Wave 0: feedback refuses unverified wallet fallback and edge routes read cf-ipcountry', () => {
+    const fb = read('app/api/feedback/route.ts');
+    assert.doesNotMatch(fb, /\/\^0x\[a-fA-F0-9\]\{40\}\$\/\.test\(walletAddress\)/);
+
+    const geo = read('app/api/geo/route.ts');
+    assert.match(geo, /cf-ipcountry/);
+
+    const chat = read('app/api/live-chat/route.ts');
+    assert.match(chat, /cf-ipcountry/);
+
+    const timer = read('hooks/useGameTimer.ts');
+    assert.match(timer, /prev\.idleWarning\.timeLeft <= 0/);
+    assert.match(timer, /Math\.max\(0, prev\.idleWarning\.timeLeft - 1\)/);
 });
 
 // ─── P9: AI Arena authority_id server-assigned ────────────────────────────────

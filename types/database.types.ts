@@ -1024,6 +1024,7 @@ export type Database = {
           color: string
           match_id: string
           seat_index: number
+          seat_kind: string
           wallet_address: string
         }
         ComputedFields: never
@@ -1032,6 +1033,7 @@ export type Database = {
           color: string
           match_id: string
           seat_index: number
+          seat_kind?: string
           wallet_address: string
         }
         Update: {
@@ -1039,6 +1041,7 @@ export type Database = {
           color?: string
           match_id?: string
           seat_index?: number
+          seat_kind?: string
           wallet_address?: string
         }
         Relationships: [
@@ -1529,6 +1532,54 @@ export type Database = {
             foreignKeyName: "player_missions_player_id_fkey"
             columns: ["player_id"]
             isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["wallet_address"]
+          },
+        ]
+      }
+      player_consents: {
+        Row: {
+          accepted_at: string
+          age_18_confirmed: boolean
+          analytics_consent: boolean
+          eu_dma_acknowledged: boolean
+          ip_hash: string | null
+          privacy_version: string
+          region_code: string
+          tos_version: string
+          updated_at: string
+          wallet_address: string
+        }
+        ComputedFields: never
+        Insert: {
+          accepted_at?: string
+          age_18_confirmed?: boolean
+          analytics_consent?: boolean
+          eu_dma_acknowledged?: boolean
+          ip_hash?: string | null
+          privacy_version: string
+          region_code?: string
+          tos_version: string
+          updated_at?: string
+          wallet_address: string
+        }
+        Update: {
+          accepted_at?: string
+          age_18_confirmed?: boolean
+          analytics_consent?: boolean
+          eu_dma_acknowledged?: boolean
+          ip_hash?: string | null
+          privacy_version?: string
+          region_code?: string
+          tos_version?: string
+          updated_at?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_consents_wallet_address_fkey"
+            columns: ["wallet_address"]
+            isOneToOne: true
             referencedRelation: "players"
             referencedColumns: ["wallet_address"]
           },
@@ -2259,8 +2310,10 @@ export type Database = {
         Args: {
           p_game_mode: string
           p_match_type: string
+          p_party_wallets?: string[]
           p_player_id: string
           p_room_code?: string
+          p_slots_needed?: number
           p_wager?: number
           p_wager_max?: number
           p_wager_min?: number

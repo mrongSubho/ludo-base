@@ -14,6 +14,7 @@ import { useSoundEffects } from '../hooks/useSoundEffects';
 import { useAudio } from '../hooks/useAudio';
 import { usePreferences } from '@/hooks/usePreferences';
 import { prefersReducedMotion } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface LudoDiceProps {
     onRoll: (value: number) => void;
@@ -106,6 +107,7 @@ export default function LudoDice({
     const { playDiceRoll, playDiceLand } = useSoundEffects();
     const { triggerHaptic } = useAudio();
     const { preferences } = usePreferences();
+    const reduced = useReducedMotion();
     const is3077 = preferences.theme === '3077';
     const isRetro = preferences.theme === 'retro';
     const isDaybreak = preferences.theme === 'light';
@@ -383,19 +385,19 @@ export default function LudoDice({
     return (
         <motion.div
             className={`ludo-dice-container relative flex items-center justify-center ${visualRolling ? 'is-airborne' : ''}`}
-            initial={prefersReducedMotion() ? false : { scale: 0.58, opacity: 0 }}
+            initial={reduced ? false : { scale: 0.58, opacity: 0 }}
             animate={{
-                scale: prefersReducedMotion() ? 1 : [0.58, 1.09, 0.96, 1],
+                scale: reduced ? 1 : [0.58, 1.09, 0.96, 1],
                 opacity: 1,
             }}
             transition={{
-                duration: prefersReducedMotion() ? 0.01 : 0.28,
+                duration: reduced ? 0.01 : 0.28,
                 times: [0, 0.55, 0.8, 1],
                 ease: 'easeOut',
             }}
         >
             {/* Touchdown shock-ring on any roll settle */}
-            {landKey > 0 && (
+            {!reduced && landKey > 0 && (
                 <motion.span
                     key={`land-${landKey}`}
                     aria-hidden="true"
@@ -408,7 +410,7 @@ export default function LudoDice({
             )}
 
             {/* Critical-Roll 6 dual shockwave burst + 6 radial sparks */}
-            {critKey > 0 && (
+            {!reduced && critKey > 0 && (
                 <React.Fragment key={critKey}>
                     <motion.span
                         aria-hidden="true"
@@ -457,7 +459,7 @@ export default function LudoDice({
             )}
 
             {/* Triple-6 bust crimson warning halo */}
-            {bustFlashKey > 0 && (
+            {!reduced && bustFlashKey > 0 && (
                 <motion.span
                     key={`bust-${bustFlashKey}`}
                     aria-hidden="true"
@@ -481,7 +483,7 @@ export default function LudoDice({
             />
 
             {/* Expanding ready pulse ring while waiting on turn roll */}
-            {!disabled && !visualRolling && !isRolling && currentValue == null && (
+            {!reduced && !disabled && !visualRolling && !isRolling && currentValue == null && (
                 <motion.span
                     className="dice-ready-ring rounded-full pointer-events-none"
                     style={{ borderColor: boostActive ? '#f59e0b' : accentColor }}
@@ -493,7 +495,7 @@ export default function LudoDice({
             {/* Airborne Board-Inward Breakout Wrapper + Theme Flight FX + 3D Solid Cube */}
             <motion.div animate={arcControls} className="relative w-11 h-11 z-10">
                 {/* Theme-native airborne aura/shadow locked underneath the flying die */}
-                {visualRolling && !prefersReducedMotion() && (
+                {visualRolling && !reduced && (
                     <>
                         {is3077 && (
                             <span

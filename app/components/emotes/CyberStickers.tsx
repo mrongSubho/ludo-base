@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 export type CyberStickerId =
   | 'cyber-orb-glitch'
@@ -35,12 +36,21 @@ const STICKER_ANIMATIONS: Record<string, string> = {
  * 100% vector SVG with responsive sizing and terminal-glass aura.
  * Parity with Ludo World social reaction hooks without external character IP.
  */
+function normalizeStickerId(id: string): string {
+  if (!id.startsWith('/emotes/')) return id;
+  const file = id.split('/').pop() ?? id;
+  const stem = file.replace(/\.(svg|png|gif|webp)$/i, '');
+  return stem.startsWith('orb-') ? `cyber-orb-${stem.slice(4)}` : stem;
+}
+
 export function CyberSticker({ id, size = 64, className = '', alt = 'Reaction' }: CyberStickerProps) {
+  const reduced = useReducedMotion();
+  const normalizedId = normalizeStickerId(id);
   const assetUrl = id.startsWith('/emotes/')
     ? id
-    : `/emotes/cyber-orb/${id.replace('cyber-orb-', 'orb-')}.svg`;
+    : `/emotes/cyber-orb/${normalizedId.replace('cyber-orb-', 'orb-')}.svg`;
 
-  const anim = STICKER_ANIMATIONS[id] || '';
+  const anim = reduced ? '' : (STICKER_ANIMATIONS[normalizedId] || '');
 
   return (
     <div

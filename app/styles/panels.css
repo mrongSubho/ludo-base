@@ -2946,9 +2946,12 @@ body.theme-daybreak .arena-screen-side {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .arena-bug-dot.is-live {
+  body:not(.motion-force-full) .arena-bug-dot.is-live {
     animation: none;
   }
+}
+body.motion-force-reduced .arena-bug-dot.is-live {
+  animation: none;
 }
 
 /* ── Daybreak contrast pass: header + wallet (washed-out fix) ── */

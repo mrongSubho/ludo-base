@@ -63,7 +63,7 @@ export default function TokenMoveTestPage() {
                             index={0}
                             pos={pos}
                             targetPt={tp}
-                            offset={{ x: 0, y: 0 }}
+                            offset={{ xPct: 0, yPct: 0 }}
                             isDraggable={false}
                             isColorTurn={true}
                             isValidMove={false}

@@ -97,11 +97,12 @@ test('core package completeness and referral helpers', () => {
     assert.equal(referralTierForSuccessOrder(10), 10);
 });
 
-test('aiTrackForGameMode maps classic/power/snakes and ignores pvp', async () => {
+test('aiTrackForGameMode maps classic/power, ignores snakes (retired) and pvp', async () => {
     const { aiTrackForGameMode } = await import('../lib/onboardingProgressWriter');
     assert.equal(aiTrackForGameMode('classic'), 'ai_classic');
     assert.equal(aiTrackForGameMode('power'), 'ai_power');
-    assert.equal(aiTrackForGameMode('snakes'), 'ai_snakes');
+    assert.equal(aiTrackForGameMode('snakes'), null);
     assert.equal(aiTrackForGameMode('ranked'), null);
     assert.equal(aiTrackForGameMode(null), null);
+    assert.equal('ai_snakes' in ONBOARDING_TRACKS, false);
 });

@@ -25,7 +25,7 @@ describe('Daybreak Theme Redesign — Warm Studio Porcelain', () => {
     it('implements DaybreakStudioDeck with POWER first, shared formation sources, and reduced motion', () => {
         const deck = read('app/components/DaybreakStudioDeck.tsx');
         assert.match(deck, /export function DaybreakStudioDeck/);
-        assert.match(deck, /DAYBREAK_MODE_ORDER:\s*readonly LobbyGameMode\[\]\s*=\s*\['power',\s*'classic'\]/);
+        assert.match(deck, /DAYBREAK_MODE_ORDER:\s*readonly LobbyGameMode\[\]\s*=\s*\['power',\s*'classic',\s*'quick'\]/);
         assert.match(deck, /TEAM_PAIRINGS/);
         assert.match(deck, /seatedColorsFor/);
         assert.match(deck, /role="radiogroup"/);

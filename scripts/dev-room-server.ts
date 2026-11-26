@@ -16,6 +16,7 @@ import http from 'node:http';
 import WebSocket from 'ws';
 
 const PORT = Number(process.env.ROOM_DEV_PORT || 8787);
+const ROOM_INSTANCE_ID = 'dev-local:sidecar0';
 
 interface RoomSocketMeta {
   matchId: string;
@@ -92,8 +93,11 @@ wss.on('connection', (ws: WebSocket, _req: http.IncomingMessage, matchId: string
         meta.role = 'seat';
         meta.seatColor = (msg.seat as string) || 'red';
       }
+
       ws.send(
         JSON.stringify({
+          v: 1,
+          roomInstance: ROOM_INSTANCE_ID,
           t: 'joined',
           role: meta?.role || 'seat',
           seat: meta?.seatColor || 'red',
@@ -105,7 +109,7 @@ wss.on('connection', (ws: WebSocket, _req: http.IncomingMessage, matchId: string
     }
 
     if (msg.t === 'ping') {
-      ws.send(JSON.stringify({ t: 'pong' }));
+      ws.send(JSON.stringify({ v: 1, roomInstance: ROOM_INSTANCE_ID, t: 'pong', ts: Date.now() }));
       return;
     }
 
@@ -119,15 +123,19 @@ wss.on('connection', (ws: WebSocket, _req: http.IncomingMessage, matchId: string
       // Acknowledge intent to sender
       ws.send(
         JSON.stringify({
+          v: 1,
+          roomInstance: ROOM_INSTANCE_ID,
           t: 'intent_ack',
           intentId,
           ok: true,
-          data: { seq: currentRoom.seq, kind, payload },
+          data: { seq: currentRoom.seq, roomInstance: ROOM_INSTANCE_ID, kind, payload },
         })
       );
 
       // Fan out state update
       const stateBroadcast = JSON.stringify({
+        v: 1,
+        roomInstance: ROOM_INSTANCE_ID,
         t: 'state',
         seq: currentRoom.seq,
         state: currentRoom.state,

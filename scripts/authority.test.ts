@@ -223,7 +223,7 @@ test('SEC-18: the forced escape hatch is gone from the handler and the client', 
     assert.doesNotMatch(passBranch.slice(0, 600), /\breason\b/, 'reason must not be read in the pass branch');
     assert.match(handler, /checkPassLegality\(/);
 
-    for (const f of ['hooks/useMoveAuth.ts', 'hooks/useGameActions.ts']) {
+    for (const f of ['hooks/useGameActions.ts']) {
         assert.doesNotMatch(code(f), /reason:\s*params\.reason|reason\?:\s*string/, `${f} must not send a pass reason`);
     }
 });

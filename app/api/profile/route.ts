@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireSessionWallet, requireAppSession, serviceDb } from '@/lib/serverAuth';
 import { getClanTagsForWallets } from '@/lib/clan/clanService';
 import { pickRandomPilotAvatar } from '@/lib/avatars';
+import { filterProfanity } from '@/lib/moderation';
 
 /**
  * GET /api/profile?walletAddress=0x…
@@ -64,7 +65,7 @@ export async function POST(request: Request) {
 
         const db = serviceDb();
         const updates: Record<string, string | boolean | null> = {};
-        if (username !== undefined) updates.username = username === null ? null : String(username).slice(0, 80);
+        if (username !== undefined) updates.username = username === null ? null : filterProfanity(String(username).trim()).slice(0, 80);
         if (avatarUrl !== undefined) {
             const trimmedAvatar = avatarUrl === null ? '' : String(avatarUrl).trim();
             if (trimmedAvatar.length > 0) {

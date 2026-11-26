@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { requireSessionWallet, requireAppSession, serviceDb } from '@/lib/serverAuth';
 import { reportProgress } from '@/lib/missionOracle';
+import { complianceErrorResponse, requirePaidPlayCompliance } from '@/lib/compliance';
 import {
     SPECTATOR_BET_MAX_CHIPS,
     SPECTATOR_BET_MIN_CHIPS,
@@ -166,6 +167,11 @@ export async function POST(request: Request) {
             numericAmount > SPECTATOR_BET_MAX_CHIPS
         ) {
             return NextResponse.json({ error: 'Invalid bet' }, { status: 400 });
+        }
+
+        const compliance = await requirePaidPlayCompliance(request, wallet, 'spectatorBetting');
+        if (!compliance.ok) {
+            return complianceErrorResponse(compliance);
         }
 
         const actionId = String(actionId0 ?? crypto.randomUUID());

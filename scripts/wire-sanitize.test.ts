@@ -2,8 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { sanitizeGameStateForWire } from '../lib/wireSanitize';
 
-test('PW-1/PW-2: sanitizeGameStateForWire strips board power tiles and masks opponent hands', () => {
+test('PW-1/PW-2: sanitizeGameStateForWire strips board power tiles, powerTileSeed, and masks opponent hands', () => {
     const rawState = {
+        powerTileSeed: 987654321,
         powerTiles: [
             { r: 2, c: 3, type: 'nuke' },
             { r: 5, c: 5, type: 'shield' },
@@ -18,6 +19,9 @@ test('PW-1/PW-2: sanitizeGameStateForWire strips board power tiles and masks opp
 
     // 1. Viewer is 'green':
     const sanitizedForGreen = sanitizeGameStateForWire(rawState, 'green');
+
+    // powerTileSeed must never reach the wire
+    assert.equal('powerTileSeed' in sanitizedForGreen, false, 'powerTileSeed must be stripped');
 
     // Board tiles must not leak type
     assert.deepEqual(sanitizedForGreen.powerTiles, [{ r: 2, c: 3 }, { r: 5, c: 5 }]);

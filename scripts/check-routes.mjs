@@ -110,10 +110,11 @@ const MATRIX = {
     'missions/claim':         { methods: ['POST'], auth: 'retired', resource: 'none', serviceRole: false },
 
     // ── Matchmaking ───────────────────────────────────────────────────────
-    'matchmaking/join':       { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
-    'matchmaking/cancel':     { methods: ['POST'], auth: 'session', resource: 'owner', serviceRole: true },
-    'matchmaking/status':     { methods: ['GET'],  auth: 'session', resource: 'owner', serviceRole: true },
-    'matchmaking/pools':      { methods: ['GET'],  auth: 'public', resource: 'none', serviceRole: true },
+    'matchmaking/join':          { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
+    'matchmaking/cancel':        { methods: ['POST'], auth: 'session', resource: 'owner', serviceRole: true },
+    'matchmaking/status':        { methods: ['GET'],  auth: 'session', resource: 'owner', serviceRole: true },
+    'matchmaking/pools':         { methods: ['GET'],  auth: 'public', resource: 'none', serviceRole: true },
+    'matchmaking/backfill-bots': { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
 
     // ── Live / spectator ──────────────────────────────────────────────────
     'live-arena/directory':   { methods: ['GET'],  auth: 'public', resource: 'none', serviceRole: true },
@@ -137,8 +138,11 @@ const MATRIX = {
     'geo':                    { methods: ['GET'],  auth: 'public', resource: 'none', serviceRole: false },
     'siwe/verify':            { methods: ['POST'], auth: 'public', resource: 'none', serviceRole: true },
     'farcaster':              { methods: ['GET'],  auth: 'public', resource: 'none', serviceRole: false },
+    'config':                 { methods: ['GET'],  auth: 'public', resource: 'none', serviceRole: false },
+    'compliance/consent':     { methods: ['GET', 'POST'], auth: 'session', resource: 'self', serviceRole: true },
     'push/subscribe':         { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
     'push/test':              { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
+    'marketplace/inventory':  { methods: ['GET'],  auth: 'session', resource: 'self', serviceRole: true },
     'marketplace/purchase':   { methods: ['POST'], auth: 'session', resource: 'self', serviceRole: true },
 
     // ── Clans & Clan Wars ──────────────────────────────────────────────────

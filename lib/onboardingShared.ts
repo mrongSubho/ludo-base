@@ -6,7 +6,6 @@ export type OnboardingTrack =
     | 'tutorial'
     | 'ai_classic'
     | 'ai_power'
-    | 'ai_snakes'
     | 'pvp'
     | 'playtime'
     | 'social'
@@ -36,10 +35,6 @@ export const ONBOARDING_TRACKS: Record<OnboardingTrack, TrackDef> = {
     ai_power: {
         target: 1, reward: 100, label: 'AI Power', core: true,
         desc: 'Win a match with power tiles switched on. Landing a boost or trap at the right moment is what sets a power board apart.',
-    },
-    ai_snakes: {
-        target: 1, reward: 100, label: 'AI Snakes', core: true,
-        desc: 'Complete a run on the Snakes board, where ladders and drops rewrite every route. Finishing one means reading a different board.',
     },
     pvp: {
         target: 1, reward: 150, label: 'First PvP', core: true,

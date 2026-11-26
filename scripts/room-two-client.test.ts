@@ -618,4 +618,195 @@ describe('Phase S3 — Match Room Two-Client Synchronization & Self-Seeding', ()
       globalThis.fetch = originalFetch;
     }
   });
+
+  it('S3-5: Wave 0 hardening — phase guards, trust spam block, post-win reject, unknown intent, expired session, power self-seed sanitization, and roll receipt payload', async () => {
+    const matchId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+    const walletG = '0x1111111111111111111111111111111111111111';
+    const walletY = '0x3333333333333333333333333333333333333333';
+    const ticketG = 'ticket-w0-green';
+    const ticketY = 'ticket-w0-yellow';
+    const expiredTicket = 'ticket-w0-expired';
+    const idleExpiredTicket = 'ticket-w0-idle-expired';
+    const hashG = await hashToken(ticketG);
+    const hashY = await hashToken(ticketY);
+    const hashExp = await hashToken(expiredTicket);
+    const hashIdleExp = await hashToken(idleExpiredTicket);
+
+    const mockSessions = new Map<string, Record<string, unknown>>([
+      [hashG, { wallet_address: walletG, scope: 'match', match_id: matchId, seat_color: 'green', expires_at: new Date(Date.now() + 60_000).toISOString() }],
+      [hashY, { wallet_address: walletY, scope: 'match', match_id: matchId, seat_color: 'yellow', expires_at: new Date(Date.now() + 60_000).toISOString() }],
+      [hashExp, { wallet_address: walletG, scope: 'match', match_id: matchId, seat_color: 'green', expires_at: new Date(Date.now() - 1_000).toISOString() }],
+      [hashIdleExp, { wallet_address: walletG, scope: 'match', match_id: matchId, seat_color: 'green', expires_at: new Date(Date.now() + 60_000).toISOString(), idle_expires_at: new Date(Date.now() - 1_000).toISOString() }],
+    ]);
+
+    const commitPayloads: Array<{ eventType: string; payload: Record<string, unknown> }> = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const url = String(input);
+      if (url.includes('/rest/v1/match_states')) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (url.includes('/rest/v1/matches')) {
+        return new Response(JSON.stringify([{ match_shape: '1v1', game_mode: 'power' }]), { status: 200 });
+      }
+      if (url.includes('/rest/v1/match_seats')) {
+        return new Response(
+          JSON.stringify([
+            { color: 'green', wallet_address: walletG, seat_index: 0 },
+            { color: 'yellow', wallet_address: walletY, seat_index: 1 },
+          ]),
+          { status: 200 }
+        );
+      }
+      if (url.includes('/rest/v1/sessions')) {
+        const hashMatch = url.match(/token_hash=eq\.([a-f0-9]+)/);
+        const session = hashMatch?.[1] ? mockSessions.get(hashMatch[1]) : undefined;
+        return new Response(JSON.stringify(session ? [session] : []), { status: 200 });
+      }
+      if (url.includes('/rest/v1/rpc/match_commit_action')) {
+        const parsed = JSON.parse(String(init?.body || '{}')) as { p_event_type?: string; p_event_payload?: Record<string, unknown> };
+        commitPayloads.push({ eventType: parsed.p_event_type || '', payload: parsed.p_event_payload || {} });
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+      throw new Error(`Unexpected fetch called by MatchRoomCore: ${url}`);
+    };
+
+    const origGetRandomValues = crypto.getRandomValues.bind(crypto);
+    let forcedDieByte = 5; // roll = 6
+    crypto.getRandomValues = <T extends ArrayBufferView | null>(arr: T): T => {
+      if (arr instanceof Uint8Array) arr[0] = forcedDieByte;
+      if (arr instanceof Uint32Array) arr[0] = 777777;
+      return arr;
+    };
+
+    try {
+      const storageMap = new Map<string, unknown>();
+      const connectedSockets: MockWebSocket[] = [];
+      const mockCtx = {
+        storage: {
+          get: async (k: string) => storageMap.get(k),
+          put: async (k: string, v: unknown) => { storageMap.set(k, v); },
+          setAlarm: async () => {},
+        },
+        getWebSockets: () => connectedSockets as unknown as WebSocket[],
+        acceptWebSocket: (ws: unknown) => { connectedSockets.push(ws as MockWebSocket); },
+      };
+      const mockEnv = {
+        NEXT_PUBLIC_SUPABASE_URL: 'https://test-supabase.mock',
+        SUPABASE_SERVICE_ROLE_KEY: 'test-service-key',
+      };
+
+      const room = new MatchRoomCore(mockCtx as never, mockEnv);
+      const sockG = new MockWebSocket();
+      const sockSpec = new MockWebSocket();
+
+      // 1. Power-mode self-seed spawns 5 typed tiles in DO storage, while WS frames redact types and powerTileSeed.
+      (globalThis as unknown as Record<string, unknown>).WebSocketPair = class {
+        0 = new MockWebSocket();
+        1 = sockG;
+      };
+      await room.fetch(new Request(`https://ludobase.com/api/room/${matchId}/ws?ticket=${ticketG}`, { headers: { Upgrade: 'websocket' } }));
+
+      const storedState = storageMap.get('state') as Omit<GameState, 'powerTiles'> & { powerTiles: Array<{ r: number; c: number; type?: string }> };
+      assert.equal(storedState.powerTiles.length, 5, 'Power-mode S3 self-seed must spawn 5 tiles in DO storage');
+      assert.ok(storedState.powerTiles.every((t) => Boolean(t.type)), 'DO storage tiles keep secret types');
+      assert.ok(typeof storedState.powerTileSeed === 'number' && storedState.powerTileSeed > 0);
+
+      const wireStateG = sockG.getLastMessage()?.state as Record<string, unknown>;
+      assert.equal('powerTileSeed' in wireStateG, false, 'WS frame must strip powerTileSeed');
+      const wireTilesG = wireStateG.powerTiles as Array<{ r: number; c: number; type?: string }>;
+      assert.equal(wireTilesG.length, 5);
+      assert.ok(wireTilesG.every((t) => t.type === undefined), 'WS frame must strip hidden tile types');
+
+      // Spectator also sees redacted hands/tiles.
+      (globalThis as unknown as Record<string, unknown>).WebSocketPair = class {
+        0 = new MockWebSocket();
+        1 = sockSpec;
+      };
+      await room.fetch(new Request(`https://ludobase.com/api/room/${matchId}/ws`, { headers: { Upgrade: 'websocket' } }));
+      await room.webSocketMessage(sockSpec as unknown as WebSocket, JSON.stringify({ t: 'join', as: 'spectator' }));
+      const wireStateSpec = sockSpec.getLastMessage()?.state as Record<string, unknown>;
+      assert.equal('powerTileSeed' in wireStateSpec, false);
+
+      // 2. REQUEST_MOVE before rolling -> NOT_ROLLED
+      await room.webSocketMessage(
+        sockG as unknown as WebSocket,
+        JSON.stringify({ t: 'intent', kind: 'REQUEST_MOVE', intentId: 'move-before-roll', payload: { tokenIndex: 0 } })
+      );
+      assert.equal(sockG.getLastMessage()?.code, 'NOT_ROLLED');
+
+      // 3. REQUEST_ROLL succeeds, logs rollValue + seatColor in commit payload, and rejects 2nd roll with ALREADY_ROLLED
+      commitPayloads.length = 0;
+      forcedDieByte = 5; // 6
+      await room.webSocketMessage(
+        sockG as unknown as WebSocket,
+        JSON.stringify({ t: 'intent', kind: 'REQUEST_ROLL', intentId: 'roll-1' })
+      );
+      const rollAck = sockG.messages.map((m) => JSON.parse(m)).find((m) => m.t === 'intent_ack' && m.intentId === 'roll-1');
+      assert.ok(rollAck);
+      assert.equal(rollAck.data?.state, undefined, 'intent_ack trims duplicate full GameState');
+      assert.equal(commitPayloads[0]?.eventType, 'roll_minted');
+      assert.equal(commitPayloads[0]?.payload?.rollValue, 6);
+      assert.equal(commitPayloads[0]?.payload?.seatColor, 'green');
+
+      await room.webSocketMessage(
+        sockG as unknown as WebSocket,
+        JSON.stringify({ t: 'intent', kind: 'REQUEST_ROLL', intentId: 'roll-double' })
+      );
+      assert.equal(sockG.getLastMessage()?.code, 'ALREADY_ROLLED');
+
+      // 4. CMD_REQUEST_TRUST when not auto-playing -> noop without advancing seq or timer
+      const preTrustSeq = (storageMap.get('seq') as number) || 0;
+      const preTrustTimers = JSON.stringify(storageMap.get('timerHeap'));
+      await room.webSocketMessage(
+        sockG as unknown as WebSocket,
+        JSON.stringify({ t: 'intent', kind: 'CMD_REQUEST_TRUST', intentId: 'trust-noop' })
+      );
+      assert.equal(sockG.getLastMessage()?.data && (sockG.getLastMessage()?.data as { noop?: boolean }).noop, true);
+      assert.equal(storageMap.get('seq'), preTrustSeq);
+      assert.equal(JSON.stringify(storageMap.get('timerHeap')), preTrustTimers);
+
+      // 5. Unknown intent kind -> UNKNOWN_INTENT
+      await room.webSocketMessage(
+        sockG as unknown as WebSocket,
+        JSON.stringify({ t: 'intent', kind: 'DICE_COMMIT', intentId: 'unknown-1' })
+      );
+      assert.equal(sockG.getLastMessage()?.code, 'UNKNOWN_INTENT');
+
+      // 6. Expired expires_at / idle_expires_at sessions rejected on join
+      for (const badTicket of [expiredTicket, idleExpiredTicket]) {
+        const badSock = new MockWebSocket();
+        (globalThis as unknown as Record<string, unknown>).WebSocketPair = class {
+          0 = new MockWebSocket();
+          1 = badSock;
+        };
+        await room.fetch(new Request(`https://ludobase.com/api/room/${matchId}/ws`, { headers: { Upgrade: 'websocket' } }));
+        await room.webSocketMessage(
+          badSock as unknown as WebSocket,
+          JSON.stringify({ t: 'join', ticket: badTicket, as: 'seat' })
+        );
+        assert.equal(badSock.getLastMessage()?.t, 'rejected');
+        assert.equal(badSock.getLastMessage()?.code, 'SESSION_EXPIRED');
+      }
+
+      // 7. Post-winner intents rejected with MATCH_FINISHED without calling retired Edge functions
+      const winState = { ...(storageMap.get('state') as GameState), winner: 'green', status: 'finished' as const };
+      await mockCtx.storage.put('state', winState);
+      (room as unknown as { state: GameState }).state = winState;
+      for (const [kind, id] of [
+        ['REQUEST_ROLL', 'postwin-roll'],
+        ['REQUEST_MOVE', 'postwin-move'],
+        ['REQUEST_POWER', 'postwin-power'],
+      ]) {
+        await room.webSocketMessage(
+          sockG as unknown as WebSocket,
+          JSON.stringify({ t: 'intent', kind, intentId: id, payload: { power: 'boost', tokenIndex: 0 } })
+        );
+        assert.equal(sockG.getLastMessage()?.code, 'MATCH_FINISHED', `${kind} after win must return MATCH_FINISHED`);
+      }
+    } finally {
+      crypto.getRandomValues = origGetRandomValues;
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

@@ -2,15 +2,21 @@
  * Wire sanitizers — never leak authority-only fields to guests/spectators.
  */
 
-/** Strip hidden power-tile types and opponent held powers before any network send. */
+/** Strip hidden power-tile types, seed, and opponent held powers before any network send. */
 export function sanitizeGameStateForWire<
     T extends {
         powerTiles?: { r: number; c: number; type?: unknown }[];
         playerPowers?: Partial<Record<string, { type?: unknown; expiresAt?: number }[]>>;
+        powerTileSeed?: unknown;
     }
 >(state: T, viewerColor?: string): T {
     if (!state) return state;
     let res = state;
+    if ('powerTileSeed' in res && res.powerTileSeed !== undefined) {
+        const withoutSeed = { ...(res as Record<string, unknown>) };
+        delete withoutSeed.powerTileSeed;
+        res = withoutSeed as T;
+    }
     if (state.powerTiles?.length) {
         res = {
             ...res,

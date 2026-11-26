@@ -24,6 +24,7 @@ import {
     getNextPlayer,
     calculateNextPosition,
     emptyEngineMatchStats,
+    createInitialPositions,
 } from '../lib/engine/core';
 import type { ColorCorner, EngineGameState, PlayerColor } from '../lib/engine/core';
 import { CORNER_SLOTS } from '../lib/boardLayout';
@@ -105,9 +106,16 @@ function startPositions(): Record<PlayerColor, number[]> {
     return out;
 }
 
-function baseState(mode: GoldenMode): EngineGameState {
+function baseState(
+    mode: GoldenMode,
+    variant: 'standard' | 'quick' = 'standard',
+    cc?: ColorCorner,
+): EngineGameState {
+    const positions = variant === 'quick' && cc
+        ? createInitialPositions(cc, 'quick')
+        : startPositions();
     return {
-        positions: startPositions(),
+        positions,
         currentPlayer: 'green',
         diceValue: null,
         gamePhase: 'rolling',
@@ -149,10 +157,15 @@ export type GoldenMatchResult = {
     winner: string | null;
 };
 
-export function runGoldenMatch(index: number, seed: number, mode: GoldenMode = MODES[index % MODES.length]): GoldenMatchResult {
+export function runGoldenMatch(
+    index: number,
+    seed: number,
+    mode: GoldenMode = MODES[index % MODES.length],
+    variant: 'standard' | 'quick' = 'standard',
+): GoldenMatchResult {
     const rand = lcg(seed);
     const { cc, active } = cornersFor(mode, rand);
-    let state = baseState(mode);
+    let state = baseState(mode, variant, cc);
 
     const log = createReplayLog({ matchId: `golden-${index}`, playerCount: mode });
     let turns = 0;
@@ -251,6 +264,35 @@ export function runGoldenCorpus(count = GOLDEN_MATCH_COUNT, baseSeed = 0x1ad0ba5
         out.push(runGoldenMatch(i, baseSeed + i * 9973));
     }
     return out;
+}
+
+export function runGoldenQuickCorpus(count = 12, baseSeed = 0x51a7c0de): GoldenMatchResult[] {
+    const out: GoldenMatchResult[] = [];
+    for (let i = 0; i < count; i++) {
+        out.push(runGoldenMatch(i, baseSeed + i * 7919, MODES[i % MODES.length], 'quick'));
+    }
+    return out;
+}
+
+export function assertDeterministicQuickCorpus(count = 12): {
+    n: number;
+    uniqueHashes: number;
+    finished: number;
+    finishedByMode: Record<GoldenMode, number>;
+} {
+    const a = runGoldenQuickCorpus(count);
+    const b = runGoldenQuickCorpus(count);
+    assertSame(a, b);
+    const finishedByMode = { '1v1': 0, '4P': 0, '2v2': 0 } as Record<GoldenMode, number>;
+    for (const m of a) {
+        if (m.winner) finishedByMode[m.mode] += 1;
+    }
+    return {
+        n: a.length,
+        uniqueHashes: new Set(a.map((m) => m.finalHash)).size,
+        finished: a.filter((m) => m.winner).length,
+        finishedByMode,
+    };
 }
 
 /** Recompute corpus twice — hashes must be byte-identical (CI determinism). */

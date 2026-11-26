@@ -6,6 +6,7 @@ import { measureHop, recordHopSample } from '@/lib/perf/budget';
 import { PlayerColor } from '@/lib/types';
 import { Point, getBoardCoordinate, ColorCorner } from '@/lib/boardLayout';
 import { prefersReducedMotion } from '@/lib/motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { getSoundEngine } from '@/lib/audio/SoundEngine';
 import { usePreferences } from '@/hooks/usePreferences';
 import { DOT_POSITIONS, resolveDiceThemeId, type DiceFaceNumber, type DiceThemeId } from '@/lib/diceVisuals';
@@ -14,7 +15,10 @@ import {
     computeHopCadence,
     computeScreenSpaceLeanDeg,
     computeYardSlotCoord,
+    DEPLOY_ANIMATION_MS,
 } from '@/lib/tokenMovement';
+import type { StackOffsetPct } from '@/lib/stackLayout';
+import type { AnimationBarrier } from '@/lib/animationBarrier';
 import { shade } from '../ChessTokens';
 import { Token, colorMapSafe, alphaHex } from './TokenVisual';
 
@@ -23,7 +27,7 @@ interface TokenPieceProps {
     index: number;
     pos: number;
     targetPt: Point | null;
-    offset: { x: number; y: number };
+    offset: StackOffsetPct;
     stackScale?: number;
     stackZ?: number;
     isDraggable: boolean;
@@ -40,6 +44,7 @@ interface TokenPieceProps {
     isTeleport?: boolean;
     isFinishing?: boolean;
     occupiedKeys?: ReadonlySet<string>;
+    animationBarrier?: AnimationBarrier;
     onClick: () => void;
     onHoverChange?: (hovering: boolean) => void;
 }
@@ -146,15 +151,19 @@ export function TokenPiece({
     isTeleport = false,
     isFinishing = false,
     occupiedKeys,
+    animationBarrier,
     onClick,
     onHoverChange,
 }: TokenPieceProps) {
     const { preferences } = usePreferences();
     const activeThemeId = explicitThemeId ?? resolveDiceThemeId(preferences?.theme);
+    const reduced = useReducedMotion();
 
     const [visualPt, setVisualPt] = React.useState<Point | null>(targetPt);
     const prevPosRef = React.useRef(pos);
+    const prevOffsetRef = React.useRef<StackOffsetPct>(offset);
     const isAnimatingRef = React.useRef(false);
+    const activeLockRef = React.useRef<string | null>(null);
     const cellRef = React.useRef<HTMLDivElement | null>(null);
     const glideRef = React.useRef<HTMLDivElement | null>(null);
     const hopRef = React.useRef<HTMLDivElement | null>(null);
@@ -173,6 +182,7 @@ export function TokenPiece({
     const [crownState, setCrownState] = React.useState<{ remaining: number; boosted: boolean } | null>(null);
 
     const triggerShockwave = React.useCallback((durationMs = 440) => {
+        if (prefersReducedMotion()) return;
         if (shockTimerRef.current) clearTimeout(shockTimerRef.current);
         setShowShockwave(true);
         shockTimerRef.current = setTimeout(() => {
@@ -186,6 +196,48 @@ export function TokenPiece({
         const el = cellRef.current;
         return { w: el?.offsetWidth ?? 0, h: el?.offsetHeight ?? 0 };
     };
+
+    const ctxRef = React.useRef({
+        color,
+        colorCorner,
+        targetPt,
+        boosted,
+        activeThemeId,
+        justDeployed,
+        isTeleport,
+        isFinishing,
+        occupiedKeys,
+        counterRotationDeg,
+        animationBarrier,
+    });
+    ctxRef.current = {
+        color,
+        colorCorner,
+        targetPt,
+        boosted,
+        activeThemeId,
+        justDeployed,
+        isTeleport,
+        isFinishing,
+        occupiedKeys,
+        counterRotationDeg,
+        animationBarrier,
+    };
+
+    const releasePieceLock = React.useCallback(() => {
+        const lockName = activeLockRef.current;
+        if (!lockName) return;
+        activeLockRef.current = null;
+        ctxRef.current.animationBarrier?.releaseLock(lockName);
+    }, []);
+
+    const acquirePieceLock = React.useCallback((lockName: string, estimatedMs: number) => {
+        if (activeLockRef.current && activeLockRef.current !== lockName) {
+            ctxRef.current.animationBarrier?.releaseLock(activeLockRef.current);
+        }
+        activeLockRef.current = lockName;
+        ctxRef.current.animationBarrier?.acquireLock(lockName, estimatedMs);
+    }, []);
 
     const dismissCrown = React.useCallback((immediate = false) => {
         crownFadeRef.current?.kill();
@@ -208,6 +260,9 @@ export function TokenPiece({
     }, []);
 
     const playLanding = React.useCallback((finishingEntry = false) => {
+        if (!finishingEntry) {
+            getSoundEngine().play('token_land');
+        }
         triggerShockwave(finishingEntry ? 520 : 440);
         if (prefersReducedMotion()) {
             if (finishingEntry) setIsFinishedHidden(true);
@@ -245,7 +300,7 @@ export function TokenPiece({
             gsap.set(glideRef.current, { x: 0, y: 0 });
             gsap.set(hopRef.current, { y: 0, scaleX: 1, scaleY: 1, rotate: 0, opacity: 1 });
             gsap.set(shadowRef.current, { opacity: 0.9, scaleX: 1, scaleY: 1 });
-            triggerShockwave(420);
+            playLanding(false);
             isAnimatingRef.current = false;
             setIsMoving(false);
             return;
@@ -261,6 +316,7 @@ export function TokenPiece({
         isAnimatingRef.current = true;
         setIsMoving(true);
         setCrownState({ remaining: 6, boosted: false });
+        acquirePieceLock(`deploy:${color}-${index}`, DEPLOY_ANIMATION_MS);
 
         gsap.set(glideRef.current, { x: startX, y: startY });
         gsap.set(hopRef.current, { y: 0, scaleX: 0.85, scaleY: 0.85, rotate: -leanDeg * 0.5, opacity: 1 });
@@ -273,6 +329,7 @@ export function TokenPiece({
                 setIsMoving(false);
                 dismissCrown(false);
                 playLanding(false);
+                releasePieceLock();
             },
         });
         tlRef.current = tl;
@@ -291,18 +348,18 @@ export function TokenPiece({
                 0.02,
             ).to(crownRef.current, { y: -10, scale: 1, duration: 0.24, ease: 'sine.inOut' }, 0.18);
         }
-    }, [counterRotationDeg, dismissCrown, playLanding, triggerShockwave]);
+    }, [color, index, counterRotationDeg, dismissCrown, playLanding, acquirePieceLock, releasePieceLock]);
 
     const playTeleportArrival = React.useCallback(() => {
         if (prefersReducedMotion()) {
-            triggerShockwave(420);
             gsap.set([glideRef.current, hopRef.current], { x: 0, y: 0, scaleX: 1, scaleY: 1, opacity: 1 });
             gsap.set(shadowRef.current, { opacity: 0.9, scaleX: 1, scaleY: 1 });
-            if (ctxRef.current.isFinishing) setIsFinishedHidden(true);
+            playLanding(ctxRef.current.isFinishing);
             return;
         }
         isAnimatingRef.current = true;
         setIsMoving(true);
+        acquirePieceLock(`teleport:${color}-${index}`, 560);
         gsap.set(glideRef.current, { x: 0, y: 0 });
         gsap.set(hopRef.current, { scaleX: 0.25, scaleY: 2.0, y: -18, opacity: 0 });
         gsap.set(shadowRef.current, { opacity: 0, scaleX: 0.25 });
@@ -312,6 +369,7 @@ export function TokenPiece({
                 isAnimatingRef.current = false;
                 setIsMoving(false);
                 playLanding(ctxRef.current.isFinishing);
+                releasePieceLock();
             },
         });
         tlRef.current = tl;
@@ -326,7 +384,7 @@ export function TokenPiece({
             { opacity: 0.9, scaleX: 1, scaleY: 1, duration: 0.26, ease: 'power2.out' },
             0.22,
         );
-    }, [playLanding, triggerShockwave]);
+    }, [color, index, playLanding, triggerShockwave, acquirePieceLock, releasePieceLock]);
 
     const finishNow = React.useCallback(() => {
         tlRef.current?.kill();
@@ -344,7 +402,8 @@ export function TokenPiece({
         gsap.set(shadowRef.current, { opacity: 0.9, scaleX: 1, scaleY: 1 });
         setCrownState(null);
         setIsMoving(false);
-    }, []);
+        releasePieceLock();
+    }, [releasePieceLock]);
 
     React.useEffect(() => () => {
         tlRef.current?.kill();
@@ -352,32 +411,14 @@ export function TokenPiece({
         crownFadeRef.current?.kill();
         if (shockTimerRef.current) clearTimeout(shockTimerRef.current);
         gsap.killTweensOf([glideRef.current, hopRef.current, shadowRef.current, crownRef.current]);
-    }, []);
+        releasePieceLock();
+    }, [releasePieceLock]);
 
-    const ctxRef = React.useRef({
-        color,
-        colorCorner,
-        targetPt,
-        boosted,
-        activeThemeId,
-        justDeployed,
-        isTeleport,
-        isFinishing,
-        occupiedKeys,
-        counterRotationDeg,
-    });
-    ctxRef.current = {
-        color,
-        colorCorner,
-        targetPt,
-        boosted,
-        activeThemeId,
-        justDeployed,
-        isTeleport,
-        isFinishing,
-        occupiedKeys,
-        counterRotationDeg,
-    };
+    React.useEffect(() => {
+        if (!isMoving && !isAnimatingRef.current) {
+            prevOffsetRef.current = offset;
+        }
+    }, [offset, isMoving]);
 
     React.useLayoutEffect(() => {
         const {
@@ -432,12 +473,6 @@ export function TokenPiece({
             return;
         }
 
-        if (transition.kind === 'capture') {
-            setVisualPt(tp);
-            playLanding(false);
-            return;
-        }
-
         if (transition.kind === 'teleport') {
             setVisualPt(transition.targetPt);
             playTeleportArrival();
@@ -461,8 +496,10 @@ export function TokenPiece({
             const { w: cw0, h: ch0 } = measureCell();
             const cw = cw0 || 48;
             const ch = ch0 || 48;
-            const xs = all.map((p) => (p.c - final.c) * cw);
-            const ys = all.map((p) => (p.r - final.r) * ch);
+            const startOffX = (prevOffsetRef.current.xPct / 100) * cw;
+            const startOffY = (prevOffsetRef.current.yPct / 100) * ch;
+            const xs = all.map((p, idx) => (p.c - final.c) * cw + (idx === 0 ? startOffX : 0));
+            const ys = all.map((p, idx) => (p.r - final.r) * ch + (idx === 0 ? startOffY : 0));
 
             setVisualPt(final);
             gsap.set(glideRef.current, { x: xs[0], y: ys[0] });
@@ -473,6 +510,7 @@ export function TokenPiece({
                 getSoundEngine().play('token_land');
                 isAnimatingRef.current = false;
                 setIsMoving(false);
+                releasePieceLock();
                 if (finishing || transition.isFinishEntry) {
                     setIsFinishedHidden(true);
                 }
@@ -481,6 +519,7 @@ export function TokenPiece({
 
             const cadence = computeHopCadence(n, isBoosted, themeId);
             const willFinish = finishing || transition.isFinishEntry;
+            acquirePieceLock(`hop:${c}-${index}`, cadence.totalWalkMs);
 
             void measureHop(`token-hop:${n}c`, () => {
                 tlRef.current?.kill();
@@ -490,6 +529,7 @@ export function TokenPiece({
                         setIsMoving(false);
                         dismissCrown(false);
                         playLanding(willFinish);
+                        releasePieceLock();
                     },
                 });
                 tlRef.current = tl;
@@ -585,8 +625,9 @@ export function TokenPiece({
             return;
         }
 
+        if (transition.kind === 'capture') return;
         setVisualPt(transition.targetPt ?? tp);
-    }, [pos, index, dismissCrown, finishNow, playDeploy, playLanding, playTeleportArrival]);
+    }, [pos, index, dismissCrown, finishNow, playDeploy, playLanding, playTeleportArrival, acquirePieceLock, releasePieceLock]);
 
     if (!visualPt) return null;
 
@@ -599,12 +640,12 @@ export function TokenPiece({
             onMouseLeave={() => onHoverChange?.(false)}
             onFocus={() => isValidMove && onHoverChange?.(true)}
             onBlur={() => onHoverChange?.(false)}
-            initial={{ opacity: justDeployed ? 1 : 0, scale: justDeployed ? 1 : 0.6 }}
+            initial={{ opacity: justDeployed || reduced ? 1 : 0, scale: justDeployed || reduced ? 1 : 0.6 }}
             animate={{
                 opacity: isFinishedHidden ? 0 : 1,
                 scale: isMoving ? 1 : stackScale,
-                x: isMoving ? 0 : offset.x,
-                y: isMoving ? 0 : offset.y,
+                x: isMoving ? '0%' : `${offset.xPct}%`,
+                y: isMoving ? '0%' : `${offset.yPct}%`,
             }}
             exit={
                 finishExit
@@ -612,21 +653,17 @@ export function TokenPiece({
                           scale: 0.25,
                           y: -10,
                           opacity: 0,
-                          transition: { duration: 0.2, ease: 'easeOut' },
+                          transition: { duration: reduced ? 0.01 : 0.2, ease: 'easeOut' },
                       }
                     : {
-                          y: 36,
-                          scale: 0.3,
                           opacity: 0,
-                          rotate: -16,
-                          filter: 'blur(5px) brightness(65%)',
-                          transition: { duration: 0.38, ease: 'backIn' },
+                          transition: { duration: 0.01 },
                       }
             }
             transition={{
-                x: { duration: isMoving ? 0 : 0.16, ease: 'easeOut' },
-                y: { duration: isMoving ? 0 : 0.16, ease: 'easeOut' },
-                default: { duration: 0.18 },
+                x: { duration: isMoving || reduced ? 0 : 0.16, ease: 'easeOut' },
+                y: { duration: isMoving || reduced ? 0 : 0.16, ease: 'easeOut' },
+                default: { duration: reduced ? 0.01 : 0.18 },
             }}
             style={{
                 gridRow: visualPt.r,
@@ -671,7 +708,7 @@ export function TokenPiece({
                         }}
                     />
 
-                    {showShockwave && (
+                    {showShockwave && !reduced && (
                         <motion.div
                             className="absolute left-1/2 bottom-[2px] pointer-events-none rounded-full"
                             style={{
@@ -699,11 +736,11 @@ export function TokenPiece({
                         </div>
                     )}
 
-                    {/* Idle breathing for the active player (suppressed mid-hop) */}
+                    {/* Idle breathing for the active player (suppressed mid-hop and under reduced-motion) */}
                     <motion.div
                         style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        animate={isColorTurn && !isMoving && !isFinishedHidden ? { scale: [1, 1.05, 1] } : { scale: 1 }}
-                        transition={isColorTurn && !isMoving ? { repeat: Infinity, duration: 1.5, ease: 'easeInOut' } : { duration: 0.2 }}
+                        animate={isColorTurn && !isMoving && !isFinishedHidden && !reduced ? { scale: [1, 1.05, 1] } : { scale: 1 }}
+                        transition={isColorTurn && !isMoving && !reduced ? { repeat: Infinity, duration: 1.5, ease: 'easeInOut' } : { duration: 0.01 }}
                     >
                         {/* Hop / landing: GSAP y & rotate operate cleanly in screen space */}
                         <div
