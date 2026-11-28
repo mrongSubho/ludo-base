@@ -8,6 +8,9 @@ import {
     LuSwords,
     LuShieldAlert,
     LuTrophy,
+    LuChevronDown,
+    LuChevronUp,
+    LuFileText,
 } from 'react-icons/lu';
 import { FiHome } from 'react-icons/fi';
 import { SettlePoolButton } from './SettlePoolButton';
@@ -320,22 +323,24 @@ export function MatchStatsOverlay({
                         className="match-stats-card ludo-stats-scope"
                     >
                         <HudCornerTicks />
-                        {/* Result ribbon */}
+                        {/* Result ribbon — compact horizontal banner */}
                         <div className={`match-stats-ribbon ${iWon ? 'win' : 'lose'}`}>
                             <div className="match-stats-crown" aria-hidden>
                                 {iWon ? (
-                                    <ApexRankIcon className="w-7 h-7" active />
+                                    <ApexRankIcon className="w-5 h-5" active />
                                 ) : (
-                                    <WarningHexIcon className="w-6 h-6" />
+                                    <WarningHexIcon className="w-5 h-5" />
                                 )}
                             </div>
-                            <h2 className="match-stats-title">
-                                {iWon ? 'Victory' : 'Defeat'}
-                            </h2>
-                            <p className="match-stats-sub">
-                                {gameMode.toUpperCase()} · {playerCount} ·{' '}
-                                {isPaid ? `Entry ${formatChips(wager)}` : 'Free table'}
-                            </p>
+                            <div className="flex flex-col items-start min-w-0">
+                                <h2 className="match-stats-title">
+                                    {iWon ? 'Victory' : 'Defeat'}
+                                </h2>
+                                <p className="match-stats-sub truncate max-w-full">
+                                    {gameMode.toUpperCase()} · {playerCount} ·{' '}
+                                    {isPaid ? `Entry ${formatChips(wager)}` : 'Free table'}
+                                </p>
+                            </div>
                         </div>
 
                         {/* XP strip (local player) */}
@@ -370,11 +375,11 @@ export function MatchStatsOverlay({
                                         transition={{ duration: 0.2, delay: 0.06 + idx * 0.04, ease: [0.22, 1, 0.36, 1] }}
                                         className={`match-stats-row ${row.won ? 'won' : ''} ${isMe ? 'me' : ''}`}
                                     >
-                                        {/* Line 1: Rank + Avatar + Identity on left, Winner/Outcome badge on right */}
-                                        <div className="flex items-center justify-between gap-2 min-w-0">
-                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                        {/* Line 1: Rank + Avatar + Inline Identity/Tier on left, Outcome badge on right */}
+                                        <div className="flex items-center justify-between gap-1.5 min-w-0">
+                                            <div className="flex items-center gap-1.5 min-w-0 flex-1">
                                                 <div
-                                                    className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-mono font-extrabold shrink-0 ${
+                                                    className={`w-5 h-5 rounded-md flex items-center justify-center text-ludo-xs font-mono font-bold shrink-0 ${
                                                         row.won
                                                             ? 'bg-warn/20 border border-warn/40 text-warn'
                                                             : 'bg-surface-recessed border border-line-soft text-ink-faint'
@@ -397,7 +402,7 @@ export function MatchStatsOverlay({
                                                             }
                                                         }
                                                     }}
-                                                    className={`flex items-center gap-2 min-w-0 flex-1 group text-left ${
+                                                    className={`flex items-center gap-1.5 min-w-0 flex-1 group text-left ${
                                                         isClickable
                                                             ? 'cursor-pointer hover:opacity-90'
                                                             : 'cursor-default'
@@ -405,7 +410,7 @@ export function MatchStatsOverlay({
                                                     title={isClickable ? 'Inspect combatant profile' : undefined}
                                                 >
                                                     <div
-                                                        className="hud-avatar-frame w-8 h-8 rounded-full flex items-center justify-center shrink-0 overflow-hidden border transition-colors group-hover:border-accent"
+                                                        className="hud-avatar-frame w-6 h-6 rounded-full flex items-center justify-center shrink-0 overflow-hidden border transition-colors group-hover:border-accent"
                                                         style={{
                                                             borderColor: accent,
                                                             backgroundColor: 'rgba(10, 14, 24, 0.85)',
@@ -419,50 +424,48 @@ export function MatchStatsOverlay({
                                                         />
                                                     </div>
 
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="flex items-center gap-1.5 min-w-0">
-                                                            <span
-                                                                className={`text-ludo-sm font-bold text-ink-strong truncate transition-colors ${
-                                                                    isClickable
-                                                                        ? 'group-hover:text-accent group-hover:underline'
-                                                                        : ''
-                                                                }`}
-                                                            >
-                                                                {displayName}
+                                                    <div className="flex items-center gap-1 min-w-0 flex-1">
+                                                        <span
+                                                            className={`text-ludo-sm font-bold text-ink-strong truncate transition-colors ${
+                                                                isClickable
+                                                                    ? 'group-hover:text-accent group-hover:underline'
+                                                                    : ''
+                                                            }`}
+                                                        >
+                                                            {displayName}
+                                                        </span>
+                                                        {isMe && (
+                                                            <span className="px-1 py-0 rounded bg-accent-soft text-accent text-ludo-xs font-mono font-bold label-chrome uppercase shrink-0">
+                                                                You
                                                             </span>
-                                                            {isMe && (
-                                                                <span className="px-1.5 py-0.5 rounded bg-accent-soft text-accent text-ludo-xs font-mono font-bold label-chrome uppercase shrink-0">
-                                                                    You
-                                                                </span>
-                                                            )}
-                                                            {row.player.isAi && (
-                                                                <span className="px-1.5 py-0.5 rounded bg-warn/20 text-warn text-ludo-xs font-mono font-bold label-chrome uppercase shrink-0">
-                                                                    AI
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex items-center gap-1 min-w-0 mt-0.5">
+                                                        )}
+                                                        {row.player.isAi && (
+                                                            <span className="px-1 py-0 rounded bg-warn/20 text-warn text-ludo-xs font-mono font-bold label-chrome uppercase shrink-0">
+                                                                AI
+                                                            </span>
+                                                        )}
+                                                        <span className="inline-flex items-center gap-0.5 min-w-0 shrink-0 opacity-85">
                                                             <RankTierIcon
                                                                 tier={tier}
                                                                 isAi={row.player.isAi}
                                                                 className="w-3 h-3 shrink-0"
                                                             />
                                                             <span
-                                                                className={`text-ludo-xs font-mono font-bold tracking-tight uppercase truncate ${getTierColorClass(
+                                                                className={`text-ludo-xs font-mono font-semibold tracking-tight uppercase truncate max-w-[68px] sm:max-w-[96px] ${getTierColorClass(
                                                                     tier,
                                                                     row.player.isAi
                                                                 )}`}
                                                             >
                                                                 {tier}
                                                             </span>
-                                                        </div>
+                                                        </span>
                                                     </div>
                                                 </button>
                                             </div>
 
                                             <div className="shrink-0">
                                                 {row.won ? (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-warn/10 border border-warn/30 text-ludo-xs font-mono font-extrabold text-warn uppercase whitespace-nowrap">
+                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-warn/10 border border-warn/30 text-ludo-xs font-mono font-bold text-warn uppercase whitespace-nowrap">
                                                         <LuTrophy className="w-3 h-3 shrink-0" />
                                                         {isPaid && estClaim > 0 ? (
                                                             <span>
@@ -478,7 +481,7 @@ export function MatchStatsOverlay({
                                                         )}
                                                     </span>
                                                 ) : (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-surface-recessed border border-line-soft text-ludo-xs font-mono font-bold text-ink-faint uppercase whitespace-nowrap">
+                                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft text-ludo-xs font-mono font-bold text-ink-faint uppercase whitespace-nowrap">
                                                         Defeated
                                                     </span>
                                                 )}
@@ -486,12 +489,12 @@ export function MatchStatsOverlay({
                                         </div>
 
                                         {/* Line 2: Compact Telemetry Strip (Home, Kicked, Captured) */}
-                                        <div className="flex items-center flex-wrap gap-1.5 pl-8 text-ludo-xs font-mono">
+                                        <div className="flex items-center flex-wrap gap-1.5 pl-6 text-ludo-xs font-mono leading-none">
                                             <span
-                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft font-bold text-positive"
+                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-recessed border border-line-soft font-bold text-positive"
                                                 title="Tokens Home"
                                             >
-                                                <FiHome className="w-3 h-3 text-positive shrink-0" />
+                                                <FiHome className="w-2.5 h-2.5 text-positive shrink-0" />
                                                 <span className="tabular-nums font-bold">{row.home}/4</span>
                                                 <span className="text-ludo-xs text-ink-faint uppercase tracking-tight">
                                                     Home
@@ -499,10 +502,10 @@ export function MatchStatsOverlay({
                                             </span>
 
                                             <span
-                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft font-bold text-warn"
+                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-recessed border border-line-soft font-bold text-warn"
                                                 title="Captures / Kicks made"
                                             >
-                                                <LuSwords className="w-3 h-3 text-warn shrink-0" />
+                                                <LuSwords className="w-2.5 h-2.5 text-warn shrink-0" />
                                                 <span className="tabular-nums font-bold">{row.kicks}</span>
                                                 <span className="text-ludo-xs text-ink-faint uppercase tracking-tight">
                                                     Kicked
@@ -510,10 +513,10 @@ export function MatchStatsOverlay({
                                             </span>
 
                                             <span
-                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-recessed border border-line-soft font-bold text-negative"
+                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-recessed border border-line-soft font-bold text-negative"
                                                 title="Times token was captured / kicked"
                                             >
-                                                <LuShieldAlert className="w-3 h-3 text-negative shrink-0" />
+                                                <LuShieldAlert className="w-2.5 h-2.5 text-negative shrink-0" />
                                                 <span className="tabular-nums font-bold">{row.gotKicked}</span>
                                                 <span className="text-ludo-xs text-ink-faint uppercase tracking-tight">
                                                     Captured
@@ -550,65 +553,72 @@ export function MatchStatsOverlay({
                             </div>
                         )}
 
-                        {/* CHIPS claim slot — MatchPool.claimMatch (pull, section 4.8 Path A) */}
-                        {showClaimSlot && (
-                            <div className={`match-stats-claim ${iWon ? 'ready' : 'dim'}`}>
+                        {/* CHIPS claim slot — compact 1-line status when lost, full claim slot when won */}
+                        {showClaimSlot && !iWon && (
+                            <div className="match-stats-claim compact-line dim">
+                                <span className="inline-flex items-center gap-1.5 min-w-0">
+                                    <ChipsHexIcon className="w-3.5 h-3.5 text-accent shrink-0" active />
+                                    <span className="match-stats-claim-tag">CHIPS</span>
+                                    <span className="match-stats-claim-note truncate">No pool credit</span>
+                                </span>
+                                <span className="match-stats-claim-amount shrink-0">—</span>
+                            </div>
+                        )}
+
+                        {showClaimSlot && iWon && (
+                            <div className="match-stats-claim ready">
                                 <div className="match-stats-claim-head">
                                     <span className="match-stats-claim-tag inline-flex items-center gap-1">
                                         <ChipsHexIcon className="w-3.5 h-3.5 text-accent" active />
                                         CHIPS
                                     </span>
-                                    <span className="match-stats-claim-amount">
-                                        {iWon && estClaim > 0 ? formatChips(estClaim) : '—'}
-                                    </span>
-                                </div>
-                                <p className="match-stats-claim-note">
-                                    {iWon
-                                        ? claimUnlocksInMin != null
-                                            ? `Pull-based claim · unlocks in ${claimUnlocksInMin} min`
+                                    <span className="text-ludo-xs font-mono text-ink-muted truncate flex-1 text-right">
+                                        {claimUnlocksInMin != null
+                                            ? `Unlocks in ${claimUnlocksInMin}m`
                                             : poolLive
                                               ? secondsLeft > 0
-                                                ? `Claim unlocks in ${mmss} · dispute window`
-                                                : `Pull-based prize · gas ~${gasEth ?? "…"} ETH`
-                                              : 'Prize needs on-chain pool (pending deploy)'
-                                        : 'No pool credit for this seat'}
-                                </p>
-                                {iWon && (
-                                    <button
-                                        type="button"
-                                        className={`match-stats-cta claim ${claimReady ? '' : 'soon'}`}
-                                        onClick={() => {
-                                            if (claimReady) onClaimChips?.();
-                                        }}
-                                        disabled={!claimReady}
-                                        title={
-                                            claimReady
-                                                ? undefined
-                                                : claimBusy
-                                                  ? 'Claim in flight…'
-                                                  : secondsLeft > 0
-                                                    ? `Dispute window ${mmss}`
-                                                    : poolLive
-                                                      ? 'Claim unlocks after dispute window'
-                                                      : 'Set NEXT_PUBLIC_MATCH_POOL_ADDRESS + poolId'
-                                        }
-                                    >
-                                        {claimBusy ? (
-                                            <>
-                                                <ThinkingOrb state="solving" size={20} />
-                                                Claiming…
-                                            </>
-                                        ) : secondsLeft > 0
-                                              ? `Claim in ${mmss}`
-                                              : claimReady
-                                                ? 'Claim CHIPS'
+                                                ? `Unlocks in ${mmss}`
+                                                : `Gas ~${gasEth ?? '…'} ETH`
+                                              : 'Pool pending'}
+                                    </span>
+                                    <span className="match-stats-claim-amount">
+                                        {estClaim > 0 ? formatChips(estClaim) : '—'}
+                                    </span>
+                                </div>
+                                <button
+                                    type="button"
+                                    className={`match-stats-cta claim ${claimReady ? '' : 'soon'}`}
+                                    onClick={() => {
+                                        if (claimReady) onClaimChips?.();
+                                    }}
+                                    disabled={!claimReady}
+                                    title={
+                                        claimReady
+                                            ? undefined
+                                            : claimBusy
+                                              ? 'Claim in flight…'
+                                              : secondsLeft > 0
+                                                ? `Dispute window ${mmss}`
                                                 : poolLive
-                                                  ? 'Claim · locked'
-                                                  : 'Claim · pool pending'}
-                                    </button>
-                                )}
+                                                  ? 'Claim unlocks after dispute window'
+                                                  : 'Set NEXT_PUBLIC_MATCH_POOL_ADDRESS + poolId'
+                                    }
+                                >
+                                    {claimBusy ? (
+                                        <>
+                                            <ThinkingOrb state="solving" size={20} />
+                                            Claiming…
+                                        </>
+                                    ) : secondsLeft > 0
+                                          ? `Claim in ${mmss}`
+                                          : claimReady
+                                            ? 'Claim CHIPS'
+                                            : poolLive
+                                              ? 'Claim · locked'
+                                              : 'Claim · pool pending'}
+                                </button>
                                 {claimError && (
-                                    <p className="match-stats-claim-note" style={{ color: '#fca5a5' }}>
+                                    <p className="match-stats-claim-note text-negative">
                                         {claimError}
                                     </p>
                                 )}
@@ -616,40 +626,47 @@ export function MatchStatsOverlay({
                         )}
 
                         {!showClaimSlot && iWon && (
-                            <div className="match-stats-claim dim">
-                                <p className="match-stats-claim-note center">
-                                    Free / offline table · progression only (no CHIPS pool)
+                            <div className="match-stats-claim compact-line dim">
+                                <p className="match-stats-claim-note center w-full">
+                                    Free / offline table · progression only
                                 </p>
                             </div>
                         )}
 
-                        {/* G1 match receipt — post-mortem / trust artifact */}
+                        {/* G1 match receipt — sleek collapsible toggle so card stays single-viewport */}
                         {receipt && (
-                            <div className="match-stats-claim" style={{ textAlign: 'left' }}>
+                            <div className="flex flex-col gap-1.5" style={{ textAlign: 'left' }}>
                                 <button
                                     type="button"
-                                    className="match-stats-cta ghost w-full"
-                                    style={showReceipt ? { marginBottom: '8px' } : undefined}
+                                    className="match-stats-receipt-toggle"
                                     onClick={() => setShowReceipt((v) => !v)}
                                     aria-expanded={showReceipt}
                                 >
-                                    {showReceipt ? 'Hide match receipt' : 'Match receipt'}
+                                    <span className="inline-flex items-center gap-1.5 text-ink-muted">
+                                        <LuFileText className="w-3.5 h-3.5 text-accent shrink-0" />
+                                        {showReceipt ? 'Hide match receipt' : 'Match receipt'}
+                                    </span>
+                                    {showReceipt ? (
+                                        <LuChevronUp className="w-3.5 h-3.5 text-ink-faint shrink-0" />
+                                    ) : (
+                                        <LuChevronDown className="w-3.5 h-3.5 text-ink-faint shrink-0" />
+                                    )}
                                 </button>
                                 {showReceipt && (
-                                    <div style={{ fontSize: '11px', lineHeight: 1.5, opacity: 0.9 }}>
-                                        <div style={{ fontFamily: 'ui-monospace, monospace', wordBreak: 'break-all' }}>
+                                    <div className="match-stats-claim text-ludo-xs leading-relaxed text-ink-strong">
+                                        <div className="font-mono break-all">
                                             hash · {receipt.finalHash}
                                         </div>
                                         {receipt.lastRollId && (
-                                            <div style={{ fontFamily: 'ui-monospace, monospace', wordBreak: 'break-all' }}>
+                                            <div className="font-mono break-all">
                                                 roll · {receipt.lastRollId}
                                             </div>
                                         )}
-                                        <div style={{ marginTop: 6, opacity: 0.85 }}>
+                                        <div className="mt-1 text-ink-muted">
                                             Net — gaps {receipt.net.seqGaps} · resyncs {receipt.net.resyncs} ·
                                             dup {receipt.net.intentDup} · schema drops {receipt.net.schemaDrops}
                                         </div>
-                                        <div style={{ marginTop: 6, opacity: 0.85 }}>
+                                        <div className="mt-1 text-ink-muted">
                                             {receipt.players.map((p) => (
                                                 <div key={p.color}>
                                                     {p.name}: {p.afk.copy}
@@ -658,8 +675,7 @@ export function MatchStatsOverlay({
                                         </div>
                                         <button
                                             type="button"
-                                            className="match-stats-cta ghost"
-                                            style={{ marginTop: 8 }}
+                                            className="match-stats-receipt-toggle mt-1.5 justify-center"
                                             onClick={copyReceipt}
                                         >
                                             {copied ? 'Copied' : 'Copy receipt'}
