@@ -311,6 +311,33 @@ export default function Board({
         matchAuthorityMode,
         lxpGain,
     } = engine;
+
+    // Sync board roster & corner mapping whenever authoritative online state delivers initialBoardConfig.
+    useEffect(() => {
+        if (isBotMatch) return;
+        const authCfg = authoritativeGameState?.initialBoardConfig;
+        if (!authCfg?.players?.length || !authCfg?.colorCorner) return;
+        setBoardConfig((cur) => {
+            const sameCorners =
+                cur.colorCorner.green === authCfg.colorCorner.green &&
+                cur.colorCorner.red === authCfg.colorCorner.red &&
+                cur.colorCorner.yellow === authCfg.colorCorner.yellow &&
+                cur.colorCorner.blue === authCfg.colorCorner.blue;
+            const sameRoster =
+                cur.players.length === authCfg.players.length &&
+                cur.players.every(
+                    (p, i) =>
+                        p.color === authCfg.players[i]?.color &&
+                        (p.walletAddress ?? '') === (authCfg.players[i]?.walletAddress ?? '') &&
+                        Boolean(p.isAi) === Boolean(authCfg.players[i]?.isAi),
+                );
+            if (sameCorners && sameRoster) return cur;
+            return {
+                players: authCfg.players as Player[],
+                colorCorner: authCfg.colorCorner,
+            };
+        });
+    }, [isBotMatch, authoritativeGameState?.initialBoardConfig]);
     // Powers execute host/room-side (guests replay broadcast state); in Room DO mode
     // every seated player may trigger REQUEST_POWER from their server-held hand.
     const canUsePowers = matchAuthorityMode === 'room' || (engine as any).isAuthority !== false;
@@ -438,7 +465,22 @@ export default function Board({
         yellow: 'var(--ludo-yellow)'
     }[localGameState.currentPlayer] || 'var(--ludo-muted)';
 
-    const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
+    const baseMyPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
+    const isPassAndPlay =
+        !spectatorMode &&
+        !isBotMatch &&
+        matchAuthorityMode === 'offline' &&
+        players.length > 1 &&
+        players.every((p) => !p.isAi);
+    const myPlayer = isPassAndPlay
+        ? (players.find((p) => p.color === localGameState.currentPlayer) ?? baseMyPlayer)
+        : baseMyPlayer;
+    const isPresentationSynced =
+        spectatorMode ||
+        (localGameState.currentPlayer === authoritativeGameState.currentPlayer &&
+            localGameState.gamePhase === authoritativeGameState.gamePhase &&
+            (localGameState.diceValue ?? null) === (authoritativeGameState.diceValue ?? null) &&
+            Boolean(localGameState.isRolling) === Boolean(authoritativeGameState.isRolling));
     const myAfk = myPlayer?.color ? localGameState.afkStats?.[myPlayer.color] : undefined;
     const isMeTier1Afk = Boolean(
         !spectatorMode &&
@@ -905,6 +947,7 @@ export default function Board({
                 handleRoll={handleRoll}
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
+                canInteract={isPresentationSynced}
                 bustState={bustState}
                 turnRolls={displayedTurnRolls}
                 onQuickThrow={(toColor, projectileId) => handleThrowProjectile(projectileId, toColor)}
@@ -1007,6 +1050,11 @@ export default function Board({
                                 localGameState.diceValue !== null && localGameState.diceValue !== undefined
                                     ? Number(localGameState.diceValue)
                                     : null;
+                            const isOwnControllableTurn =
+                                !spectatorMode &&
+                                isPresentationSynced &&
+                                Boolean(myPlayer?.color) &&
+                                (actingColor === myPlayer?.color || isPassAndPlay);
                             return (
                                 <HomeBlock
                                     key={color}
@@ -1019,9 +1067,9 @@ export default function Board({
                                     positions={positions}
                                     colorCorner={colorCorner}
                                     viewerColor={uiSlots.BL ?? undefined}
-                                    onTokenClick={(idx) => handleTokenClick(color, idx)}
+                                    onTokenClick={(idx) => handleTokenClick(color, idx, effectiveHomeDice)}
                                     onTokenHover={(idx) => setHoveredMoveToken(idx === null ? null : { color, index: idx })}
-                                    isDraggable={isActivePlayer && isControllableHome && localGameState.gamePhase === 'moving' && effectiveHomeDice === 6}
+                                    isDraggable={isOwnControllableTurn && isActivePlayer && isControllableHome && localGameState.gamePhase === 'moving' && effectiveHomeDice === 6}
                                     counterRotationDeg={counterRotationDeg}
                                     diceValue={effectiveHomeDice}
                                     gamePhase={localGameState.gamePhase}
@@ -1034,8 +1082,10 @@ export default function Board({
                     localGameState={localGameState}
                     colorCorner={colorCorner}
                     address={address}
+                    myColorOverride={myPlayer?.color}
+                    canInteract={isPresentationSynced && !spectatorMode}
                     playerCount={playerCount}
-                    handleTokenClick={handleTokenClick}
+                    handleTokenClick={(c, idx) => handleTokenClick(c, idx, localGameState.diceValue)}
                     counterRotationDeg={counterRotationDeg}
                     targetingColor={targeting ? ownColor ?? null : null}
                     onTargetToken={spendTargeted}
@@ -1145,6 +1195,7 @@ export default function Board({
                 handleRoll={handleRoll}
                 spectatorMode={spectatorMode}
                 myPlayerColor={myPlayer?.color}
+                canInteract={isPresentationSynced}
                 bustState={bustState}
                 turnRolls={displayedTurnRolls}
                 onQuickThrow={(toColor, projectileId) => handleThrowProjectile(projectileId, toColor)}

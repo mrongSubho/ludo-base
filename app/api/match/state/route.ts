@@ -35,12 +35,26 @@ export async function GET(request: Request) {
                 (await requireSession(request, { scope: 'match', matchId })) ||
                 (await requireSession(request, { scope: 'app' }));
             if (session?.wallet && data.player_seats) {
-                const seats = data.player_seats as Record<string, { kind?: string; wallet?: string }>;
                 const lowWallet = session.wallet.toLowerCase();
-                for (const [seatColor, seat] of Object.entries(seats)) {
-                    if (seat?.wallet && seat.wallet.toLowerCase() === lowWallet) {
-                        viewerColor = seatColor;
-                        break;
+                if (Array.isArray(data.player_seats)) {
+                    for (const rawSeat of data.player_seats as Array<{ color?: string; wallet?: string; walletAddress?: string }>) {
+                        const seatColor = rawSeat?.color;
+                        const seatWallet = rawSeat?.wallet ?? rawSeat?.walletAddress;
+                        if (seatColor && seatWallet && seatWallet.toLowerCase() === lowWallet) {
+                            viewerColor = seatColor;
+                            break;
+                        }
+                    }
+                } else {
+                    const seats = data.player_seats as Record<string, { kind?: string; wallet?: string; walletAddress?: string }>;
+                    for (const [seatColor, seat] of Object.entries(seats)) {
+                        if (
+                            (seat?.wallet && seat.wallet.toLowerCase() === lowWallet) ||
+                            (seat?.walletAddress && seat.walletAddress.toLowerCase() === lowWallet)
+                        ) {
+                            viewerColor = seatColor;
+                            break;
+                        }
                     }
                 }
             }

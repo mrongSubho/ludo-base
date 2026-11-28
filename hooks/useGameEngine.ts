@@ -356,10 +356,12 @@ export function useGameEngine({
 
     useAIBrain({
         localGameState,
+        setLocalGameState,
         initialPlayers,
         handleRoll,
         moveToken,
         handleUsePower,
+        getNextPlayer,
         colorCorner,
         playerCount,
         isLobbyConnected: isLobbyConnected || roomAuthority || matchAuthorityMode === 'room',
@@ -368,6 +370,9 @@ export function useGameEngine({
 
     // 🔧 FIX 4: Safety net — if gamePhase is stuck at 'landing' for >3s, force transition.
     // This catches edge cases where moveToken's turn-switch setTimeout fails to fire.
+    // Note: moveToken already wrote the authoritative post-move `currentPlayer` (preserving
+    // `actingSeat` on bonus rolls / Boost Step 1, or advancing to `newState.currentPlayer`
+    // otherwise), so we MUST NOT call `getNextPlayer` a second time here!
     //
     // NET-14: OFFLINE ONLY. On a networked match the landing phase is cleared by
     // the authority's response (move-auth advances `seq`), so flipping the turn
@@ -380,21 +385,32 @@ export function useGameEngine({
         const safetyTimer = setTimeout(() => {
             setLocalGameState((prev) => {
                 if (prev.gamePhase !== 'landing') return prev; // Already resolved
-                console.warn('⚠️ [Engine] Landing safety net triggered! Forcing phase to rolling.');
-                const nextPlayer = getNextPlayer(prev.currentPlayer);
+                console.warn('⚠️ [Engine] Landing safety net triggered! Recovering phase from landing.');
+                if (prev.boostPendingDice != null) {
+                    return {
+                        ...prev,
+                        gamePhase: 'moving',
+                        diceValue: prev.boostPendingDice,
+                        boostPendingDice: null,
+                        powerSpentThisTurn: true,
+                        timeLeft: 15,
+                        lastUpdate: Date.now(),
+                    };
+                }
                 return {
                     ...prev,
                     gamePhase: 'rolling',
-                    currentPlayer: nextPlayer,
-                    activeShields: clearShieldsOnTurnChange(prev.activeShields, prev.currentPlayer, nextPlayer),
                     diceValue: null,
+                    boostPendingDice: null,
+                    boostSubMoveBonus: false,
+                    powerSpentThisTurn: false,
                     timeLeft: 15,
                     lastUpdate: Date.now()
                 };
             });
         }, 3000);
         return () => clearTimeout(safetyTimer);
-    }, [localGameState.gamePhase, localGameState.winner, getNextPlayer, setLocalGameState, isNetworkedMatch]);
+    }, [localGameState.gamePhase, localGameState.winner, setLocalGameState, isNetworkedMatch]);
 
     // Room-mode state synchronization: keep rendering latest server-authoritative snapshot.
     useEffect(() => {
@@ -521,6 +537,8 @@ export function useGameEngine({
         setLocalGameState({
             ...INITIAL_GAME_STATE,
             afkStats: createInitialAfkStatsMap(),
+            positions: createInitialPositions(newCC, gameMode),
+            gameMode,
             botDifficulty,
             currentPlayer: newPlayers[0].color,
             // ENG-11: fresh seed per match (see above).

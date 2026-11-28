@@ -93,7 +93,7 @@ describe('AnimationBarrier — FIFO Presentation Queue, Watchdogs & Timer Pass-T
                     },
                     diceValue: (step % 6) + 1,
                 }),
-                { estimatedMs: 0 },
+                { estimatedMs: 300 },
             );
         }
 
@@ -107,6 +107,55 @@ describe('AnimationBarrier — FIFO Presentation Queue, Watchdogs & Timer Pass-T
         assert.equal(barrier.getPresented().positions.green[0], 40);
         assert.equal(barrier.getAuthoritative().positions.green[0], 40);
         barrier.dispose();
+    });
+
+    it('drains consecutive 0ms phase transitions immediately without stranding subsequent frames in a zombie queue', (t) => {
+        t.mock.timers.enable({ apis: ['setTimeout'] });
+        try {
+            const s0 = makeState({ currentPlayer: 'green', gamePhase: 'landing', diceValue: 4 });
+            const barrier = new AnimationBarrier({
+                initialState: s0,
+                onPresent: () => {},
+            });
+
+            barrier.acquireLock('hop:green-0', 500);
+            // Queue two 0ms transitions followed by a 220ms dice settle and a 0ms 'moving' flip
+            const sSwitch = makeState({ currentPlayer: 'red', gamePhase: 'rolling', diceValue: null });
+            const sRollStart = makeState({ currentPlayer: 'red', gamePhase: 'rolling', isRolling: true, diceValue: null });
+            const sRollLand = makeState({ currentPlayer: 'red', gamePhase: 'moving', isRolling: false, diceValue: 6 });
+            const sHumanTurn = makeState({
+                currentPlayer: 'green',
+                gamePhase: 'rolling',
+                isRolling: false,
+                diceValue: null,
+                positions: { green: [34, -1, -1, -1], red: [8, -1, -1, -1], yellow: [-1, -1, -1, -1], blue: [-1, -1, -1, -1] },
+            });
+
+            barrier.enqueue(sSwitch, { estimatedMs: 0 });
+            barrier.enqueue(sRollStart, { estimatedMs: 0 });
+            barrier.enqueue(sRollLand, { estimatedMs: 220 });
+            barrier.enqueue(sHumanTurn, { estimatedMs: 0 });
+
+            // Release the initial hop lock -> must sweep past sSwitch(0ms) and sRollStart(0ms) straight onto sRollLand(220ms)
+            barrier.releaseLock('hop:green-0');
+            assert.equal(barrier.getPresented().currentPlayer, 'red');
+            assert.equal(barrier.getPresented().diceValue, 6);
+            assert.equal(barrier.isLocked(), true, 'sRollLand acquires 220ms transition lock');
+            assert.equal(barrier.getQueueLength(), 1, 'only sHumanTurn remains behind 220ms lock');
+
+            // Advance 230ms -> transition lock expires and drains sHumanTurn(0ms) cleanly with zero zombie queue!
+            t.mock.timers.tick(230);
+            assert.equal(barrier.isLocked(), false);
+            assert.equal(barrier.getQueueLength(), 0);
+            assert.equal(barrier.getPresented().currentPlayer, 'green');
+            assert.equal(barrier.getPresented().gamePhase, 'rolling');
+            assert.equal(barrier.getPresented().diceValue, null);
+            assert.equal(barrier.getPresented().positions.red[0], 8);
+
+            barrier.dispose();
+        } finally {
+            t.mock.timers.reset();
+        }
     });
 
     it('unblocks automatically via per-lock watchdog min(2500, estimatedMs + 350) when GSAP callback never fires', (t) => {

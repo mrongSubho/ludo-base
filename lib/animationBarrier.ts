@@ -304,6 +304,10 @@ export class AnimationBarrier {
             return;
         }
 
+        if (!this.isLocked() && this.queue.length > 0) {
+            this.drainNextIfUnlocked();
+        }
+
         const tail = this.queue.length > 0 ? this.queue[this.queue.length - 1].state : this.presented;
         if (isTimerOnlyTransition(tail, nextState)) {
             if (this.queue.length > 0) {
@@ -326,7 +330,10 @@ export class AnimationBarrier {
 
         this.queue.push({ state: nextState, resync: isResync, estimatedMs });
         while (this.queue.length > this.maxQueue) {
-            this.queue.shift();
+            const dropped = this.queue.shift();
+            if (dropped && dropped.estimatedMs > 0 && this.queue.length > 0 && this.queue[0].estimatedMs === 0) {
+                this.queue[0].estimatedMs = dropped.estimatedMs;
+            }
         }
     }
 
@@ -349,14 +356,14 @@ export class AnimationBarrier {
             return;
         }
 
-        const next = this.queue.shift();
-        if (!next) return;
-        this.presented = next.state;
-        this.onPresent(this.presented, { flushed: false, resync: next.resync });
-        if (next.estimatedMs > 0 && this.queue.length > 0) {
-            this.acquireTimedLock('transition', next.estimatedMs);
-        } else if (next.estimatedMs > 0 && !next.state.winner && !next.state.abortReason) {
-            this.acquireTimedLock('transition', next.estimatedMs);
+        while (!this.isLocked() && this.queue.length > 0) {
+            const next = this.queue.shift();
+            if (!next) break;
+            this.presented = next.state;
+            this.onPresent(this.presented, { flushed: false, resync: next.resync });
+            if (next.estimatedMs > 0 && !next.state.winner && !next.state.abortReason) {
+                this.acquireTimedLock('transition', next.estimatedMs);
+            }
         }
     }
 

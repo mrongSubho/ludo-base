@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, useAnimation } from 'framer-motion';
 import type { Corner } from '@/lib/types';
 import {
@@ -123,7 +123,7 @@ export default function LudoDice({
             ? DICE_DAYBREAK_SKIN
             : (DICE_SKINS[preferences.diceStyle] || DICE_SKINS.classic);
 
-    const traj = computeBreakoutTrajectory(corner, themeId);
+    const traj = useMemo(() => computeBreakoutTrajectory(corner, themeId), [corner, themeId]);
 
     const controls = useAnimation();
     const arcControls = useAnimation();
@@ -138,6 +138,7 @@ export default function LudoDice({
     isRollingRef.current = isRolling;
     const wasExternalRolling = useRef(false);
     const prevValueRef = useRef<number | null | undefined>(currentValue);
+    const lastSettledRef = useRef<number | null>(null);
     const pendingCritRef = useRef(false);
     const spinLoopRef = useRef<number | null>(null);
     const catchUpTimerRef = useRef<number | null>(null);
@@ -238,9 +239,12 @@ export default function LudoDice({
             triggerHaptic(40);
 
             if (prefersReducedMotion()) {
+                const nextX = rotationRef.current.x + 180;
+                const nextY = rotationRef.current.y + 180;
+                rotationRef.current = { x: nextX, y: nextY };
                 controls.start({
-                    rotateX: rotationRef.current.x + 180,
-                    rotateY: rotationRef.current.y + 180,
+                    rotateX: nextX,
+                    rotateY: nextY,
                     rotateZ: 0,
                     transition: { duration: 0.01 },
                 });
@@ -304,7 +308,44 @@ export default function LudoDice({
         const prevVal = prevValueRef.current;
         prevValueRef.current = currentValue;
 
-        if (isRolling || !currentValue) return;
+        if (isRolling) {
+            lastSettledRef.current = null;
+            return;
+        }
+
+        if (!currentValue) {
+            if (catchUpTimerRef.current !== null) {
+                window.clearTimeout(catchUpTimerRef.current);
+                catchUpTimerRef.current = null;
+            }
+            stopSpinLoop();
+            setVisualRolling(false);
+            pendingCritRef.current = false;
+            if (lastSettledRef.current !== 0) {
+                lastSettledRef.current = 0;
+                const targetX = normalize(rotationRef.current.x, 0);
+                const targetY = normalize(rotationRef.current.y, 0);
+                rotationRef.current = { x: targetX, y: targetY };
+                controls.start({
+                    rotateX: targetX,
+                    rotateY: targetY,
+                    rotateZ: 0,
+                    transition: prefersReducedMotion()
+                        ? { duration: 0.01 }
+                        : { duration: 0.22, ease: 'easeOut' },
+                });
+                arcControls.set({ x: 0, y: 0, scale: 1, rotateZ: 0 });
+            }
+            return;
+        }
+
+        if (catchUpTimerRef.current !== null && lastSettledRef.current === currentValue) {
+            return;
+        }
+        if (lastSettledRef.current === currentValue && !pendingCritRef.current) {
+            return;
+        }
+        lastSettledRef.current = currentValue;
 
         // If a remote snapshot jumped straight from null -> N without setting isRolling=true,
         // play a crisp 320ms breakout spin so opponents visibly toss the die too!
@@ -353,6 +394,7 @@ export default function LudoDice({
         traj,
         playDiceRoll,
         runSettleAnimation,
+        stopSpinLoop,
     ]);
 
     // Triple-6 bust micro-shake & crimson warning halo

@@ -28,6 +28,8 @@ interface BoardTokensProps {
     localGameState: GameState;
     colorCorner: ColorCorner;
     address: string | undefined;
+    myColorOverride?: PlayerColor;
+    canInteract?: boolean;
     playerCount: '1v1' | '4P' | '2v2';
     handleTokenClick: (color: PlayerColor, tokenIndex: number) => void;
     counterRotationDeg?: number;
@@ -116,6 +118,8 @@ export function BoardTokens({
     localGameState,
     colorCorner,
     address,
+    myColorOverride,
+    canInteract = true,
     playerCount,
     handleTokenClick,
     counterRotationDeg = 0,
@@ -132,7 +136,7 @@ export function BoardTokens({
     const myPlayer =
         players.find((p) => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) ||
         players.find((p) => !p.isAi);
-    const myColor = myPlayer?.color;
+    const myColor = myColorOverride ?? myPlayer?.color;
 
     const currentSignature = positionSignature(localGameState.positions);
 
@@ -615,6 +619,7 @@ export function BoardTokens({
                 const canHelpTeammate = isTeammateColor && isSelfFinished && playerCount === '2v2';
 
                 const isDraggable =
+                    canInteract &&
                     !finishing &&
                     isItsMyTurn &&
                     localGameState.gamePhase === 'moving' &&

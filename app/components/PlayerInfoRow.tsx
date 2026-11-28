@@ -201,6 +201,7 @@ interface PlayerRowProps {
     handleRoll: () => void;
     spectatorMode: boolean;
     myPlayerColor: PlayerColor | undefined;
+    canInteract?: boolean;
     bustState?: { color: PlayerColor; key: number } | null;
     turnRolls?: TurnRollEntry[];
     onQuickThrow?: (toColor: PlayerColor, projectileId: ProjectileId) => void;
@@ -214,6 +215,7 @@ export function PlayerRow({
     handleRoll,
     spectatorMode,
     myPlayerColor,
+    canInteract = true,
     bustState = null,
     turnRolls = [],
     onQuickThrow,
@@ -241,7 +243,7 @@ export function PlayerRow({
                 afkEntry?.mode === 'left_forfeited',
         );
         const isCurrentlyBot = p.isAi || isKicked || isAutoPlaying;
-        const canRoll = isMyTurn && (isMyColor || spectatorMode) && !isCurrentlyBot && localGameState.gamePhase === 'rolling' && localGameState.diceValue === null && !localGameState.isRolling;
+        const canRoll = canInteract && isMyTurn && (isMyColor || spectatorMode) && !isCurrentlyBot && localGameState.gamePhase === 'rolling' && localGameState.diceValue === null && !localGameState.isRolling;
 
         const flexDir = (corner === 'TL' || corner === 'BL') ? 'flex-row' : 'flex-row-reverse';
         const side = (corner === 'TL' || corner === 'BL') ? 'left' : 'right';

@@ -569,22 +569,29 @@ export default function Page() {
       console.log('🏁 TRANSITIONING TO GAME! (isStarted:', gameState?.isStarted, 'lobbyStatus:', lobbyState?.status, ')');
 
       // MM-15: a guest must never reach the board without the host's roster.
+      const roster = gameState?.initialBoardConfig?.players;
+      const cc = gameState?.initialBoardConfig?.colorCorner;
       if (!isHost) {
-        const roster = gameState?.initialBoardConfig?.players;
         if (!Array.isArray(roster) || roster.length === 0) {
           console.warn('⏳ [Page] guest start pending — waiting for the host roster before mounting the board');
           return;
         }
         setBoardSeed({
           players: roster,
-          colorCorner: gameState?.initialBoardConfig?.colorCorner,
+          colorCorner: cc,
           isBotMatch: false,
         });
       } else {
-        const roster = gameState?.initialBoardConfig?.players;
-        const cc = gameState?.initialBoardConfig?.colorCorner;
+        const activeMatchId = gameState?.matchId;
+        const hasRoomMatchId = Boolean(
+          activeMatchId &&
+          activeMatchId !== 'local' &&
+          !activeMatchId.startsWith('local-'),
+        );
         if (Array.isArray(roster) && roster.length > 0 && cc) {
           setBoardSeed({ players: roster, colorCorner: cc, isBotMatch: false });
+        } else if (hasRoomMatchId && gameState?.isBotMatch !== true) {
+          return;
         }
       }
 

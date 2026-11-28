@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react';
-import { PlayerColor, PowerType, GameState } from '@/lib/types';
+import { useEffect, useRef, useState } from 'react';
+import { PlayerColor, PowerType, GameState, GameStateSetter } from '@/lib/types';
 import { Player } from './useGameEngine';
 import { getBestMoveAsync, getBestPowerUsageAsync } from '@/lib/ai/client';
+import { clearShieldsOnTurnChange } from '@/lib/engine/core';
 import { ColorCorner } from '@/lib/boardLayout';
 import {
     BOT_ROLL_DELAY_MIN,
@@ -13,14 +14,16 @@ import {
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
 import { shouldPauseLocalOrchestration } from '@/lib/netcode/resync';
 import { isSeatPermanentlyLocked, sampleHumanizedBotDelayMs } from '@/lib/afkPolicy';
-import type { RollOutcome } from './useGameActions';
+import type { RollOutcome, MoveTokenOutcome } from './useGameActions';
 
 interface UseAIBrainProps {
     localGameState: GameState;
+    setLocalGameState?: GameStateSetter;
     initialPlayers: Player[];
     handleRoll: (isRemote?: boolean) => Promise<RollOutcome>;
-    moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => void;
-    handleUsePower: (color: PlayerColor, type?: PowerType, tokenIdx?: number) => void;
+    moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => Promise<MoveTokenOutcome> | void;
+    handleUsePower: (color: PlayerColor, type?: PowerType, tokenIdx?: number) => Promise<boolean> | void;
+    getNextPlayer?: (current: PlayerColor) => PlayerColor;
     colorCorner: ColorCorner;
     playerCount: '1v1' | '4P' | '2v2';
     isLobbyConnected: boolean;
@@ -29,16 +32,19 @@ interface UseAIBrainProps {
 
 export function useAIBrain({
     localGameState,
+    setLocalGameState,
     initialPlayers,
     handleRoll,
     moveToken,
     handleUsePower,
+    getNextPlayer,
     colorCorner,
     playerCount,
     isLobbyConnected,
     matchConnectionStatus = 'offline'
 }: UseAIBrainProps) {
     const lastActionRef = useRef<string>('');
+    const [retryTick, setRetryTick] = useState(0);
     
     // 🔧 FIX 1: Store function refs so the effect doesn't depend on function identity.
     // This prevents the effect cleanup from killing pending timers when
@@ -46,13 +52,27 @@ export function useAIBrain({
     const handleRollRef = useRef(handleRoll);
     const moveTokenRef = useRef(moveToken);
     const handleUsePowerRef = useRef(handleUsePower);
+    const getNextPlayerRef = useRef(getNextPlayer);
+    const setLocalGameStateRef = useRef(setLocalGameState);
     const rollTimerRef = useRef<NodeJS.Timeout | null>(null);
     const moveTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Keep function refs fresh on every render
     useEffect(() => { handleRollRef.current = handleRoll; }, [handleRoll]);
     useEffect(() => { moveTokenRef.current = moveToken; }, [moveToken]);
     useEffect(() => { handleUsePowerRef.current = handleUsePower; }, [handleUsePower]);
+    useEffect(() => { getNextPlayerRef.current = getNextPlayer; }, [getNextPlayer]);
+    useEffect(() => { setLocalGameStateRef.current = setLocalGameState; }, [setLocalGameState]);
+
+    const scheduleRetry = () => {
+        lastActionRef.current = '';
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = setTimeout(() => {
+            retryTimerRef.current = null;
+            setRetryTick((n) => n + 1);
+        }, 250);
+    };
 
     useEffect(() => {
         if (localGameState.winner || shouldPauseLocalOrchestration(matchConnectionStatus)) return;
@@ -117,9 +137,12 @@ export function useAIBrain({
                         difficulty,
                     });
                     if (powerPick) {
-                        handleUsePowerRef.current(color, powerPick.type, powerPick.tokenIdx);
-                    } else {
-                        handleRollRef.current();
+                        const applied = await handleUsePowerRef.current(color, powerPick.type, powerPick.tokenIdx);
+                        if (applied) return;
+                    }
+                    const rollRes = await handleRollRef.current();
+                    if (rollRes === 'failed') {
+                        scheduleRetry();
                     }
                 })();
             }, randomDelay);
@@ -146,12 +169,37 @@ export function useAIBrain({
                     if (bestMove !== null) {
                         // ENG-10: move the teammate's token with the teammate's
                         // color — the index is into bestMove.color's array.
-                        moveTokenRef.current(bestMove.color, bestMove.tokenIndex, diceValue);
+                        const moveRes = await moveTokenRef.current(bestMove.color, bestMove.tokenIndex, diceValue);
+                        if (moveRes === 'failed') {
+                            scheduleRetry();
+                        }
                     } else {
                         console.warn('🤖 [AIBrain] No valid moves found for bot. Forcing turn switch.');
-                        // 🔧 SAFETY: If getBestMove returns null, reset lastActionRef
-                        // so the next effect run can try again or let the engine handle it.
                         lastActionRef.current = '';
+                        const setter = setLocalGameStateRef.current;
+                        const nextFn = getNextPlayerRef.current;
+                        if (setter && nextFn) {
+                            setter((prev) => {
+                                if (prev.winner || prev.currentPlayer !== color || prev.gamePhase !== 'moving') {
+                                    return prev;
+                                }
+                                const nextPlayer = nextFn(prev.currentPlayer);
+                                return {
+                                    ...prev,
+                                    gamePhase: 'rolling',
+                                    currentPlayer: nextPlayer,
+                                    activeShields: clearShieldsOnTurnChange(prev.activeShields, prev.currentPlayer, nextPlayer),
+                                    diceValue: null,
+                                    boostPendingDice: null,
+                                    boostSubMoveBonus: false,
+                                    powerSpentThisTurn: false,
+                                    timeLeft: 15,
+                                    lastUpdate: Date.now(),
+                                };
+                            });
+                        } else {
+                            scheduleRetry();
+                        }
                     }
                 })();
             }, isKickedReplacement ? sampleHumanizedBotDelayMs('move') : (clock.moveDelay ?? BOT_MOVE_DELAY));
@@ -160,6 +208,7 @@ export function useAIBrain({
         // 🔧 FIX 1: NO cleanup return. Timers are managed via refs and only
         // cleared when the actionKey meaningfully changes (above).
     }, [
+        retryTick,
         localGameState.winner,
         localGameState.currentPlayer,
         localGameState.gamePhase, 
@@ -186,5 +235,6 @@ export function useAIBrain({
     useEffect(() => () => {
         if (rollTimerRef.current) { clearTimeout(rollTimerRef.current); rollTimerRef.current = null; }
         if (moveTimerRef.current) { clearTimeout(moveTimerRef.current); moveTimerRef.current = null; }
+        if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
     }, []);
 }

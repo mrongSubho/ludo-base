@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PlayerColor, PowerType, GameState, GameStateSetter } from '@/lib/types';
 import { Player } from './useGameEngine';
 import { clearShieldsOnTurnChange } from '@/lib/engine/core';
@@ -21,7 +21,7 @@ interface UseAFKManagerProps {
     initialPlayers: Player[];
     handleRoll: (isRemote?: boolean) => Promise<RollOutcome>;
     moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => Promise<MoveTokenOutcome>;
-    handleUsePower: (color: PlayerColor, type?: PowerType, tokenIdx?: number) => void;
+    handleUsePower: (color: PlayerColor, type?: PowerType, tokenIdx?: number) => Promise<boolean> | void;
     getNextPlayer: (current: PlayerColor) => PlayerColor;
     colorCorner?: ColorCorner;
     playerCount: '1v1' | '4P' | '2v2';
@@ -73,8 +73,19 @@ export function useAFKManager({
     onAbandonRef.current = onAbandon;
 
     const lastActionRef = useRef<string>('');
+    const [retryTick, setRetryTick] = useState(0);
     const rollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const moveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const scheduleRetry = () => {
+        lastActionRef.current = '';
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = setTimeout(() => {
+            retryTimerRef.current = null;
+            setRetryTick((n) => n + 1);
+        }, 250);
+    };
 
     // 1. Offline Tier-1 Reclaim Window Expiry Watcher
     useEffect(() => {
@@ -173,12 +184,17 @@ export function useAFKManager({
                 const latestAfk = normalizeSeatAfkStats(latest.afkStats?.[color]);
                 if (latest.winner || latest.currentPlayer !== color || !isSeatInTier1Afk(latestAfk)) return;
 
-                const powerPick = pickTier1RandomPower(latest, color, colorCorner, playerCount);
-                if (powerPick) {
-                    handleUsePowerRef.current(color, powerPick.type, powerPick.tokenIdx);
-                } else {
-                    void handleRollRef.current();
-                }
+                void (async () => {
+                    const powerPick = pickTier1RandomPower(latest, color, colorCorner, playerCount);
+                    if (powerPick) {
+                        const applied = await handleUsePowerRef.current(color, powerPick.type, powerPick.tokenIdx);
+                        if (applied) return;
+                    }
+                    const rollRes = await handleRollRef.current();
+                    if (rollRes === 'failed') {
+                        scheduleRetry();
+                    }
+                })();
             }, delayMs);
         } else if (phase === 'moving' && diceValue !== null && !isRolling) {
             lastActionRef.current = actionKey;
@@ -199,7 +215,13 @@ export function useAFKManager({
 
                 const pick = pickTier1RandomMove(latest.positions, color, latest.diceValue, colorCorner, playerCount);
                 if (pick) {
-                    void moveTokenRef.current(pick.color, pick.tokenIndex, latest.diceValue);
+                    const rolled = latest.diceValue;
+                    void (async () => {
+                        const moveRes = await moveTokenRef.current(pick.color, pick.tokenIndex, rolled);
+                        if (moveRes === 'failed') {
+                            scheduleRetry();
+                        }
+                    })();
                 } else {
                     setLocalGameState((s) => {
                         const nextPlayer = getNextPlayerRef.current(s.currentPlayer);
@@ -217,6 +239,7 @@ export function useAFKManager({
             }, delayMs);
         }
     }, [
+        retryTick,
         isNetworked,
         localGameState.winner,
         localGameState.abortReason,
@@ -241,6 +264,10 @@ export function useAFKManager({
         if (moveTimerRef.current) {
             clearTimeout(moveTimerRef.current);
             moveTimerRef.current = null;
+        }
+        if (retryTimerRef.current) {
+            clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = null;
         }
     }, []);
 }

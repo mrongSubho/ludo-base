@@ -330,13 +330,20 @@ describe('Phase 4 — Match Room Clock, Lifecycle, and Relocation', () => {
       // Move turns until Yellow is active human caster
       const playGreenUntilYellow = async (tag: string) => {
         let loops = 0;
-        while ((storageMap.get('state') as GameState).currentPlayer === 'green' && loops < 12) {
+        while ((storageMap.get('state') as GameState).currentPlayer === 'green' && loops < 40) {
           loops++;
           const cur = storageMap.get('state') as GameState;
           if (cur.gamePhase === 'rolling') {
             await room.webSocketMessage(sockG as unknown as WebSocket, JSON.stringify({ v: 1, t: 'intent', kind: 'REQUEST_ROLL', intentId: `${tag}-r-${loops}` }));
           } else {
-            await room.webSocketMessage(sockG as unknown as WebSocket, JSON.stringify({ v: 1, t: 'intent', kind: 'REQUEST_MOVE', intentId: `${tag}-m-${loops}`, payload: { tokenIndex: 0 } }));
+            const rollSteps = cur.diceValue ?? 1;
+            const legalIdx = cur.positions.green.findIndex(
+              (pos) => calculateNextPosition(pos, rollSteps, 'green', cc1v1) !== pos,
+            );
+            await room.webSocketMessage(
+              sockG as unknown as WebSocket,
+              JSON.stringify({ v: 1, t: 'intent', kind: 'REQUEST_MOVE', intentId: `${tag}-m-${loops}`, payload: { tokenIndex: legalIdx >= 0 ? legalIdx : 0 } }),
+            );
           }
         }
       };
