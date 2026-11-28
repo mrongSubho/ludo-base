@@ -308,26 +308,75 @@ export async function markVaultClaimsExecuted(params: {
         .eq('status', 'claimable');
 }
 
+export const ARENA_TREASURY_WALLET = (
+    process.env.NEXT_PUBLIC_TREASURY_WALLET ||
+    '0xbcCa5DcBF293D98A627fD3814D5AE8249bB1DFaF'
+).toLowerCase();
+
+export function resolveSettledPayoutShares(params: {
+    winnerWallets: string[];
+    forfeitedWallets?: Iterable<string>;
+    matchShape?: string | null;
+    treasuryWallet?: string;
+}): { winners: string[]; sharesBps: number[]; divertedSharesBps: number } {
+    const rawWinners = params.winnerWallets
+        .map((w) => w.toLowerCase())
+        .filter((w) => /^0x[0-9a-f]{40}$/.test(w));
+    if (!rawWinners.length) {
+        return { winners: [], sharesBps: [], divertedSharesBps: 0 };
+    }
+
+    let rawSharesBps: number[];
+    if (rawWinners.length === 1) {
+        rawSharesBps = [10000];
+    } else if (rawWinners.length === 2) {
+        rawSharesBps = params.matchShape === '4P' ? [7500, 2500] : [5000, 5000];
+    } else {
+        const even = Math.floor(10000 / rawWinners.length);
+        rawSharesBps = rawWinners.map((_, idx) =>
+            idx === rawWinners.length - 1 ? 10000 - even * (rawWinners.length - 1) : even,
+        );
+    }
+
+    const forfeitedSet = new Set(
+        Array.from(params.forfeitedWallets ?? [], (w) => String(w).toLowerCase()).filter((w) =>
+            /^0x[0-9a-f]{40}$/.test(w),
+        ),
+    );
+    const treasury = (params.treasuryWallet || ARENA_TREASURY_WALLET).toLowerCase();
+
+    const merged = new Map<string, number>();
+    let divertedSharesBps = 0;
+    for (let i = 0; i < rawWinners.length; i++) {
+        const original = rawWinners[i];
+        const bps = rawSharesBps[i] ?? 0;
+        const recipient = forfeitedSet.has(original) ? treasury : original;
+        if (forfeitedSet.has(original)) {
+            divertedSharesBps += bps;
+        }
+        merged.set(recipient, (merged.get(recipient) ?? 0) + bps);
+    }
+
+    return {
+        winners: [...merged.keys()],
+        sharesBps: [...merged.values()],
+        divertedSharesBps,
+    };
+}
+
 export async function settleArenaMatchPayouts(params: {
     matchId: string;
     matchShape?: string | null;
     winnerWallets: string[];
-}): Promise<{ settled: boolean }> {
+    forfeitedWallets?: Iterable<string>;
+}): Promise<{ settled: boolean; divertedSharesBps: number }> {
     const db = serviceDb() as any;
-    const winners = params.winnerWallets.map((w) => w.toLowerCase()).filter((w) => /^0x[0-9a-f]{40}$/.test(w));
-    if (!winners.length) return { settled: false };
-
-    let sharesBps: number[];
-    if (winners.length === 1) {
-        sharesBps = [10000];
-    } else if (winners.length === 2) {
-        sharesBps = params.matchShape === '4P' ? [7500, 2500] : [5000, 5000];
-    } else {
-        const even = Math.floor(10000 / winners.length);
-        sharesBps = winners.map((_, idx) =>
-            idx === winners.length - 1 ? 10000 - even * (winners.length - 1) : even,
-        );
-    }
+    const { winners, sharesBps, divertedSharesBps } = resolveSettledPayoutShares({
+        winnerWallets: params.winnerWallets,
+        forfeitedWallets: params.forfeitedWallets,
+        matchShape: params.matchShape,
+    });
+    if (!winners.length) return { settled: false, divertedSharesBps: 0 };
 
     const { data, error } = await db.rpc('arena_vault_settle_match', {
         p_match_id: params.matchId,
@@ -338,9 +387,9 @@ export async function settleArenaMatchPayouts(params: {
 
     if (error) {
         console.warn('[arenaVaultService:settleArenaMatchPayouts]', error.message);
-        return { settled: false };
+        return { settled: false, divertedSharesBps };
     }
-    return { settled: Boolean(data?.settled) };
+    return { settled: Boolean(data?.settled), divertedSharesBps };
 }
 
 export async function refundMatchVaultStakes(matchId: string): Promise<{

@@ -242,26 +242,34 @@ describe('Hybrid Event-Deltas, PW-1 Privacy, Auto-Resync, Split Bot Turns & 51->
                 .pop()!;
             assert.deepEqual(specReconstructed, legacyFullStateMsg.state, 'delta reconstruction matches full wire state identically');
 
-            // 3. Turn is now Yellow (isAi: true): expiring ai_turn timer triggers alarm which splits bot turn into ROLL (seq 3) + MOVE (seq 4)
+            // 3. Turn is now Yellow (isAi: true): two-phase bot alarms emit staggered ROLL (seq 3, ai_roll) -> MOVE (seq 4, ai_move)
             const gLenBeforeBot = eventsG.length;
-            const timers = (storageMap.get('timerHeap') as Array<{ id: string; kind: string; deadlineAt: number }>) || [];
-            assert.ok(timers.length > 0 && timers[0].kind === 'ai_turn', 'Yellow AI turn timer must be scheduled');
-            timers[0].deadlineAt = Date.now() - 20;
-            storageMap.set('timerHeap', timers);
-            (room as unknown as { timerHeap: typeof timers }).timerHeap = timers;
-            forcedDieByte = 2; // Yellow bot rolls 3 (moves 37 -> 40)
+            const timersRoll = (storageMap.get('timerHeap') as Array<{ id: string; kind: string; deadlineAt: number }>) || [];
+            assert.ok(timersRoll.length > 0 && timersRoll[0].kind === 'ai_roll', 'Yellow AI roll timer must be scheduled');
+            timersRoll[0].deadlineAt = Date.now() - 20;
+            storageMap.set('timerHeap', timersRoll);
+            (room as unknown as { timerHeap: typeof timersRoll }).timerHeap = timersRoll;
+            forcedDieByte = 2; // Yellow bot rolls 3
             await room.alarm();
+            await new Promise((r) => setTimeout(r, 15));
+
+            const timersMove = (storageMap.get('timerHeap') as Array<{ id: string; kind: string; deadlineAt: number }>) || [];
+            assert.ok(timersMove.length > 0 && timersMove[0].kind === 'ai_move', 'Yellow AI move timer must follow roll');
+            timersMove[0].deadlineAt = Date.now() - 20;
+            storageMap.set('timerHeap', timersMove);
+            (room as unknown as { timerHeap: typeof timersMove }).timerHeap = timersMove;
+            await room.alarm(); // Yellow moves 37 -> 40
             await new Promise((r) => setTimeout(r, 15));
 
             const botBatches = eventsG.slice(gLenBeforeBot);
             assert.equal(botBatches.length, 2, 'bot turn emits separate ROLL and MOVE delta frames');
             assert.equal(botBatches[0].seq, 3);
             assert.equal(botBatches[0].events[0].type, 'ROLL');
-            assert.equal((botBatches[0].events[0] as Extract<MatchEvent, { type: 'ROLL' }>).source, 'bot');
+            assert.equal((botBatches[0].events[0] as Extract<MatchEvent, { type: 'ROLL' }>).source, undefined, 'stealth wire strips ROLL.source for non-acting viewers');
             assert.equal(botBatches[1].seq, 4);
             assert.equal(botBatches[1].events[0].type, 'MOVE');
             assert.equal(statesG[statesG.length - 1].state.positions.yellow[0], 40);
-            assert.equal(TURN_TIMERS.aiStepMs, 1000);
+            assert.equal(TURN_TIMERS.castMs, 12000);
 
             // 4. prevSeq !== knownSeq gap on RoomClient automatically triggers resync join -> full state resync: true
             const preResyncLen = statesG.length;

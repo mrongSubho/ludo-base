@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PlayerColor } from '@/lib/types';
+import { AfkPlayerStats, KickReason, PlayerColor } from '@/lib/types';
+import { AFK_MAX_TRIGGERS, getKickReasonMessage } from '@/lib/afkPolicy';
 import { Player } from '@/hooks/useGameEngine';
 import { emoteById, EMOTE_TTL_MS, type EmoteEvent } from '@/lib/emotes';
 import { getEmoteGlyph } from './EmoteTray';
@@ -52,92 +53,178 @@ export function StatusNotification({ message }: StatusNotificationProps) {
     );
 }
 
-interface IdleWarningOverlayProps {
-    idleWarning: { player: PlayerColor; timeLeft: number } | null;
-    myPlayer: Player | undefined;
-    onCancelAfk: (color: PlayerColor) => void;
+interface AfkReclaimBarProps {
+    afkStats: AfkPlayerStats;
+    getNow: () => number;
+    onReclaim: () => void;
+    reducedMotion?: boolean;
 }
 
-export function IdleWarningOverlay({ idleWarning, myPlayer, onCancelAfk }: IdleWarningOverlayProps) {
-    if (!idleWarning || idleWarning.player !== myPlayer?.color) return null;
+function formatCountdownMs(ms: number): string {
+    const totalSecs = Math.max(0, Math.ceil(ms / 1000));
+    const mins = Math.floor(totalSecs / 60);
+    const secs = totalSecs % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
-    const r = 26;
-    const circumference = 2 * Math.PI * r;
-    const ratio = Math.min(1, Math.max(0, idleWarning.timeLeft / 10));
-    const dashOffset = circumference * (1 - ratio);
+export function AfkReclaimBar({
+    afkStats,
+    getNow,
+    onReclaim,
+    reducedMotion = false,
+}: AfkReclaimBarProps) {
+    const [nowMs, setNowMs] = useState<number>(() => getNow());
+
+    useEffect(() => {
+        setNowMs(getNow());
+        const iv = window.setInterval(() => setNowMs(getNow()), 250);
+        return () => window.clearInterval(iv);
+    }, [getNow, afkStats.afkDeadlineAt]);
+
+    const deadlineAt = typeof afkStats.afkDeadlineAt === 'number' ? afkStats.afkDeadlineAt : nowMs;
+    const windowMs = Math.max(1000, Number(afkStats.afkWindowMs ?? 600_000));
+    const remainingMs = Math.max(0, deadlineAt - nowMs);
+    const progress = Math.min(1, Math.max(0, remainingMs / windowMs));
+    const triggers = Number(afkStats.afkTriggers ?? afkStats.totalTriggers ?? 1);
+    const urgent = remainingMs <= 60_000 || triggers >= AFK_MAX_TRIGGERS - 1;
 
     return (
-        <AnimatePresence>
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="ludo-idle-scope absolute inset-0 z-50 flex flex-col items-center justify-center rounded-2xl bg-black/70 px-4 backdrop-blur-md"
-            >
-                <motion.div
-                    initial={{ scale: 0.9, y: 14, opacity: 0 }}
-                    animate={{ scale: 1, y: 0, opacity: 1 }}
-                    exit={{ scale: 0.94, y: 8, opacity: 0 }}
-                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                    className="idle-warning-card panel-shell-3077 relative overflow-hidden w-full max-w-[300px] p-6 text-center flex flex-col items-center gap-3.5"
-                >
-                    <HudCornerTicks />
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-negative/15 border border-negative/35 text-ludo-xs font-mono font-bold uppercase tracking-[0.18em] text-negative">
+        <motion.div
+            initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+                e.stopPropagation();
+                onReclaim();
+            }}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onReclaim();
+                }
+            }}
+            data-testid="afk-reclaim-bar"
+            className={`relative z-40 mx-auto w-full max-w-[440px] rounded-xl border px-3 py-2 shadow-lg backdrop-blur-md cursor-pointer select-none overflow-hidden transition-colors ${
+                urgent
+                    ? 'bg-red-950/90 border-red-400/70 text-red-50'
+                    : 'bg-amber-950/90 border-amber-400/70 text-amber-50'
+            }`}
+        >
+            <div className="flex items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2 min-w-0">
+                    <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-mono text-ludo-xs font-black uppercase tracking-wider shrink-0 ${
+                            urgent
+                                ? 'bg-red-500/25 text-red-200 border border-red-400/40'
+                                : 'bg-amber-500/25 text-amber-200 border border-amber-400/40'
+                        }`}
+                    >
                         <WarningHexIcon className="w-3.5 h-3.5" />
-                        Pilot Idle Detected
+                        AFK {triggers}/{AFK_MAX_TRIGGERS}
                     </span>
-
-                    <div className="relative w-16 h-16 flex items-center justify-center my-0.5" aria-hidden="true">
-                        <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90">
-                            <circle
-                                cx="32"
-                                cy="32"
-                                r={r}
-                                fill="none"
-                                stroke="rgba(239, 68, 68, 0.2)"
-                                strokeWidth="4"
-                            />
-                            <circle
-                                cx="32"
-                                cy="32"
-                                r={r}
-                                fill="none"
-                                stroke="#ef4444"
-                                strokeWidth="4"
-                                strokeLinecap="round"
-                                strokeDasharray={circumference}
-                                strokeDashoffset={dashOffset}
-                            />
-                        </svg>
-                        <span className="absolute font-mono font-extrabold text-lg tabular-nums text-negative">
-                            {idleWarning.timeLeft}s
+                    <div className="flex flex-col min-w-0 leading-tight">
+                        <span className="font-mono text-ludo-xs font-extrabold uppercase tracking-wider truncate">
+                            Auto-Bot Active · Tap Anywhere to Resume
+                        </span>
+                        <span className="font-mono text-ludo-xs opacity-80 truncate">
+                            Reclaim within {formatCountdownMs(remainingMs)} before kick
                         </span>
                     </div>
+                </div>
+                <span
+                    className={`px-2.5 py-1 rounded-lg font-mono text-ludo-xs font-black uppercase tracking-wider shrink-0 ${
+                        urgent
+                            ? 'bg-red-500 text-white'
+                            : 'bg-amber-400 text-black'
+                    }`}
+                >
+                    Resume · {formatCountdownMs(remainingMs)}
+                </span>
+            </div>
+            <div className="mt-1.5 h-1 w-full rounded-full bg-black/40 overflow-hidden">
+                <div
+                    className={`h-full origin-left ${urgent ? 'bg-red-400' : 'bg-amber-400'}`}
+                    style={{ transform: `scaleX(${progress})` }}
+                />
+            </div>
+        </motion.div>
+    );
+}
 
-                    <div className="space-y-1">
-                        <h2 className="text-lg font-extrabold text-ink-strong tracking-tight">
-                            Are you still there?
-                        </h2>
-                        <p className="text-ludo-xs text-ink-muted">
-                            Auto-kicking in {idleWarning.timeLeft}s unless controls respond
-                        </p>
-                    </div>
+interface KickedAlertModalProps {
+    kickReason?: KickReason | null;
+    canWatchLiveArena: boolean;
+    onReturnToLobby: () => void;
+    onWatchLiveArena?: () => void;
+}
 
+export function KickedAlertModal({
+    kickReason,
+    canWatchLiveArena,
+    onReturnToLobby,
+    onWatchLiveArena,
+}: KickedAlertModalProps) {
+    const isExplicitLeave = kickReason === 'explicit_leave';
+    return (
+        <div
+            data-testid="kicked-alert-modal"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 backdrop-blur-md p-4"
+        >
+            <motion.div
+                initial={{ scale: 0.94, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className="panel-shell-3077 relative overflow-hidden w-full max-w-sm rounded-2xl border border-red-500/60 bg-surface-panel/95 p-6 text-center shadow-[0_0_40px_rgba(239,68,68,0.28)] flex flex-col items-center gap-4"
+            >
+                <HudCornerTicks />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/20 border border-red-400/50 text-ludo-xs font-mono font-black uppercase tracking-[0.18em] text-red-300">
+                    <WarningHexIcon className="w-3.5 h-3.5" />
+                    {isExplicitLeave ? 'Match Forfeited' : 'Removed for AFK'}
+                </span>
+
+                <div className="space-y-2">
+                    <h2 className="text-lg font-extrabold text-white tracking-tight">
+                        {isExplicitLeave ? 'You Left the Match' : 'Permanent Bot Takeover'}
+                    </h2>
+                    <p className="text-sm text-red-200 font-medium">
+                        {getKickReasonMessage(kickReason)}
+                    </p>
+                    <p className="text-ludo-xs text-ink-muted leading-relaxed">
+                        You have been recorded as loser (4th), forfeit 100% of entry fees, and earn 0 LXP, RXP, and CHIPS. Your seat continues running in Live Arena.
+                    </p>
+                </div>
+
+                <div className="w-full flex flex-col gap-2 pt-1">
+                    {canWatchLiveArena && onWatchLiveArena && (
+                        <Button
+                            variant="secondary"
+                            size="lg"
+                            fullWidth
+                            onClick={onWatchLiveArena}
+                            className="uppercase tracking-[0.14em] border-red-400/40"
+                        >
+                            Watch in Live Arena
+                        </Button>
+                    )}
                     <Button
                         variant="primary"
                         size="lg"
                         fullWidth
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (myPlayer?.color) onCancelAfk(myPlayer.color);
-                        }}
-                        className="uppercase tracking-[0.16em]"
+                        onClick={onReturnToLobby}
+                        className="uppercase tracking-[0.14em] bg-red-600 hover:bg-red-500 text-white"
                     >
-                        I&apos;m Back!
+                        Return to Lobby
                     </Button>
-                </motion.div>
+                </div>
             </motion.div>
-        </AnimatePresence>
+        </div>
     );
 }
 

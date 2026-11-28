@@ -12,6 +12,7 @@ import {
 } from '@/lib/constants';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
 import { shouldPauseLocalOrchestration } from '@/lib/netcode/resync';
+import { isSeatPermanentlyLocked, sampleHumanizedBotDelayMs } from '@/lib/afkPolicy';
 import type { RollOutcome } from './useGameActions';
 
 interface UseAIBrainProps {
@@ -66,7 +67,8 @@ export function useAIBrain({
         
         const currentPlayerInfo = initialPlayers.find(p => p.color === color);
         const afkStats = localGameState.afkStats?.[color];
-        const isBot = currentPlayerInfo?.isAi || afkStats?.isKicked;
+        const isKickedReplacement = !currentPlayerInfo?.isAi && isSeatPermanentlyLocked(afkStats);
+        const isBot = Boolean(currentPlayerInfo?.isAi || isKickedReplacement);
 
         if (!isBot) {
             lastActionRef.current = '';
@@ -97,7 +99,9 @@ export function useAIBrain({
         if (phase === 'rolling' && !isRolling && diceValue === null) {
             const minDelay = clock.rollDelay[0] ?? BOT_ROLL_DELAY_MIN;
             const maxDelay = clock.rollDelay[1] ?? BOT_ROLL_DELAY_MAX;
-            const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+            const randomDelay = isKickedReplacement
+                ? sampleHumanizedBotDelayMs('roll')
+                : Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
             lastActionRef.current = actionKey;
 
             // 🔧 FIX 1: Use ref for timer AND call function via ref.
@@ -150,7 +154,7 @@ export function useAIBrain({
                         lastActionRef.current = '';
                     }
                 })();
-            }, clock.moveDelay ?? BOT_MOVE_DELAY);
+            }, isKickedReplacement ? sampleHumanizedBotDelayMs('move') : (clock.moveDelay ?? BOT_MOVE_DELAY));
         }
 
         // 🔧 FIX 1: NO cleanup return. Timers are managed via refs and only

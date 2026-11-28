@@ -53,7 +53,16 @@ export const POWER_EXPIRY_MS: Record<'boost' | 'shield' | 'teleport' | 'nuke', n
     teleport: 5 * 60 * 1000,
 };
 export const NUKE_RADIUS = 3;
-export const MAX_AFK_STRIKES = 3;
+export const AFK_MAX_TRIGGERS = 5;
+export const AFK_DISCONNECT_GRACE_MS = 5_000;
+export const AFK_BOT_ROLL_DELAY_MS = { min: 2_000, max: 4_000 } as const;
+export const AFK_BOT_MOVE_DELAY_MS = { min: 3_000, max: 5_000 } as const;
+export const AFK_RECLAIM_WINDOWS_MS = {
+    under5Min: 10 * 60_000,
+    under10Min: 8 * 60_000,
+    under15Min: 6 * 60_000,
+    from15Min: 5 * 60_000,
+} as const;
 export const AFK_CANCEL_REASON = 'USER_ACTIVITY';
 
 // --- Dice ---

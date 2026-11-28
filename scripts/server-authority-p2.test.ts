@@ -81,8 +81,8 @@ test('Wave 0: feedback refuses unverified wallet fallback and edge routes read c
     assert.match(chat, /cf-ipcountry/);
 
     const timer = read('hooks/useGameTimer.ts');
-    assert.match(timer, /prev\.idleWarning\.timeLeft <= 0/);
-    assert.match(timer, /Math\.max\(0, prev\.idleWarning\.timeLeft - 1\)/);
+    assert.match(timer, /if \(!isNetworked && !isOfflineSeatAi && left <= 0\)/);
+    assert.match(timer, /getAfkReclaimWindowMs\(nowMs - startedAt\)/);
 });
 
 // ─── P9: AI Arena authority_id server-assigned ────────────────────────────────

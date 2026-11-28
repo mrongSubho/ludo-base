@@ -26,9 +26,12 @@ import { HomeBlock } from './BoardHome';
 import { BoardTokens, type BoardTransitStatus } from './BoardTokens';
 import { BoardGrid } from './BoardGrid';
 import {
-    IdleWarningOverlay,
+    AfkReclaimBar,
+    KickedAlertModal,
     NameOverlay,
 } from './BoardOverlays';
+import { isSeatInTier1Afk, isSeatPermanentlyLocked } from '@/lib/afkPolicy';
+import { useClientPresence } from '@/hooks/useClientPresence';
 import { ChatIcon, SimBotIcon } from './icons';
 import { MatchStatsOverlay, type RematchOverlayState } from './MatchStatsOverlay';
 import { TerminalTypeText } from './TerminalTypeText';
@@ -110,6 +113,7 @@ export default function Board({
     poolId = null,
     botDifficulty = 'pro',
     onExitMatch,
+    onInspectInLiveArena,
     onOpenChat: _onOpenChat,
     onRematchResolved,
 }: {
@@ -128,6 +132,8 @@ export default function Board({
     poolId?: `0x${string}` | null;
     botDifficulty?: import('@/lib/types').BotDifficulty;
     onExitMatch?: () => void;
+    /** Jump straight to Live Arena spectator view when a seat is permanently kicked. */
+    onInspectInLiveArena?: () => void;
     /** Open in-match chat / messages. */
     onOpenChat?: () => void;
     /** Online post-match rematch vote resolved (all accepted or quick-search fallback). */
@@ -292,7 +298,19 @@ export default function Board({
         themeId,
         resyncVersion: roomResyncCount,
     });
-    const { handleRoll, handleTokenClick, handleUsePower, resetGame, cancelAfk, toggleAutoPlay, matchAuthorityMode, lxpGain } = engine;
+    const {
+        handleRoll,
+        handleTokenClick,
+        handleUsePower,
+        resetGame,
+        cancelAfk,
+        updateLocalPresence,
+        sendRoomIntent,
+        roomAuthority,
+        getRoomServerNow,
+        matchAuthorityMode,
+        lxpGain,
+    } = engine;
     // Powers execute host/room-side (guests replay broadcast state); in Room DO mode
     // every seated player may trigger REQUEST_POWER from their server-held hand.
     const canUsePowers = matchAuthorityMode === 'room' || (engine as any).isAuthority !== false;
@@ -421,6 +439,36 @@ export default function Board({
     }[localGameState.currentPlayer] || 'var(--ludo-muted)';
 
     const myPlayer = players.find(p => address && p.walletAddress?.toLowerCase() === address.toLowerCase()) || players.find(p => !p.isAi);
+    const myAfk = myPlayer?.color ? localGameState.afkStats?.[myPlayer.color] : undefined;
+    const isMeTier1Afk = Boolean(
+        !spectatorMode &&
+            !localGameState.winner &&
+            !localGameState.abortReason &&
+            myPlayer?.color &&
+            isSeatInTier1Afk(myAfk),
+    );
+    const isMeKicked = Boolean(
+        !spectatorMode &&
+            !localGameState.winner &&
+            !localGameState.abortReason &&
+            myPlayer?.color &&
+            isSeatPermanentlyLocked(myAfk),
+    );
+
+    useClientPresence({
+        enabled: Boolean(
+            !spectatorMode &&
+                !localGameState.winner &&
+                !localGameState.abortReason &&
+                myPlayer?.color &&
+                !isMeKicked,
+        ),
+        myColor: myPlayer?.color,
+        matchAuthorityMode,
+        roomAuthority,
+        sendRoomIntent,
+        onLocalPresenceChange: updateLocalPresence,
+    });
 
     useBoardAudio({
         gameState: localGameState,
@@ -840,7 +888,15 @@ export default function Board({
     );
 
     return (
-        <div data-theme="default" className="board-outer board-match-theme-wrapper w-full h-full">
+        <div
+            data-theme="default"
+            className="board-outer board-match-theme-wrapper w-full h-full"
+            onPointerDown={() => {
+                if (isMeTier1Afk && myPlayer?.color) {
+                    cancelAfk(myPlayer.color);
+                }
+            }}
+        >
             <PlayerRow
                 corners={['TL', 'TR']}
                 uiSlots={uiSlots}
@@ -873,29 +929,7 @@ export default function Board({
                     position: 'relative', width: '100%', cursor: 'pointer',
                     ...(stableBox ? { '--board-area-h': `${stableBox.height}px` } as React.CSSProperties : {}),
                 }}
-                onClick={() => {
-                    if (myPlayer?.color && localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying && !localGameState.afkStats?.[myPlayer.color]?.isKicked) {
-                        cancelAfk(myPlayer.color);
-                    }
-                }}
             >
-                {!spectatorMode && !localGameState.winner && !localGameState.abortReason && myPlayer?.color && localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying && !localGameState.afkStats?.[myPlayer.color]?.isKicked && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            cancelAfk(myPlayer.color);
-                        }}
-                        className="absolute top-2.5 left-1/2 -translate-x-1/2 z-40 px-3.5 py-1.5 rounded-full bg-amber-500/90 hover:bg-amber-400 text-black font-mono text-ludo-xs font-black uppercase tracking-[0.14em] shadow-[0_0_18px_rgba(245,158,11,0.45)] transition-all active:scale-95 whitespace-nowrap"
-                    >
-                        AUTOPILOT ENGAGED — TAP TO RECLAIM
-                    </button>
-                )}
-                {!spectatorMode && !localGameState.winner && !localGameState.abortReason && myPlayer?.color && localGameState.afkStats?.[myPlayer.color]?.isKicked && (
-                    <div className="absolute top-2.5 left-1/2 -translate-x-1/2 z-40 px-3.5 py-1.5 rounded-full bg-red-600/90 text-white font-mono text-ludo-xs font-black uppercase tracking-[0.14em] shadow-[0_0_16px_rgba(239,68,68,0.4)] whitespace-nowrap pointer-events-none">
-                        SEAT KICKED — AI IN CONTROL
-                    </div>
-                )}
                 {!spectatorMode && !localGameState.winner && !localGameState.abortReason && matchAuthorityMode === 'room' && (matchConnectionStatus === 'reconnecting' || roomStatus === 'connecting' || roomStatus === 'failed') && (
                     <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 rounded-2xl bg-black/65 backdrop-blur-sm px-4 text-center">
                         <div className="w-7 h-7 border-[3px] border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
@@ -1044,9 +1078,29 @@ export default function Board({
             )}
 
               </div>
+          </motion.div>
 
-             <IdleWarningOverlay idleWarning={localGameState.idleWarning} myPlayer={myPlayer} onCancelAfk={cancelAfk} />
-         </motion.div>
+            <AnimatePresence>
+                {isMeTier1Afk && myAfk && myPlayer?.color && (
+                    <div className="px-2 pb-1.5">
+                        <AfkReclaimBar
+                            afkStats={myAfk}
+                            getNow={getRoomServerNow}
+                            onReclaim={() => cancelAfk(myPlayer.color)}
+                            reducedMotion={reduced}
+                        />
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {isMeKicked && (
+                <KickedAlertModal
+                    kickReason={myAfk?.kickReason}
+                    canWatchLiveArena={Boolean(onInspectInLiveArena)}
+                    onWatchLiveArena={onInspectInLiveArena}
+                    onReturnToLobby={() => onExitMatch?.()}
+                />
+            )}
 
             <MatchStatsOverlay
                 open={!!localGameState.winner && !spectatorMode}
@@ -1195,16 +1249,6 @@ export default function Board({
                     )}
                 </div>
                 <div className="match-footer-slot right flex items-center gap-2">
-                    {!spectatorMode && !localGameState.winner && !localGameState.abortReason && matchAuthorityMode === 'room' && myPlayer?.color && !localGameState.afkStats?.[myPlayer.color]?.isKicked && (
-                        <button
-                            type="button"
-                            className={`match-foot-pill ${localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying ? 'on' : ''}`}
-                            onClick={() => toggleAutoPlay(myPlayer.color)}
-                            aria-pressed={Boolean(localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying)}
-                        >
-                            <span>{localGameState.afkStats?.[myPlayer.color]?.isAutoPlaying ? 'Auto ON' : 'Autopilot'}</span>
-                        </button>
-                    )}
                     <button
                         type="button"
                         className={`match-foot-pill ${chatOpen ? 'on' : ''}`}

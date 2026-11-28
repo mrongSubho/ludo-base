@@ -234,8 +234,12 @@ export function PlayerRow({
         const isMyTurn = localGameState.currentPlayer === p.color;
         const isMyColor = p.color === myPlayerColor;
         const afkEntry = localGameState.afkStats?.[p.color];
-        const isAutoPlaying = Boolean(afkEntry?.isAutoPlaying);
-        const isKicked = Boolean(afkEntry?.isKicked);
+        const isAutoPlaying = Boolean(afkEntry?.isAutoPlaying || afkEntry?.mode === 'afk_random_bot');
+        const isKicked = Boolean(
+            afkEntry?.isKicked ||
+                afkEntry?.mode === 'kicked_smart_bot' ||
+                afkEntry?.mode === 'left_forfeited',
+        );
         const isCurrentlyBot = p.isAi || isKicked || isAutoPlaying;
         const canRoll = isMyTurn && (isMyColor || spectatorMode) && !isCurrentlyBot && localGameState.gamePhase === 'rolling' && localGameState.diceValue === null && !localGameState.isRolling;
 
@@ -258,8 +262,8 @@ export function PlayerRow({
                     player={p}
                     isActive={isMyTurn}
                     awaitingMove={isMyTurn && localGameState.gamePhase === 'moving' && !p.isAi && !isAutoPlaying && !isKicked}
-                    isAutoPlaying={isAutoPlaying && !p.isAi}
-                    isKicked={isKicked && !p.isAi}
+                    isAutoPlaying={isMyColor && !spectatorMode && isAutoPlaying && !p.isAi}
+                    isKicked={isMyColor && !spectatorMode && isKicked && !p.isAi}
                     canQuickThrow={canQuickThrow}
                     onQuickThrow={onQuickThrow}
                 />

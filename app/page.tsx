@@ -70,6 +70,7 @@ import { useScreenWakeLock } from '@/hooks/useScreenWakeLock';
 import { getDemoExhibitionByRoomCode } from '@/lib/arena/demoArenas';
 import type { ArenaDirectoryRoom } from '@/lib/arena/types';
 import { buildStreamMessage } from '@/lib/matchProof';
+import { isSeatPermanentlyLocked } from '@/lib/afkPolicy';
 import { useToast } from './components/Toast';
 
 // ─── User Profile Dashboard (slides in from right) ───────────────────────────
@@ -323,7 +324,7 @@ export default function Page() {
   }, [totalUnreadCount]);
   const { notifCount } = useNotifications();
   const toast = useToast();
-  const { gameState, broadcastAction, broadcastSocial, broadcastLobbyAction, updateGameState, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot, connectRoom, allowOpenJoins, roomAuthority, roomStatus } = useTeamUp();
+  const { gameState, broadcastAction, broadcastSocial, broadcastLobbyAction, updateGameState, isHost, isLobbyConnected, participants, lobbyState, leaveGame, roomId, matchConnectionStatus, hasAuthoritativeSnapshot, connectRoom, allowOpenJoins, roomAuthority, roomStatus, sendRoomIntent } = useTeamUp();
 
   // NET-07: the HOST_ELECT handshake's authority layer. The panel asks this to
   // elect; the answer must be a seat that can prove it holds the current
@@ -710,9 +711,51 @@ export default function Page() {
     connectRoom(currentMatchId);
   }, [isBotMatch, gameState?.matchId, gameState?.initialBoardConfig, isLobbyConnected, isHost, lobbyState, roomId, selectedMode, playerCount, address, peekAppSession, ensureAppSession, updateGameState, broadcastLobbyAction, broadcastAction, participants, finalName, setBoardSeed, setAppState, connectRoom, toast]);
 
+  const myColorForExit = React.useMemo(() => {
+    const players = gameState?.initialBoardConfig?.players;
+    if (!Array.isArray(players)) return undefined;
+    const lower = address?.toLowerCase();
+    return (
+      players.find((p) => lower && p.walletAddress?.toLowerCase() === lower) ||
+      players.find((p) => !p.isAi)
+    )?.color;
+  }, [gameState?.initialBoardConfig?.players, address]);
+
+  const mySeatAlreadyLocked = Boolean(
+    myColorForExit && isSeatPermanentlyLocked(gameState?.afkStats?.[myColorForExit]),
+  );
+
+  const handleInspectKickedMatchInLiveArena = useCallback(() => {
+    const targetRoom = lobbyState?.roomCode || roomId || gameState?.matchId;
+    leaveGame();
+    setBoardSeed(null);
+    if (targetRoom) {
+      void handleWatchMatch(targetRoom);
+    } else {
+      setAppState('dashboard');
+    }
+  }, [lobbyState?.roomCode, roomId, gameState?.matchId, leaveGame, handleWatchMatch]);
+
   const handleBackToSubMenu = useCallback(async () => {
-    // Host leaving a live stream should drop the Live Arena row.
-    if (isHost && gameState?.matchId && lobbyState?.roomCode) {
+    if (
+      roomAuthority &&
+      gameState?.isStarted &&
+      !gameState?.winner &&
+      !gameState?.abortReason &&
+      !mySeatAlreadyLocked
+    ) {
+      try {
+        await Promise.race([
+          sendRoomIntent('CMD_LEAVE_MATCH', {}),
+          new Promise((r) => setTimeout(r, 1500)),
+        ]);
+      } catch {
+        // Explicit forfeit is best-effort before dropping local room socket.
+      }
+    }
+
+    // Host leaving a live stream should drop the Live Arena row when not already replaced by stealth AI.
+    if (isHost && !mySeatAlreadyLocked && gameState?.matchId && lobbyState?.roomCode) {
       try {
         const issuedAt = new Date().toISOString();
         const hostAddress = String(address || '').toLowerCase();
@@ -759,7 +802,7 @@ export default function Page() {
     leaveGame();
     setBoardSeed(null);
     setAppState('dashboard');
-  }, [isHost, gameState, lobbyState, address, signMessageAsync, leaveGame]);
+  }, [isHost, mySeatAlreadyLocked, roomAuthority, sendRoomIntent, gameState, lobbyState, address, signMessageAsync, leaveGame]);
 
   const handleBoardRematchResolved = useCallback(async (plan: RematchResolutionPlan) => {
     const myWallet = address?.toLowerCase() || '';
@@ -1300,6 +1343,11 @@ export default function Page() {
                     }
                     botDifficulty={botDifficulty}
                     onExitMatch={handleBackToSubMenu}
+                    onInspectInLiveArena={
+                      roomAuthority && (lobbyState?.roomCode || roomId)
+                        ? handleInspectKickedMatchInLiveArena
+                        : undefined
+                    }
                     onOpenChat={() => toggle('messages')}
                     onRematchResolved={handleBoardRematchResolved}
                   />
@@ -1333,8 +1381,16 @@ export default function Page() {
                     className="ludo-quit-scope border border-white/10 rounded-[32px] shadow-2xl max-w-sm w-full text-center p-5"
                     style={{ background: 'var(--panel-bg-image, var(--ludo-bg-cosmic))', backgroundColor: 'var(--panel-bg, rgba(13,13,13,0.92))', backdropFilter: 'blur(32px)' }}
                   >
-                    <h2 className="text-xl font-bold text-white mb-1">Leave Match?</h2>
-                    <p className="text-white/60 text-sm font-medium mb-4">All progress will be lost. Are you sure you want to quit?</p>
+                    <h2 className="text-xl font-bold text-white mb-1">Leave &amp; Forfeit Match?</h2>
+                    <p className="text-white/60 text-sm font-medium mb-4">
+                      {roomAuthority
+                        ? playerCount === '1v1'
+                          ? 'Leaving forfeits 100% of your entry fee and awards immediate victory to your opponent.'
+                          : playerCount === '2v2'
+                            ? 'Leaving forfeits 100% of your entry fee (0 rewards) while our bot continues your seat. If your teammate also leaves, opponents win immediately.'
+                            : 'Leaving forfeits 100% of your entry fee, records you as 4th, and replaces your seat with an AI.'
+                        : 'All progress will be lost. Are you sure you want to quit?'}
+                    </p>
                     <div className="flex gap-2 justify-center">
                       <button
                         onClick={() => setShowQuitWarning(false)}

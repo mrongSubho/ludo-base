@@ -724,6 +724,7 @@ export const PERSISTED_STATE_FIELDS = [
     'boostSubMoveBonus', 'powerSpentThisTurn',
     'boostTrail', 'nukeFlash', 'captureMessage', 'playerPowers',
     'botDifficulty', 'matchId', 'powerSpentTurn', 'turnStartedAt',
+    'matchStartedAt', 'forfeitedWallets', 'kickedSeats',
     'powerTileSeed',
 ] as const;
 
@@ -749,18 +750,49 @@ export function pickPersistedState(state: unknown): Record<string, unknown> {
     return out;
 }
 
-/** Sanitize state before putting it on the wire / into match_states for guests. */
+const NEUTRAL_WIRE_AFK_MASK = {
+    mode: 'human',
+    isAutoPlaying: false,
+    consecutiveTurns: 0,
+    totalTriggers: 0,
+    afkTriggers: 0,
+    isKicked: false,
+    afkSinceAt: null,
+    afkDeadlineAt: null,
+    afkWindowMs: null,
+    presence: 'active',
+    presenceUpdatedAt: null,
+    kickReason: null,
+    kickedAt: null,
+} as const;
+
+/**
+ * Sanitize state before putting it on the wire / into match_states for guests.
+ * Also applies stealth AFK masking so opponents and spectators never see
+ * opponent AFK/kick status, bot phase markers, forfeited wallets, or kickedSeats.
+ */
 export function stripPowerTypesForWire<T extends {
     powerTiles?: { r: number; c: number; type?: unknown }[];
     playerPowers?: Partial<Record<string, { type?: unknown; expiresAt?: number }[]>>;
     powerTileSeed?: unknown;
-}>(state: T, viewerColor?: string): T {
+    afkStats?: Partial<Record<string, object | null | undefined>>;
+    forfeitedWallets?: unknown;
+    kickedSeats?: unknown;
+    turnPhaseKind?: string | null;
+    currentPlayer?: string;
+}>(state: T, viewerColor?: string, actingColorHint?: string): T {
     if (!state) return state;
     let res = state;
-    if ('powerTileSeed' in res && res.powerTileSeed !== undefined) {
-        const withoutSeed = { ...(res as Record<string, unknown>) };
-        delete withoutSeed.powerTileSeed;
-        res = withoutSeed as T;
+    if (
+        ('powerTileSeed' in res && res.powerTileSeed !== undefined) ||
+        ('forfeitedWallets' in res && res.forfeitedWallets !== undefined) ||
+        ('kickedSeats' in res && res.kickedSeats !== undefined)
+    ) {
+        const stripped = { ...(res as Record<string, unknown>) };
+        delete stripped.powerTileSeed;
+        delete stripped.forfeitedWallets;
+        delete stripped.kickedSeats;
+        res = stripped as T;
     }
     if (state.powerTiles?.length) {
         res = { ...res, powerTiles: state.powerTiles.map(t => ({ r: t.r, c: t.c })) };
@@ -775,6 +807,33 @@ export function stripPowerTypesForWire<T extends {
             }
         }
         res = { ...res, playerPowers: maskedPowers };
+    }
+    if (state.afkStats) {
+        const maskedAfk: Record<string, Record<string, unknown>> = {};
+        for (const [color, entry] of Object.entries(state.afkStats)) {
+            if (viewerColor && color === viewerColor) {
+                maskedAfk[color] = {
+                    ...NEUTRAL_WIRE_AFK_MASK,
+                    ...((entry as Record<string, unknown> | null | undefined) || {}),
+                };
+            } else {
+                maskedAfk[color] = { ...NEUTRAL_WIRE_AFK_MASK };
+            }
+        }
+        res = { ...res, afkStats: maskedAfk };
+    }
+    if (
+        res.turnPhaseKind === 'ai_roll' ||
+        res.turnPhaseKind === 'ai_move' ||
+        res.turnPhaseKind === 'ai_turn'
+    ) {
+        const acting = actingColorHint ?? res.currentPlayer;
+        if (!viewerColor || !acting || acting !== viewerColor) {
+            res = {
+                ...res,
+                turnPhaseKind: res.turnPhaseKind === 'ai_move' ? 'move' : 'cast',
+            };
+        }
     }
     return res;
 }

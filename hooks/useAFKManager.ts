@@ -1,11 +1,18 @@
-import { useEffect } from 'react';
-import { PlayerColor, GameState, GameStateSetter, GameActionType, GameActionPayload } from '@/lib/types';
+import { useEffect, useRef } from 'react';
+import { PlayerColor, PowerType, GameState, GameStateSetter } from '@/lib/types';
 import { Player } from './useGameEngine';
-import { getLegalTokenIndices } from '@/lib/gameLogic';
 import { clearShieldsOnTurnChange } from '@/lib/engine/core';
 import { ColorCorner } from '@/lib/boardLayout';
 import type { MatchConnectionStatus } from '@/lib/matchProtocol';
 import type { MatchAuthorityMode } from '@/lib/netcode/authorityGate';
+import {
+    isSeatInTier1Afk,
+    isSeatPermanentlyLocked,
+    normalizeSeatAfkStats,
+    pickTier1RandomMove,
+    pickTier1RandomPower,
+    sampleHumanizedBotDelayMs,
+} from '@/lib/afkPolicy';
 import type { RollOutcome, MoveTokenOutcome } from './useGameActions';
 
 interface UseAFKManagerProps {
@@ -14,130 +21,226 @@ interface UseAFKManagerProps {
     initialPlayers: Player[];
     handleRoll: (isRemote?: boolean) => Promise<RollOutcome>;
     moveToken: (color: PlayerColor, tokenIndex: number, steps: number) => Promise<MoveTokenOutcome>;
+    handleUsePower: (color: PlayerColor, type?: PowerType, tokenIdx?: number) => void;
     getNextPlayer: (current: PlayerColor) => PlayerColor;
-    broadcastAction?: <T extends GameActionType>(type: T, payload?: GameActionPayload<T>, stateOverride?: GameState) => void;
     colorCorner?: ColorCorner;
+    playerCount: '1v1' | '4P' | '2v2';
     matchConnectionStatus?: MatchConnectionStatus;
     matchAuthorityMode?: MatchAuthorityMode;
-    /** NET-07: called with the kicked seat so the abandon is classified. */
+    /** NET-07: called with the permanently kicked seat so abandon telemetry stays accurate. */
     onAbandon?: (args: { seat: string; matchEnded: boolean }) => void;
 }
 
+/**
+ * Offline / local-AI Dual-Tier AFK manager.
+ *
+ * - Online matches (`matchAuthorityMode === 'room'` or connected) are strictly server-authoritative in MatchRoomCore.
+ * - Watches Tier-1 reclaim deadlines (`afkDeadlineAt`) every 1s and promotes expired seats to Tier-2 (`kicked_smart_bot`).
+ * - Executes Tier-1 Random / No-Brain Bot turns with humanized pacing (2-4s roll, 3-5s move).
+ */
 export function useAFKManager({
     localGameState,
     setLocalGameState,
     initialPlayers,
     handleRoll,
     moveToken,
+    handleUsePower,
     getNextPlayer,
-    broadcastAction,
     colorCorner,
+    playerCount,
     matchConnectionStatus = 'offline',
     matchAuthorityMode = 'offline',
-    /** NET-07: records the abandon evidence when a seat is kicked. */
     onAbandon,
 }: UseAFKManagerProps) {
+    const isNetworked =
+        matchAuthorityMode === 'room' ||
+        matchConnectionStatus === 'connected' ||
+        matchConnectionStatus === 'reconnecting' ||
+        matchConnectionStatus === 'syncing' ||
+        matchConnectionStatus === 'ended';
+
+    const stateRef = useRef(localGameState);
+    stateRef.current = localGameState;
+    const handleRollRef = useRef(handleRoll);
+    handleRollRef.current = handleRoll;
+    const moveTokenRef = useRef(moveToken);
+    moveTokenRef.current = moveToken;
+    const handleUsePowerRef = useRef(handleUsePower);
+    handleUsePowerRef.current = handleUsePower;
+    const getNextPlayerRef = useRef(getNextPlayer);
+    getNextPlayerRef.current = getNextPlayer;
+    const onAbandonRef = useRef(onAbandon);
+    onAbandonRef.current = onAbandon;
+
+    const lastActionRef = useRef<string>('');
+    const rollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const moveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // 1. Offline Tier-1 Reclaim Window Expiry Watcher
     useEffect(() => {
-        if (matchAuthorityMode === 'room' ||
-            localGameState.winner || localGameState.idleWarning ||
-            matchConnectionStatus === 'ended' || matchConnectionStatus === 'reconnecting' ||
-            matchConnectionStatus === 'syncing' || matchConnectionStatus === 'connected') return;
+        if (isNetworked || localGameState.winner || localGameState.abortReason) return;
 
-        const color = localGameState.currentPlayer;
-        const currentPlayerInfo = initialPlayers.find(p => p.color === color);
-        const isOriginalBot = currentPlayerInfo?.isAi;
-        const isKicked = localGameState.afkStats[color].isKicked;
-        const isCurrentlyBot = isOriginalBot || isKicked;
-
-        // Striking logic only applies to active humans when timeLeft hits 0
-        if (!isCurrentlyBot && localGameState.timeLeft <= 0) {
+        const checkDeadlines = () => {
+            const now = Date.now();
             setLocalGameState((prev) => {
-                const stats = prev.afkStats[color];
-                const nextStats = { ...stats };
-                let nextWarning = null;
+                if (prev.winner || prev.abortReason) return prev;
+                let changed = false;
+                const nextAfk = { ...prev.afkStats };
+                const kickedNow: PlayerColor[] = [];
 
-                if (!stats.isAutoPlaying) {
-                    nextStats.isAutoPlaying = true;
-                    nextStats.consecutiveTurns = 1;
-                    nextStats.totalTriggers += 1;
-                } else {
-                    nextStats.consecutiveTurns += 1;
+                for (const p of initialPlayers) {
+                    if (p.isAi) continue;
+                    const stats = normalizeSeatAfkStats(prev.afkStats?.[p.color]);
+                    if (
+                        isSeatInTier1Afk(stats) &&
+                        typeof stats.afkDeadlineAt === 'number' &&
+                        now >= stats.afkDeadlineAt
+                    ) {
+                        changed = true;
+                        kickedNow.push(p.color);
+                        nextAfk[p.color] = {
+                            ...stats,
+                            mode: 'kicked_smart_bot',
+                            isAutoPlaying: false,
+                            isKicked: true,
+                            afkSinceAt: null,
+                            afkDeadlineAt: null,
+                            afkWindowMs: null,
+                            kickReason: stats.presence === 'disconnected' ? 'disconnect_timeout' : 'afk_timeout',
+                            kickedAt: now,
+                        };
+                    }
                 }
 
-                if (nextStats.totalTriggers >= 3) {
-                    nextStats.isKicked = true;
-                    nextStats.isAutoPlaying = false;
-                    // NET-07: the kick IS the abandon signal. Classify and
-                    // record it here — the classifier had no caller, so the
-                    // grace window and dual-sign policy were unobservable.
-                    onAbandon?.({ seat: color, matchEnded: prev.winner !== null || prev.status === 'finished' });
-                } else if (nextStats.consecutiveTurns >= 4) {
-                    nextWarning = { player: color as PlayerColor, timeLeft: 10 };
+                if (!changed) return prev;
+                for (const kc of kickedNow) {
+                    onAbandonRef.current?.({
+                        seat: kc,
+                        matchEnded: prev.winner !== null || prev.status === 'finished',
+                    });
                 }
-
                 return {
                     ...prev,
-                    afkStats: { ...prev.afkStats, [color]: nextStats },
-                    idleWarning: nextWarning || prev.idleWarning
+                    afkStats: nextAfk,
+                    lastUpdate: now,
                 };
             });
-        }
-    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.winner, localGameState.idleWarning, initialPlayers, setLocalGameState, matchConnectionStatus, matchAuthorityMode, onAbandon]);
+        };
 
-    // Handle the Side-Effects of AFK Timeouts
+        checkDeadlines();
+        const iv = setInterval(checkDeadlines, 1000);
+        return () => clearInterval(iv);
+    }, [isNetworked, localGameState.winner, localGameState.abortReason, initialPlayers, setLocalGameState]);
+
+    // 2. Offline Tier-1 Random / No-Brain Bot Runner (Tier-2 is driven by useAIBrain)
     useEffect(() => {
-        if (matchAuthorityMode === 'room' ||
-            localGameState.winner || localGameState.idleWarning ||
-            matchConnectionStatus === 'ended' || matchConnectionStatus === 'reconnecting' ||
-            matchConnectionStatus === 'syncing' || matchConnectionStatus === 'connected') return;
+        if (isNetworked || localGameState.winner || localGameState.abortReason || !colorCorner) {
+            lastActionRef.current = '';
+            return;
+        }
 
         const color = localGameState.currentPlayer;
-        const currentPlayerInfo = initialPlayers.find(p => p.color === color);
-        const isOriginalBot = currentPlayerInfo?.isAi;
-        const isKicked = localGameState.afkStats[color].isKicked;
-        const isCurrentlyBot = isOriginalBot || isKicked;
+        const currentPlayerInfo = initialPlayers.find((p) => p.color === color);
+        const afk = normalizeSeatAfkStats(localGameState.afkStats?.[color]);
+        const isTier1 = !currentPlayerInfo?.isAi && !isSeatPermanentlyLocked(afk) && isSeatInTier1Afk(afk);
 
-        // Striking & auto-play actions in offline/P2P matches when 'timeLeft' is 0.
-        if (!isCurrentlyBot && localGameState.afkStats[color].isAutoPlaying && localGameState.timeLeft <= 0) {
-            if (localGameState.gamePhase === 'rolling') {
-                void Promise.resolve(handleRoll()).then((applied) => {
-                    if (applied !== 'applied') return; // refused/deferred — let timeLeft run out again
-                    setLocalGameState((s) => ({ ...s, timeLeft: 15 }));
-                });
-            } else if (localGameState.gamePhase === 'moving' && localGameState.diceValue !== null) {
-                const diceValue = localGameState.diceValue;
-                // Engine-accurate legality only — never naive pos+roll
-                if (!colorCorner) {
-                    console.warn('[AFK] colorCorner missing — skipping forced move');
+        if (!isTier1) {
+            lastActionRef.current = '';
+            return;
+        }
+
+        const phase = localGameState.gamePhase;
+        const diceValue = localGameState.diceValue;
+        const isRolling = localGameState.isRolling;
+        const actionKey = `t1-${color}-${phase}-${diceValue}-${isRolling}-${localGameState.boostPendingDice ?? 'none'}-${localGameState.powerSpentThisTurn ? '1' : '0'}`;
+        if (lastActionRef.current === actionKey) return;
+
+        if (rollTimerRef.current) {
+            clearTimeout(rollTimerRef.current);
+            rollTimerRef.current = null;
+        }
+        if (moveTimerRef.current) {
+            clearTimeout(moveTimerRef.current);
+            moveTimerRef.current = null;
+        }
+
+        if (phase === 'rolling' && !isRolling && diceValue === null) {
+            lastActionRef.current = actionKey;
+            const delayMs = sampleHumanizedBotDelayMs('roll');
+            rollTimerRef.current = setTimeout(() => {
+                rollTimerRef.current = null;
+                const latest = stateRef.current;
+                const latestAfk = normalizeSeatAfkStats(latest.afkStats?.[color]);
+                if (latest.winner || latest.currentPlayer !== color || !isSeatInTier1Afk(latestAfk)) return;
+
+                const powerPick = pickTier1RandomPower(latest, color, colorCorner, playerCount);
+                if (powerPick) {
+                    handleUsePowerRef.current(color, powerPick.type, powerPick.tokenIdx);
+                } else {
+                    void handleRollRef.current();
+                }
+            }, delayMs);
+        } else if (phase === 'moving' && diceValue !== null && !isRolling) {
+            lastActionRef.current = actionKey;
+            const delayMs = sampleHumanizedBotDelayMs('move');
+            moveTimerRef.current = setTimeout(() => {
+                moveTimerRef.current = null;
+                const latest = stateRef.current;
+                const latestAfk = normalizeSeatAfkStats(latest.afkStats?.[color]);
+                if (
+                    latest.winner ||
+                    latest.currentPlayer !== color ||
+                    latest.gamePhase !== 'moving' ||
+                    latest.diceValue === null ||
+                    !isSeatInTier1Afk(latestAfk)
+                ) {
                     return;
                 }
-                const options = getLegalTokenIndices(localGameState.positions, color, diceValue, colorCorner);
 
-                if (options.length === 0) {
+                const pick = pickTier1RandomMove(latest.positions, color, latest.diceValue, colorCorner, playerCount);
+                if (pick) {
+                    void moveTokenRef.current(pick.color, pick.tokenIndex, latest.diceValue);
+                } else {
                     setLocalGameState((s) => {
-                        const nextPlayer = getNextPlayer(s.currentPlayer);
-                        const switchState: GameState = {
+                        const nextPlayer = getNextPlayerRef.current(s.currentPlayer);
+                        return {
                             ...s,
                             gamePhase: 'rolling',
                             currentPlayer: nextPlayer,
                             activeShields: clearShieldsOnTurnChange(s.activeShields, s.currentPlayer, nextPlayer),
                             diceValue: null,
-                            timeLeft: 15,
-                            lastUpdate: Date.now()
+                            timeLeft: 12,
+                            lastUpdate: Date.now(),
                         };
-                        if (broadcastAction) {
-                            broadcastAction('TURN_SWITCH', { nextPlayer }, switchState);
-                        }
-                        return switchState;
-                    });
-                } else {
-                    const randomIdx = options[Math.floor(Math.random() * options.length)];
-                    void Promise.resolve(moveToken(color, randomIdx, diceValue)).then((status) => {
-                        if (status === 'failed') return;
-                        setLocalGameState((s) => ({ ...s, timeLeft: 15 }));
                     });
                 }
-            }
+            }, delayMs);
         }
-    }, [localGameState.timeLeft, localGameState.currentPlayer, localGameState.gamePhase, localGameState.winner, localGameState.diceValue, localGameState.afkStats, localGameState.idleWarning, handleRoll, moveToken, initialPlayers, getNextPlayer, setLocalGameState, broadcastAction, colorCorner, matchConnectionStatus, matchAuthorityMode]);
+    }, [
+        isNetworked,
+        localGameState.winner,
+        localGameState.abortReason,
+        localGameState.currentPlayer,
+        localGameState.gamePhase,
+        localGameState.diceValue,
+        localGameState.isRolling,
+        localGameState.boostPendingDice,
+        localGameState.powerSpentThisTurn,
+        localGameState.afkStats,
+        initialPlayers,
+        colorCorner,
+        playerCount,
+        setLocalGameState,
+    ]);
+
+    useEffect(() => () => {
+        if (rollTimerRef.current) {
+            clearTimeout(rollTimerRef.current);
+            rollTimerRef.current = null;
+        }
+        if (moveTimerRef.current) {
+            clearTimeout(moveTimerRef.current);
+            moveTimerRef.current = null;
+        }
+    }, []);
 }

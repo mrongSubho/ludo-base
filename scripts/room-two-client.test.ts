@@ -560,7 +560,7 @@ describe('Phase S3 — Match Room Two-Client Synchronization & Self-Seeding', ()
       assert.equal(stateAfter6NoMove.gamePhase, 'rolling');
       assert.equal(stateAfter6NoMove.strikes.green, 0, 'SV-15: active human roll resets strikes to 0');
       const timersAfterPass = storageMap.get('timerHeap') as Array<{ kind: string }>;
-      assert.equal(timersAfterPass[0]?.kind, 'ai_turn', 'SV-05B: ai_turn timer must not be overwritten by 15s turn timer');
+      assert.equal(timersAfterPass[0]?.kind, 'ai_roll', 'SV-05B: ai_roll timer must not be overwritten by 12s/15s human turn timer');
 
       // 2. SV-03B: Green has consecutiveSixes = 2 and rolls a 3rd 6 -> MUST auto-pass at roll time!
       await mockCtx.storage.put('state', {

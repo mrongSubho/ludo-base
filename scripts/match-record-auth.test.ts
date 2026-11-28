@@ -22,8 +22,8 @@ test('SA-2: match/record requires authoritative server winner when no signature 
     assert.match(src, /code: 'SERVER_WINNER_REQUIRED'/);
     assert.match(src, /Match has no server-recorded winner; cannot record progression without host signature/);
     
-    // Claimed winner must match server winner
-    assert.match(src, /winnerAddress\.toLowerCase\(\) !== authoritativeWinnerAddress/);
+    // Claimed winner must match server authoritative winner set (including 2v2 teams)
+    assert.match(src, /!authoritativeWinnerWallets\.includes\(winnerAddress\.toLowerCase\(\)\)/);
     assert.match(src, /code: 'WINNER_MISMATCH'/);
 });
 

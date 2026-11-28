@@ -115,11 +115,24 @@ export interface PowerTile extends PowerTilePublic {
     type: PowerType;
 }
 
+export type SeatPresenceState = 'active' | 'window_blurred' | 'tab_hidden' | 'disconnected';
+export type SeatControlMode = 'human' | 'afk_random_bot' | 'kicked_smart_bot' | 'left_forfeited';
+export type KickReason = 'afk_timeout' | 'afk_limit_5' | 'disconnect_timeout' | 'explicit_leave';
+
 export interface AfkPlayerStats {
+    mode?: SeatControlMode;
     isAutoPlaying: boolean;
     consecutiveTurns: number;
     totalTriggers: number;
+    afkTriggers?: number;
     isKicked: boolean;
+    afkSinceAt?: number | null;
+    afkDeadlineAt?: number | null;
+    afkWindowMs?: number | null;
+    presence?: SeatPresenceState;
+    presenceUpdatedAt?: number | null;
+    kickReason?: KickReason | null;
+    kickedAt?: number | null;
 }
 
 export interface BoardPlayer {
@@ -150,7 +163,13 @@ export interface GameState {
     /** Server-authoritative duration of the active turn phase (ms). */
     turnDurationMs?: number | null;
     /** Current server timer phase kind. */
-    turnPhaseKind?: 'cast' | 'move' | 'ai_turn' | null;
+    turnPhaseKind?: 'cast' | 'move' | 'ai_roll' | 'ai_move' | 'ai_turn' | null;
+    /** Epoch timestamp (ms) when gameplay started, used for AFK reclaim scaling. */
+    matchStartedAt?: number | null;
+    /** Server-only list of lowercased wallets that were kicked or explicitly forfeited. */
+    forfeitedWallets?: string[];
+    /** Server-only audit map of permanently kicked / forfeited seats. */
+    kickedSeats?: Partial<Record<PlayerColor, { wallet?: string; reason: KickReason; at: number }>>;
     /** Set when the match room aborts a dead match under the 30s SLO. */
     abortReason?: string | null;
     strikes: Record<PlayerColor, number>;

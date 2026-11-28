@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { lcg32, getNextPlayer, calculateNextPosition, type ColorCorner, type PlayerColor } from '../src/room/engine';
 import { MatchRoomCore } from '../src/room/MatchRoomCore';
-import { TURN_TIMERS, MAX_AFK_STRIKES } from '../lib/constants';
+import { TURN_TIMERS, AFK_MAX_TRIGGERS, AFK_BOT_ROLL_DELAY_MS, AFK_BOT_MOVE_DELAY_MS } from '../lib/constants';
 import { INITIAL_GAME_STATE } from '../lib/gameLogic';
 import { assignCornersForShape } from '../lib/boardLayout';
 import { hashToken } from '../lib/sessionV2';
@@ -318,54 +318,19 @@ describe('Phase 4 — Match Room Clock, Lifecycle, and Relocation', () => {
       assert.equal(state.turnDurationMs, TURN_TIMERS.moveMs);
       assert.equal(state.deadlineAt, Date.now() + TURN_TIMERS.moveMs);
 
-      // 3. Bidirectional CMD_REQUEST_TRUST: voluntary autopilot (strikes stay 0) & reclaim
+      // 3. Manual autopilot toggle (CMD_REQUEST_TRUST { trust: true }) is disabled
       await room.webSocketMessage(
         sockG as unknown as WebSocket,
         JSON.stringify({ v: 1, t: 'intent', kind: 'CMD_REQUEST_TRUST', intentId: 'trust-engage', payload: { trust: true } }),
       );
-      state = storageMap.get('state') as GameState;
-      assert.equal(state.afkStats.green.isAutoPlaying, true);
-      assert.equal(state.turnPhaseKind, 'ai_turn');
-      assert.equal(state.turnDurationMs, TURN_TIMERS.aiStepMs);
-      assert.equal(state.strikes.green, 0);
-
-      t.mock.timers.tick(TURN_TIMERS.aiStepMs + 25);
-      await room.alarm();
-      state = storageMap.get('state') as GameState;
-      assert.equal(state.strikes.green, 0, 'voluntary autopilot ai_turn must never add AFK strikes');
-
-      await room.webSocketMessage(
-        sockG as unknown as WebSocket,
-        JSON.stringify({ v: 1, t: 'intent', kind: 'CMD_REQUEST_TRUST', intentId: 'trust-reclaim', payload: { trust: false } }),
-      );
+      assert.equal(sockG.getLastMessage()?.code, 'AUTOPILOT_MANUAL_DISABLED');
       state = storageMap.get('state') as GameState;
       assert.equal(state.afkStats.green.isAutoPlaying, false);
 
       // Move turns until Yellow is active human caster
-      let safety = 0;
-      while ((storageMap.get('state') as GameState).currentPlayer === 'green' && safety < 8) {
-        safety++;
-        const cur = storageMap.get('state') as GameState;
-        if (cur.gamePhase === 'rolling') {
-          await room.webSocketMessage(sockG as unknown as WebSocket, JSON.stringify({ v: 1, t: 'intent', kind: 'REQUEST_ROLL', intentId: `g-r-${safety}` }));
-        } else {
-          await room.webSocketMessage(sockG as unknown as WebSocket, JSON.stringify({ v: 1, t: 'intent', kind: 'REQUEST_MOVE', intentId: `g-m-${safety}`, payload: { tokenIndex: 0 } }));
-        }
-      }
-      assert.equal((storageMap.get('state') as GameState).currentPlayer, 'yellow');
-
-      // 4. AFK strikes 1 -> 2 -> 3 kick escalation on Yellow
-      t.mock.timers.tick(TURN_TIMERS.castMs + 50);
-      await room.alarm();
-      state = storageMap.get('state') as GameState;
-      assert.equal(state.strikes.yellow, 1, 'strike 1 on turn timeout');
-      assert.equal(state.afkStats.yellow.isAutoPlaying, true);
-      assert.equal(state.afkStats.yellow.isKicked, false);
-      assert.notEqual(state.currentPlayer, 'yellow', 'timed-out turn auto-played and advanced');
-
       const playGreenUntilYellow = async (tag: string) => {
         let loops = 0;
-        while ((storageMap.get('state') as GameState).currentPlayer === 'green' && loops < 8) {
+        while ((storageMap.get('state') as GameState).currentPlayer === 'green' && loops < 12) {
           loops++;
           const cur = storageMap.get('state') as GameState;
           if (cur.gamePhase === 'rolling') {
@@ -376,30 +341,66 @@ describe('Phase 4 — Match Room Clock, Lifecycle, and Relocation', () => {
         }
       };
 
-      // Strike 2 via 1s ai_turn
-      await playGreenUntilYellow('s2');
+      await playGreenUntilYellow('init');
       assert.equal((storageMap.get('state') as GameState).currentPlayer, 'yellow');
-      t.mock.timers.tick(TURN_TIMERS.aiStepMs + 50);
-      await room.alarm();
-      state = storageMap.get('state') as GameState;
-      assert.equal(state.strikes.yellow, 2, 'strike 2 on consecutive AFK ai_turn');
-      assert.equal(state.afkStats.yellow.isKicked, false);
 
-      // Strike 3 -> kicked permanently (3 >= MAX_AFK_STRIKES)
-      await playGreenUntilYellow('s3');
-      if ((storageMap.get('state') as GameState).currentPlayer === 'yellow') {
-        t.mock.timers.tick(TURN_TIMERS.aiStepMs + 50);
-        await room.alarm();
+      // 4. Dual-tier AFK lifecycle: triggers 1..4 enter reclaimable Tier-1, trigger 5/5 permanently kicks
+      for (let triggerNum = 1; triggerNum <= AFK_MAX_TRIGGERS; triggerNum++) {
+        // Ensure it is Yellow's human turn cleanly
+        await playGreenUntilYellow(`cyc-${triggerNum}`);
+        if ((storageMap.get('state') as GameState).currentPlayer === 'yellow') {
+          t.mock.timers.tick(TURN_TIMERS.castMs + 50);
+          await room.alarm();
+
+          // Complete Yellow's two-phase bot move if Yellow rolled a valid move
+          let botSafety = 0;
+          while (
+            (storageMap.get('state') as GameState).currentPlayer === 'yellow' &&
+            botSafety < 10
+          ) {
+            botSafety++;
+            const curTimers = (storageMap.get('timerHeap') as Array<{ kind: string; deadlineAt: number }>) || [];
+            const turnTm = curTimers.find((tm) => tm.kind === 'ai_roll' || tm.kind === 'ai_move');
+            assert.ok(turnTm, 'bot turn uses staggered ai_roll / ai_move alarm');
+            if (turnTm.kind === 'ai_roll') {
+              const delta = turnTm.deadlineAt - Date.now();
+              assert.ok(delta >= AFK_BOT_ROLL_DELAY_MS.min - 50 && delta <= AFK_BOT_ROLL_DELAY_MS.max + 50);
+            } else {
+              const delta = turnTm.deadlineAt - Date.now();
+              assert.ok(delta >= AFK_BOT_MOVE_DELAY_MS.min - 50 && delta <= AFK_BOT_MOVE_DELAY_MS.max + 50);
+            }
+            t.mock.timers.tick(Math.max(10, turnTm.deadlineAt - Date.now() + 20));
+            await room.alarm();
+          }
+        }
+
+        state = storageMap.get('state') as GameState;
+        assert.equal(state.afkStats.yellow.afkTriggers, triggerNum, `trigger ${triggerNum}/5 recorded`);
+
+        if (triggerNum < AFK_MAX_TRIGGERS) {
+          assert.equal(state.afkStats.yellow.isAutoPlaying, true);
+          assert.equal(state.afkStats.yellow.isKicked, false);
+          assert.ok(typeof state.afkStats.yellow.afkDeadlineAt === 'number');
+
+          // Yellow taps anywhere / sends reclaim before deadline
+          await room.webSocketMessage(
+            sockY as unknown as WebSocket,
+            JSON.stringify({ v: 1, t: 'intent', kind: 'CMD_REQUEST_TRUST', intentId: `reclaim-${triggerNum}`, payload: { trust: false } }),
+          );
+          state = storageMap.get('state') as GameState;
+          assert.equal(state.afkStats.yellow.isAutoPlaying, false);
+          assert.equal(state.afkStats.yellow.afkTriggers, triggerNum, 'lifetime AFK triggers preserved across reclaim');
+        } else {
+          assert.equal(state.afkStats.yellow.isKicked, true, '5/5 triggers immediately permanently kicks seat');
+          assert.equal(state.afkStats.yellow.kickReason, 'afk_limit_5');
+        }
       }
-      state = storageMap.get('state') as GameState;
-      assert.equal(state.strikes.yellow, MAX_AFK_STRIKES);
-      assert.equal(state.afkStats.yellow.isKicked, true);
 
       await room.webSocketMessage(
         sockY as unknown as WebSocket,
         JSON.stringify({ v: 1, t: 'intent', kind: 'CMD_REQUEST_TRUST', intentId: 'reclaim-after-kick', payload: { trust: false } }),
       );
-      assert.equal(sockY.getLastMessage()?.code, 'NOT_AUTHORIZED', 'kicked seat cannot reclaim trust');
+      assert.equal(sockY.getLastMessage()?.code, 'SEAT_KICKED', 'kicked seat hard-locked on wire');
 
       // 5. 30s dead-match abort SLO + ArenaVault refund RPC
       await room.webSocketClose(sockY as unknown as WebSocket, 1000, 'bye');

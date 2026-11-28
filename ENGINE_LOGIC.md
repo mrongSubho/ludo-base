@@ -35,8 +35,8 @@ Match formation prioritizes server-coordinated pairing and deterministic seating
 ### 2.3 Server Authority Architecture (`MatchRoom` Durable Object, P0–P6)
 - **Single Execution Context:** Cloudflare Durable Object (`src/room/MatchRoom.ts` / `src/room/MatchRoomCore.ts`) executes the synced engine (`src/room/engine.ts`), owns CSPRNG dice minting, verifies Session v2 seat authority, and commits state transitions atomically.
 - **Atomic Commits (`match_commit_action`):** Incremental state commits and initial S0 seed persistence (`seq = 0`) run through Postgres RPC `match_commit_action` with strict CAS checks on `seq` (returning `STALE_SEQ` + authoritative state on races).
-- **Alarms & Hibernation Recovery:** Authoritative turn clocks live inside DO storage alarms (`28s` human turn, `1.2s` bot turn). Evicted DOs rehydrate seamlessly from `match_states` and resume alarms/AFK strikes without client host intervention.
-- **Retirements (P6):** Legacy Deno Edge Functions (`roll-dice`, `move-auth`, `resolve-bet`), `DICE_COMMIT`/`DICE_REVEAL`, `CMD_REQUEST_TRUST`, and networked `HOST_ELECT` authority switching are retired. Offline pass-and-play and local bot matches continue using local client `processMove`.
+- **Alarms & Hibernation Recovery:** Authoritative turn clocks live inside DO storage alarms (`12s` cast / `15s` move for humans; staggered two-phase `2–4s` roll + `3–5s` move for bots, plus per-seat `afk_expire` and `5s` `disconnect_grace` alarms). Evicted DOs rehydrate seamlessly from `match_states` and resume alarms without client host intervention.
+- **Retirements (P6):** Legacy Deno Edge Functions (`roll-dice`, `move-auth`, `resolve-bet`), `DICE_COMMIT`/`DICE_REVEAL`, legacy Strike `1–3`, manual `Autopilot` (`CMD_REQUEST_TRUST { trust: true }`), `IdleWarningOverlay`, and networked `HOST_ELECT` authority switching are retired. Offline pass-and-play and local bot matches mirror the Dual-Tier AFK model in client timers/hooks.
 - **Engine Sync Check:** `npm run check:engine` guarantees `lib/engine/core.ts` and `src/room/engine.ts` remain byte-identical (save header banner).
 
 ---
@@ -96,10 +96,19 @@ Match formation prioritizes server-coordinated pairing and deterministic seating
 
 ## 5. Human Integrity, Timers & AI Engine
 
-### 5.1 Timers, AFK Strikes & Fast Turn-Pass
-- **Networked Matches (`MatchRoomCore.ts`):** Authoritative DO alarms track turn deadlines (`28s` human, `1.2s` bot), emit auto-play or `turn_passed`, increment `afkStats`/strikes (3 strikes → bot takeover / abandon classification).
-- **Offline / Legacy Countdown (`useGameTimer.ts` & `useAFKManager.ts`):** Computes remaining seconds from absolute `Date.now()` deadlines so background tab throttling cannot freeze AFK detection; re-arms countdown only when `handleRoll` / `moveToken` returns `'applied'`.
-- **0ms No-Legal-Move Fast Path:** If `moving` begins with zero legal tokens (`getLegalTokenIndices.length === 0`), turn advances immediately without artificial delay and resets `rollingRef`.
+### 5.1 Dual-Tier AFK Bots, Reclaim Windows, Stealth Kick & Treasury Routing (`lib/afkPolicy.ts`, `MatchRoomCore.ts`)
+- **Turn & Presence Detection:** Active humans get **`12s`** to roll (`cast`) and **`15s`** to move (`move`). Multi-signal client presence reports `active`, `window_blurred`, `tab_hidden`, or `disconnected` via silent `CMD_PRESENCE`. Socket disconnects arm a `5s` `disconnect_grace` timer (or engage Tier-1 immediately if the disconnected seat's turn arrives first).
+- **Tier-1 AFK Bot (Temporary, Reclaimable — Random / No-Brain Bot):**
+  - Engages on turn timeout or expired disconnect grace, incrementing lifetime `afkTriggers` (`1/5 .. 5/5`, never reset on return).
+  - Reclaim deadline scales dynamically by match elapsed time at takeover (`now - matchStartedAt`): `<5m → 10m`, `5–10m → 8m`, `10–15m → 6m`, `>=15m → 5m`. Matches never stall during this window.
+  - Executes two separate alarm phases (`ai_roll` in **`2–4s`**, `ai_move` in **`3–5s`**) using unbiased CSPRNG (`rollUnbiasedDie`), uniform random legal token selection (`pickTier1RandomMove`), and random power save/spend (`pickTier1RandomPower`).
+  - Returning player sees a live `AfkReclaimBar` with audio countdown alerts (`afk_strike`, `afk_ultimatum`, `timer_urgent`) and can reclaim immediately by tapping anywhere (`CMD_REQUEST_TRUST { trust: false }`); manual `Autopilot` toggle (`trust: true`) is disabled (`AUTOPILOT_MANUAL_DISABLED`).
+- **Tier-2 Permanent Bot (Locked, Irreversible — Main Smart Bot):**
+  - Triggers permanently on EITHER **`afkTriggers >= 5` (`5/5`, `afk_limit_5`)** OR **`now >= afkDeadlineAt` (`afk_timeout` / `disconnect_timeout`)**, hard-locking intents at DO wire level (`SEAT_KICKED`).
+  - Pilots using full strategic `getBestMove` + `getBestPowerUsage` at humanized `2–4s` / `3–5s` cadence and unbiased dice. Kicked player sees a persistent red `KickedAlertModal` (no auto-dismiss) offering `Watch in Live Arena` or `Return to Lobby`.
+- **Stealth Wire Masking:** `stripPowerTypesForWire` & `sanitizeDeltaForWire` strip `forfeitedWallets`, `kickedSeats`, opponent/spectator `afkStats`, opponent `TURN_TIMEOUT` events, and non-acting `ai_roll`/`ai_move` phase hints so matches continue seamlessly without opponent disruption.
+- **Explicit Leave (`CMD_LEAVE_MATCH`) & Settlement Diversion:** Leaving voluntarily forfeits 100% of entry fees and awards 0 LXP/RXP/CHIPS; in `1v1` the opponent wins immediately, in `2v2` the Tier-2 bot continues unless the partner is already kicked/left (in which case opponents win immediately), and in `4P` the leaver ranks 4th while Tier-2 finishes the match. Even if a kicked/forfeited seat's Tier-2 bot finishes 1st, `/api/match/record` & `resolveSettledPayoutShares` (`lib/arenaVaultService.ts`) grant 0 progression/win credit to `forfeitedWallets` and divert 100% of their prize share to the protocol treasury (`ARENA_TREASURY_WALLET`), while non-forfeited `2v2` teammates keep their legitimate `50%` share and spectator bets settle on real board winners.
+- **Offline Mirror & 0ms Pass Path:** `useGameTimer.ts` & `useAFKManager.ts` enforce matching Tier-1 random bot + dynamic reclaim expiry offline (`useAIBrain.ts` takes over permanently on kick). Zero-legal-move rolls fast-pass cleanly.
 
 ### 5.2 Bot Heuristics & Difficulty (`lib/aiEngine.ts`, `lib/constants.ts`)
 Evaluates moves inside a Web Worker (`lib/ai/worker.ts`) and inside `MatchRoomCore` / Live Arena using `AI_SCORES` and returns `{ color, tokenIndex }` (supporting 2v2 teammate assist):

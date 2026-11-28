@@ -14,7 +14,7 @@
  * See docs/planning/SERVER_AUTHORITY_MIGRATION_PLAN.md §4.4, §4.7, §5-P3
  */
 
-import type { GameState, BoardPlayer, PowerType } from '../../lib/types';
+import type { GameState, BoardPlayer, PowerType, KickReason, SeatPresenceState, AfkPlayerStats } from '../../lib/types';
 import type { RoomErrorCode } from '../../lib/roomCodes';
 import {
   ROOM_PROTOCOL_VERSION,
@@ -46,10 +46,22 @@ import {
 // canonical state means the seed cannot disagree with the engine again.
 import { INITIAL_GAME_STATE } from '../../lib/gameLogic';
 import { BOT_TEMPLATES, CORNER_TO_POSITION, assignCornersForShape } from '../../lib/boardLayout';
-import { BASE_INDEX, POWER_TILES_COUNT, TURN_TIMERS, MAX_AFK_STRIKES } from '../../lib/constants';
+import { BASE_INDEX, POWER_TILES_COUNT, TEAM_ID, TURN_TIMERS } from '../../lib/constants';
+import {
+  AFK_DISCONNECT_GRACE_MS,
+  AFK_MAX_TRIGGERS,
+  getAfkReclaimWindowMs,
+  isSeatInTier1Afk,
+  isSeatPermanentlyLocked,
+  normalizeSeatAfkStats,
+  pickTier1RandomMove,
+  pickTier1RandomPower,
+  sampleHumanizedBotDelayMs,
+} from '../../lib/afkPolicy';
 import { getBestMove, getBestPowerUsage } from '../../lib/aiEngine';
 import {
   getNextPlayer,
+  getTeammateColor,
   getLegalTokenIndices,
   resolveNetworkedMove,
   resolveRollWithBoost,
@@ -61,6 +73,7 @@ import {
   spawnReplacementTile,
   stripPowerTypesForWire,
   activeColorsForTurns,
+  seatedColorsFor,
   createInitialPositions,
   type PlayerColor,
   type EngineGameState,
@@ -115,7 +128,9 @@ export type IntentKind =
   | 'REQUEST_ROLL'
   | 'REQUEST_MOVE'
   | 'REQUEST_POWER'
-  | 'CMD_REQUEST_TRUST';
+  | 'CMD_REQUEST_TRUST'
+  | 'CMD_PRESENCE'
+  | 'CMD_LEAVE_MATCH';
 
 export interface RoomSocketMeta {
   authenticated: boolean;
@@ -129,8 +144,24 @@ export interface RoomSocketMeta {
 
 export interface ScheduledTimer {
   id: string;
-  kind: 'turn' | 'ai_turn' | 'bet_window' | 'afk_strike' | 'reconnect_grace' | 'TURN_TIMEOUT' | 'BET_TIMEOUT' | 'dead_match';
+  kind:
+    | 'turn'
+    | 'cast'
+    | 'move'
+    | 'ai_roll'
+    | 'ai_move'
+    | 'ai_turn'
+    | 'afk_expire'
+    | 'disconnect_grace'
+    | 'bet_window'
+    | 'afk_strike'
+    | 'reconnect_grace'
+    | 'TURN_TIMEOUT'
+    | 'BET_TIMEOUT'
+    | 'dead_match';
   deadlineAt: number;
+  durationMs?: number;
+  color?: PlayerColor;
 }
 
 /**
@@ -230,7 +261,7 @@ export class MatchRoomCore {
   private sanitizeForSocket(state: GameState, ws: WebSocket): GameState {
     const meta = this.getSocketMeta(ws);
     const viewerColor = meta?.role === 'seat' ? meta.color : undefined;
-    return stripPowerTypesForWire(state, viewerColor);
+    return stripPowerTypesForWire(state, viewerColor, this.state?.currentPlayer);
   }
 
   private turnTimerId(matchId: string): string {
@@ -241,6 +272,14 @@ export class MatchRoomCore {
     return `${matchId}:dead_match`;
   }
 
+  private afkExpireTimerId(matchId: string, color: PlayerColor): string {
+    return `${matchId}:afk_expire:${color}`;
+  }
+
+  private disconnectGraceTimerId(matchId: string, color: PlayerColor): string {
+    return `${matchId}:disconnect_grace:${color}`;
+  }
+
   private isFinishedState(state: GameState | null): boolean {
     return Boolean(state && (Boolean(state.winner) || Boolean(state.abortReason)));
   }
@@ -249,6 +288,158 @@ export class MatchRoomCore {
     if (!this.state) return false;
     const player = this.state.initialBoardConfig?.players?.find((p) => p.color === color);
     return Boolean(player?.isAi);
+  }
+
+  private hasConnectedSocketForSeat(color: PlayerColor, excludeWs?: WebSocket): boolean {
+    for (const sock of this.ctx.getWebSockets()) {
+      if (excludeWs && sock === excludeWs) continue;
+      if (typeof sock.readyState === 'number' && sock.readyState !== 1) continue;
+      const meta = this.getSocketMeta(sock);
+      if (meta?.authenticated && meta.role === 'seat' && meta.color === color) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private getSeatAfk(color: PlayerColor): AfkPlayerStats {
+    return normalizeSeatAfkStats(this.state?.afkStats?.[color]);
+  }
+
+  private getSeatBotTier(color: PlayerColor): 'tier1_random' | 'tier2_smart' {
+    if (this.isOriginalAiSeat(color)) return 'tier2_smart';
+    if (isSeatPermanentlyLocked(this.getSeatAfk(color))) return 'tier2_smart';
+    return 'tier1_random';
+  }
+
+  private getSeatWallet(color: PlayerColor): string | undefined {
+    const raw = this.state?.initialBoardConfig?.players?.find((p) => p.color === color)?.walletAddress;
+    if (!raw) return undefined;
+    const lower = String(raw).toLowerCase();
+    return /^0x[0-9a-f]{40}$/.test(lower) ? lower : undefined;
+  }
+
+  private async permanentlyKickSeatState(
+    baseState: GameState,
+    color: PlayerColor,
+    reason: KickReason,
+    opts?: { nextTriggers?: number; explicitLeave?: boolean },
+  ): Promise<GameState> {
+    if (this.matchId) {
+      await this.cancelTimer(this.afkExpireTimerId(this.matchId, color));
+      await this.cancelTimer(this.disconnectGraceTimerId(this.matchId, color));
+    }
+    const now = Date.now();
+    const cur = normalizeSeatAfkStats(baseState.afkStats?.[color]);
+    const nextTriggers = opts?.nextTriggers ?? cur.afkTriggers ?? cur.totalTriggers ?? 0;
+    const wallet =
+      baseState.initialBoardConfig?.players
+        ?.find((p) => p.color === color)
+        ?.walletAddress?.toLowerCase() || this.getSeatWallet(color);
+
+    const nextForfeited = Array.from(
+      new Set([...(baseState.forfeitedWallets ?? []), ...(wallet ? [wallet] : [])]),
+    );
+    const nextKickedSeats = {
+      ...(baseState.kickedSeats ?? {}),
+      [color]: { ...(wallet ? { wallet } : {}), reason, at: now },
+    };
+
+    return {
+      ...baseState,
+      afkStats: {
+        ...baseState.afkStats,
+        [color]: {
+          ...cur,
+          mode: opts?.explicitLeave ? 'left_forfeited' : 'kicked_smart_bot',
+          isAutoPlaying: false,
+          isKicked: true,
+          afkTriggers: nextTriggers,
+          totalTriggers: nextTriggers,
+          afkSinceAt: null,
+          afkDeadlineAt: null,
+          afkWindowMs: null,
+          kickReason: reason,
+          kickedAt: now,
+          ...(opts?.explicitLeave ? { presence: 'disconnected' as SeatPresenceState, presenceUpdatedAt: now } : {}),
+        },
+      },
+      forfeitedWallets: nextForfeited,
+      kickedSeats: nextKickedSeats,
+      lastUpdate: now,
+    };
+  }
+
+  private async enterTier1AfkState(
+    baseState: GameState,
+    color: PlayerColor,
+    triggerSource: 'turn_timeout' | 'disconnect',
+  ): Promise<{ nextState: GameState; promotedToKick: boolean; nextTriggers: number }> {
+    const cur = normalizeSeatAfkStats(baseState.afkStats?.[color]);
+    const now = Date.now();
+
+    if (this.isOriginalAiSeat(color) || isSeatPermanentlyLocked(cur)) {
+      return { nextState: baseState, promotedToKick: isSeatPermanentlyLocked(cur), nextTriggers: cur.afkTriggers ?? 0 };
+    }
+
+    // Already in Tier-1: do NOT extend deadline or increment triggers again while waiting.
+    if (isSeatInTier1Afk(cur)) {
+      if (triggerSource === 'disconnect' && cur.presence !== 'disconnected') {
+        return {
+          nextState: {
+            ...baseState,
+            afkStats: {
+              ...baseState.afkStats,
+              [color]: { ...cur, presence: 'disconnected', presenceUpdatedAt: now },
+            },
+          },
+          promotedToKick: false,
+          nextTriggers: cur.afkTriggers ?? 0,
+        };
+      }
+      return { nextState: baseState, promotedToKick: false, nextTriggers: cur.afkTriggers ?? 0 };
+    }
+
+    const nextTriggers = (cur.afkTriggers ?? cur.totalTriggers ?? 0) + 1;
+    if (nextTriggers >= AFK_MAX_TRIGGERS) {
+      const kickedState = await this.permanentlyKickSeatState(baseState, color, 'afk_limit_5', { nextTriggers });
+      return { nextState: kickedState, promotedToKick: true, nextTriggers };
+    }
+
+    const startedAt = baseState.matchStartedAt ?? now;
+    const elapsedMs = Math.max(0, now - startedAt);
+    const windowMs = getAfkReclaimWindowMs(elapsedMs);
+    const deadlineAt = now + windowMs;
+
+    if (this.matchId) {
+      await this.cancelTimer(this.disconnectGraceTimerId(this.matchId, color));
+      await this.scheduleTimer(this.afkExpireTimerId(this.matchId, color), 'afk_expire', windowMs, color);
+    }
+
+    const nextState: GameState = {
+      ...baseState,
+      matchStartedAt: startedAt,
+      afkStats: {
+        ...baseState.afkStats,
+        [color]: {
+          ...cur,
+          mode: 'afk_random_bot',
+          isAutoPlaying: true,
+          isKicked: false,
+          consecutiveTurns: 0,
+          afkTriggers: nextTriggers,
+          totalTriggers: nextTriggers,
+          afkSinceAt: now,
+          afkDeadlineAt: deadlineAt,
+          afkWindowMs: windowMs,
+          ...(triggerSource === 'disconnect'
+            ? { presence: 'disconnected' as SeatPresenceState, presenceUpdatedAt: now }
+            : {}),
+        },
+      },
+      lastUpdate: now,
+    };
+    return { nextState, promotedToKick: false, nextTriggers };
   }
 
   private countConnectedSeats(excludeWs?: WebSocket): number {
@@ -291,27 +482,53 @@ export class MatchRoomCore {
   }
 
   private getTurnDeadline(): number | null {
-    return this.timerHeap.find((t) => t.kind !== 'dead_match')?.deadlineAt ?? null;
+    return (
+      this.timerHeap.find(
+        (t) =>
+          t.kind === 'turn' ||
+          t.kind === 'cast' ||
+          t.kind === 'move' ||
+          t.kind === 'ai_roll' ||
+          t.kind === 'ai_move' ||
+          t.kind === 'ai_turn' ||
+          t.kind === 'TURN_TIMEOUT',
+      )?.deadlineAt ?? null
+    );
   }
 
   private async scheduleTurnTimerForState(matchId: string): Promise<void> {
     if (!this.state || this.isFinishedState(this.state) || !matchId) return;
     const curColor = this.state.currentPlayer as PlayerColor;
+
+    // If a seat dropped mid-match and its turn just arrived while disconnected, engage Tier-1 immediately (zero stall).
+    if (
+      !this.isBotOrAutoPlaying(curColor) &&
+      !this.isOriginalAiSeat(curColor) &&
+      this.getSeatAfk(curColor).presence === 'disconnected' &&
+      !this.hasConnectedSocketForSeat(curColor) &&
+      this.countConnectedSeats() > 0
+    ) {
+      const transitioned = await this.enterTier1AfkState(this.state, curColor, 'disconnect');
+      this.state = transitioned.nextState;
+    }
+
     const isAiTurn = this.isBotOrAutoPlaying(curColor);
-    const kind: ScheduledTimer['kind'] = isAiTurn ? 'ai_turn' : 'turn';
-    const phaseKind: 'cast' | 'move' | 'ai_turn' = isAiTurn
-      ? 'ai_turn'
-      : this.state.gamePhase === 'moving' && typeof this.state.diceValue === 'number'
+    const inMovingPhase = this.state.gamePhase === 'moving' && typeof this.state.diceValue === 'number';
+    const kind: ScheduledTimer['kind'] = isAiTurn
+      ? inMovingPhase
+        ? 'ai_move'
+        : 'ai_roll'
+      : inMovingPhase
         ? 'move'
         : 'cast';
-    const delayMs =
-      phaseKind === 'ai_turn'
-        ? TURN_TIMERS.aiStepMs
-        : phaseKind === 'move'
-          ? TURN_TIMERS.moveMs
-          : TURN_TIMERS.castMs;
+    const phaseKind: 'cast' | 'move' | 'ai_roll' | 'ai_move' = kind;
+    const delayMs = isAiTurn
+      ? sampleHumanizedBotDelayMs(phaseKind === 'ai_move' ? 'move' : 'roll')
+      : phaseKind === 'move'
+        ? TURN_TIMERS.moveMs
+        : TURN_TIMERS.castMs;
 
-    await this.scheduleTimer(this.turnTimerId(matchId), kind, delayMs);
+    await this.scheduleTimer(this.turnTimerId(matchId), kind, delayMs, curColor);
     this.state.deadlineAt = this.getTurnDeadline();
     this.state.turnDurationMs = delayMs;
     this.state.turnPhaseKind = phaseKind;
@@ -351,10 +568,50 @@ export class MatchRoomCore {
     await this.ensureInitialized();
     const meta = this.getSocketMeta(ws);
     const wasSeat = Boolean(meta?.authenticated && meta.role === 'seat');
+    const seatColor = meta?.color as PlayerColor | undefined;
     this.socketMeta.delete(ws);
     this.intentWindows.delete(ws);
     this.socialWindows.delete(ws);
     this.socialCooldowns.delete(ws);
+
+    if (
+      wasSeat &&
+      seatColor &&
+      this.state &&
+      !this.isFinishedState(this.state) &&
+      !this.isOriginalAiSeat(seatColor) &&
+      !this.hasConnectedSocketForSeat(seatColor, ws)
+    ) {
+      const curAfk = normalizeSeatAfkStats(this.state.afkStats?.[seatColor]);
+      const now = Date.now();
+      this.state = {
+        ...this.state,
+        afkStats: {
+          ...this.state.afkStats,
+          [seatColor]: {
+            ...curAfk,
+            presence: 'disconnected',
+            presenceUpdatedAt: now,
+          },
+        },
+      };
+      await this.ctx.storage.put('state', this.state);
+
+      if (
+        this.matchId &&
+        this.countConnectedSeats(ws) > 0 &&
+        !isSeatPermanentlyLocked(curAfk) &&
+        !isSeatInTier1Afk(curAfk)
+      ) {
+        await this.scheduleTimer(
+          this.disconnectGraceTimerId(this.matchId, seatColor),
+          'disconnect_grace',
+          AFK_DISCONNECT_GRACE_MS,
+          seatColor,
+        );
+      }
+    }
+
     if (
       wasSeat &&
       this.state &&
@@ -368,6 +625,52 @@ export class MatchRoomCore {
         'dead_match',
         TURN_TIMERS.maxDullMs
       );
+    }
+  }
+
+  private async handleSeatConnect(seatColor?: string): Promise<void> {
+    if (!this.matchId) return;
+    await this.cancelTimer(this.deadMatchTimerId(this.matchId));
+    if (!seatColor) return;
+    const color = seatColor as PlayerColor;
+    await this.cancelTimer(this.disconnectGraceTimerId(this.matchId, color));
+
+    if (!this.state || this.isFinishedState(this.state) || this.isOriginalAiSeat(color)) return;
+    const now = Date.now();
+    const afk = this.getSeatAfk(color);
+
+    // Lazy expiration check if Tier-1 reclaim deadline elapsed while DO alarm slept
+    if (isSeatInTier1Afk(afk) && typeof afk.afkDeadlineAt === 'number' && now >= afk.afkDeadlineAt) {
+      const reason: KickReason = afk.presence === 'disconnected' ? 'disconnect_timeout' : 'afk_timeout';
+      const kickedState = await this.permanentlyKickSeatState(this.state, color, reason);
+      kickedState.afkStats[color] = {
+        ...kickedState.afkStats[color],
+        presence: 'active',
+        presenceUpdatedAt: now,
+      };
+      await this.applyNewState(
+        kickedState,
+        this.seq + 1,
+        'afk_permanent_kick',
+        { seatColor: color, reason },
+        { preserveTimer: true },
+      );
+      return;
+    }
+
+    if (afk.presence !== 'active') {
+      this.state = {
+        ...this.state,
+        afkStats: {
+          ...this.state.afkStats,
+          [color]: {
+            ...afk,
+            presence: 'active',
+            presenceUpdatedAt: now,
+          },
+        },
+      };
+      await this.ctx.storage.put('state', this.state);
     }
   }
 
@@ -551,6 +854,7 @@ export class MatchRoomCore {
 
               // Built from the canonical initial state rather than hand-rolled, so
               // every field the engine expects is present with the right shape.
+              const now = Date.now();
               const seededState: GameState = {
                 ...INITIAL_GAME_STATE,
                 matchId: effectiveMatchId,
@@ -564,7 +868,8 @@ export class MatchRoomCore {
                 botDifficulty,
                 powerTiles,
                 ...(powerTileSeed !== undefined ? { powerTileSeed } : {}),
-                lastUpdate: Date.now(),
+                matchStartedAt: now,
+                lastUpdate: now,
                 initialBoardConfig: {
                   players: boardPlayers,
                   colorCorner: defaultCorners,
@@ -593,7 +898,19 @@ export class MatchRoomCore {
     }
 
     if (this.state && !this.isFinishedState(this.state) && effectiveMatchId) {
-      const hasTurnTimer = this.timerHeap.some((t) => t.kind !== 'dead_match');
+      if (!this.state.matchStartedAt) {
+        this.state.matchStartedAt = this.state.lastUpdate || Date.now();
+      }
+      const hasTurnTimer = this.timerHeap.some(
+        (t) =>
+          t.kind === 'turn' ||
+          t.kind === 'cast' ||
+          t.kind === 'move' ||
+          t.kind === 'ai_roll' ||
+          t.kind === 'ai_move' ||
+          t.kind === 'ai_turn' ||
+          t.kind === 'TURN_TIMEOUT',
+      );
       if (!hasTurnTimer) {
         await this.scheduleTurnTimerForState(effectiveMatchId);
         await this.ctx.storage.put('state', this.state);
@@ -671,7 +988,7 @@ export class MatchRoomCore {
       this.setSocketMeta(server, meta);
 
       if (authenticated && initialRole === 'seat' && matchId) {
-        await this.cancelTimer(this.deadMatchTimerId(matchId));
+        await this.handleSeatConnect(initialColor);
       }
 
       // Legacy ?ticket= upgrade path: dispatch freshest sanitized state immediately.
@@ -799,7 +1116,10 @@ export class MatchRoomCore {
         this.sendRejected(ws, 'MALFORMED_FRAME', 'Seed payload missing');
         return;
       }
-      this.state = seeded;
+      this.state = {
+        ...seeded,
+        matchStartedAt: seeded.matchStartedAt ?? Date.now(),
+      };
       this.seq = 0;
 
       if (!this.isFinishedState(this.state) && this.matchId) {
@@ -1067,7 +1387,7 @@ export class MatchRoomCore {
     }
 
     if (meta.authenticated && meta.role === 'seat' && this.matchId) {
-      await this.cancelTimer(this.deadMatchTimerId(this.matchId));
+      await this.handleSeatConnect(meta.color);
     }
 
     // Acknowledge the join.
@@ -1115,6 +1435,26 @@ export class MatchRoomCore {
    * Handle gameplay intent. In Phase 3, this proxies directly to the Edge functions
    * without modifying them, updates local state + seq, and fans out state frames.
    */
+  private clearAfkActiveStats(cur: AfkPlayerStats, now: number): AfkPlayerStats {
+    return {
+      ...cur,
+      mode: 'human',
+      isAutoPlaying: false,
+      consecutiveTurns: 0,
+      afkSinceAt: null,
+      afkDeadlineAt: null,
+      afkWindowMs: null,
+      presence: 'active',
+      presenceUpdatedAt: now,
+    };
+  }
+
+  private async cancelSeatAfkTimers(color: PlayerColor): Promise<void> {
+    if (!this.matchId) return;
+    await this.cancelTimer(this.afkExpireTimerId(this.matchId, color));
+    await this.cancelTimer(this.disconnectGraceTimerId(this.matchId, color));
+  }
+
   private async handleIntentFrame(ws: WebSocket, frame: Record<string, unknown>): Promise<void> {
     const meta = this.getSocketMeta(ws);
     const intentId = String(frame.intentId || '');
@@ -1158,6 +1498,41 @@ export class MatchRoomCore {
       });
     }
 
+    // Hard wire-level enforcement for permanently kicked / forfeited seats (and lazy expiry).
+    if (
+      this.state &&
+      !this.isFinishedState(this.state) &&
+      meta.color &&
+      kind !== 'CMD_LEAVE_MATCH' &&
+      kind !== 'CMD_PRESENCE'
+    ) {
+      const seatColor = meta.color as PlayerColor;
+      const seatAfk = this.getSeatAfk(seatColor);
+      if (isSeatPermanentlyLocked(seatAfk)) {
+        this.sendRejected(ws, 'SEAT_KICKED', 'Seat permanently replaced by smart bot', {
+          intentId,
+          seq: this.seq,
+        });
+        return;
+      }
+      if (isSeatInTier1Afk(seatAfk) && typeof seatAfk.afkDeadlineAt === 'number' && nowMs >= seatAfk.afkDeadlineAt) {
+        const reason: KickReason = seatAfk.presence === 'disconnected' ? 'disconnect_timeout' : 'afk_timeout';
+        const kickedState = await this.permanentlyKickSeatState(this.state, seatColor, reason);
+        await this.applyNewState(
+          kickedState,
+          this.seq + 1,
+          'afk_permanent_kick',
+          { seatColor, reason },
+          { preserveTimer: true },
+        );
+        this.sendRejected(ws, 'SEAT_KICKED', 'Seat permanently replaced by smart bot', {
+          intentId,
+          seq: this.seq,
+        });
+        return;
+      }
+    }
+
     if (kind === 'REQUEST_ROLL') {
       if (!this.state) {
         this.sendRejected(ws, 'ROOM_NOT_READY', 'No live match state in this room', { intentId });
@@ -1186,7 +1561,6 @@ export class MatchRoomCore {
         red: 'TL',
       };
 
-      // SV-03A/B/C + SV-04: Three-sixes forfeit check, Boost 6-then-roll split, and legal move check
       const resolvedRoll = resolveRollWithBoost({
         state: this.state as unknown as EngineGameState,
         color: curColor,
@@ -1211,8 +1585,19 @@ export class MatchRoomCore {
         boostSplitActive: resolvedRoll.boostSplitActive,
       });
 
+      await this.cancelSeatAfkTimers(curColor);
+      const curAfk = this.getSeatAfk(curColor);
+      const nextAfk = { ...this.state.afkStats };
+      if (isSeatInTier1Afk(curAfk) || curAfk.presence !== 'active' || curAfk.consecutiveTurns > 0) {
+        nextAfk[curColor] = this.clearAfkActiveStats(curAfk, Date.now());
+      }
+
       if (resolvedRoll.outcome === 'forfeit_three_sixes') {
-        const nextState = resolvedRoll.state as unknown as GameState;
+        const nextState: GameState = {
+          ...(resolvedRoll.state as unknown as GameState),
+          afkStats: nextAfk,
+          lastUpdate: Date.now(),
+        };
         await this.applyNewState(nextState, this.seq + 1, 'turn_passed', rollEventMeta, {
           lastIntentId: intentId,
           events: rollEvents,
@@ -1227,15 +1612,6 @@ export class MatchRoomCore {
       }
 
       const nextStrikes = { ...this.state.strikes, [curColor]: 0 };
-      const nextAfk = { ...this.state.afkStats };
-      if (nextAfk[curColor]) {
-        nextAfk[curColor] = {
-          ...nextAfk[curColor],
-          consecutiveTurns: 0,
-          isAutoPlaying: false,
-        };
-      }
-
       const nextState: GameState = {
         ...(resolvedRoll.state as unknown as GameState),
         strikes: nextStrikes,
@@ -1337,14 +1713,12 @@ export class MatchRoomCore {
         return;
       }
 
+      await this.cancelSeatAfkTimers(curColor);
       const nextStrikes = { ...this.state.strikes, [curColor]: 0 };
+      const curAfk = this.getSeatAfk(curColor);
       const nextAfk = { ...this.state.afkStats };
-      if (nextAfk[curColor]) {
-        nextAfk[curColor] = {
-          ...nextAfk[curColor],
-          consecutiveTurns: 0,
-          isAutoPlaying: false,
-        };
+      if (isSeatInTier1Afk(curAfk) || curAfk.presence !== 'active' || curAfk.consecutiveTurns > 0) {
+        nextAfk[curColor] = this.clearAfkActiveStats(curAfk, Date.now());
       }
 
       let nextState: GameState = {
@@ -1353,8 +1727,6 @@ export class MatchRoomCore {
         afkStats: nextAfk,
       };
 
-      // A bonus roll (six, capture, finish, or a power) keeps the mover on turn.
-      // Only reset to `rolling` when no split Boost Step 2 remains.
       if (resolved.bonusRoll && !nextState.winner && resolved.splitStepRemaining == null) {
         nextState = {
           ...nextState,
@@ -1438,14 +1810,12 @@ export class MatchRoomCore {
         return;
       }
 
+      await this.cancelSeatAfkTimers(curColor);
       const nextStrikes = { ...this.state.strikes, [curColor]: 0 };
+      const curAfk = this.getSeatAfk(curColor);
       const nextAfk = { ...this.state.afkStats };
-      if (nextAfk[curColor]) {
-        nextAfk[curColor] = {
-          ...nextAfk[curColor],
-          consecutiveTurns: 0,
-          isAutoPlaying: false,
-        };
+      if (isSeatInTier1Afk(curAfk) || curAfk.presence !== 'active' || curAfk.consecutiveTurns > 0) {
+        nextAfk[curColor] = this.clearAfkActiveStats(curAfk, Date.now());
       }
       const nextState: GameState = {
         ...(result.state as unknown as GameState),
@@ -1484,66 +1854,30 @@ export class MatchRoomCore {
         return;
       }
       if (!meta.color) {
-        this.sendRejected(ws, 'NOT_AUTHORIZED', 'Only seated players may manage trust', { intentId });
+        this.sendRejected(ws, 'NOT_AUTHORIZED', 'Only seated players may manage reclaim', { intentId });
         return;
       }
 
       const seatColor = meta.color as PlayerColor;
       const wantTrust = payload.trust === true;
-      const currentAfk = this.state.afkStats?.[seatColor];
-      const isAuto = Boolean(currentAfk?.isAutoPlaying);
-      const isKicked = Boolean(currentAfk?.isKicked);
-      const hasStrikes = (this.state.strikes?.[seatColor] ?? 0) > 0;
-
-      if (!wantTrust && isKicked) {
-        this.sendRejected(ws, 'NOT_AUTHORIZED', 'Seat kicked after maximum AFK strikes', {
+      if (wantTrust) {
+        this.sendRejected(ws, 'AUTOPILOT_MANUAL_DISABLED', 'Manual autopilot is disabled', {
           intentId,
           seq: this.seq,
         });
         return;
       }
 
-      if (wantTrust) {
-        if (isAuto || isKicked) {
-          this.sendFrame(ws, {
-            t: 'intent_ack',
-            intentId,
-            ok: true,
-            data: { seq: this.seq, roomInstance: this.getRoomInstance(), noop: true },
-          });
-          return;
-        }
-        const nextAfk = {
-          ...this.state.afkStats,
-          [seatColor]: {
-            consecutiveTurns: currentAfk?.consecutiveTurns ?? 0,
-            totalTriggers: currentAfk?.totalTriggers ?? 0,
-            isKicked: Boolean(currentAfk?.isKicked),
-            isAutoPlaying: true,
-          },
-        };
-        const nextState: GameState = {
-          ...this.state,
-          afkStats: nextAfk,
-          lastUpdate: Date.now(),
-        };
-        await this.applyNewState(
-          nextState,
-          this.seq + 1,
-          'trust_delegated',
-          { seatColor, trust: true },
-          { preserveTimer: seatColor !== this.state.currentPlayer, lastIntentId: intentId },
-        );
-        this.sendFrame(ws, {
-          t: 'intent_ack',
+      const currentAfk = this.getSeatAfk(seatColor);
+      if (isSeatPermanentlyLocked(currentAfk)) {
+        this.sendRejected(ws, 'SEAT_KICKED', 'Seat permanently replaced by smart bot', {
           intentId,
-          ok: true,
-          data: { seq: this.seq, roomInstance: this.getRoomInstance() },
+          seq: this.seq,
         });
         return;
       }
 
-      if (!isAuto && !hasStrikes) {
+      if (!isSeatInTier1Afk(currentAfk)) {
         this.sendFrame(ws, {
           t: 'intent_ack',
           intentId,
@@ -1553,27 +1887,160 @@ export class MatchRoomCore {
         return;
       }
 
-      const nextStrikes = { ...this.state.strikes, [seatColor]: 0 };
-      const nextAfk = { ...this.state.afkStats };
-      if (nextAfk[seatColor]) {
-        nextAfk[seatColor] = {
-          ...nextAfk[seatColor],
-          isAutoPlaying: false,
-          consecutiveTurns: 0,
-        };
-      }
+      await this.cancelSeatAfkTimers(seatColor);
       const nextState: GameState = {
         ...this.state,
-        strikes: nextStrikes,
-        afkStats: nextAfk,
+        afkStats: {
+          ...this.state.afkStats,
+          [seatColor]: this.clearAfkActiveStats(currentAfk, Date.now()),
+        },
         lastUpdate: Date.now(),
       };
       await this.applyNewState(
         nextState,
         this.seq + 1,
-        'trust_restored',
+        'afk_reclaimed',
         { seatColor, trust: false },
         { preserveTimer: seatColor !== this.state.currentPlayer, lastIntentId: intentId },
+      );
+      this.sendFrame(ws, {
+        t: 'intent_ack',
+        intentId,
+        ok: true,
+        data: { seq: this.seq, roomInstance: this.getRoomInstance() },
+      });
+      return;
+    }
+
+    if (kind === 'CMD_PRESENCE') {
+      const nextPresence = payload.presence;
+      const isValidPresence =
+        nextPresence === 'active' ||
+        nextPresence === 'window_blurred' ||
+        nextPresence === 'tab_hidden' ||
+        nextPresence === 'disconnected';
+      if (!isValidPresence) {
+        this.sendRejected(ws, 'MALFORMED_FRAME', 'Invalid presence state', { intentId, seq: this.seq });
+        return;
+      }
+      if (!this.state || this.isFinishedState(this.state) || !meta.color) {
+        this.sendFrame(ws, {
+          t: 'intent_ack',
+          intentId,
+          ok: true,
+          data: { seq: this.seq, roomInstance: this.getRoomInstance(), noop: true },
+        });
+        return;
+      }
+
+      const seatColor = meta.color as PlayerColor;
+      const curAfk = this.getSeatAfk(seatColor);
+      if (curAfk.presence !== nextPresence) {
+        this.state = {
+          ...this.state,
+          afkStats: {
+            ...this.state.afkStats,
+            [seatColor]: {
+              ...curAfk,
+              presence: nextPresence,
+              presenceUpdatedAt: Date.now(),
+            },
+          },
+        };
+        await this.ctx.storage.put('state', this.state);
+      }
+
+      this.sendFrame(ws, {
+        t: 'intent_ack',
+        intentId,
+        ok: true,
+        data: { seq: this.seq, roomInstance: this.getRoomInstance() },
+      });
+      return;
+    }
+
+    if (kind === 'CMD_LEAVE_MATCH') {
+      if (!this.state) {
+        this.sendRejected(ws, 'ROOM_NOT_READY', 'No live match state in this room', { intentId });
+        return;
+      }
+      if (this.isFinishedState(this.state)) {
+        this.sendFrame(ws, {
+          t: 'intent_ack',
+          intentId,
+          ok: true,
+          data: { seq: this.seq, roomInstance: this.getRoomInstance(), noop: true },
+        });
+        return;
+      }
+      if (!meta.color) {
+        this.sendRejected(ws, 'NOT_AUTHORIZED', 'Only seated players may forfeit', { intentId });
+        return;
+      }
+
+      const seatColor = meta.color as PlayerColor;
+      const curAfk = this.getSeatAfk(seatColor);
+      if (isSeatPermanentlyLocked(curAfk)) {
+        // Already replaced by Tier-2 stealth smart bot or already forfeited; never end stealth game prematurely.
+        this.sendFrame(ws, {
+          t: 'intent_ack',
+          intentId,
+          ok: true,
+          data: { seq: this.seq, roomInstance: this.getRoomInstance(), noop: true },
+        });
+        return;
+      }
+
+      let nextState = await this.permanentlyKickSeatState(this.state, seatColor, 'explicit_leave', {
+        explicitLeave: true,
+      });
+      const shape = nextState.playerCount || '4P';
+      let eventType = 'seat_forfeited';
+      let eventExtra: Record<string, unknown> = { forfeitedColor: seatColor };
+
+      if (shape === '1v1') {
+        const oppColor = seatedColorsFor('1v1').find((c) => c !== seatColor) ?? null;
+        if (oppColor) {
+          nextState = {
+            ...nextState,
+            status: 'finished',
+            winner: oppColor,
+            winners: [oppColor],
+            captureMessage: 'Opponent forfeited — Victory!',
+          };
+          eventType = 'match_forfeit_win';
+          eventExtra = { forfeitedColor: seatColor, winner: oppColor };
+        }
+      } else if (shape === '2v2') {
+        const mate = getTeammateColor(seatColor, '2v2');
+        const mateOut =
+          !mate ||
+          this.isOriginalAiSeat(mate) ||
+          isSeatPermanentlyLocked(normalizeSeatAfkStats(nextState.afkStats?.[mate]));
+        if (mateOut) {
+          const winTeamNum = TEAM_ID[seatColor] === 1 ? 2 : 1;
+          const winTeamLabel = winTeamNum === 1 ? 'Team 1' : 'Team 2';
+          const winColors = (['green', 'red', 'yellow', 'blue'] as PlayerColor[]).filter(
+            (c) => TEAM_ID[c] === winTeamNum,
+          );
+          nextState = {
+            ...nextState,
+            status: 'finished',
+            winner: winTeamLabel,
+            winners: winColors,
+            captureMessage: `${winTeamLabel} wins by forfeit!`,
+          };
+          eventType = 'match_forfeit_win';
+          eventExtra = { forfeitedColor: seatColor, winner: winTeamLabel };
+        }
+      }
+
+      await this.applyNewState(
+        nextState,
+        this.seq + 1,
+        eventType,
+        eventExtra,
+        { preserveTimer: !this.isFinishedState(nextState) && nextState.currentPlayer !== seatColor, lastIntentId: intentId },
       );
       this.sendFrame(ws, {
         t: 'intent_ack',
@@ -1697,7 +2164,7 @@ export class MatchRoomCore {
         const meta = this.getSocketMeta(ws);
         if (meta?.supportsDelta && rawPatch !== null) {
           const viewerColor = meta.role === 'seat' ? meta.color : undefined;
-          const sanitized = sanitizeDeltaForWire(rawPatch, events, viewerColor);
+          const sanitized = sanitizeDeltaForWire(rawPatch, events, viewerColor, this.state.currentPlayer);
           this.sendFrame(ws, {
             t: 'delta',
             seq: this.seq,
@@ -1729,192 +2196,80 @@ export class MatchRoomCore {
 
   private isBotOrAutoPlaying(color: PlayerColor): boolean {
     if (!this.state) return false;
-    const player = this.state.initialBoardConfig?.players?.find(p => p.color === color);
-    if (player?.isAi) return true;
-    const afk = this.state.afkStats?.[color];
-    return Boolean(afk?.isAutoPlaying || afk?.isKicked);
+    if (this.isOriginalAiSeat(color)) return true;
+    const afk = this.getSeatAfk(color);
+    return isSeatInTier1Afk(afk) || isSeatPermanentlyLocked(afk);
   }
 
-  private async executeServerBotTurn(
+  private buildTimeoutEvents(
     color: PlayerColor,
+    workingState: GameState,
+    opts?: { eventTypeOverride?: string; eventExtra?: Record<string, unknown> },
+  ): MatchEvent[] {
+    if (opts?.eventTypeOverride !== 'turn_timeout') return [];
+    const afk = normalizeSeatAfkStats(workingState.afkStats?.[color]);
+    const triggers = Number(opts.eventExtra?.afkTriggers ?? opts.eventExtra?.strikeCount ?? afk.afkTriggers ?? 1);
+    const kicked = Boolean(opts.eventExtra?.isKicked ?? isSeatPermanentlyLocked(afk));
+    return [
+      {
+        type: 'TURN_TIMEOUT',
+        color,
+        strikeCount: triggers,
+        afkTriggers: triggers,
+        kicked,
+        ...(kicked && afk.kickReason ? { kickReason: afk.kickReason } : {}),
+      },
+    ];
+  }
+
+  private async executeServerBotRoll(
+    color: PlayerColor,
+    tier: 'tier1_random' | 'tier2_smart',
     opts?: {
-      suppressBonusRoll?: boolean;
+      stateOverride?: GameState;
+      skipPowers?: boolean;
       eventTypeOverride?: string;
       eventExtra?: Record<string, unknown>;
     },
   ): Promise<void> {
-    if (!this.state || this.isFinishedState(this.state) || this.state.currentPlayer !== color) return;
+    const workingState = opts?.stateOverride ?? this.state;
+    if (
+      !workingState ||
+      this.isFinishedState(workingState) ||
+      workingState.currentPlayer !== color ||
+      workingState.gamePhase !== 'rolling' ||
+      workingState.diceValue !== null
+    ) {
+      return;
+    }
 
-    const cc = this.state.initialBoardConfig?.colorCorner || {
+    const cc = workingState.initialBoardConfig?.colorCorner || {
       green: 'BL',
       yellow: 'BR',
       blue: 'TR',
       red: 'TL',
     };
+    const timeoutEvents = this.buildTimeoutEvents(color, workingState, opts);
 
-    const pickBotToken = (
-      currentState: GameState,
-      targetColor: PlayerColor,
-      legalMoves: number[],
-      steps: number,
-    ): number => {
-      const best = getBestMove(
-        currentState.positions,
-        color,
-        steps,
-        cc,
-        currentState.playerCount,
-        (currentState.powerTiles || []) as { r: number; c: number }[],
-        currentState,
-        currentState.botDifficulty || 'pro',
-      );
-      if (best && best.color === targetColor && legalMoves.includes(best.tokenIndex)) {
-        return best.tokenIndex;
-      }
-      return legalMoves[0];
-    };
-
-    const timeoutEvents: MatchEvent[] =
-      opts?.eventTypeOverride === 'turn_timeout'
-        ? [
-            {
-              type: 'TURN_TIMEOUT',
+    if (!opts?.skipPowers && !workingState.powerSpentThisTurn) {
+      const powerPick =
+        tier === 'tier1_random'
+          ? pickTier1RandomPower(workingState, color, cc, workingState.playerCount)
+          : getBestPowerUsage(
+              workingState,
               color,
-              strikeCount: Number(opts.eventExtra?.strikeCount ?? this.state.strikes?.[color] ?? 1),
-              kicked: Boolean(opts.eventExtra?.isKicked ?? this.state.afkStats?.[color]?.isKicked),
-            },
-          ]
-        : [];
-
-    const commitResolvedMove = async (
-      resolvedState: GameState,
-      resolvedBonus: boolean,
-      splitRemaining: number | null | undefined,
-      meta?: Record<string, unknown>,
-      events: MatchEvent[] = [],
-    ) => {
-      let nextState = resolvedState;
-      if (opts?.suppressBonusRoll && !nextState.winner && nextState.currentPlayer === color) {
-        const nextPlayer = getNextPlayer(color, nextState.playerCount, this.getActiveColors(), cc);
-        nextState = {
-          ...nextState,
-          currentPlayer: nextPlayer,
-          activeShields: clearShieldsOnTurnChange(nextState.activeShields, color, nextPlayer),
-          diceValue: null,
-          isRolling: false,
-          gamePhase: 'rolling',
-          consecutiveSixes: 0,
-          activeBoost: null,
-          boostPendingDice: null,
-          boostSubMoveBonus: false,
-          powerSpentThisTurn: false,
-          lastUpdate: Date.now(),
-        };
-      } else if (!opts?.suppressBonusRoll && resolvedBonus && !nextState.winner && splitRemaining == null) {
-        nextState = {
-          ...nextState,
-          currentPlayer: color,
-          diceValue: null,
-          isRolling: false,
-          gamePhase: 'rolling',
-        };
-      }
-      await this.applyNewState(
-        nextState,
-        this.seq + 1,
-        opts?.eventTypeOverride || 'move_committed',
-        meta,
-        { events },
-      );
-    };
-
-    // Continue pending move (e.g. Boost Step 2 or timed-out human move phase) without rolling a second time.
-    if (this.state.gamePhase === 'moving' && typeof this.state.diceValue === 'number') {
-      const targetColor = resolveControllableColor(this.state.positions, color, this.state.playerCount);
-      const stepVal = this.state.diceValue;
-      const legalMoves = getLegalTokenIndices(this.state.positions, targetColor, stepVal, cc);
-      if (legalMoves.length === 0) {
-        const nextPlayer = getNextPlayer(color, this.state.playerCount, this.getActiveColors(), cc);
-        await this.applyNewState(
-          {
-            ...this.state,
-            diceValue: null,
-            currentPlayer: nextPlayer,
-            activeShields: clearShieldsOnTurnChange(this.state.activeShields, color, nextPlayer),
-            isRolling: false,
-            gamePhase: 'rolling',
-            consecutiveSixes: 0,
-            activeBoost: null,
-            boostPendingDice: null,
-            boostSubMoveBonus: false,
-            powerSpentThisTurn: false,
-            lastUpdate: Date.now(),
-          },
-          this.seq + 1,
-          opts?.eventTypeOverride || 'turn_passed',
-          opts?.eventExtra,
-          { events: timeoutEvents },
-        );
-        return;
-      }
-
-      const preMoveState = this.state;
-      const chosenToken = pickBotToken(this.state, targetColor, legalMoves, stepVal);
-      const resolved = resolveNetworkedMove({
-        state: this.state as unknown as EngineGameState,
-        color,
-        tokenIndex: chosenToken,
-        dice: stepVal,
-        cc,
-        playerCount: this.state.playerCount,
-        activeColors: this.getActiveColors(),
-        now: Date.now(),
-      });
-      if (resolved.ok && resolved.state) {
-        const moveEvents = [
-          ...timeoutEvents,
-          ...buildMoveEvents({
-            prevState: preMoveState,
-            nextState: resolved.state as unknown as GameState,
-            color,
-            targetColor,
-            tokenIndex: chosenToken,
-            steps: stepVal,
-            fromPos: resolved.fromPos ?? BASE_INDEX,
-            toPos: resolved.toPos ?? BASE_INDEX,
-            captured: resolved.captured,
-            finishedToken: resolved.finishedToken,
-            cc,
-          }),
-        ];
-        await commitResolvedMove(
-          resolved.state as unknown as GameState,
-          Boolean(resolved.bonusRoll),
-          resolved.splitStepRemaining,
-          opts?.eventExtra,
-          moveEvents,
-        );
-        return;
-      }
-    }
-
-    if (this.state.gamePhase === 'rolling' && this.state.diceValue === null && !this.state.powerSpentThisTurn && opts?.eventTypeOverride !== 'turn_timeout') {
-      const powerPick = getBestPowerUsage(
-        this.state,
-        color,
-        cc,
-        this.state.playerCount,
-        this.state.botDifficulty || 'pro',
-      );
+              cc,
+              workingState.playerCount,
+              workingState.botDifficulty || 'pro',
+            );
       if (powerPick) {
-        const prevPowerState = this.state;
         const powerApplied = applyPower(
-          this.state as unknown as EngineGameState,
+          workingState as unknown as EngineGameState,
           color,
           powerPick.type,
           powerPick.tokenIdx,
           cc,
-          this.state.playerCount,
+          workingState.playerCount,
           Date.now(),
         );
         if (powerApplied.ok) {
@@ -1923,7 +2278,7 @@ export class MatchRoomCore {
             lastUpdate: Date.now(),
           };
           const powerEvents = buildPowerTriggerEvents({
-            prevState: prevPowerState,
+            prevState: workingState,
             nextState: nextPowerState,
             color,
             powerType: powerPick.type,
@@ -1936,27 +2291,24 @@ export class MatchRoomCore {
             {
               seatColor: color,
               walletAddress: null,
-              source: 'server_autoplay',
+              source: tier,
               ...(opts?.eventExtra || {}),
             },
-            { preserveTimer: true, events: powerEvents },
+            { events: powerEvents },
           );
-          if (!this.state || this.isFinishedState(this.state)) {
-            return;
-          }
+          return;
         }
       }
     }
 
     const rollValue = rollUnbiasedDie();
-
     const resolvedRoll = resolveRollWithBoost({
-      state: this.state as unknown as EngineGameState,
+      state: workingState as unknown as EngineGameState,
       color,
       rollValue,
       cc,
-      playerCount: this.state.playerCount,
-      activeColors: this.getActiveColors(),
+      playerCount: workingState.playerCount,
+      activeColors: activeColorsForTurns(workingState as unknown as EngineGameState),
       now: Date.now(),
     });
 
@@ -1964,7 +2316,7 @@ export class MatchRoomCore {
       rollValue,
       seatColor: color,
       walletAddress: null,
-      source: 'server_autoplay',
+      source: tier,
       ...(opts?.eventExtra || {}),
     };
 
@@ -1991,8 +2343,6 @@ export class MatchRoomCore {
       return;
     }
 
-    // Split bot/timeout roll into a visible roll frame so clients see the rolled face
-    // before the follow-up move delta arrives and hops across the board.
     const rollState: GameState = {
       ...(resolvedRoll.state as unknown as GameState),
       lastUpdate: Date.now(),
@@ -2000,58 +2350,142 @@ export class MatchRoomCore {
     await this.applyNewState(
       rollState,
       this.seq + 1,
-      'roll_minted',
+      opts?.eventTypeOverride === 'turn_timeout' ? 'turn_timeout' : 'roll_minted',
       botRollMeta,
-      { preserveTimer: true, events: rollEvents },
+      { events: rollEvents },
     );
+  }
 
-    const activeDice = resolvedRoll.activeDice;
-    const chosenToken = pickBotToken(
-      rollState,
-      resolvedRoll.targetColor,
-      resolvedRoll.legalMoves,
-      activeDice
-    );
+  private async executeServerBotMove(
+    color: PlayerColor,
+    tier: 'tier1_random' | 'tier2_smart',
+    opts?: {
+      stateOverride?: GameState;
+      eventTypeOverride?: string;
+      eventExtra?: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    const workingState = opts?.stateOverride ?? this.state;
+    if (
+      !workingState ||
+      this.isFinishedState(workingState) ||
+      workingState.currentPlayer !== color ||
+      workingState.gamePhase !== 'moving' ||
+      typeof workingState.diceValue !== 'number'
+    ) {
+      return;
+    }
+
+    const cc = workingState.initialBoardConfig?.colorCorner || {
+      green: 'BL',
+      yellow: 'BR',
+      blue: 'TR',
+      red: 'TL',
+    };
+    const activeColors = activeColorsForTurns(workingState as unknown as EngineGameState);
+    const timeoutEvents = this.buildTimeoutEvents(color, workingState, opts);
+    const targetColor = resolveControllableColor(workingState.positions, color, workingState.playerCount);
+    const stepVal = workingState.diceValue;
+    const legalMoves = getLegalTokenIndices(workingState.positions, targetColor, stepVal, cc);
+
+    if (legalMoves.length === 0) {
+      const nextPlayer = getNextPlayer(color, workingState.playerCount, activeColors, cc);
+      await this.applyNewState(
+        {
+          ...workingState,
+          diceValue: null,
+          currentPlayer: nextPlayer,
+          activeShields: clearShieldsOnTurnChange(workingState.activeShields, color, nextPlayer),
+          isRolling: false,
+          gamePhase: 'rolling',
+          consecutiveSixes: 0,
+          activeBoost: null,
+          boostPendingDice: null,
+          boostSubMoveBonus: false,
+          powerSpentThisTurn: false,
+          lastUpdate: Date.now(),
+        },
+        this.seq + 1,
+        opts?.eventTypeOverride || 'turn_passed',
+        opts?.eventExtra,
+        { events: timeoutEvents },
+      );
+      return;
+    }
+
+    const chosenMove =
+      tier === 'tier1_random'
+        ? pickTier1RandomMove(workingState.positions, color, stepVal, cc, workingState.playerCount)
+        : getBestMove(
+            workingState.positions,
+            color,
+            stepVal,
+            cc,
+            workingState.playerCount,
+            (workingState.powerTiles || []) as { r: number; c: number }[],
+            workingState,
+            workingState.botDifficulty || 'pro',
+          );
+    const chosenToken =
+      chosenMove && chosenMove.color === targetColor && legalMoves.includes(chosenMove.tokenIndex)
+        ? chosenMove.tokenIndex
+        : legalMoves[0];
 
     const resolved = resolveNetworkedMove({
-      state: rollState as unknown as EngineGameState,
+      state: workingState as unknown as EngineGameState,
       color,
       tokenIndex: chosenToken,
-      dice: activeDice,
+      dice: stepVal,
       cc,
-      playerCount: this.state.playerCount,
-      activeColors: this.getActiveColors(),
+      playerCount: workingState.playerCount,
+      activeColors,
       now: Date.now(),
     });
 
     if (resolved.ok && resolved.state) {
-      const moveEvents = buildMoveEvents({
-        prevState: rollState,
-        nextState: resolved.state as unknown as GameState,
-        color,
-        targetColor: resolvedRoll.targetColor,
-        tokenIndex: chosenToken,
-        steps: activeDice,
-        fromPos: resolved.fromPos ?? BASE_INDEX,
-        toPos: resolved.toPos ?? BASE_INDEX,
-        captured: resolved.captured,
-        finishedToken: resolved.finishedToken,
-        cc,
-      });
-      await commitResolvedMove(
-        resolved.state as unknown as GameState,
-        Boolean(resolved.bonusRoll),
-        resolved.splitStepRemaining,
-        botRollMeta,
-        moveEvents,
+      let nextState = resolved.state as unknown as GameState;
+      if (resolved.bonusRoll && !nextState.winner && resolved.splitStepRemaining == null) {
+        nextState = {
+          ...nextState,
+          currentPlayer: color,
+          diceValue: null,
+          isRolling: false,
+          gamePhase: 'rolling',
+        };
+      }
+      const moveEvents = [
+        ...timeoutEvents,
+        ...buildMoveEvents({
+          prevState: workingState,
+          nextState,
+          color,
+          targetColor,
+          tokenIndex: chosenToken,
+          steps: stepVal,
+          fromPos: resolved.fromPos ?? BASE_INDEX,
+          toPos: resolved.toPos ?? BASE_INDEX,
+          captured: resolved.captured,
+          finishedToken: resolved.finishedToken,
+          cc,
+        }),
+      ];
+      await this.applyNewState(
+        nextState,
+        this.seq + 1,
+        opts?.eventTypeOverride || 'move_committed',
+        opts?.eventExtra,
+        { events: moveEvents },
       );
-    } else {
-      const nextPlayer = getNextPlayer(color, this.state.playerCount, this.getActiveColors(), cc);
-      const nextState: GameState = {
-        ...rollState,
+      return;
+    }
+
+    const nextPlayer = getNextPlayer(color, workingState.playerCount, activeColors, cc);
+    await this.applyNewState(
+      {
+        ...workingState,
         diceValue: null,
         currentPlayer: nextPlayer,
-        activeShields: clearShieldsOnTurnChange(rollState.activeShields, color, nextPlayer),
+        activeShields: clearShieldsOnTurnChange(workingState.activeShields, color, nextPlayer),
         isRolling: false,
         gamePhase: 'rolling',
         consecutiveSixes: 0,
@@ -2060,23 +2494,32 @@ export class MatchRoomCore {
         boostSubMoveBonus: false,
         powerSpentThisTurn: false,
         lastUpdate: Date.now(),
-      };
-      await this.applyNewState(
-        nextState,
-        this.seq + 1,
-        opts?.eventTypeOverride || 'turn_passed',
-        botRollMeta,
-      );
-    }
+      },
+      this.seq + 1,
+      opts?.eventTypeOverride || 'turn_passed',
+      opts?.eventExtra,
+      { events: timeoutEvents },
+    );
   }
 
   /**
    * Timer Min-Heap scheduler (Rev 3 — F5).
    */
-  public async scheduleTimer(id: string, kind: ScheduledTimer['kind'], delayMs: number): Promise<void> {
+  public async scheduleTimer(
+    id: string,
+    kind: ScheduledTimer['kind'],
+    delayMs: number,
+    color?: PlayerColor,
+  ): Promise<void> {
     const deadlineAt = Date.now() + delayMs;
     this.timerHeap = this.timerHeap.filter(t => t.id !== id);
-    this.timerHeap.push({ id, kind, deadlineAt });
+    this.timerHeap.push({
+      id,
+      kind,
+      deadlineAt,
+      durationMs: delayMs,
+      ...(color ? { color } : {}),
+    });
     this.timerHeap.sort((a, b) => a.deadlineAt - b.deadlineAt);
 
     await this.ctx.storage.put('timerHeap', this.timerHeap);
@@ -2133,71 +2576,82 @@ export class MatchRoomCore {
     for (const timer of expired) {
       if (this.isFinishedState(this.state)) break;
 
-      if (timer.kind === 'ai_turn' && this.state && !this.isFinishedState(this.state)) {
+      if (timer.kind === 'disconnect_grace' && timer.color && this.state) {
+        const c = timer.color;
+        if (!this.isOriginalAiSeat(c) && !this.hasConnectedSocketForSeat(c)) {
+          const afk = this.getSeatAfk(c);
+          if (afk.mode === 'human' && !isSeatPermanentlyLocked(afk)) {
+            const res = await this.enterTier1AfkState(this.state, c, 'disconnect');
+            await this.applyNewState(
+              res.nextState,
+              this.seq + 1,
+              res.promotedToKick ? 'afk_permanent_kick' : 'afk_disconnect_engaged',
+              { seatColor: c, afkTriggers: res.nextTriggers, isKicked: res.promotedToKick },
+              { preserveTimer: this.state.currentPlayer !== c },
+            );
+          }
+        }
+      } else if (timer.kind === 'afk_expire' && timer.color && this.state) {
+        const c = timer.color;
+        const afk = this.getSeatAfk(c);
+        if (isSeatInTier1Afk(afk)) {
+          const reason: KickReason = afk.presence === 'disconnected' ? 'disconnect_timeout' : 'afk_timeout';
+          const kickedState = await this.permanentlyKickSeatState(this.state, c, reason);
+          await this.applyNewState(
+            kickedState,
+            this.seq + 1,
+            'afk_permanent_kick',
+            { seatColor: c, reason },
+            { preserveTimer: true },
+          );
+        }
+      } else if (timer.kind === 'ai_roll' && this.state) {
         const cur = this.state.currentPlayer as PlayerColor;
         if (this.isBotOrAutoPlaying(cur)) {
-          if (!this.isOriginalAiSeat(cur)) {
-            const curStrikes = this.state.strikes?.[cur] || 0;
-            const curAfk = this.state.afkStats?.[cur];
-            // Escalate strikes 2 and 3 only for AFK-triggered auto-play, never voluntary trust delegation.
-            if (curStrikes > 0 && !curAfk?.isKicked) {
-              const nextStrikes = curStrikes + 1;
-              const shouldKick = nextStrikes >= MAX_AFK_STRIKES;
-              this.state = {
-                ...this.state,
-                strikes: { ...this.state.strikes, [cur]: nextStrikes },
-                afkStats: {
-                  ...this.state.afkStats,
-                  [cur]: {
-                    consecutiveTurns: (curAfk?.consecutiveTurns || 0) + 1,
-                    totalTriggers: (curAfk?.totalTriggers || 0) + 1,
-                    isAutoPlaying: true,
-                    isKicked: shouldKick,
-                  },
-                },
-                lastUpdate: Date.now(),
-              };
-            }
-          }
-          await this.executeServerBotTurn(cur);
+          await this.executeServerBotRoll(cur, this.getSeatBotTier(cur));
         }
-      }
-
-      if ((timer.kind === 'turn' || timer.kind === 'TURN_TIMEOUT') && this.state && !this.isFinishedState(this.state)) {
+      } else if (timer.kind === 'ai_move' && this.state) {
         const cur = this.state.currentPlayer as PlayerColor;
-        const curStrikes = this.state.strikes?.[cur] || 0;
-        const nextStrikes = curStrikes + 1;
-        const currentAfk = this.state.afkStats?.[cur] || {
-          consecutiveTurns: 0,
-          totalTriggers: 0,
-          isAutoPlaying: false,
-          isKicked: false,
+        if (this.isBotOrAutoPlaying(cur)) {
+          await this.executeServerBotMove(cur, this.getSeatBotTier(cur));
+        }
+      } else if (timer.kind === 'ai_turn' && this.state) {
+        const cur = this.state.currentPlayer as PlayerColor;
+        if (this.isBotOrAutoPlaying(cur)) {
+          if (this.state.gamePhase === 'moving' && typeof this.state.diceValue === 'number') {
+            await this.executeServerBotMove(cur, this.getSeatBotTier(cur));
+          } else {
+            await this.executeServerBotRoll(cur, this.getSeatBotTier(cur));
+          }
+        }
+      } else if (
+        (timer.kind === 'cast' || timer.kind === 'move' || timer.kind === 'turn' || timer.kind === 'TURN_TIMEOUT') &&
+        this.state
+      ) {
+        const cur = this.state.currentPlayer as PlayerColor;
+        const res = await this.enterTier1AfkState(this.state, cur, 'turn_timeout');
+        const tier: 'tier1_random' | 'tier2_smart' =
+          this.isOriginalAiSeat(cur) || res.promotedToKick ? 'tier2_smart' : 'tier1_random';
+        const extra = {
+          timedOutColor: cur,
+          afkTriggers: res.nextTriggers,
+          strikeCount: res.nextTriggers,
+          isKicked: res.promotedToKick,
         };
-        const shouldKick = Boolean(currentAfk.isKicked) || nextStrikes >= MAX_AFK_STRIKES;
-        this.state = {
-          ...this.state,
-          strikes: { ...this.state.strikes, [cur]: nextStrikes },
-          afkStats: {
-            ...this.state.afkStats,
-            [cur]: {
-              ...currentAfk,
-              consecutiveTurns: (currentAfk.consecutiveTurns || 0) + 1,
-              totalTriggers: (currentAfk.totalTriggers || 0) + 1,
-              isAutoPlaying: true,
-              isKicked: shouldKick,
-            },
-          },
-          lastUpdate: Date.now(),
-        };
-        await this.executeServerBotTurn(cur, {
-          suppressBonusRoll: true,
-          eventTypeOverride: 'turn_timeout',
-          eventExtra: {
-            timedOutColor: cur,
-            strikeCount: nextStrikes,
-            isKicked: shouldKick,
-          },
-        });
+        if (res.nextState.gamePhase === 'moving' && typeof res.nextState.diceValue === 'number') {
+          await this.executeServerBotMove(cur, tier, {
+            stateOverride: res.nextState,
+            eventTypeOverride: 'turn_timeout',
+            eventExtra: extra,
+          });
+        } else {
+          await this.executeServerBotRoll(cur, tier, {
+            stateOverride: res.nextState,
+            skipPowers: true,
+            eventTypeOverride: 'turn_timeout',
+            eventExtra: extra,
+          });
+        }
       }
 
       for (const ws of this.ctx.getWebSockets()) {

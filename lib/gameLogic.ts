@@ -15,6 +15,7 @@ import {
     TEAM_ID
 } from './constants';
 import { clearShieldsOnTurnChange } from './engine/core';
+import { createInitialAfkStatsMap } from './afkPolicy';
 import type { PowerType } from './types';
 
 /** Zeroed combat counters for every color. */
@@ -76,12 +77,7 @@ export const INITIAL_GAME_STATE: GameState = {
     activeTraps: [],
     activeShields: [],
     consecutiveSixes: 0,
-    afkStats: {
-        green: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
-        red: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
-        yellow: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
-        blue: { isAutoPlaying: false, consecutiveTurns: 0, totalTriggers: 0, isKicked: false },
-    },
+    afkStats: createInitialAfkStatsMap(),
     matchStats: emptyMatchStats(),
     idleWarning: null,
     participantPeers: {},

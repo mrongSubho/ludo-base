@@ -253,6 +253,22 @@ const EXTRA_COPY: Record<string, FriendlyError> = {
         recoverable: false,
         cta: 'Back',
     },
+    SEAT_KICKED: {
+        code: 'SEAT_KICKED',
+        title: 'Seat replaced by bot',
+        copy: 'You exceeded the AFK reclaim limit or forfeited this seat, so control is permanently locked.',
+        severity: 'fatal',
+        recoverable: false,
+        cta: 'Back',
+    },
+    AUTOPILOT_MANUAL_DISABLED: {
+        code: 'AUTOPILOT_MANUAL_DISABLED',
+        title: 'Autopilot unavailable',
+        copy: 'Manual autopilot is disabled; automatic bot takeover engages only when your turn timer expires.',
+        severity: 'info',
+        recoverable: true,
+        cta: 'OK',
+    },
     NOT_IN_MATCH: {
         code: 'NOT_IN_MATCH',
         title: 'Not seated in match',

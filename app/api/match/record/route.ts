@@ -5,6 +5,8 @@ import { verifyPersonalSign } from '@/lib/walletVerify';
 import { serviceDb, requireSession } from '@/lib/serverAuth';
 import { rateKey, rateLimitHeaders } from '@/lib/rateLimit';
 import { checkRateLimitShared } from '@/lib/rateLimitShared';
+import { TEAM_ID } from '@/lib/constants';
+import { isSeatPermanentlyLocked } from '@/lib/afkPolicy';
 
 export async function POST(request: Request) {
     try {
@@ -136,10 +138,11 @@ export async function POST(request: Request) {
         // Results may only settle a canonical match, and every signed field must
         // agree with its stored identity.
         let matchCreatedAtIso: string | null = null;
+        let canonicalMatchShape: string | null = null;
         {
             const { data: existing, error: fetchMatchErr } = await supabase
                 .from('matches')
-                .select('id, winner_address, finished_at, created_at, room_code, game_mode, participants, host_proven, room_owner')
+                .select('id, winner_address, finished_at, created_at, room_code, game_mode, match_shape, participants, host_proven, room_owner')
                 .eq('id', matchId)
                 .maybeSingle();
             if (fetchMatchErr) {
@@ -149,6 +152,7 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Match not found' }, { status: 404 });
             }
             matchCreatedAtIso = (existing as { created_at?: string | null }).created_at ?? null;
+            canonicalMatchShape = (existing as { match_shape?: string | null }).match_shape ?? null;
             const storedParts = (existing.participants || []).map((p: string) => p.toLowerCase()).sort();
             if (existing.room_code !== roomCode || existing.game_mode !== (gameMode || 'classic') ||
                 JSON.stringify(storedParts) !== JSON.stringify([...lowerParts].sort())) {
@@ -180,8 +184,19 @@ export async function POST(request: Request) {
             }
         }
 
-        // P1 & SA-2: Derive the authoritative winner from match_states.state.winner and reject mismatch
+        // P1 & SA-2: Derive the authoritative winner & forfeited seats from match_states.state
+        type AuthoritativeStateSnapshot = {
+            winner?: unknown;
+            status?: unknown;
+            forfeitedWallets?: unknown;
+            afkStats?: Record<string, Record<string, unknown>>;
+            kickedSeats?: Record<string, { wallet?: string; reason?: string; at?: number }>;
+        };
         let authoritativeWinnerAddress: string | null = null;
+        let authoritativeWinnerWallets: string[] = [];
+        let authoritativeStateObj: AuthoritativeStateSnapshot | null = null;
+        let authoritativeSeatsObj: Record<string, { kind?: string; wallet?: string }> | null = null;
+        const forfeitedWalletsSet = new Set<string>();
         {
             const { data: stateRow, error: stateErr } = await supabase
                 .from('match_states')
@@ -192,21 +207,64 @@ export async function POST(request: Request) {
             if (stateErr) {
                 console.warn('[match/record] match_states read warning:', stateErr.message);
             } else if (stateRow && stateRow.state) {
-                const gameState = stateRow.state as { winner?: unknown; status?: unknown };
-                const stateWinner = gameState.winner ? String(gameState.winner) : null;
-                const seats = (stateRow.player_seats || {}) as Record<string, { kind?: string; wallet?: string }>;
+                const stateObj = stateRow.state as unknown as AuthoritativeStateSnapshot;
+                authoritativeStateObj = stateObj;
+                authoritativeSeatsObj = (stateRow.player_seats || {}) as Record<string, { kind?: string; wallet?: string }>;
+                const stateWinner = stateObj?.winner ? String(stateObj.winner) : null;
+                const seats = authoritativeSeatsObj;
 
-                if (stateWinner) {
-                    if (stateWinner.startsWith('0x')) {
-                        authoritativeWinnerAddress = stateWinner.toLowerCase();
-                    } else if (seats[stateWinner]?.wallet) {
-                        authoritativeWinnerAddress = seats[stateWinner].wallet!.toLowerCase();
+                // Collect server-authoritative forfeited/kicked wallets
+                if (Array.isArray(stateObj?.forfeitedWallets)) {
+                    for (const w of stateObj.forfeitedWallets) {
+                        const lw = String(w || '').toLowerCase();
+                        if (/^0x[a-f0-9]{40}$/.test(lw)) forfeitedWalletsSet.add(lw);
+                    }
+                }
+                if (stateObj?.kickedSeats) {
+                    for (const entry of Object.values(stateObj.kickedSeats)) {
+                        const lw = String(entry?.wallet || '').toLowerCase();
+                        if (/^0x[a-f0-9]{40}$/.test(lw)) forfeitedWalletsSet.add(lw);
+                    }
+                }
+                if (stateObj?.afkStats) {
+                    for (const [color, stat] of Object.entries(stateObj.afkStats)) {
+                        if (isSeatPermanentlyLocked(stat as Parameters<typeof isSeatPermanentlyLocked>[0])) {
+                            const lw = String(seats[color]?.wallet || '').toLowerCase();
+                            if (/^0x[a-f0-9]{40}$/.test(lw)) forfeitedWalletsSet.add(lw);
+                        }
                     }
                 }
 
-                // If server-recorded authoritative winner exists, client claimed winnerAddress MUST match
-                if (authoritativeWinnerAddress && winnerAddress) {
-                    if (winnerAddress.toLowerCase() !== authoritativeWinnerAddress) {
+                if (stateWinner) {
+                    if (stateWinner.startsWith('0x')) {
+                        const lw = stateWinner.toLowerCase();
+                        authoritativeWinnerWallets = [lw];
+                    } else if (stateWinner === 'Team 1' || stateWinner === 'Team 2') {
+                        const winTeam = stateWinner === 'Team 1' ? 1 : 2;
+                        authoritativeWinnerWallets = (['green', 'red', 'yellow', 'blue'] as const)
+                            .filter((c) => TEAM_ID[c] === winTeam)
+                            .map((c) => seats[c]?.wallet?.toLowerCase())
+                            .filter((w): w is string => Boolean(w && /^0x[a-f0-9]{40}$/.test(w)));
+                    } else if (seats[stateWinner]?.wallet) {
+                        const primary = seats[stateWinner].wallet!.toLowerCase();
+                        authoritativeWinnerWallets = [primary];
+                        if (canonicalMatchShape === '2v2' && (stateWinner === 'green' || stateWinner === 'red' || stateWinner === 'yellow' || stateWinner === 'blue')) {
+                            const allyTeam = TEAM_ID[stateWinner];
+                            const allyColor = (['green', 'red', 'yellow', 'blue'] as const).find(
+                                (c) => c !== stateWinner && TEAM_ID[c] === allyTeam,
+                            );
+                            const allyWallet = allyColor ? seats[allyColor]?.wallet?.toLowerCase() : undefined;
+                            if (allyWallet && allyWallet !== primary) {
+                                authoritativeWinnerWallets.push(allyWallet);
+                            }
+                        }
+                    }
+                    authoritativeWinnerAddress = authoritativeWinnerWallets[0] ?? null;
+                }
+
+                // If server-recorded authoritative winner exists, client claimed winnerAddress MUST match one of its board winner wallets
+                if (authoritativeWinnerWallets.length > 0 && winnerAddress) {
+                    if (!authoritativeWinnerWallets.includes(winnerAddress.toLowerCase())) {
                         return NextResponse.json(
                             {
                                 error: 'Winner mismatch against server authoritative state',
@@ -240,7 +298,7 @@ export async function POST(request: Request) {
                         { status: 403 },
                     );
                 }
-                if (!winnerAddress || winnerAddress.toLowerCase() !== authoritativeWinnerAddress) {
+                if (!winnerAddress || !authoritativeWinnerWallets.includes(winnerAddress.toLowerCase())) {
                     return NextResponse.json(
                         {
                             error: 'Claimed winner does not match authoritative server state',
@@ -350,11 +408,20 @@ export async function POST(request: Request) {
             last_played_at: row.last_played_at,
         }));
 
+        const effectiveBoardWinnerSet = new Set<string>(
+            authoritativeWinnerWallets.length > 0
+                ? authoritativeWinnerWallets
+                : winnerLower
+                  ? [winnerLower]
+                  : [],
+        );
+
         if (playerByWallet.size > 0) {
             const lastPlayedAt = now.toISOString();
             const patches = [...playerByWallet.values()].map((row) => {
                 const walletLower = String(row.wallet_address).toLowerCase();
-                const isWinner = winnerLower !== null && walletLower === winnerLower;
+                const isForfeited = forfeitedWalletsSet.has(walletLower);
+                const isWinner = !isForfeited && effectiveBoardWinnerSet.has(walletLower);
                 const isNewSeason = (row.season_id || 0) < currentSeasonId;
                 const currentRxp = isNewSeason ? 0 : (row.rxp || 0);
                 // DB-22: total_games is a stored generated column
@@ -363,12 +430,14 @@ export async function POST(request: Request) {
                 const playedCounter = gameMode === 'power'
                     ? { power_played: (row.power_played || 0) + 1 }
                     : { classic_played: (row.classic_played || 0) + 1 };
+                // Kicked/forfeited seats always earn 0 LXP / 0 RXP / loser penalty even if their Tier-2 bot won on the board.
+                const lxpAward = isForfeited ? 0 : (isWinner ? winLxpGain : baseLxpGain);
                 return {
                     // Stored casing, so the conflict target matches exactly.
                     wallet_address: row.wallet_address,
                     ...playedCounter,
                     total_wins: isWinner ? (row.total_wins || 0) + 1 : (row.total_wins || 0),
-                    lxp: Number(row.lxp || 0) + (isWinner ? winLxpGain : baseLxpGain),
+                    lxp: Number(row.lxp || 0) + lxpAward,
                     rxp: isWinner ? currentRxp + winRxpGain : Math.max(0, currentRxp - lossRxpPenalty),
                     season_id: currentSeasonId,
                     last_played_at: lastPlayedAt,
@@ -410,9 +479,17 @@ export async function POST(request: Request) {
                 wanted.set(w, perMission);
             };
 
-            if (winnerLower) addBump(winnerLower, 'daily_win_1', 1);
-            for (const addr of seatWallets) addBump(addr, 'daily_play_3', 1);
-            for (const [addr, count] of Object.entries(captures)) addBump(addr, 'daily_capture_2', count);
+            for (const bw of effectiveBoardWinnerSet) {
+                if (!forfeitedWalletsSet.has(bw)) addBump(bw, 'daily_win_1', 1);
+            }
+            for (const addr of seatWallets) {
+                if (!forfeitedWalletsSet.has(addr)) addBump(addr, 'daily_play_3', 1);
+            }
+            for (const [addr, count] of Object.entries(captures)) {
+                if (!forfeitedWalletsSet.has(String(addr).toLowerCase())) {
+                    addBump(addr, 'daily_capture_2', count);
+                }
+            }
 
             const bumps = [...wanted.entries()].flatMap(([wallet, perMission]) =>
                 [...perMission.entries()].map(([missionId, delta]) => {
@@ -472,15 +549,17 @@ export async function POST(request: Request) {
         // Option 3 Lazy Sync: Queue free match progress in player_free_matches
         // for players to batch-sync on-chain (paying gas) when they choose.
         try {
-            const freeMatchRows = Array.from(new Set(lowerParts)).map((addr) => ({
-                match_id: matchId,
-                player_id: addr,
-                won: addr === winnerLower,
-                is_pvp: isPvpMatch,
-                captures: Number(captures[addr] ?? 0),
-                played_at: new Date().toISOString(),
-                onchain_synced: false,
-            }));
+            const freeMatchRows = Array.from(new Set(lowerParts))
+                .filter((addr) => !forfeitedWalletsSet.has(addr))
+                .map((addr) => ({
+                    match_id: matchId,
+                    player_id: addr,
+                    won: effectiveBoardWinnerSet.has(addr),
+                    is_pvp: isPvpMatch,
+                    captures: Number(captures[addr] ?? 0),
+                    played_at: new Date().toISOString(),
+                    onchain_synced: false,
+                }));
             if (freeMatchRows.length > 0) {
                 const { error: queueErr } = await supabase
                     .from('player_free_matches')
@@ -504,7 +583,7 @@ export async function POST(request: Request) {
                 ? Math.max(1, Math.min(60, Math.round((Date.now() - parsedStartMs) / 60_000)))
                 : 5;
             await recordMatchOnboarding(supabase, {
-                participants: lowerParts,
+                participants: lowerParts.filter((w) => !forfeitedWalletsSet.has(w)),
                 gameMode: gameMode || 'classic',
                 durationMinutes,
                 preUpdatePlayers,
@@ -523,12 +602,15 @@ export async function POST(request: Request) {
                 .in('wallet_address', lowerParts);
 
             if (clanMemberships && clanMemberships.length > 0) {
+                const eligibleMemberships = (clanMemberships as Array<{ clan_id: string; wallet_address: string }>).filter(
+                    (m) => !forfeitedWalletsSet.has(String(m.wallet_address).toLowerCase()),
+                );
                 const { computeMatchCxpAwards } = await import('@/lib/clan/clanScorer');
                 const isPaidMatch = effectiveWager > 0;
                 const { memberAwards, clanAwards } = computeMatchCxpAwards({
-                    memberships: clanMemberships,
+                    memberships: eligibleMemberships,
                     participantCount: lowerParts.length,
-                    winnerLower,
+                    winnerLower: winnerLower && !forfeitedWalletsSet.has(winnerLower) ? winnerLower : null,
                     isPaidMatch,
                 });
 
@@ -618,26 +700,22 @@ export async function POST(request: Request) {
             }
         }
 
-        // ── Arena Match Vault Settlement: distribute net pot to winners' Claim Hub ──
+        // ── Arena Match Vault Settlement: distribute net pot to winners' Claim Hub (forfeited shares route to Treasury) ──
         if (matchId && winnerLower) {
             try {
-                const [{ data: mRow }, { data: msRow }] = await Promise.all([
-                    supabase.from('matches').select('match_shape').eq('id', matchId).maybeSingle(),
-                    supabase.from('match_states').select('state, player_seats').eq('match_id', matchId).maybeSingle(),
-                ]);
+                let winnersToPay: string[] =
+                    authoritativeWinnerWallets.length > 0 ? [...authoritativeWinnerWallets] : [winnerLower];
+                const matchShape = canonicalMatchShape;
+                const stateObj = authoritativeStateObj as { winner?: string } | null;
+                const seatsObj = authoritativeSeatsObj;
 
-                let winnersToPay: string[] = [winnerLower];
-                const matchShape = mRow?.match_shape as string | null | undefined;
-                const stateObj = msRow?.state as { winner?: string } | undefined;
-                const seatsObj = msRow?.player_seats as Record<string, { wallet?: string }> | undefined;
-
-                if (matchShape === '2v2' && stateObj && seatsObj) {
+                if (winnersToPay.length <= 1 && matchShape === '2v2' && stateObj && seatsObj) {
                     const winColor = stateObj.winner;
                     if (winColor && ['green', 'red', 'yellow', 'blue'].includes(winColor)) {
                         const { getTeammateColor } = await import('@/lib/gameLogic');
                         const allyColor = getTeammateColor(winColor as 'green' | 'red' | 'yellow' | 'blue', '2v2');
                         const allyWallet = allyColor ? seatsObj[allyColor]?.wallet?.toLowerCase() : undefined;
-                        if (allyWallet && allyWallet !== winnerLower) {
+                        if (allyWallet && !winnersToPay.includes(allyWallet)) {
                             winnersToPay = [winnerLower, allyWallet];
                         }
                     }
@@ -648,6 +726,7 @@ export async function POST(request: Request) {
                     matchId: String(matchId),
                     matchShape,
                     winnerWallets: winnersToPay,
+                    forfeitedWallets: forfeitedWalletsSet,
                 });
 
                 const { settleSpectatorMatchBets } = await import('@/lib/spectatorBetting');

@@ -87,3 +87,54 @@ test('PW-2 regression guard: local client re-attaches known power types when rec
     assert.equal(playerPowers.red[0].type, undefined, 'opponent power type remains redacted');
 });
 
+test('Stealth AFK masking strips forfeitedWallets, kickedSeats, turnPhaseKind, and masks opponent AFK/kick state', () => {
+    const rawState = {
+        currentPlayer: 'yellow',
+        turnPhaseKind: 'ai_roll',
+        forfeitedWallets: ['0x2222222222222222222222222222222222222222'],
+        kickedSeats: {
+            yellow: { wallet: '0x2222222222222222222222222222222222222222', reason: 'afk_timeout', at: 1700000000 },
+        },
+        afkStats: {
+            green: {
+                mode: 'human',
+                isAutoPlaying: false,
+                consecutiveTurns: 0,
+                totalTriggers: 1,
+                afkTriggers: 1,
+                isKicked: false,
+            },
+            yellow: {
+                mode: 'kicked_smart_bot',
+                isAutoPlaying: false,
+                consecutiveTurns: 0,
+                totalTriggers: 5,
+                afkTriggers: 5,
+                isKicked: true,
+                kickReason: 'afk_limit_5',
+            },
+        },
+    };
+
+    // Viewer 'green' must NOT see yellow's kick/AFK status, forfeitedWallets, kickedSeats, or ai_roll
+    const forGreen = sanitizeGameStateForWire(rawState, 'green');
+    assert.equal('forfeitedWallets' in forGreen, false);
+    assert.equal('kickedSeats' in forGreen, false);
+    assert.equal(forGreen.turnPhaseKind, 'cast');
+    assert.equal(forGreen.afkStats?.yellow?.isKicked, false);
+    assert.equal(forGreen.afkStats?.yellow?.mode, 'human');
+    assert.equal(forGreen.afkStats?.yellow?.afkTriggers, 0);
+    assert.equal(forGreen.afkStats?.green?.afkTriggers, 1);
+
+    // Viewer 'yellow' DOES see their own kick status so the persistent modal renders
+    const forYellow = sanitizeGameStateForWire(rawState, 'yellow');
+    assert.equal('forfeitedWallets' in forYellow, false);
+    assert.equal(forYellow.afkStats?.yellow?.isKicked, true);
+    assert.equal(forYellow.afkStats?.yellow?.kickReason, 'afk_limit_5');
+
+    // Spectator sees neutral human mask for every seat
+    const forSpec = sanitizeGameStateForWire(rawState);
+    assert.equal(forSpec.afkStats?.yellow?.isKicked, false);
+    assert.equal(forSpec.afkStats?.green?.afkTriggers, 0);
+});
+

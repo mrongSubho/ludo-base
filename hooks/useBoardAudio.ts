@@ -9,6 +9,7 @@ import { usePreferences } from '@/hooks/usePreferences';
 import type { ColorCorner } from '@/lib/boardLayout';
 import type { Player } from './useGameEngine';
 import type { GameState, PlayerColor } from '@/lib/types';
+import { isSeatInTier1Afk } from '@/lib/afkPolicy';
 
 export interface UseBoardAudioProps {
     gameState: GameState;
@@ -39,6 +40,7 @@ export function useBoardAudio({
     const themeId = resolveDiceThemeId(preferences?.theme);
     const prevStateRef = useRef<GameState | null>(null);
     const warnedPowerKeysRef = useRef<Set<string>>(new Set());
+    const warnedAfkMarkersRef = useRef<Set<string>>(new Set());
     const delayedPlayTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
     const botColors = useMemo(() => {
@@ -98,7 +100,7 @@ export function useBoardAudio({
         };
     }, []);
 
-    // 3. Held-power <30s expiry warning
+    // 3. Held-power <30s expiry warning + Tier-1 AFK reclaim countdown warning alerts
     useEffect(() => {
         if (spectatorMode || !myColor || gameState.winner) return;
         const iv = setInterval(() => {
@@ -113,7 +115,30 @@ export function useBoardAudio({
                     break;
                 }
             }
+
+            const myAfk = gameState.afkStats?.[myColor];
+            if (isSeatInTier1Afk(myAfk) && typeof myAfk?.afkDeadlineAt === 'number') {
+                const remMs = myAfk.afkDeadlineAt - now;
+                if (remMs > 0) {
+                    const remSecs = Math.ceil(remMs / 1000);
+                    if (remSecs <= 60 && !warnedAfkMarkersRef.current.has(`${myAfk.afkDeadlineAt}:60`)) {
+                        warnedAfkMarkersRef.current.add(`${myAfk.afkDeadlineAt}:60`);
+                        getSoundEngine().play('afk_ultimatum');
+                    } else if (remSecs <= 30 && !warnedAfkMarkersRef.current.has(`${myAfk.afkDeadlineAt}:30`)) {
+                        warnedAfkMarkersRef.current.add(`${myAfk.afkDeadlineAt}:30`);
+                        getSoundEngine().play('afk_ultimatum');
+                    } else if (remSecs <= 10) {
+                        const secKey = `${myAfk.afkDeadlineAt}:s:${remSecs}`;
+                        if (!warnedAfkMarkersRef.current.has(secKey)) {
+                            warnedAfkMarkersRef.current.add(secKey);
+                            getSoundEngine().play('timer_urgent', { urgentLevel: Math.min(5, Math.max(1, 11 - remSecs)) });
+                        }
+                    }
+                }
+            } else {
+                warnedAfkMarkersRef.current.clear();
+            }
         }, 1000);
         return () => clearInterval(iv);
-    }, [gameState.playerPowers, gameState.winner, myColor, spectatorMode]);
+    }, [gameState.playerPowers, gameState.afkStats, gameState.winner, myColor, spectatorMode]);
 }

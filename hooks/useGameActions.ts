@@ -16,6 +16,7 @@ import { computeMoveSettleBufferMs } from '@/lib/tokenMovement';
 import { prefersReducedMotion } from '@/lib/motion';
 import type { RoomIntentResult } from '@/lib/roomCodes';
 import type { MatchAuthorityMode } from '@/lib/netcode/authorityGate';
+import { isSeatInTier1Afk, isSeatPermanentlyLocked } from '@/lib/afkPolicy';
 import { friendlyError } from '@/lib/errorCopy';
 
 /**
@@ -212,7 +213,7 @@ export function useGameActions({
         let pTurnSwitchPending = false;
         let pNextPlayer: PlayerColor | null = null;
         const actingPlayerInfo = initialPlayers.find((p) => p.color === actingSeat);
-        const isActingBot = Boolean(actingPlayerInfo?.isAi || currentState.afkStats?.[actingSeat]?.isKicked);
+        const isActingBot = Boolean(actingPlayerInfo?.isAi || isSeatPermanentlyLocked(currentState.afkStats?.[actingSeat]));
 
         const captureNotice = captured
             ? `Captured! Bonus roll for ${actingSeat}!`
@@ -417,7 +418,10 @@ export function useGameActions({
         void matchId;
         const color = localGameState.currentPlayer;
         const currentPlayerInfo = initialPlayers.find(p => p.color === color);
-        const isCurrentlyBot = currentPlayerInfo?.isAi || localGameState.afkStats?.[color]?.isKicked || localGameState.afkStats?.[color]?.isAutoPlaying;
+        const isCurrentlyBot =
+            Boolean(currentPlayerInfo?.isAi) ||
+            isSeatPermanentlyLocked(localGameState.afkStats?.[color]) ||
+            isSeatInTier1Afk(localGameState.afkStats?.[color]);
         
         // In a networked match, bots and autopiloting seats are rolled by the server room DO.
         if (!isRemote && (isLobbyConnected || matchAuthorityMode === 'room') && isCurrentlyBot) {
@@ -798,8 +802,9 @@ export function useGameActions({
         const isMyTurn = actingPlayerColor === myColor;
         const afkStat = localGameState.afkStats?.[actingPlayerColor];
         const isCurrentlyBot =
-            initialPlayers.find(p => p.color === actingPlayerColor)?.isAi ||
-            Boolean(afkStat?.isAutoPlaying || afkStat?.isKicked);
+            Boolean(initialPlayers.find(p => p.color === actingPlayerColor)?.isAi) ||
+            isSeatInTier1Afk(afkStat) ||
+            isSeatPermanentlyLocked(afkStat);
 
         const teammateColor = getTeammateColor(myColor as PlayerColor, playerCount);
         const allMyTokensFinished = myColor ? localGameState.positions[myColor].every((pos: number) => pos === BOARD_FINISH_INDEX) : false;
@@ -854,9 +859,9 @@ export function useGameActions({
         const myColor = myPlayer?.color;
         if (!myColor || actingColor !== myColor) return;
         const isBot =
-            initialPlayers.find((p) => p.color === actingColor)?.isAi ||
-            localGameState.afkStats?.[actingColor]?.isKicked ||
-            localGameState.afkStats?.[actingColor]?.isAutoPlaying;
+            Boolean(initialPlayers.find((p) => p.color === actingColor)?.isAi) ||
+            isSeatPermanentlyLocked(localGameState.afkStats?.[actingColor]) ||
+            isSeatInTier1Afk(localGameState.afkStats?.[actingColor]);
         if (isBot) return;
 
         const targetColor = resolveControllableColor(localGameState.positions, myColor, playerCount);

@@ -6,7 +6,7 @@ import { usePlayerSigner } from '@/hooks/usePlayerSigner';
 import confetti from 'canvas-confetti';
 import { prefersReducedMotion } from '@/lib/motion';
 import { useTeamUpContext } from '@/hooks/TeamUpContext';
-import { PlayerColor, PowerType, BotDifficulty, GameState, GameIntent } from '@/lib/types';
+import { PlayerColor, PowerType, BotDifficulty, GameState, GameIntent, SeatPresenceState } from '@/lib/types';
 import { Point, PathCell, ColorCorner, assignCornersForShape, shufflePlayers } from '@/lib/boardLayout';
 import { recordMatchResult } from '@/lib/matchRecorder';
 import {
@@ -22,6 +22,12 @@ import {
 } from '@/lib/constants';
 import { activeColorsForTurns } from '@/lib/engine';
 import { clearShieldsOnTurnChange, createInitialPositions } from '@/lib/engine/core';
+import {
+    createInitialAfkStatsMap,
+    isSeatInTier1Afk,
+    isSeatPermanentlyLocked,
+    normalizeSeatAfkStats,
+} from '@/lib/afkPolicy';
 import { resetNetCounters } from '@/lib/netcode/counters';
 import { shouldFlushServerState } from '@/lib/netcode/flushGate';
 import { computeAuthority, resolveMatchAuthorityMode, type MatchAuthorityMode } from '@/lib/netcode/authorityGate';
@@ -116,21 +122,26 @@ export function useGameEngine({
         getRoomServerNow,
     } = useTeamUpContext();
 
-    const [localGameState, setLocalGameState] = useState<GameState>({
-        ...INITIAL_GAME_STATE,
-        positions: createInitialPositions(colorCorner, gameMode),
-        gameMode,
-        botDifficulty,
-        currentPlayer: (initialPlayers[0]?.color as PlayerColor) || 'green',
-        // ENG-11: mint the respawn seed once per match; it commits via the
-        // seed digest and is the sole entropy for replacement-tile spawns.
-        powerTileSeed: (Math.random() * 0x100000000) >>> 0,
-        powerTiles: (gameMode === 'power' ? pathCells
-            .filter(c => c.cls === 'board-cell')
-            .sort(() => Math.random() - 0.5)
-            .slice(0, POWER_TILES_COUNT)
-            .map(c => ({ r: c.row, c: c.col, type: rollPowerType() })) : []),
-        lastUpdate: Date.now()
+    const [localGameState, setLocalGameState] = useState<GameState>(() => {
+        const now = Date.now();
+        return {
+            ...INITIAL_GAME_STATE,
+            afkStats: createInitialAfkStatsMap(),
+            positions: createInitialPositions(colorCorner, gameMode),
+            gameMode,
+            botDifficulty,
+            currentPlayer: (initialPlayers[0]?.color as PlayerColor) || 'green',
+            // ENG-11: mint the respawn seed once per match; it commits via the
+            // seed digest and is the sole entropy for replacement-tile spawns.
+            powerTileSeed: (Math.random() * 0x100000000) >>> 0,
+            powerTiles: (gameMode === 'power' ? pathCells
+                .filter(c => c.cls === 'board-cell')
+                .sort(() => Math.random() - 0.5)
+                .slice(0, POWER_TILES_COUNT)
+                .map(c => ({ r: c.row, c: c.col, type: rollPowerType() })) : []),
+            matchStartedAt: now,
+            lastUpdate: now,
+        };
     });
 
     // 3. Authority Logic & ADR-02 Strict Mode Partitioning ('room' | 'p2p' | 'offline')
@@ -195,7 +206,7 @@ export function useGameEngine({
         if (!player) return;
 
         const myPlayer = initialPlayers.find(p => p.walletAddress?.toLowerCase() === address?.toLowerCase());
-        const isMeKicked = myPlayer ? localGameState.afkStats[myPlayer.color].isKicked : false;
+        const isMeKicked = myPlayer ? isSeatPermanentlyLocked(localGameState.afkStats?.[myPlayer.color]) : false;
         
         if (isMeKicked) return;
 
@@ -317,6 +328,7 @@ export function useGameEngine({
         isNetworked: isLobbyConnected || roomAuthority || matchAuthorityMode !== 'offline',
         hasAuthoritativeSnapshot,
         getServerNow: getRoomServerNow,
+        isOfflineSeatAi: Boolean(initialPlayers.find((p) => p.color === localGameState.currentPlayer)?.isAi),
     });
 
     useAFKManager({
@@ -325,13 +337,13 @@ export function useGameEngine({
         initialPlayers,
         handleRoll,
         moveToken,
+        handleUsePower,
         getNextPlayer,
-        broadcastAction,
         colorCorner,
+        playerCount,
         matchConnectionStatus,
         matchAuthorityMode,
-        // NET-07: the kick IS the abandon signal — classify and record it from
-        // the context's single classifier (grace clock + dual-sign policy).
+        // NET-07: permanent kick IS the abandon signal.
         onAbandon: ({ seat, matchEnded }) => {
             classifyAndRecordAbandon({
                 accusedSeat: seat,
@@ -398,63 +410,69 @@ export function useGameEngine({
     }, [roomAuthority, matchAuthorityMode, networkGameState]);
 
     const cancelAfk = useCallback((color: PlayerColor) => {
+        const seatAfk = localGameState.afkStats?.[color];
+        if (isSeatPermanentlyLocked(seatAfk) || !isSeatInTier1Afk(seatAfk)) {
+            return;
+        }
         if (matchAuthorityMode === 'room') {
             if (roomAuthority) {
                 void sendRoomIntent('CMD_REQUEST_TRUST', { trust: false, color });
             }
             return;
         }
-        setLocalGameState((prev) => ({
-            ...prev,
-            strikes: { ...prev.strikes, [color]: 0 },
-            afkStats: {
-                ...prev.afkStats,
-                [color]: {
-                    ...prev.afkStats[color],
-                    isAutoPlaying: false,
-                    consecutiveTurns: 0
-                }
-            },
-            idleWarning: prev.idleWarning?.player === color ? null : prev.idleWarning
-        }));
-    }, [matchAuthorityMode, roomAuthority, sendRoomIntent]);
-
-    const toggleAutoPlay = useCallback((color: PlayerColor, forceTrust: boolean = false) => {
-        if (matchAuthorityMode === 'room') {
-            if (!roomAuthority) return;
-            const currentAuto = Boolean(localGameState.afkStats?.[color]?.isAutoPlaying);
-            const nextTrust = forceTrust ? true : !currentAuto;
-            void sendRoomIntent('CMD_REQUEST_TRUST', { trust: nextTrust, color });
-            return;
-        }
         setLocalGameState((prev) => {
-            const nextState = {
+            const cur = normalizeSeatAfkStats(prev.afkStats?.[color]);
+            if (isSeatPermanentlyLocked(cur) || !isSeatInTier1Afk(cur)) return prev;
+            const isOwnActiveTurn = prev.currentPlayer === color;
+            const nextTimeLeft = isOwnActiveTurn
+                ? prev.gamePhase === 'moving'
+                    ? 15
+                    : 12
+                : prev.timeLeft;
+            return {
+                ...prev,
+                timeLeft: nextTimeLeft,
+                idleWarning: null,
+                afkStats: {
+                    ...prev.afkStats,
+                    [color]: {
+                        ...cur,
+                        mode: 'human',
+                        isAutoPlaying: false,
+                        consecutiveTurns: 0,
+                        afkSinceAt: null,
+                        afkDeadlineAt: null,
+                        afkWindowMs: null,
+                        presence: 'active',
+                        presenceUpdatedAt: Date.now(),
+                    },
+                },
+                lastUpdate: Date.now(),
+            };
+        });
+    }, [matchAuthorityMode, roomAuthority, sendRoomIntent, localGameState.afkStats]);
+
+    const updateLocalPresence = useCallback((color: PlayerColor, presence: SeatPresenceState) => {
+        setLocalGameState((prev) => {
+            const cur = normalizeSeatAfkStats(prev.afkStats?.[color]);
+            if (cur.presence === presence) return prev;
+            return {
                 ...prev,
                 afkStats: {
                     ...prev.afkStats,
                     [color]: {
-                        ...prev.afkStats[color],
-                        isAutoPlaying: forceTrust || !prev.afkStats[color].isAutoPlaying,
-                        isKicked: forceTrust ? true : prev.afkStats[color].isKicked // Manual rage quit -> bot converts permanently
-                    }
-                }
+                        ...cur,
+                        presence,
+                        presenceUpdatedAt: Date.now(),
+                    },
+                },
             };
-            if (isLobbyConnected && broadcastAction) {
-                broadcastAction('CMD_REQUEST_TRUST', { color, isBotTrusted: nextState.afkStats[color].isAutoPlaying, isKicked: nextState.afkStats[color].isKicked }, nextState);
-            }
-            return nextState;
         });
-    }, [matchAuthorityMode, roomAuthority, sendRoomIntent, localGameState.afkStats, isLobbyConnected, broadcastAction]);
+    }, []);
 
-    // 📬 Listen for Guest Intents (Host only)
+    // 📬 Listen for Guest Intents (Legacy P2P fallback Host only)
     useEffect(() => {
-        // NET-07: `isAuthority`, not raw `isHost` — a compute host that is
-        // serving as the authority during a host outage must consume intents,
-        // or guests' actions are silently dropped for the whole outage.
         if (isAuthority && lastIntent) {
-            // The roll/move decision is hostActionForIntent (lib/hostIntent.ts),
-            // executed under scripts/host-intent.test.ts. No face is ever read
-            // from the payload here — see that module for the invariant.
             const action = hostActionForIntent(lastIntent, localGameState.diceValue);
             console.log('📬 [Host] Processing Intent:', lastIntent.type, action);
 
@@ -463,23 +481,18 @@ export function useGameEngine({
             } else if (action.kind === 'move') {
                 moveToken(action.color, action.tokenIndex, action.diceValue);
             } else if (action.kind === 'power') {
-                // PW-3: the host spends the power against its OWN inventory, so a
-                // guest's request is bounded by what the host knows that seat holds.
                 void handleUsePower(action.color, action.power, action.tokenIndex);
             } else if (action.kind === 'trust') {
-                toggleAutoPlay(action.color, action.isKicked);
+                if (!action.isKicked) {
+                    cancelAfk(action.color);
+                }
             } else if (action.kind === 'ignore') {
-                // NET-04: declined (bad payload / no committed face). Do NOT
-                // dequeue — dropping it silently lost the guest's intent with
-                // no ACK and no retry. The guest's ACK watch resends it, or a
-                // later state change (a committed face) lets the same intent
-                // apply on the next effect run.
                 return;
             }
 
             clearIntent();
         }
-    }, [isAuthority, lastIntent, handleRoll, moveToken, handleUsePower, toggleAutoPlay, clearIntent, localGameState.diceValue]);
+    }, [isAuthority, lastIntent, handleRoll, moveToken, handleUsePower, cancelAfk, clearIntent, localGameState.diceValue]);
 
     const resetGame = useCallback(() => {
         latchedAuthorityRef.current = null;
@@ -507,6 +520,7 @@ export function useGameEngine({
         resetNetCounters();
         setLocalGameState({
             ...INITIAL_GAME_STATE,
+            afkStats: createInitialAfkStatsMap(),
             botDifficulty,
             currentPlayer: newPlayers[0].color,
             // ENG-11: fresh seed per match (see above).
@@ -517,6 +531,7 @@ export function useGameEngine({
                 .slice(0, POWER_TILES_COUNT)
                 .map(c => ({ r: c.row, c: c.col, type: rollPowerType() })) : []) as { r: number, c: number, type: import('@/lib/types').PowerType }[],
             isStarted: true,
+            matchStartedAt: Date.now(),
             lastUpdate: Date.now()
         });
     }, [playerCount, gameMode, pathCells, isBotMatch, botDifficulty, setBoardConfig, initialPlayers]);
@@ -594,7 +609,10 @@ export function useGameEngine({
         handleTokenClick,
         handleUsePower,
         cancelAfk,
-        toggleAutoPlay,
+        updateLocalPresence,
+        sendRoomIntent,
+        roomAuthority,
+        getRoomServerNow,
         resetGame,
         getNextPlayer,
         isAuthority,

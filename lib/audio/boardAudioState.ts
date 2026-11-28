@@ -479,18 +479,20 @@ export function diffGameStateForAudio(
         events.push({ id: 'timer_urgent', opts: { urgentLevel: next.timeLeft } });
     }
 
-    // 6. AFK Strikes, Ultimatum & Kick
-    let strikeAdded = false;
-    let newlyKicked = false;
-    for (const c of seats) {
-        if ((next.strikes?.[c] ?? 0) > (prev.strikes?.[c] ?? 0)) strikeAdded = true;
-        if (next.afkStats?.[c]?.isKicked && !prev.afkStats?.[c]?.isKicked) newlyKicked = true;
-    }
-    if (newlyKicked) events.push({ id: 'afk_kicked' });
-    else if (strikeAdded) events.push({ id: 'afk_strike' });
+    // 6. Dual-Tier AFK transitions (viewer seat ONLY — opponents are stealth-masked)
+    if (!ctx.spectatorMode && myColor) {
+        const prevAfk = prev.afkStats?.[myColor];
+        const nextAfk = next.afkStats?.[myColor];
+        const wasLocked = Boolean(prevAfk?.isKicked || prevAfk?.mode === 'kicked_smart_bot' || prevAfk?.mode === 'left_forfeited');
+        const isLocked = Boolean(nextAfk?.isKicked || nextAfk?.mode === 'kicked_smart_bot' || nextAfk?.mode === 'left_forfeited');
+        const wasTier1 = Boolean(!wasLocked && (prevAfk?.isAutoPlaying || prevAfk?.mode === 'afk_random_bot'));
+        const isTier1 = Boolean(!isLocked && (nextAfk?.isAutoPlaying || nextAfk?.mode === 'afk_random_bot'));
 
-    if (next.idleWarning && !prev.idleWarning) {
-        events.push({ id: 'afk_ultimatum' });
+        if (isLocked && !wasLocked) {
+            events.push({ id: 'afk_kicked' });
+        } else if (isTier1 && !wasTier1) {
+            events.push({ id: 'afk_strike' });
+        }
     }
 
     // 7. Match Winner

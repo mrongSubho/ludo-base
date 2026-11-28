@@ -1,4 +1,4 @@
-import type { ColorCorner, GameState, PlayerColor, PowerItem, PowerType } from './types';
+import type { ColorCorner, GameState, KickReason, PlayerColor, PowerItem, PowerType } from './types';
 import { BASE_INDEX, BOARD_FINISH_INDEX, HOME_LANE_START_INDEX } from './constants';
 import { getBoardCoordinate, SAFE_POSITIONS } from './boardLayout';
 import { seatedColorsFor, stripPowerTypesForWire } from './engine/core';
@@ -59,9 +59,11 @@ export type MatchEvent =
           color: PlayerColor;
           strikeCount: number;
           kicked: boolean;
+          afkTriggers?: number;
+          kickReason?: KickReason;
       };
 
-export type StatePatch = Omit<Partial<GameState>, 'positions' | 'playerPowers' | 'powerTileSeed'> & {
+export type StatePatch = Omit<Partial<GameState>, 'positions' | 'playerPowers' | 'powerTileSeed' | 'forfeitedWallets' | 'kickedSeats'> & {
     positions?: Partial<Record<PlayerColor, number[]>>;
     playerPowers?: Partial<Record<PlayerColor, PowerItem[]>>;
     _unset?: string[];
@@ -257,7 +259,7 @@ export function computeStatePatch(prev: GameState, next: GameState): StatePatch 
 
     const keys = new Set([...Object.keys(prev), ...Object.keys(next)]);
     for (const key of keys) {
-        if (key === 'powerTileSeed') continue;
+        if (key === 'powerTileSeed' || key === 'forfeitedWallets' || key === 'kickedSeats') continue;
 
         if (key === 'positions') {
             const posPatch: Partial<Record<PlayerColor, number[]>> = {};
@@ -308,38 +310,55 @@ export function computeStatePatch(prev: GameState, next: GameState): StatePatch 
 }
 
 /**
- * PW-1 / PW-2 wire sanitization for hybrid delta frames:
- * - Never exposes `powerTileSeed` or `powerTiles[].type`
- * - Masks opponent/spectator `playerPowers[].type`
- * - Strips `powerType` from `POWER_PICKUP` events for non-pickers & spectators
+ * PW-1 / PW-2 & Stealth AFK wire sanitization for hybrid delta frames:
+ * - Never exposes `powerTileSeed`, `forfeitedWallets`, `kickedSeats`, or `powerTiles[].type`
+ * - Masks opponent/spectator `playerPowers[].type` and `afkStats`
+ * - Masks `turnPhaseKind` (`ai_roll`/`ai_move`) for non-acting viewers
+ * - Strips `powerType` from `POWER_PICKUP`, opponent `TURN_TIMEOUT`, and `ROLL.source`
  */
 export function sanitizeDeltaForWire(
     patch: StatePatch,
     events: readonly MatchEvent[],
     viewerColor?: string,
+    actingColorHint?: string,
 ): { patch: StatePatch; events: MatchEvent[] } {
     const cleanPatch = stripPowerTypesForWire(
-        patch as StatePatch & {
-            powerTiles?: { r: number; c: number; type?: unknown }[];
-            playerPowers?: Partial<Record<string, { type?: unknown; expiresAt?: number }[]>>;
-            powerTileSeed?: unknown;
-        },
+        patch as unknown as Parameters<typeof stripPowerTypesForWire>[0],
         viewerColor,
-    ) as StatePatch;
+        actingColorHint,
+    ) as unknown as StatePatch;
 
-    const cleanEvents: MatchEvent[] = events.map((ev) => {
+    const cleanEvents: MatchEvent[] = [];
+    for (const ev of events) {
         if (ev.type === 'POWER_PICKUP') {
             if (viewerColor && ev.color === viewerColor) {
-                return { ...ev };
+                cleanEvents.push({ ...ev });
+            } else {
+                cleanEvents.push({
+                    type: 'POWER_PICKUP',
+                    color: ev.color,
+                    pos: ev.pos,
+                });
             }
-            return {
-                type: 'POWER_PICKUP',
-                color: ev.color,
-                pos: ev.pos,
-            };
+            continue;
         }
-        return { ...ev };
-    });
+        if (ev.type === 'TURN_TIMEOUT') {
+            // Stealth: opponents & spectators never learn another seat timed out.
+            if (viewerColor && ev.color === viewerColor) {
+                cleanEvents.push({ ...ev });
+            }
+            continue;
+        }
+        if (ev.type === 'ROLL') {
+            if (!viewerColor || ev.color !== viewerColor) {
+                const { source: _omitted, ...rest } = ev;
+                void _omitted;
+                cleanEvents.push(rest as MatchEvent);
+                continue;
+            }
+        }
+        cleanEvents.push({ ...ev });
+    }
 
     return { patch: cleanPatch, events: cleanEvents };
 }
