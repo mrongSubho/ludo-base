@@ -65,7 +65,10 @@ export function useGameTimer({
             return;
         }
 
-        const turnKey = `${localGameState.currentPlayer}|${localGameState.gamePhase}|${localGameState.diceValue ?? ''}|${localGameState.turnPhaseKind ?? ''}`;
+        const activeSeatAfkMode = normalizeSeatAfkStats(
+            localGameState.afkStats?.[localGameState.currentPlayer],
+        ).mode;
+        const turnKey = `${localGameState.currentPlayer}|${localGameState.gamePhase}|${localGameState.diceValue ?? ''}|${localGameState.turnPhaseKind ?? ''}|${activeSeatAfkMode}`;
         const authoritativeAt = hasValidServerDeadline
             ? (localGameState.deadlineAt as number)
             : nowFn() + (localGameState.turnDurationMs ?? DEFAULT_TURN_TIMER_SECS * 1000);
@@ -82,7 +85,7 @@ export function useGameTimer({
         const tickClock = () => {
             const nowMs = nowFn();
             setLocalGameState((prev) => {
-                const isInteractive = !prev.isRolling && !prev.winner && !prev.abortReason;
+                const isInteractive = !prev.isRolling && prev.gamePhase !== 'landing' && !prev.winner && !prev.abortReason;
                 if (!isInteractive) return prev;
                 const at = deadlineRef.current?.at;
                 if (at === undefined) return prev;
@@ -164,5 +167,5 @@ export function useGameTimer({
             clearInterval(interval);
             document.removeEventListener('visibilitychange', resync);
         };
-    }, [localGameState.winner, localGameState.abortReason, localGameState.currentPlayer, localGameState.gamePhase, localGameState.diceValue, localGameState.turnPhaseKind, localGameState.turnDurationMs, localGameState.deadlineAt, setLocalGameState, matchConnectionStatus, isNetworked, hasAuthoritativeSnapshot, isOfflineSeatAi]);
+    }, [localGameState.winner, localGameState.abortReason, localGameState.currentPlayer, localGameState.gamePhase, localGameState.diceValue, localGameState.turnPhaseKind, localGameState.turnDurationMs, localGameState.deadlineAt, localGameState.afkStats, setLocalGameState, matchConnectionStatus, isNetworked, hasAuthoritativeSnapshot, isOfflineSeatAi]);
 }

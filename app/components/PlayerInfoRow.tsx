@@ -205,6 +205,7 @@ interface PlayerRowProps {
     bustState?: { color: PlayerColor; key: number } | null;
     turnRolls?: TurnRollEntry[];
     onQuickThrow?: (toColor: PlayerColor, projectileId: ProjectileId) => void;
+    centerSlot?: React.ReactNode;
 }
 
 export function PlayerRow({
@@ -219,6 +220,7 @@ export function PlayerRow({
     bustState = null,
     turnRolls = [],
     onQuickThrow,
+    centerSlot,
 }: PlayerRowProps) {
     const isTop = (corners as any).includes('TL');
     const items = (corners as any as Corner[]).map((corner) => {
@@ -298,6 +300,7 @@ export function PlayerRow({
     return (
         <div className={`player-row player-row-${isTop ? 'top' : 'bottom'}`}>
             {items[0]}
+            {centerSlot}
             {items[1]}
         </div>
     );

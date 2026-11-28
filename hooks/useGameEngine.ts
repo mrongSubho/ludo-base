@@ -425,8 +425,11 @@ export function useGameEngine({
         }));
     }, [roomAuthority, matchAuthorityMode, networkGameState]);
 
+    const localStateRef = useRef<GameState>(localGameState);
+    localStateRef.current = localGameState;
+
     const cancelAfk = useCallback((color: PlayerColor) => {
-        const seatAfk = localGameState.afkStats?.[color];
+        const seatAfk = localStateRef.current.afkStats?.[color];
         if (isSeatPermanentlyLocked(seatAfk) || !isSeatInTier1Afk(seatAfk)) {
             return;
         }
@@ -439,15 +442,20 @@ export function useGameEngine({
         setLocalGameState((prev) => {
             const cur = normalizeSeatAfkStats(prev.afkStats?.[color]);
             if (isSeatPermanentlyLocked(cur) || !isSeatInTier1Afk(cur)) return prev;
+            const now = Date.now();
             const isOwnActiveTurn = prev.currentPlayer === color;
             const nextTimeLeft = isOwnActiveTurn
                 ? prev.gamePhase === 'moving'
                     ? 15
                     : 12
                 : prev.timeLeft;
+            const nextDurationMs = isOwnActiveTurn ? nextTimeLeft * 1000 : prev.turnDurationMs;
+            const nextDeadlineAt = isOwnActiveTurn ? now + nextTimeLeft * 1000 : prev.deadlineAt;
             return {
                 ...prev,
                 timeLeft: nextTimeLeft,
+                turnDurationMs: nextDurationMs,
+                deadlineAt: nextDeadlineAt,
                 idleWarning: null,
                 afkStats: {
                     ...prev.afkStats,
@@ -460,13 +468,13 @@ export function useGameEngine({
                         afkDeadlineAt: null,
                         afkWindowMs: null,
                         presence: 'active',
-                        presenceUpdatedAt: Date.now(),
+                        presenceUpdatedAt: now,
                     },
                 },
-                lastUpdate: Date.now(),
+                lastUpdate: now,
             };
         });
-    }, [matchAuthorityMode, roomAuthority, sendRoomIntent, localGameState.afkStats]);
+    }, [matchAuthorityMode, roomAuthority, sendRoomIntent]);
 
     const updateLocalPresence = useCallback((color: PlayerColor, presence: SeatPresenceState) => {
         setLocalGameState((prev) => {

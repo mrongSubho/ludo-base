@@ -213,4 +213,31 @@ describe('Gameplay Stall, Dice Face Desync & Home-Base Roll-6 Regression Gate', 
         assert.equal(sanitized.playerPowers?.green?.[0]?.type, 'boost', 'own power preserved for array seats');
         assert.equal(sanitized.playerPowers?.red?.[0]?.type, undefined, 'opponent power still redacted');
     });
+
+    it('reclaims Tier-1 AFK cleanly with a fresh turn deadline and renders compact AFK UI in bottom player-row centerSlot', () => {
+        const timerSrc = read('hooks/useGameTimer.ts');
+        assert.match(
+            timerSrc,
+            /activeSeatAfkMode/,
+            'useGameTimer turnKey must include active seat AFK mode so reclaiming resets deadlineRef immediately',
+        );
+        assert.match(timerSrc, /prev\.gamePhase !== 'landing'/);
+
+        const engineSrc = read('hooks/useGameEngine.ts');
+        assert.match(engineSrc, /localStateRef\.current\.afkStats\?\.\[color\]/);
+        assert.match(engineSrc, /deadlineAt: nextDeadlineAt/);
+
+        const overlaysSrc = read('app/components/BoardOverlays.tsx');
+        assert.doesNotMatch(overlaysSrc, /Auto-Bot Active/);
+        assert.doesNotMatch(overlaysSrc, /Reclaim within \{formatCountdownMs/);
+        assert.match(overlaysSrc, /AFK \{triggers\}\/\{AFK_MAX_TRIGGERS\}/);
+        assert.match(overlaysSrc, />\s*Resume\s*</);
+
+        const rowSrc = read('app/components/PlayerInfoRow.tsx');
+        assert.match(rowSrc, /centerSlot\?: React\.ReactNode/);
+        assert.match(rowSrc, /\{items\[0\]\}\s*\n\s*\{centerSlot\}\s*\n\s*\{items\[1\]\}/);
+
+        const boardSrc = read('app/components/Board.tsx');
+        assert.match(boardSrc, /corners=\{\['BL', 'BR'\]\}[\s\S]*?centerSlot=\{/);
+    });
 });

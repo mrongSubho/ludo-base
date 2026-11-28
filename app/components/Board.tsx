@@ -1130,19 +1130,6 @@ export default function Board({
               </div>
           </motion.div>
 
-            <AnimatePresence>
-                {isMeTier1Afk && myAfk && myPlayer?.color && (
-                    <div className="px-2 pb-1.5">
-                        <AfkReclaimBar
-                            afkStats={myAfk}
-                            getNow={getRoomServerNow}
-                            onReclaim={() => cancelAfk(myPlayer.color)}
-                            reducedMotion={reduced}
-                        />
-                    </div>
-                )}
-            </AnimatePresence>
-
             {isMeKicked && (
                 <KickedAlertModal
                     kickReason={myAfk?.kickReason}
@@ -1199,6 +1186,18 @@ export default function Board({
                 bustState={bustState}
                 turnRolls={displayedTurnRolls}
                 onQuickThrow={(toColor, projectileId) => handleThrowProjectile(projectileId, toColor)}
+                centerSlot={
+                    <AnimatePresence>
+                        {isMeTier1Afk && myAfk && myPlayer?.color && (
+                            <AfkReclaimBar
+                                afkStats={myAfk}
+                                getNow={getRoomServerNow}
+                                onReclaim={() => cancelAfk(myPlayer.color)}
+                                reducedMotion={reduced}
+                            />
+                        )}
+                    </AnimatePresence>
+                }
             />
 
             {/* Match footer: social controls, shared by classic and power (hidden while spectating). */}

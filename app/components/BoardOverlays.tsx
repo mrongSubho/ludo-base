@@ -90,10 +90,10 @@ export function AfkReclaimBar({
 
     return (
         <motion.div
-            initial={reducedMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
-            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            initial={reducedMotion ? false : { opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.92 }}
+            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
                 e.stopPropagation();
@@ -101,6 +101,8 @@ export function AfkReclaimBar({
             }}
             role="button"
             tabIndex={0}
+            aria-label={`AFK ${triggers}/${AFK_MAX_TRIGGERS} — Resume (${formatCountdownMs(remainingMs)} left)`}
+            title={`Reclaim within ${formatCountdownMs(remainingMs)}`}
             onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
@@ -109,44 +111,32 @@ export function AfkReclaimBar({
                 }
             }}
             data-testid="afk-reclaim-bar"
-            className={`relative z-40 mx-auto w-full max-w-[440px] rounded-xl border px-3 py-2 shadow-lg backdrop-blur-md cursor-pointer select-none overflow-hidden transition-colors ${
+            className={`relative z-40 shrink-0 rounded-lg border px-2 py-1 shadow-md backdrop-blur-md cursor-pointer select-none overflow-hidden transition-colors ${
                 urgent
                     ? 'bg-red-950/90 border-red-400/70 text-red-50'
                     : 'bg-amber-950/90 border-amber-400/70 text-amber-50'
             }`}
         >
-            <div className="flex items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2 min-w-0">
-                    <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-mono text-ludo-xs font-black uppercase tracking-wider shrink-0 ${
-                            urgent
-                                ? 'bg-red-500/25 text-red-200 border border-red-400/40'
-                                : 'bg-amber-500/25 text-amber-200 border border-amber-400/40'
-                        }`}
-                    >
-                        <WarningHexIcon className="w-3.5 h-3.5" />
-                        AFK {triggers}/{AFK_MAX_TRIGGERS}
-                    </span>
-                    <div className="flex flex-col min-w-0 leading-tight">
-                        <span className="font-mono text-ludo-xs font-extrabold uppercase tracking-wider truncate">
-                            Auto-Bot Active · Tap Anywhere to Resume
-                        </span>
-                        <span className="font-mono text-ludo-xs opacity-80 truncate">
-                            Reclaim within {formatCountdownMs(remainingMs)} before kick
-                        </span>
-                    </div>
-                </div>
+            <div className="flex items-center justify-center gap-1.5">
                 <span
-                    className={`px-2.5 py-1 rounded-lg font-mono text-ludo-xs font-black uppercase tracking-wider shrink-0 ${
+                    className={`inline-flex items-center gap-1 font-mono text-ludo-xs font-black uppercase tracking-wider whitespace-nowrap ${
+                        urgent ? 'text-red-200' : 'text-amber-200'
+                    }`}
+                >
+                    <WarningHexIcon className="w-3 h-3 shrink-0" />
+                    AFK {triggers}/{AFK_MAX_TRIGGERS}
+                </span>
+                <span
+                    className={`px-2 py-0.5 rounded font-mono text-ludo-xs font-black uppercase tracking-wider whitespace-nowrap ${
                         urgent
                             ? 'bg-red-500 text-white'
                             : 'bg-amber-400 text-black'
                     }`}
                 >
-                    Resume · {formatCountdownMs(remainingMs)}
+                    Resume
                 </span>
             </div>
-            <div className="mt-1.5 h-1 w-full rounded-full bg-black/40 overflow-hidden">
+            <div className="mt-1 h-1 w-full rounded-full bg-black/40 overflow-hidden">
                 <div
                     className={`h-full origin-left ${urgent ? 'bg-red-400' : 'bg-amber-400'}`}
                     style={{ transform: `scaleX(${progress})` }}
